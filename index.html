@@ -45,23 +45,25 @@
 <nav>
   <a class="nav-logo" onclick="irA('home')">Aurum Velare</a>
 
-  <div class="nav-links" id="nav-principal">
-    <a class="nav-link active" onclick="irA('home')">Inicio</a>
-    <a class="nav-link" onclick="irA('packs')">El proceso</a>
-    <a class="nav-link" onclick="irA('salas')">Las salas</a>
-    <a class="nav-link" onclick="irA('evalua')" style="color:var(--gold-dim);">✦ Evalúame</a>
-    <a class="nav-link" onclick="irA('preguntas')">Tablillas</a>
-    <a class="nav-link" onclick="irA('dashboard')">Mi proceso</a>
-    <a class="nav-link" onclick="irA('gestion')">Mi gestión</a>
+  <div class="nav-middle-row">
     <div class="nav-btn-entrar" id="nav-login-btn" onclick="abrirLogin()">Entrar</div>
-    <div class="nav-user" id="nav-user-widget" style="display:none;">
-      <span id="nav-animal" style="font-size:15px;">🦅</span>
-      <div>
-        <div class="nav-user-name" id="nav-uname"></div>
-        <div class="nav-user-pack" id="nav-upack"></div>
-      </div>
-      <div class="nav-logout" onclick="hacerLogout()">Salir</div>
+    <div class="nav-links" id="nav-principal">
+      <a class="nav-link active" onclick="irA('home')">Inicio</a>
+      <a class="nav-link" onclick="irA('packs')">El proceso</a>
+      <a class="nav-link" onclick="irA('salas')">Las salas</a>
+      <a class="nav-link" onclick="irA('evalua')" style="color:var(--gold);">✦ Evalúame</a>
+      <a class="nav-link" onclick="irA('preguntas')">Tablillas</a>
+      <a class="nav-link" onclick="irA('dashboard')">Mi proceso</a>
+      <a class="nav-link" onclick="irA('gestion')">Mi gestión</a>
     </div>
+  </div>
+
+  <div class="nav-user" id="nav-user-widget" style="display:none;">
+    <span id="nav-animal" style="font-size:12px;">🦅</span>
+    <span class="nav-user-welcome">Bienvenido,</span>
+    <span class="nav-user-name" id="nav-uname"></span>
+    <span class="nav-user-pack" id="nav-upack"></span>
+    <div class="nav-logout" onclick="hacerLogout()">Salir</div>
   </div>
 </nav>
 
