@@ -470,7 +470,7 @@ footer {
   font-size: 11px;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--text-muted);
+  color: #AAB0C4 !important;
   cursor: pointer;
   border-bottom: 2px solid transparent;
   transition: all 0.3s;
@@ -478,11 +478,10 @@ footer {
   border-top: none;
   border-left: none;
   border-right: none;
-  border-bottom: 2px solid transparent;
 }
 
-.tab:hover { color: var(--gold); }
-.tab.active { color: var(--gold-bright); border-bottom-color: var(--gold); }
+.tab:hover { color: #E8C870 !important; }
+.tab.active { color: #E8C870 !important; border-bottom-color: #C9A84C; }
 
 .tab-panel { display: none; }
 .tab-panel.active { display: block; }
