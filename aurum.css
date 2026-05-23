@@ -462,7 +462,7 @@ footer {
   border-bottom: 1px solid var(--border);
   background: var(--bg2);
   position: sticky;
-  top: 70px;
+  top: 115px;
   z-index: 10;
 }
 
