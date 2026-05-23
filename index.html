@@ -1432,12 +1432,39 @@
         </div>
       </div>
 
-      <!-- Añadir nota -->
-      <div style="border:1px solid var(--border);background:var(--bg2);padding:1.2rem 1.5rem;">
-        <div style="font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#6A9AEE;margin-bottom:.8rem;">+ Añadir nota personal</div>
-        <div style="display:flex;gap:.5rem;">
-          <input type="text" placeholder="Escribe tu avance o momento importante..." style="flex:1;background:#060810;border:1px solid var(--border);padding:.6rem 1rem;font-size:14px;color:var(--text);font-family:'Outfit',sans-serif;outline:none;transition:border-color .3s;" onfocus="this.style.borderColor='#4A7AAA'" onblur="this.style.borderColor='var(--border)'">
-          <div class="btn-outline" style="padding:.6rem 1.2rem;font-size:13px;white-space:nowrap;">Guardar</div>
+      <!-- Agendar disponibilidad -->
+      <div style="border:1px solid var(--border);background:var(--bg2);padding:1.2rem 1.5rem;margin-top:1px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+          <div style="font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);">Mis sesiones agendadas</div>
+          <div onclick="abrirAgenda()" style="font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--gold);border:1px solid var(--border-gold);padding:.3rem .8rem;cursor:pointer;">+ Agendar disponibilidad</div>
+        </div>
+        <div id="agenda-lista">
+          <div style="font-size:13px;color:var(--text-muted);font-style:italic;padding:.5rem 0;">Sin sesiones agendadas. Añade tu disponibilidad para que Aurum sepa cuándo puedes conectarte.</div>
+        </div>
+      </div>
+
+      <!-- Modal agendar -->
+      <div id="modal-agenda" style="display:none;position:fixed;inset:0;background:#080A12EE;z-index:500;align-items:center;justify-content:center;padding:2rem;">
+        <div style="background:var(--bg2);border:1px solid var(--border-gold);max-width:420px;width:100%;padding:2.5rem 2rem;position:relative;">
+          <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>
+          <div onclick="cerrarAgenda()" style="position:absolute;top:1rem;right:1rem;cursor:pointer;color:var(--text-muted);font-size:18px;opacity:.5;">✕</div>
+          <div style="font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--gold-bright);text-align:center;letter-spacing:.2em;margin-bottom:1.5rem;">Agendar disponibilidad</div>
+          <div style="margin-bottom:1rem;">
+            <div style="font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.5rem;">Día</div>
+            <input type="date" id="agenda-fecha" style="width:100%;background:#060810;border:1px solid var(--border);padding:.6rem 1rem;font-size:14px;color:var(--text);font-family:'Outfit',sans-serif;outline:none;color-scheme:dark;">
+          </div>
+          <div style="margin-bottom:1.5rem;">
+            <div style="font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.8rem;">Sesión</div>
+            <div style="display:flex;flex-direction:column;gap:.5rem;" id="agenda-sesiones">
+              <div onclick="seleccionarSesion(this,'Londres · 08:00 — 12:00')" style="padding:.8rem 1rem;border:1px solid var(--border);background:#060810;cursor:pointer;font-size:13px;color:var(--text-dim);display:flex;justify-content:space-between;">🇬🇧 Londres <span style="color:var(--text-muted);font-size:11px;">08:00 — 12:00</span></div>
+              <div onclick="seleccionarSesion(this,'Nueva York · 13:00 — 17:00')" style="padding:.8rem 1rem;border:1px solid var(--border);background:#060810;cursor:pointer;font-size:13px;color:var(--text-dim);display:flex;justify-content:space-between;">🇺🇸 Nueva York <span style="color:var(--text-muted);font-size:11px;">13:00 — 17:00</span></div>
+              <div onclick="seleccionarSesion(this,'NY Cierre · 17:00 — 21:00')" style="padding:.8rem 1rem;border:1px solid var(--border);background:#060810;cursor:pointer;font-size:13px;color:var(--text-dim);display:flex;justify-content:space-between;">🔔 NY Cierre <span style="color:var(--text-muted);font-size:11px;">17:00 — 21:00</span></div>
+              <div onclick="seleccionarSesion(this,'Asia · 00:00 — 04:00')" style="padding:.8rem 1rem;border:1px solid var(--border);background:#060810;cursor:pointer;font-size:13px;color:var(--text-dim);display:flex;justify-content:space-between;">🌏 Asia <span style="color:var(--text-muted);font-size:11px;">00:00 — 04:00</span></div>
+            </div>
+            <input type="hidden" id="agenda-hora">
+          </div>
+          <div onclick="guardarAgenda()" style="width:100%;background:transparent;border:1px solid var(--border-gold);padding:.8rem;font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);text-align:center;cursor:pointer;">✦ Confirmar disponibilidad</div>
+          <div id="agenda-msg" style="font-size:12px;color:var(--green);text-align:center;margin-top:.8rem;min-height:18px;"></div>
         </div>
       </div>
 
@@ -1694,16 +1721,16 @@
 
 
   <!-- CONTENIDO -->
-  <div>
+  <div style="overflow-y:auto;">
 
     <!-- TABS HORIZONTALES -->
-    <div style="display:flex;border-bottom:1px solid var(--border);background:#0C0E1A;position:sticky;top:115px;z-index:90;">
-      <button class="tab active" id="gtab-trade-record" onclick="gestTab('trade-record')" style="color:#AAB0C4;">Trade Record</button>
-      <button class="tab" id="gtab-ciclo111" onclick="gestTab('ciclo111')" style="color:#AAB0C4;">Ciclo 111</button>
-      <button class="tab" id="gtab-horarios" onclick="gestTab('horarios')" style="color:#AAB0C4;">Horarios</button>
-      <button class="tab" id="gtab-equity" onclick="gestTab('equity')" style="color:#AAB0C4;">Equity</button>
-      <button class="tab" id="gtab-cumplimiento" onclick="gestTab('cumplimiento')" style="color:#AAB0C4;">Cumplimiento</button>
-      <button class="tab" id="gtab-diario" onclick="gestTab('diario')" style="color:#AAB0C4;">Diario</button>
+    <div style="display:flex;border-bottom:1px solid var(--border);background:var(--bg2);position:sticky;top:115px;z-index:90;margin-top:.5rem;">
+      <button class="tab active" id="gtab-trade-record" onclick="gestTab('trade-record')">Trade Record</button>
+      <button class="tab" id="gtab-ciclo111" onclick="gestTab('ciclo111')">Ciclo 111</button>
+      <button class="tab" id="gtab-horarios" onclick="gestTab('horarios')">Horarios</button>
+      <button class="tab" id="gtab-equity" onclick="gestTab('equity')">Equity</button>
+      <button class="tab" id="gtab-cumplimiento" onclick="gestTab('cumplimiento')">Cumplimiento</button>
+      <button class="tab" id="gtab-diario" onclick="gestTab('diario')">Diario</button>
       <button class="tab" id="gtab-historial" onclick="gestTab('historial')" style="border-left:1px solid var(--border-gold);color:var(--gold-dim);">Historial externo</button>
     </div>
 
@@ -1714,48 +1741,48 @@
      ============================================================ -->
 
 <!-- SELECTOR DE CUENTAS -->
-<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);cursor:pointer;margin-top:2.5rem;">
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);cursor:pointer;margin-top:1rem;">
 
   <!-- Global -->
   <div id="btn-global" onclick="verCuenta('global')"
-    style="background:linear-gradient(135deg,var(--bg2),#0E1020);padding:2rem 1.5rem 1.5rem;position:relative;border-bottom:2px solid var(--gold);">
+    style="background:linear-gradient(135deg,var(--bg2),#0E1020);padding:1.5rem;position:relative;border-bottom:2px solid var(--gold);">
     <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>
-    <div style="font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--gold);margin-bottom:.8rem;">Global</div>
-    <div style="font-family:'Cormorant Garamond',serif;font-size:38px;color:#F5E090;text-shadow:0 0 25px #C9A84C99;line-height:1;margin-bottom:.4rem;">+4.526$</div>
-    <div style="font-size:13px;color:var(--text-dim);">243 trades · WR 65.4%</div>
+    <div style="font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--gold);margin-bottom:.4rem;">Global</div>
+    <div style="font-family:'Cormorant Garamond',serif;font-size:28px;color:var(--gold-bright);text-shadow:0 0 15px var(--gold-glow);line-height:1;margin-bottom:.2rem;">+4.526$</div>
+    <div style="font-size:12px;color:var(--text-muted);">243 trades · WR 65.4%</div>
   </div>
 
   <!-- Maestra -->
   <div id="btn-maestra" onclick="verCuenta('maestra')"
-    style="background:var(--bg2);padding:2rem 1.5rem 1.5rem;position:relative;border-bottom:2px solid transparent;transition:all .2s;">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.8rem;">
+    style="background:var(--bg2);padding:1.5rem;position:relative;border-bottom:2px solid transparent;transition:all .2s;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.4rem;">
       <div style="font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--text-muted);">Maestra</div>
       <div style="font-size:10px;padding:.1rem .4rem;background:#3AAA6A18;color:var(--green);border:1px solid #3AAA6A33;border-radius:1px;">Real</div>
     </div>
-    <div style="font-family:'Cormorant Garamond',serif;font-size:34px;color:var(--green);line-height:1;margin-bottom:.4rem;">+1.144$</div>
-    <div style="font-size:13px;color:var(--text-muted);">52 trades · WR 61.5%</div>
+    <div style="font-family:'Cormorant Garamond',serif;font-size:28px;color:var(--green);line-height:1;margin-bottom:.2rem;">+1.144$</div>
+    <div style="font-size:12px;color:var(--text-muted);">52 trades · WR 61.5%</div>
   </div>
 
   <!-- Retos -->
   <div id="btn-retos" onclick="verCuenta('retos')"
-    style="background:var(--bg2);padding:2rem 1.5rem 1.5rem;position:relative;border-bottom:2px solid transparent;transition:all .2s;">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.8rem;">
+    style="background:var(--bg2);padding:1.5rem;position:relative;border-bottom:2px solid transparent;transition:all .2s;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.4rem;">
       <div style="font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--text-muted);">Retos</div>
       <div style="font-size:10px;padding:.1rem .4rem;background:#CC884418;color:#CC8844;border:1px solid #CC884433;border-radius:1px;">Challenge</div>
     </div>
-    <div style="font-family:'Cormorant Garamond',serif;font-size:34px;color:#E8A84C;line-height:1;margin-bottom:.4rem;">+1.816$</div>
-    <div style="font-size:13px;color:var(--text-muted);">33 trades · WR 81.8%</div>
+    <div style="font-family:'Cormorant Garamond',serif;font-size:28px;color:#E8A84C;line-height:1;margin-bottom:.2rem;">+1.816$</div>
+    <div style="font-size:12px;color:var(--text-muted);">33 trades · WR 81.8%</div>
   </div>
 
   <!-- Prueba -->
   <div id="btn-prueba" onclick="verCuenta('prueba')"
-    style="background:var(--bg2);padding:2rem 1.5rem 1.5rem;position:relative;border-bottom:2px solid transparent;transition:all .2s;">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.8rem;">
+    style="background:var(--bg2);padding:1.5rem;position:relative;border-bottom:2px solid transparent;transition:all .2s;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.4rem;">
       <div style="font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--text-muted);">Prueba</div>
       <div style="font-size:10px;padding:.1rem .4rem;background:#4A8AEE18;color:#6A9AEE;border:1px solid #4A8AEE33;border-radius:1px;">Challenge</div>
     </div>
-    <div style="font-family:'Cormorant Garamond',serif;font-size:34px;color:#6A9AEE;line-height:1;margin-bottom:.4rem;">+1.566$</div>
-    <div style="font-size:13px;color:var(--text-muted);">158 trades · WR 58.9%</div>
+    <div style="font-family:'Cormorant Garamond',serif;font-size:28px;color:#6A9AEE;line-height:1;margin-bottom:.2rem;">+1.566$</div>
+    <div style="font-size:12px;color:var(--text-muted);">158 trades · WR 58.9%</div>
   </div>
 
 </div>
@@ -1911,7 +1938,7 @@
     <!-- ===== CICLO 111 ===== -->
     <div id="gpanel-ciclo111" style="display:none;">
 
-      <div style="display:grid;grid-template-columns:140px 1fr 170px;gap:2rem;align-items:center;padding:1.5rem 2rem;border-bottom:1px solid var(--border);background:var(--bg2);position:relative;overflow:hidden;margin-top:1rem;">
+      <div style="display:grid;grid-template-columns:140px 1fr 170px;gap:2rem;align-items:center;margin-top:1rem;padding:1.5rem 2rem;border-bottom:1px solid var(--border);background:var(--bg2);position:relative;overflow:hidden;">
         <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>
         <div style="position:absolute;right:1rem;top:-1rem;font-family:'Cormorant Garamond',serif;font-size:120px;color:#C9A84C04;line-height:1;user-select:none;">111</div>
         <div style="text-align:center;">
@@ -1957,7 +1984,7 @@
     <!-- ===== HORARIOS ===== -->
     <div id="gpanel-horarios" style="display:none;">
 
-      <div style="padding:1.5rem 2rem;border-bottom:1px solid var(--border);background:var(--bg2);margin-top:1rem;">
+      <div style="margin-top:1rem;padding:1.5rem 2rem;border-bottom:1px solid var(--border);background:var(--bg2);">
         <div style="font-family:'Cormorant Garamond',serif;font-size:26px;color:var(--gold-bright);margin-bottom:.3rem;">Mapa horario real — 254 trades</div>
         <div style="display:flex;height:28px;border-radius:4px;overflow:hidden;border:1px solid var(--border);margin-bottom:4px;">
           <div style="flex:1;background:#1c1c1a;display:flex;align-items:center;justify-content:center;font-size:11px;color:#666;">00</div>
@@ -2058,7 +2085,7 @@
     <div id="gpanel-cumplimiento" style="display:none;">
 
       <!-- Hero stats -->
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);margin-top:1rem;">
+      <div style="margin-top:1rem;display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);">
         <div class="stat-card" style="text-align:center;position:relative;">
           <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--green),transparent);"></div>
           <div class="stat-label">Cumplen el método</div>
@@ -2576,6 +2603,52 @@ function cerrarAnimal() {
   const modal = document.getElementById('modal-animal');
   modal.style.display = 'none';
   document.body.style.overflow = '';
+}
+</script>
+<script>
+function seleccionarSesion(el, valor) {
+  document.querySelectorAll('#agenda-sesiones > div').forEach(d => {
+    d.style.borderColor = 'var(--border)';
+    d.style.background = '#060810';
+    d.style.color = 'var(--text-dim)';
+  });
+  el.style.borderColor = 'var(--gold)';
+  el.style.background = '#C9A84C0A';
+  el.style.color = 'var(--gold-bright)';
+  document.getElementById('agenda-hora').value = valor;
+}
+
+function abrirAgenda() {
+  const modal = document.getElementById('modal-agenda');
+  modal.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+  const hoy = new Date().toISOString().split('T')[0];
+  document.getElementById('agenda-fecha').min = hoy;
+}
+
+function cerrarAgenda() {
+  document.getElementById('modal-agenda').style.display = 'none';
+  document.body.style.overflow = '';
+  document.getElementById('agenda-msg').textContent = '';
+}
+
+function guardarAgenda() {
+  const fecha = document.getElementById('agenda-fecha').value;
+  const hora  = document.getElementById('agenda-hora').value;
+  const msg   = document.getElementById('agenda-msg');
+  if (!fecha || !hora) { msg.style.color='var(--red)'; msg.textContent='Selecciona día y sesión.'; return; }
+  const d = new Date(fecha + 'T12:00:00');
+  const fechaStr = d.toLocaleDateString('es-ES', { weekday:'long', day:'numeric', month:'long' });
+  const lista = document.getElementById('agenda-lista');
+  const vacio = lista.querySelector('div[style*="italic"]');
+  if (vacio) vacio.remove();
+  const item = document.createElement('div');
+  item.style.cssText = 'display:flex;align-items:center;justify-content:space-between;background:#0A0C18;border:1px solid var(--border);padding:.6rem 1rem;margin-bottom:.4rem;';
+  item.innerHTML = `<div><div style="font-size:13px;color:var(--text-dim);">${fechaStr}</div><div style="font-size:11px;color:var(--gold);">${hora}</div></div><div onclick="this.parentElement.remove()" style="font-size:12px;color:var(--text-muted);cursor:pointer;opacity:.5;padding:.2rem .5rem;">✕</div>`;
+  lista.appendChild(item);
+  msg.style.color = 'var(--green)';
+  msg.textContent = '✓ Disponibilidad registrada.';
+  setTimeout(() => cerrarAgenda(), 1200);
 }
 </script>
 </body>
