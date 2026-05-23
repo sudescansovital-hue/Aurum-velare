@@ -34,11 +34,10 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: 'Outfit', sans-serif;
-  font-weight: 400;
-  font-size: 16px;
-  line-height: 1.9;
+  font-weight: 300;
+  font-size: 18px;
+  line-height: 1.85;
   min-height: 100vh;
-  -webkit-font-smoothing: antialiased;
 }
 
 /* ===== TIPOGRAFÍA ===== */
@@ -1120,62 +1119,4 @@ tr:hover td { background: #0E1020; }
 .etapa-req {
   font-size: 11px;
   color: var(--text-muted);
-}
-
-/* ===== MEJORAS GLOBALES DE LEGIBILIDAD ===== */
-
-/* Texto descriptivo general más legible */
-p, .text-body {
-  font-size: 15px;
-  line-height: 2;
-  color: var(--text-muted);
-}
-
-/* Tabs superiores (TRADE RECORD, CICLO 111...) */
-.gest-tab {
-  font-size: 13px !important;
-  letter-spacing: .12em;
-  font-weight: 500;
-  padding: .6rem 1rem !important;
-}
-
-/* Números grandes métricas */
-.metric-big {
-  font-size: 52px !important;
-  font-family: 'Cormorant Garamond', serif;
-  line-height: 1;
-}
-
-/* Labels de métricas */
-.metric-label {
-  font-size: 12px;
-  letter-spacing: .15em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
-/* Sidebar items */
-.sidebar-item {
-  font-size: 14px !important;
-  padding: .75rem 1.2rem !important;
-  line-height: 1.4;
-}
-
-/* Contenido de cards y tablas */
-td, th {
-  font-size: 14px;
-  line-height: 1.6;
-}
-
-/* Textos en secciones hero */
-.hero p, .hero-desc {
-  font-size: 16px;
-  line-height: 2;
-  color: var(--text-muted);
-}
-
-/* Tags y etiquetas uppercase */
-.tag {
-  font-size: 11px;
-  letter-spacing: .4em;
 }
