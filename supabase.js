@@ -15,23 +15,63 @@ function initSupabase() {
   }
 }
 
-// HISTORIALES
+// ============================================================
+// HISTORIALES — acumulativo por cuenta
+// ============================================================
+
 async function guardarHistorial(cuenta) {
   if (!sb || !usuarioActual) return;
-  await sb.from('historiales').insert({
-    usuario_email: usuarioActual.email,
-    nombre: cuenta.nombre,
-    tipo: cuenta.tipo || 'challenge',
-    total: cuenta.total,
-    wins: cuenta.wins,
-    pnl: cuenta.pnl,
-    wr: cuenta.wr,
-    rr: cuenta.rr,
-    periodo: cuenta.periodo,
-    dias: cuenta.dias,
-    tipos: cuenta.tipos,
-    fps: cuenta.fps || []
-  });
+
+  // Buscar si ya existe un registro para esta cuenta
+  var res = await sb.from('historiales')
+    .select('*')
+    .eq('usuario_email', usuarioActual.email)
+    .eq('nombre', cuenta.nombre)
+    .single();
+
+  if (res.data) {
+    // Existe — actualizar acumulando
+    var existente = res.data;
+    var totalNuevo = existente.total + cuenta.total;
+    var winsNuevo = existente.wins + cuenta.wins;
+    var pnlNuevo = Math.round((existente.pnl + cuenta.pnl) * 100) / 100;
+    var wrNuevo = Math.round((winsNuevo / totalNuevo * 100) * 10) / 10;
+
+    // Fusionar fps
+    var fpsExistentes = existente.fps || [];
+    var fpsNuevos = cuenta.fps || [];
+    var fpsMerged = [...new Set([...fpsExistentes, ...fpsNuevos])];
+
+    await sb.from('historiales').update({
+      total: totalNuevo,
+      wins: winsNuevo,
+      pnl: pnlNuevo,
+      wr: wrNuevo,
+      rr: Math.round(((existente.rr + cuenta.rr) / 2) * 100) / 100,
+      periodo: existente.periodo + ' + ' + cuenta.periodo,
+      fps: fpsMerged
+    }).eq('id', existente.id);
+
+    console.log('Historial actualizado: ' + cuenta.nombre);
+  } else {
+    // No existe — insertar nuevo
+    await sb.from('historiales').insert({
+      usuario_email: usuarioActual.email,
+      nombre: cuenta.nombre,
+      tipo: cuenta.tipo || 'challenge',
+      total: cuenta.total,
+      wins: cuenta.wins,
+      pnl: cuenta.pnl,
+      wr: cuenta.wr,
+      rr: cuenta.rr,
+      periodo: cuenta.periodo,
+      dias: cuenta.dias,
+      tipos: cuenta.tipos,
+      fps: cuenta.fps || []
+    });
+
+    console.log('Historial nuevo: ' + cuenta.nombre);
+  }
 }
 
 async function cargarHistoriales() {
@@ -47,9 +87,13 @@ async function cargarHistoriales() {
   });
   var lista = document.getElementById('hist-lista');
   if (lista) { lista.innerHTML=''; HISTORIAL_CUENTAS.forEach(function(c,i){ histAnadirFila(c,i); }); }
+  console.log(res.data.length + ' historiales cargados');
 }
 
+// ============================================================
 // DIARIO
+// ============================================================
+
 async function guardarEntradaDiarioSupabase(texto) {
   if (!sb || !usuarioActual) return false;
   var res = await sb.from('diario').insert({ usuario_email:usuarioActual.email, texto:texto, fecha:new Date().toISOString().split('T')[0] });
@@ -72,7 +116,10 @@ async function cargarDiario() {
   });
 }
 
+// ============================================================
 // AGENDA
+// ============================================================
+
 async function guardarAgendaSupabase(fecha, sesion) {
   if (!sb || !usuarioActual) return false;
   var res = await sb.from('agenda').insert({ usuario_email:usuarioActual.email, fecha:fecha, sesion:sesion });
@@ -95,6 +142,10 @@ async function cargarAgenda() {
     lista.appendChild(item);
   });
 }
+
+// ============================================================
+// CARGAR TODO AL INICIO
+// ============================================================
 
 async function cargarDatosUsuario() {
   await cargarHistoriales();
