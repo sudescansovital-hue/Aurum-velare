@@ -43,6 +43,7 @@ function hacerLogin() {
   document.getElementById('nav-uname').textContent  = usuarioActual.nick || usuarioActual.nombre;
   document.getElementById('nav-upack').textContent  = usuarioActual.pack;
   irA('dashboard');
+  if (typeof cargarDatosUsuario === 'function') cargarDatosUsuario();
 }
 
 function hacerLogout() {

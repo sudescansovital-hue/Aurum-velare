@@ -155,6 +155,7 @@ function guardarEntradaDiario() {
   `;
   entradas.insertBefore(nuevaEntrada, entradas.firstChild);
   document.getElementById('diario-input').value = '';
+  if (typeof guardarEntradaDiarioSupabase === 'function') guardarEntradaDiarioSupabase(texto);
   msg.style.color = 'var(--green)';
   msg.textContent = '✓ Entrada guardada.';
   setTimeout(() => { msg.textContent = ''; }, 3000);

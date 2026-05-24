@@ -123,6 +123,7 @@ function histSubir(file) {
       fps_nuevos.forEach(function(t) { if(t.fp) HISTORIAL_ALL_FPS.add(t.fp); });
       HISTORIAL_CUENTAS.push(nueva);
       histAnadirFila(nueva, HISTORIAL_CUENTAS.length - 1);
+      if (typeof guardarHistorial === 'function') guardarHistorial(nueva);
       var aviso = dups > 0 ? ' (' + dups + ' duplicados ignorados)' : '';
       msg.style.color = 'var(--green)'; msg.textContent = fps_nuevos.length + ' trades únicos añadidos' + aviso + '.';
       document.getElementById('hist-nombre').value = '';
