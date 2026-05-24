@@ -135,10 +135,12 @@ function leerExcel(file) {
 
 function parsearTrades(raw) {
   if (!raw || raw.length < 8) return [];
+  console.log("parsearTrades llamado, filas:", raw.length, "F0:", JSON.stringify(raw[0]), "F5:", JSON.stringify(raw[5]));
   const esCtrader =
     (raw[0]?.[0] && String(raw[0][0]).toLowerCase().includes('informe del historial')) ||
     (raw[5]?.[0] && String(raw[5][0]).trim() === 'Posiciones') ||
     (raw[6]?.[1] && String(raw[6][1]).trim() === 'Posición');
+  console.log("esCtrader:", esCtrader);
   if (esCtrader) return _parsearCtrader(raw);
   else return _parsearMT5(raw);
 }
