@@ -292,6 +292,14 @@ async function actualizarDashboard() {
 
   console.log('Dashboard actualizado con ' + todos.length + ' trades reales');
 
+  // Actualizar stats globales de Historial Externo
+  var htEl = document.getElementById('hist-global-trades');
+  if (htEl) htEl.textContent = mG.total;
+  var hwEl = document.getElementById('hist-global-wr');
+  if (hwEl) hwEl.textContent = mG.wr + '%';
+  var hpEl = document.getElementById('hist-global-pnl');
+  if (hpEl) hpEl.textContent = (mG.pnl >= 0 ? '+' : '') + mG.pnl + '$';
+
   // Actualizar stats globales de Trade Record
   actualizarTradeRecord();
 }
