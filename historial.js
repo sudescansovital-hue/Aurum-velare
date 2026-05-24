@@ -5,8 +5,8 @@ var HISTORIAL_ALL_FPS = new Set();
 
 var CUENTAS_AURUM = {
   '7747760': 'Cuenta Maestra',
-  '135146':  'Cuenta Retos',
-  '4011477': 'Cuenta Prueba',
+  '135146':  'Cuenta Prueba',
+  '4011477': 'Cuenta Retos',
 };
 
 function detectarNombreCuenta(raw) {
