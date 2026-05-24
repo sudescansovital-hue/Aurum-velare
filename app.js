@@ -63,6 +63,10 @@ function irA(pagina) {
   if (msg) msg.style.display = 'none';
   mostrarPagina(pagina);
   if (typeof window['init_'+pagina] === 'function') window['init_'+pagina]();
+  // Actualizar dashboard con datos reales al entrar a gestion
+  if (pagina === 'gestion' && typeof actualizarDashboard === 'function') {
+    setTimeout(actualizarDashboard, 300);
+  }
 }
 
 function mostrarPagina(pagina) {
