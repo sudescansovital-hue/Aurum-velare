@@ -1,0 +1,2612 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aurum Velare — XAU/USD</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
+
+  <!-- AURUM VELARE -->
+  <link rel="stylesheet" href="aurum.css">
+</head>
+<body>
+
+<!-- ============================================================
+     LOGIN MODAL
+     Se abre al clicar "Entrar" o al intentar acceder a páginas privadas
+     ============================================================ -->
+<div class="login-overlay" id="login-overlay">
+  <div class="login-box">
+    <div class="login-close" onclick="cerrarLogin()">✕</div>
+    <div class="login-head">
+      <div class="login-title">Aurum Velare</div>
+      <div class="login-subtitle">Acceso al proceso · Pack requerido</div>
+    </div>
+    <div class="login-body">
+      <label class="login-label">Email</label>
+      <input class="login-input" id="login-email" type="email" placeholder="tu@email.com">
+      <label class="login-label">Contraseña</label>
+      <input class="login-input" id="login-pass" type="password" placeholder="••••••••">
+      <div class="login-err" id="login-err"></div>
+      <button class="login-btn" onclick="hacerLogin()">✦ Entrar al proceso</button>
+      <div class="login-hint">
+        ¿Sin pack? <span onclick="cerrarLogin();irA('packs')" style="color:var(--gold-dim);cursor:pointer;text-decoration:underline;">Ver los packs →</span>
+        <br><span style="color:var(--border);font-size:10px;">Demo: alberto@aurum.com / aurum2026</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ============================================================
+     NAV PRINCIPAL
+     Para añadir un enlace: copia una línea <a class="nav-link">
+     ============================================================ -->
+<nav>
+  <a class="nav-logo" onclick="irA('home')">Aurum Velare</a>
+
+  <div class="nav-middle-row">
+    <div class="nav-btn-entrar" id="nav-login-btn" onclick="abrirLogin()">Entrar</div>
+    <div class="nav-links" id="nav-principal">
+      <a class="nav-link active" onclick="irA('home')">Inicio</a>
+      <a class="nav-link" onclick="irA('packs')">El proceso</a>
+      <a class="nav-link" onclick="irA('salas')">Las salas</a>
+      <a class="nav-link" onclick="irA('evalua')" style="color:var(--gold);">✦ Evalúame</a>
+      <a class="nav-link" onclick="irA('preguntas')">Tablillas</a>
+      <a class="nav-link" onclick="irA('dashboard')">Mi proceso</a>
+      <a class="nav-link" onclick="irA('gestion')">Mi gestión</a>
+    </div>
+  </div>
+
+  <div class="nav-user" id="nav-user-widget" style="display:none;">
+    <span id="nav-animal" style="font-size:12px;">🦅</span>
+    <span class="nav-user-welcome">Bienvenido,</span>
+    <span class="nav-user-name" id="nav-uname"></span>
+    <span class="nav-user-pack" id="nav-upack"></span>
+    <div class="nav-logout" onclick="hacerLogout()">Salir</div>
+  </div>
+</nav>
+
+
+<!-- ============================================================
+     PÁGINAS — Cada página es un div independiente
+     Solo se muestra la activa. Las demás tienen display:none
+     ============================================================ -->
+
+<!-- PÁGINA: HOME -->
+<div id="page-home" class="page-content" style="display:block;">
+<!-- HERO -->
+<section class="hero">
+  <span class="hero-tag">XAU / USD · El único activo</span>
+
+  <h1 class="hero-title">
+    Donde termina el impulso,<br>empieza el <em>proceso.</em>
+  </h1>
+
+  <p class="hero-sub" style="margin-bottom:1.2rem;">
+    El trading es una de las profesiones más solitarias que existen.<br>
+    Aurum nace para romper eso.
+  </p>
+
+  <p style="font-size:16px;color:var(--text-muted);max-width:580px;margin:0 auto;line-height:2;">
+    Un espacio donde compartir el proceso real — los avances, los errores, los ciclos —
+    con otros que entienden lo que significa operar XAU/USD con criterio y sin atajos.
+  </p>
+
+  <div style="display:flex;gap:1rem;justify-content:center;margin-top:2.5rem;flex-wrap:wrap;">
+    <div class="btn-outline" onclick="irA('evalua')">✦ Evalúame — 33€</div>
+    <div class="btn-gold" onclick="irA('packs')">Ver los packs →</div>
+  </div>
+</section>
+
+
+<!-- QUÉ ES AURUM -->
+<section style="padding:4rem 3rem;text-align:center;border-bottom:1px solid var(--border);">
+  <div style="max-width:680px;margin:0 auto;">
+    <span class="tag" style="display:block;margin-bottom:1.5rem;">XAU / USD</span>
+    <h2 style="font-family:'Cormorant Garamond',serif;font-size:42px;color:var(--gold-bright);text-shadow:0 0 30px var(--gold-glow);margin-bottom:1.5rem;">Un proceso hacia la rentabilidad.</h2>
+    <p style="font-size:16px;color:var(--text-dim);line-height:2;">
+      Aurum Velare es un proceso de análisis, disciplina y evolución continua centrado exclusivamente en XAU/USD.
+      No por simplificar, sino porque la profundidad real requiere foco absoluto.
+    </p>
+    <div style="width:40px;height:1px;background:var(--gold);margin:2rem auto;opacity:.4;"></div>
+    <p style="font-size:15px;color:var(--text-muted);font-style:italic;line-height:2;">
+      "El mercado no miente. Tú tampoco deberías."
+    </p>
+  </div>
+</section>
+
+
+<!-- 7 ANIMALES -->
+<section style="padding:4rem 3rem;border-bottom:1px solid var(--border);">
+  <div style="text-align:center;margin-bottom:4rem;">
+    <span class="tag" style="display:block;margin-bottom:1rem;">La estructura</span>
+    <h2 style="font-family:'Cormorant Garamond',serif;font-size:42px;color:var(--text);">7 animales. Un solo camino.</h2>
+    <p style="font-size:15px;color:var(--text-muted);margin-top:.8rem;max-width:500px;margin-left:auto;margin-right:auto;line-height:1.9;">
+      No existe un único perfil de trader. Existen formas distintas de ver, esperar y actuar.<br>Aquí cada una tiene nombre.
+    </p>
+  </div>
+
+  <div style="max-width:980px;margin:0 auto;">
+
+    <!-- ÁGUILA -->
+    <div style="display:flex;justify-content:center;margin-bottom:2rem;">
+      <div onclick="abrirAnimal('aguila')" style="width:300px;background:var(--bg2);border:1px solid var(--border-gold);padding:2rem 1.5rem;text-align:center;position:relative;cursor:pointer;transition:border-color .2s;" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border-gold)'">
+        <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>
+        <div style="width:1px;height:28px;background:linear-gradient(to bottom,transparent,var(--gold));margin:0 auto 1.2rem;"></div>
+        <div style="font-size:13px;letter-spacing:.45em;text-transform:uppercase;color:var(--gold-bright);margin-bottom:.4rem;">Águila</div>
+        <div style="font-size:10px;letter-spacing:.25em;text-transform:uppercase;color:var(--text-muted);margin-bottom:1.2rem;">Visión · Silencio</div>
+        <p style="font-size:15px;color:var(--text-muted);line-height:1.9;">No opera. Observa. Creó Aurum para que cada animal encuentre su propio camino.</p>
+        <div style="font-size:10px;color:var(--gold-dim);margin-top:.8rem;letter-spacing:.05em;">Leer su historia →</div>
+      </div>
+    </div>
+
+    <div style="display:flex;justify-content:center;margin-bottom:1rem;">
+      <div style="width:1px;height:20px;background:linear-gradient(to bottom,var(--border-gold),var(--border));"></div>
+    </div>
+
+    <!-- FILA 2 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem;">
+
+      <div onclick="abrirAnimal('hormiga')" style="background:var(--bg2);border:1px solid var(--border);padding:1.8rem 1.5rem;text-align:center;cursor:pointer;transition:border-color .2s;" onmouseover="this.style.borderColor='var(--gold-dim)'" onmouseout="this.style.borderColor='var(--border)'">
+        <div style="font-size:13px;letter-spacing:.45em;text-transform:uppercase;color:var(--gold);margin-bottom:.4rem;">Hormiga</div>
+        <div style="font-size:10px;letter-spacing:.25em;text-transform:uppercase;color:var(--text-muted);margin-bottom:1.2rem;">Disciplina · Repetición</div>
+        <p style="font-size:15px;color:var(--text-muted);line-height:1.9;">Construye trade tras trade, sin prisa, sin necesidad de destacar.</p>
+        <div style="font-size:10px;color:var(--gold-dim);margin-top:.8rem;">Leer su historia →</div>
+      </div>
+
+      <div onclick="abrirAnimal('leon')" style="background:var(--bg2);border:1px solid var(--border-gold);padding:1.8rem 1.5rem;text-align:center;position:relative;cursor:pointer;transition:border-color .2s;" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border-gold)'">
+        <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>
+        <div style="font-size:13px;letter-spacing:.45em;text-transform:uppercase;color:var(--gold-bright);margin-bottom:.4rem;">León</div>
+        <div style="font-size:10px;letter-spacing:.25em;text-transform:uppercase;color:var(--text-muted);margin-bottom:1.2rem;">Presencia · Convicción</div>
+        <p style="font-size:15px;color:var(--text-muted);line-height:1.9;">Observa, espera y cuando el momento aparece — actúa sin dudar.</p>
+        <div style="font-size:10px;color:var(--gold-dim);margin-top:.8rem;">Leer su historia →</div>
+      </div>
+
+      <div onclick="abrirAnimal('elefante')" style="background:var(--bg2);border:1px solid var(--border);padding:1.8rem 1.5rem;text-align:center;cursor:pointer;transition:border-color .2s;" onmouseover="this.style.borderColor='var(--gold-dim)'" onmouseout="this.style.borderColor='var(--border)'">
+        <div style="font-size:13px;letter-spacing:.45em;text-transform:uppercase;color:var(--gold);margin-bottom:.4rem;">Elefante</div>
+        <div style="font-size:10px;letter-spacing:.25em;text-transform:uppercase;color:var(--text-muted);margin-bottom:1.2rem;">Memoria · Control emocional</div>
+        <p style="font-size:15px;color:var(--text-muted);line-height:1.9;">Recuerda cada error y no lo repite. La mala racha es información.</p>
+        <div style="font-size:10px;color:var(--gold-dim);margin-top:.8rem;">Leer su historia →</div>
+      </div>
+
+    </div>
+
+    <!-- FILA 3 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;max-width:660px;margin:0 auto 1rem;">
+
+      <div onclick="abrirAnimal('oso')" style="background:var(--bg2);border:1px solid var(--border);padding:1.8rem 1.5rem;text-align:center;cursor:pointer;transition:border-color .2s;" onmouseover="this.style.borderColor='var(--gold-dim)'" onmouseout="this.style.borderColor='var(--border)'">
+        <div style="font-size:13px;letter-spacing:.45em;text-transform:uppercase;color:var(--gold);margin-bottom:.4rem;">Oso</div>
+        <div style="font-size:10px;letter-spacing:.25em;text-transform:uppercase;color:var(--text-muted);margin-bottom:1.2rem;">Paciencia · Protección</div>
+        <p style="font-size:15px;color:var(--text-muted);line-height:1.9;">No operar también es una posición. Proteger el capital es una decisión.</p>
+        <div style="font-size:10px;color:var(--gold-dim);margin-top:.8rem;">Leer su historia →</div>
+      </div>
+
+      <div onclick="abrirAnimal('toro')" style="background:var(--bg2);border:1px solid var(--border);padding:1.8rem 1.5rem;text-align:center;cursor:pointer;transition:border-color .2s;" onmouseover="this.style.borderColor='var(--gold-dim)'" onmouseout="this.style.borderColor='var(--border)'">
+        <div style="font-size:13px;letter-spacing:.45em;text-transform:uppercase;color:var(--gold);margin-bottom:.4rem;">Toro</div>
+        <div style="font-size:10px;letter-spacing:.25em;text-transform:uppercase;color:var(--text-muted);margin-bottom:1.2rem;">Expansión · Momentum</div>
+        <p style="font-size:15px;color:var(--text-muted);line-height:1.9;">No persigue el movimiento. Avanza cuando la estructura acompaña.</p>
+        <div style="font-size:10px;color:var(--gold-dim);margin-top:.8rem;">Leer su historia →</div>
+      </div>
+
+    </div>
+
+    <!-- FILA 4: Lobo -->
+    <div style="display:flex;justify-content:center;">
+      <div onclick="abrirAnimal('lobo')" style="width:300px;background:var(--bg2);border:1px solid var(--border);padding:1.8rem 1.5rem;text-align:center;cursor:pointer;transition:border-color .2s;" onmouseover="this.style.borderColor='var(--gold-dim)'" onmouseout="this.style.borderColor='var(--border)'">
+        <div style="font-size:13px;letter-spacing:.45em;text-transform:uppercase;color:var(--gold);margin-bottom:.4rem;">Lobo</div>
+        <div style="font-size:10px;letter-spacing:.25em;text-transform:uppercase;color:var(--text-muted);margin-bottom:1.2rem;">Instinto · Adaptación</div>
+        <p style="font-size:15px;color:var(--text-muted);line-height:1.9;">No sigue a la manada. Construye su proceso en silencio.</p>
+        <div style="font-size:10px;color:var(--gold-dim);margin-top:.8rem;">Leer su historia →</div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- MODAL ANIMALES -->
+<div id="modal-animal" style="display:none;position:fixed;inset:0;background:#080A12EE;z-index:500;display:none;align-items:center;justify-content:center;overflow-y:auto;padding:2rem;">
+  <div style="background:var(--bg2);border:1px solid var(--border-gold);max-width:580px;width:100%;padding:3rem 2.5rem;position:relative;margin:auto;">
+    <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>
+    <div onclick="cerrarAnimal()" style="position:absolute;top:1rem;right:1rem;cursor:pointer;color:var(--text-muted);font-size:18px;opacity:.5;line-height:1;">✕</div>
+    <div id="animal-nombre" style="font-family:'Cormorant Garamond',serif;font-size:28px;color:var(--gold-bright);text-align:center;letter-spacing:.35em;text-transform:uppercase;margin-bottom:.4rem;"></div>
+    <div id="animal-nick" style="font-size:11px;color:var(--gold);letter-spacing:.2em;text-transform:uppercase;text-align:center;margin-bottom:.3rem;"></div>
+    <div id="animal-tag" style="font-size:10px;color:var(--text-muted);letter-spacing:.2em;text-transform:uppercase;text-align:center;margin-bottom:2rem;"></div>
+    <div style="width:30px;height:1px;background:var(--border-gold);margin:0 auto 2rem;"></div>
+    <div id="animal-body" style="font-size:15px;color:var(--text-muted);line-height:2;margin-bottom:2rem;"></div>
+    <div id="animal-cita" style="border-left:2px solid var(--border-gold);padding-left:1.2rem;font-family:'Cormorant Garamond',serif;font-size:18px;color:var(--gold-dim);font-style:italic;line-height:1.8;"></div>
+    <div onclick="cerrarAnimal()" style="margin-top:2rem;font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--text-muted);cursor:pointer;text-align:center;">← Volver</div>
+  </div>
+</div>
+
+
+<!-- ETAPAS -->
+<section style="padding:4rem 3rem;border-bottom:1px solid var(--border);">
+  <div style="text-align:center;margin-bottom:3.5rem;">
+    <span class="tag" style="display:block;margin-bottom:1rem;">El camino</span>
+    <h2 style="font-family:'Cormorant Garamond',serif;font-size:42px;color:var(--text);">El proceso no tiene prisa.</h2>
+    <p style="font-size:15px;color:var(--text-muted);margin-top:.8rem;max-width:520px;margin-left:auto;margin-right:auto;line-height:1.9;">
+      Cada persona tarda lo que tarda. No hay atajos, no hay mínimos impuestos.
+      Hay etapas — y cada una se gana con datos reales, no con tiempo.
+    </p>
+  </div>
+
+  <div style="max-width:1100px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--border);">
+
+    <div onclick="abrirEtapa('e0')" style="background:var(--bg2);padding:1.5rem 1rem;text-align:center;cursor:pointer;transition:background .2s;" onmouseover="this.style.background='#0E1020'" onmouseout="this.style.background='var(--bg2)'">
+      <div style="font-family:'Cormorant Garamond',serif;font-size:36px;color:var(--text-muted);line-height:1;margin-bottom:.5rem;">0</div>
+      <div style="font-size:15px;color:var(--text-dim);margin-bottom:.3rem;">Silencio</div>
+      <div style="font-size:13px;color:var(--text-muted);">Observas sin operar</div>
+      <div style="font-size:10px;color:var(--gold-dim);margin-top:.6rem;">Leer más →</div>
+    </div>
+
+    <div onclick="abrirEtapa('e05')" style="background:var(--bg2);padding:1.5rem 1rem;text-align:center;cursor:pointer;transition:background .2s;" onmouseover="this.style.background='#0E1020'" onmouseout="this.style.background='var(--bg2)'">
+      <div style="font-family:'Cormorant Garamond',serif;font-size:36px;color:var(--text-muted);line-height:1;margin-bottom:.5rem;">0.5</div>
+      <div style="font-size:15px;color:var(--text-dim);margin-bottom:.3rem;">Umbral</div>
+      <div style="font-size:13px;color:var(--text-muted);">Primeros trades reales</div>
+      <div style="font-size:10px;color:var(--gold-dim);margin-top:.6rem;">Leer más →</div>
+    </div>
+
+    <div onclick="abrirEtapa('e1')" style="background:var(--bg2);padding:1.5rem 1rem;text-align:center;cursor:pointer;transition:background .2s;" onmouseover="this.style.background='#0E1020'" onmouseout="this.style.background='var(--bg2)'">
+      <div style="font-family:'Cormorant Garamond',serif;font-size:36px;color:var(--text-muted);line-height:1;margin-bottom:.5rem;">1</div>
+      <div style="font-size:15px;color:var(--text-dim);margin-bottom:.3rem;">Estructura</div>
+      <div style="font-size:13px;color:var(--text-muted);">Empiezas a ver patrones</div>
+      <div style="font-size:10px;color:var(--gold-dim);margin-top:.6rem;">Leer más →</div>
+    </div>
+
+    <div onclick="abrirEtapa('e15')" style="background:var(--bg2);padding:1.5rem 1rem;text-align:center;cursor:pointer;transition:background .2s;" onmouseover="this.style.background='#0E1020'" onmouseout="this.style.background='var(--bg2)'">
+      <div style="font-family:'Cormorant Garamond',serif;font-size:36px;color:var(--text-muted);line-height:1;margin-bottom:.5rem;">1.5</div>
+      <div style="font-size:15px;color:var(--text-dim);margin-bottom:.3rem;">Fractura</div>
+      <div style="font-size:13px;color:var(--text-muted);">Donde la mayoría abandona</div>
+      <div style="font-size:10px;color:var(--gold-dim);margin-top:.6rem;">Leer más →</div>
+    </div>
+
+    <div onclick="abrirEtapa('e2')" style="background:var(--bg2);padding:1.5rem 1rem;text-align:center;cursor:pointer;transition:background .2s;" onmouseover="this.style.background='#0E1020'" onmouseout="this.style.background='var(--bg2)'">
+      <div style="font-family:'Cormorant Garamond',serif;font-size:36px;color:var(--text-muted);line-height:1;margin-bottom:.5rem;">2</div>
+      <div style="font-size:15px;color:var(--text-dim);margin-bottom:.3rem;">Claridad</div>
+      <div style="font-size:13px;color:var(--text-muted);">Sabes qué haces y por qué</div>
+      <div style="font-size:10px;color:var(--gold-dim);margin-top:.6rem;">Leer más →</div>
+    </div>
+
+  </div>
+
+  <div style="max-width:1100px;margin:1px auto 0;display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--border);">
+
+    <div onclick="abrirEtapa('e25')" style="background:var(--bg2);padding:1.5rem 1rem;text-align:center;cursor:pointer;transition:background .2s;" onmouseover="this.style.background='#0E1020'" onmouseout="this.style.background='var(--bg2)'">
+      <div style="font-family:'Cormorant Garamond',serif;font-size:36px;color:var(--text-muted);line-height:1;margin-bottom:.5rem;">2.5</div>
+      <div style="font-size:15px;color:var(--text-dim);margin-bottom:.3rem;">Consistencia</div>
+      <div style="font-size:13px;color:var(--text-muted);">Los números se repiten</div>
+      <div style="font-size:10px;color:var(--gold-dim);margin-top:.6rem;">Leer más →</div>
+    </div>
+
+    <div onclick="abrirEtapa('e3')" style="background:var(--bg2);padding:1.5rem 1rem;text-align:center;cursor:pointer;transition:background .2s;" onmouseover="this.style.background='#0E1020'" onmouseout="this.style.background='var(--bg2)'">
+      <div style="font-family:'Cormorant Garamond',serif;font-size:36px;color:var(--text-muted);line-height:1;margin-bottom:.5rem;">3</div>
+      <div style="font-size:15px;color:var(--text-dim);margin-bottom:.3rem;">Confianza</div>
+      <div style="font-size:13px;color:var(--text-muted);">Operas sin dudar el proceso</div>
+      <div style="font-size:10px;color:var(--gold-dim);margin-top:.6rem;">Leer más →</div>
+    </div>
+
+    <div onclick="abrirEtapa('e4')" style="background:var(--bg2);padding:1.5rem 1rem;text-align:center;cursor:pointer;transition:background .2s;" onmouseover="this.style.background='#0E1020'" onmouseout="this.style.background='var(--bg2)'">
+      <div style="font-family:'Cormorant Garamond',serif;font-size:36px;color:var(--text-muted);line-height:1;margin-bottom:.5rem;">4</div>
+      <div style="font-size:15px;color:var(--text-dim);margin-bottom:.3rem;">Rentabilidad</div>
+      <div style="font-size:13px;color:var(--text-muted);">Los datos confirman el edge</div>
+      <div style="font-size:10px;color:var(--gold-dim);margin-top:.6rem;">Leer más →</div>
+    </div>
+
+    <div onclick="abrirEtapa('e45')" style="background:var(--bg2);padding:1.5rem 1rem;text-align:center;cursor:pointer;transition:background .2s;" onmouseover="this.style.background='#0E1020'" onmouseout="this.style.background='var(--bg2)'">
+      <div style="font-family:'Cormorant Garamond',serif;font-size:36px;color:var(--text-muted);line-height:1;margin-bottom:.5rem;">4.5</div>
+      <div style="font-size:15px;color:var(--text-dim);margin-bottom:.3rem;">Vuelo</div>
+      <div style="font-size:13px;color:var(--text-muted);">Escalas con criterio</div>
+      <div style="font-size:10px;color:var(--gold-dim);margin-top:.6rem;">Leer más →</div>
+    </div>
+
+    <div onclick="abrirEtapa('e5')" style="background:linear-gradient(135deg,var(--bg2),#0E1020);padding:1.5rem 1rem;text-align:center;position:relative;border:1px solid var(--border-gold);cursor:pointer;">
+      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>
+      <div style="font-family:'Cormorant Garamond',serif;font-size:36px;color:var(--gold-bright);text-shadow:0 0 20px var(--gold-glow);line-height:1;margin-bottom:.5rem;">5</div>
+      <div style="font-size:15px;color:var(--gold-bright);margin-bottom:.3rem;">✦ Oro</div>
+      <div style="font-size:13px;color:var(--gold-dim);">El proceso es tuyo</div>
+      <div style="font-size:10px;color:var(--gold-dim);margin-top:.6rem;">Leer más →</div>
+    </div>
+
+  </div>
+</section>
+
+<!-- MODAL ETAPAS -->
+<div id="modal-etapa" style="display:none;position:fixed;inset:0;background:#080A12EE;z-index:500;align-items:center;justify-content:center;overflow-y:auto;padding:2rem;">
+  <div style="background:var(--bg2);border:1px solid var(--border-gold);max-width:580px;width:100%;padding:3rem 2.5rem;position:relative;margin:auto;">
+    <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>
+    <div onclick="cerrarEtapa()" style="position:absolute;top:1rem;right:1rem;cursor:pointer;color:var(--text-muted);font-size:18px;opacity:.5;line-height:1;">✕</div>
+    <div id="etapa-num" style="font-family:'Cormorant Garamond',serif;font-size:52px;color:var(--gold-bright);text-align:center;line-height:1;margin-bottom:.5rem;"></div>
+    <div id="etapa-nombre" style="font-size:13px;color:var(--gold);letter-spacing:.35em;text-transform:uppercase;text-align:center;margin-bottom:.4rem;"></div>
+    <div id="etapa-sub" style="font-size:11px;color:var(--text-muted);letter-spacing:.2em;text-transform:uppercase;text-align:center;margin-bottom:2rem;"></div>
+    <div style="width:30px;height:1px;background:var(--border-gold);margin:0 auto 2rem;"></div>
+    <div id="etapa-body" style="font-size:15px;color:var(--text-muted);line-height:2;margin-bottom:2rem;"></div>
+    <div id="etapa-cita" style="border-left:2px solid var(--border-gold);padding-left:1.2rem;font-family:'Cormorant Garamond',serif;font-size:18px;color:var(--gold-dim);font-style:italic;line-height:1.8;"></div>
+    <div onclick="cerrarEtapa()" style="margin-top:2rem;font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--text-muted);cursor:pointer;text-align:center;">← Volver</div>
+  </div>
+</div>
+
+
+<!-- EL MARCO -->
+<section style="padding:4rem 3rem;border-bottom:1px solid var(--border);max-width:900px;margin:0 auto;">
+  <div style="text-align:center;margin-bottom:3rem;">
+    <span class="tag" style="display:block;margin-bottom:1rem;">Los límites</span>
+    <h2 style="font-family:'Cormorant Garamond',serif;font-size:42px;color:var(--text);">El marco</h2>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;">
+
+    <div style="padding:2rem;border:1px solid var(--border);background:var(--bg2);border-left:2px solid var(--border);">
+      <div style="font-size:13px;letter-spacing:.3em;text-transform:uppercase;color:var(--text-muted);margin-bottom:1rem;">Hasta la etapa 2</div>
+      <p style="font-size:15px;color:var(--text-dim);line-height:1.9;">
+        Aurum define el marco. No como imposición, sino como punto de partida para quien aún no tiene datos suficientes para definir el suyo.
+      </p>
+    </div>
+
+    <div style="padding:2rem;border:1px solid var(--border-gold);background:var(--bg2);border-left:2px solid var(--gold);position:relative;">
+      <div style="position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--gold-glow),transparent);"></div>
+      <div style="font-size:13px;letter-spacing:.3em;text-transform:uppercase;color:var(--gold);margin-bottom:1rem;">A partir de la etapa 2</div>
+      <p style="font-size:15px;color:var(--text-dim);line-height:1.9;">
+        Tú construyes el tuyo. Con coherencia, con datos propios y con la conciencia de lo que ya has demostrado que funciona.
+      </p>
+    </div>
+
+  </div>
+
+  <div style="text-align:center;margin-top:2rem;padding:1.5rem;border:1px solid var(--border);background:var(--bg2);">
+    <p style="font-size:16px;color:var(--text-muted);font-style:italic;line-height:1.9;">
+      "En Aurum no hay reglas impuestas. Hay un camino que cada trader termina trazando con sus propios datos."
+    </p>
+  </div>
+</section>
+
+
+<!-- RODERAS -->
+<section style="padding:4rem 3rem;border-bottom:1px solid var(--border);">
+  <div style="max-width:700px;margin:0 auto;">
+    <div style="width:1px;height:40px;background:linear-gradient(to bottom,transparent,var(--border-gold));margin:0 auto 3rem;"></div>
+
+    <div style="font-family:'Cormorant Garamond',serif;font-size:36px;color:var(--gold-bright);text-shadow:0 0 20px var(--gold-glow);line-height:1.2;margin-bottom:2rem;text-align:center;">
+      Roderas no es el que llegó.<br>
+      <em>Es el que nunca abandonó.</em>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:1.2rem;">
+      <p style="font-size:15px;color:var(--text-muted);line-height:2;">
+        Aurum no nació de la rentabilidad. Nació de años de proceso real — errores registrados, patrones descubiertos lentamente, ciclos completados sin atajos.
+      </p>
+      <p style="font-size:15px;color:var(--text-muted);line-height:2;">
+        Roderas lleva desde 2018 en el camino. No como alumno. Como constructor. Desarrollando las herramientas, el análisis y la comunidad que él mismo hubiera necesitado al principio.
+      </p>
+      <p style="font-size:15px;color:var(--text-dim);line-height:2;">
+        Cada persona tiene su tiempo. El tuyo no será el suyo. Pero sí tendrás algo que él no tuvo — un proceso estructurado, datos reales y gente que entiende lo que significa estar en el mismo camino.
+      </p>
+    </div>
+
+    <div style="width:1px;height:40px;background:linear-gradient(to bottom,var(--border-gold),transparent);margin:3rem auto 0;"></div>
+  </div>
+</section>
+
+
+<!-- CTA FINAL -->
+<section style="padding:5rem 3rem;text-align:center;position:relative;">
+
+  <h2 style="font-family:'Cormorant Garamond',serif;font-size:52px;font-weight:300;color:#F0E8D4;margin-bottom:1rem;">
+    ¿Estás listo para<br>dejar de improvisar?
+  </h2>
+
+  <p style="font-size:16px;color:var(--text-dim);max-width:480px;margin:0 auto 1.5rem;line-height:2;">
+    El proceso empieza con datos reales.<br>El acceso es por invitación.
+  </p>
+
+  <!-- Exclusividad -->
+  <div style="display:inline-flex;align-items:center;gap:.8rem;padding:.6rem 1.5rem;border:1px solid var(--border-gold);background:var(--gold-glow);margin-bottom:2.5rem;">
+    <div style="width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:pulse 2s infinite;"></div>
+    <span style="font-size:13px;letter-spacing:.25em;text-transform:uppercase;color:var(--gold-dim);">Acceso por tandas · Seguimiento real</span>
+  </div>
+
+  <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;margin-bottom:3rem;">
+    <div class="btn-gold" onclick="irA('packs')">Ver los packs</div>
+    <div class="btn-outline" onclick="irA('evalua')">✦ Evalúame — 33€</div>
+  </div>
+
+  <!-- Lista de espera -->
+  <div style="max-width:460px;margin:0 auto;padding:2rem;border:1px solid var(--border-gold);background:var(--bg2);position:relative;">
+    <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>
+    <div style="font-family:'Cormorant Garamond',serif;font-size:26px;color:var(--gold-bright);line-height:1.2;margin-bottom:1rem;">Aurum crece despacio.<br><em>Para que el seguimiento sea real.</em></div>
+    <p style="font-size:16px;color:var(--text-muted);margin-bottom:1.5rem;line-height:1.9;">
+      No abrimos plazas de forma masiva. Cuando hay espacio para acompañar bien a alguien, lo anunciamos. Solicita la tuya y te avisamos.
+    </p>
+    <div style="display:flex;gap:.5rem;">
+      <input
+        type="email"
+        placeholder="tu@email.com"
+        style="flex:1;background:#060810;border:1px solid var(--border);padding:.7rem 1rem;font-size:15px;color:var(--text);font-family:'Outfit',sans-serif;outline:none;transition:border-color .3s;"
+        onfocus="this.style.borderColor='var(--gold)'"
+        onblur="this.style.borderColor='var(--border)'"
+        id="waitlist-email"
+        onkeydown="if(event.key==='Enter')unirseListaEspera()"
+      >
+      <div onclick="unirseListaEspera()" style="padding:.7rem 1.2rem;border:1px solid var(--border-gold);background:var(--gold-glow);font-size:13px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold-bright);cursor:pointer;white-space:nowrap;transition:all .3s;" onmouseover="this.style.background='#C9A84C18'" onmouseout="this.style.background='var(--gold-glow)'">
+        Apuntarme →
+      </div>
+    </div>
+    <div id="waitlist-msg" style="font-size:14px;margin-top:.8rem;min-height:18px;text-align:center;"></div>
+  </div>
+
+</section>
+
+</div>
+
+<!-- PÁGINA: EL PROCESO (PACKS) -->
+<div id="page-packs" class="page-content" style="display:none;">
+<!-- CÓMO FUNCIONA -->
+<section style="padding:5rem 3rem 4rem;border-bottom:1px solid var(--border);">
+  <div style="text-align:center;margin-bottom:4rem;">
+    <span class="tag" style="display:block;margin-bottom:1rem;">El proceso</span>
+    <h2 style="font-family:'Cormorant Garamond',serif;font-size:44px;color:var(--text);">Cómo funciona Aurum</h2>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);max-width:1000px;margin:0 auto 3rem;">
+
+    <div style="background:var(--bg2);padding:2rem 1.5rem;position:relative;">
+      <div style="font-family:'Cormorant Garamond',serif;font-size:56px;color:#3A3E55;line-height:1;position:absolute;top:1rem;right:1rem;user-select:none;">1</div>
+      <div style="font-size:13px;letter-spacing:.3em;text-transform:uppercase;color:var(--gold);margin-bottom:.8rem;">Entras en evaluación</div>
+      <p style="font-size:16px;color:var(--text-muted);line-height:1.9;">Empiezas registrando tus operaciones y hábitos reales. Sin filtros, sin adornos.</p>
+    </div>
+
+    <div style="background:var(--bg2);padding:2rem 1.5rem;position:relative;">
+      <div style="font-family:'Cormorant Garamond',serif;font-size:56px;color:#3A3E55;line-height:1;position:absolute;top:1rem;right:1rem;user-select:none;">2</div>
+      <div style="font-size:13px;letter-spacing:.3em;text-transform:uppercase;color:var(--gold);margin-bottom:.8rem;">Construyes datos</div>
+      <p style="font-size:16px;color:var(--text-muted);line-height:1.9;">El objetivo no es ganar rápido. Es entender tu ejecución real trade a trade.</p>
+    </div>
+
+    <div style="background:var(--bg2);padding:2rem 1.5rem;position:relative;">
+      <div style="font-family:'Cormorant Garamond',serif;font-size:56px;color:#3A3E55;line-height:1;position:absolute;top:1rem;right:1rem;user-select:none;">3</div>
+      <div style="font-size:13px;letter-spacing:.3em;text-transform:uppercase;color:var(--gold);margin-bottom:.8rem;">Encuentras tu estructura</div>
+      <p style="font-size:16px;color:var(--text-muted);line-height:1.9;">Con el tiempo aparecen patrones, errores y ventajas que son únicamente tuyas.</p>
+    </div>
+
+    <div style="background:var(--bg2);padding:2rem 1.5rem;position:relative;">
+      <div style="font-family:'Cormorant Garamond',serif;font-size:56px;color:#3A3E55;line-height:1;position:absolute;top:1rem;right:1rem;user-select:none;">4</div>
+      <div style="font-size:13px;letter-spacing:.3em;text-transform:uppercase;color:var(--gold);margin-bottom:.8rem;">Evolucionas por etapas</div>
+      <p style="font-size:16px;color:var(--text-muted);line-height:1.9;">Cada etapa se gana con consistencia, no con emoción. El proceso no tiene prisa.</p>
+    </div>
+
+  </div>
+
+  <!-- Frase central -->
+  <div style="text-align:center;max-width:600px;margin:0 auto;">
+    <div style="width:1px;height:40px;background:linear-gradient(to bottom,transparent,var(--border-gold));margin:0 auto 2rem;"></div>
+    <p style="font-family:'Cormorant Garamond',serif;font-size:28px;color:var(--gold-bright);text-shadow:0 0 20px var(--gold-glow);line-height:1.4;font-style:italic;">
+      "Solo puedes llegar.<br>Acompañado llegas antes."
+    </p>
+    <div style="width:1px;height:40px;background:linear-gradient(to bottom,var(--border-gold),transparent);margin:2rem auto 0;"></div>
+  </div>
+</section>
+
+
+<!-- ACCESS MSG -->
+<div id="access-msg" style="display:none;background:#C9A84C0A;border:1px solid var(--border-gold);border-left:3px solid var(--gold);padding:1rem 1.5rem;margin:2rem 3rem 0;">
+  <div style="font-size:13px;letter-spacing:.3em;text-transform:uppercase;color:var(--gold);margin-bottom:.3rem;">✦ Acceso exclusivo</div>
+  <div style="font-size:16px;color:var(--text-dim);line-height:1.7;">Mi proceso y Mi gestión son exclusivos para usuarios con pack activo. Elige tu camino y únete al proceso.</div>
+</div>
+
+
+<!-- LOS 4 PACKS -->
+<section style="padding:4rem 3rem;border-bottom:1px solid var(--border);">
+  <div style="text-align:center;margin-bottom:3.5rem;">
+    <span class="tag" style="display:block;margin-bottom:1rem;">El acceso</span>
+    <h2 style="font-family:'Cormorant Garamond',serif;font-size:44px;color:var(--text);">Elige tu camino</h2>
+    <p style="font-size:15px;color:var(--text-muted);margin-top:.8rem;">Pago único. Sin mensualidades. Acceso vitalicio al proceso.</p>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1.5rem;max-width:1200px;margin:0 auto 3rem;">
+
+    <!-- UMBRAL -->
+    <div style="background:var(--bg2);border:1px solid var(--border);padding:2rem 1.5rem;position:relative;display:flex;flex-direction:column;">
+      <div style="font-size:10px;letter-spacing:.4em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.5rem;">Prueba · 22 días</div>
+      <div style="font-family:'Cormorant Garamond',serif;font-size:32px;color:var(--text);margin-bottom:.3rem;">Umbral</div>
+      <div style="font-family:'Cormorant Garamond',serif;font-size:52px;color:var(--text-dim);text-shadow:none;line-height:1;margin-bottom:.3rem;">77€</div>
+      <div style="font-size:13px;color:var(--text-muted);margin-bottom:1.5rem;padding-bottom:1.5rem;border-bottom:1px solid var(--border);">22 días para vivir el proceso desde dentro antes de decidir.</div>
+
+      <div style="display:flex;flex-direction:column;gap:.7rem;flex:1;margin-bottom:1.5rem;">
+        <div style="display:flex;align-items:flex-start;gap:.7rem;font-size:15px;color:var(--text-muted);"><span style="color:var(--gold);flex-shrink:0;margin-top:2px;">✦</span>3 cuentas MT5 activas</div>
+        <div style="display:flex;align-items:flex-start;gap:.7rem;font-size:15px;color:var(--text-muted);"><span style="color:var(--gold);flex-shrink:0;margin-top:2px;">✦</span>Mi proceso y Mi gestión</div>
+        <div style="display:flex;align-items:flex-start;gap:.7rem;font-size:15px;color:var(--text-muted);"><span style="color:var(--gold);flex-shrink:0;margin-top:2px;">✦</span>Sala de tu animal</div>
+        <div style="display:flex;align-items:flex-start;gap:.7rem;font-size:15px;color:var(--text-muted);"><span style="color:var(--gold);flex-shrink:0;margin-top:2px;">✦</span>Retos con OZT</div>
+      </div>
+
+      <div style="padding:.7rem;border:1px solid var(--border);background:var(--bg3);font-size:14px;color:var(--text-muted);line-height:1.7;margin-bottom:1.5rem;">
+        Al vencer los 22 días tienes <strong style="color:var(--gold-dim);">24 horas</strong> para entrar en cualquier pack con un <strong style="color:var(--gold-dim);">10% de descuento.</strong>
+      </div>
+
+      <div onclick="solicitarPack('umbral')" class="btn-outline" style="display:block;text-align:center;margin-top:auto;">Comenzar Umbral →</div>
+    </div>
+
+    <!-- RAÍZ -->
+    <div style="background:var(--bg2);border:1px solid var(--border);padding:2rem 1.5rem;position:relative;display:flex;flex-direction:column;">
+      <div style="font-size:10px;letter-spacing:.4em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.5rem;">Entrada · Pago único</div>
+      <div style="font-family:'Cormorant Garamond',serif;font-size:32px;color:var(--text);margin-bottom:.3rem;">Raíz</div>
+      <div style="font-family:'Cormorant Garamond',serif;font-size:52px;color:var(--gold);line-height:1;margin-bottom:.3rem;">111€</div>
+      <div style="font-size:13px;color:var(--text-muted);margin-bottom:1.5rem;padding-bottom:1.5rem;border-bottom:1px solid var(--border);">El comienzo real del proceso. Todo lo que necesitas para construir tu base.</div>
+
+      <div style="display:flex;flex-direction:column;gap:.7rem;flex:1;margin-bottom:1.5rem;">
+        <div style="display:flex;align-items:flex-start;gap:.7rem;font-size:15px;color:var(--text-muted);"><span style="color:var(--gold);flex-shrink:0;margin-top:2px;">✦</span>3 cuentas MT5 activas</div>
+        <div style="display:flex;align-items:flex-start;gap:.7rem;font-size:15px;color:var(--text-muted);"><span style="color:var(--gold);flex-shrink:0;margin-top:2px;">✦</span>Mi proceso y Mi gestión</div>
+        <div style="display:flex;align-items:flex-start;gap:.7rem;font-size:15px;color:var(--text-muted);"><span style="color:var(--gold);flex-shrink:0;margin-top:2px;">✦</span>Sala de tu animal</div>
+        <div style="display:flex;align-items:flex-start;gap:.7rem;font-size:15px;color:var(--text-muted);"><span style="color:var(--gold);flex-shrink:0;margin-top:2px;">✦</span>Retos con OZT</div>
+        <div style="display:flex;align-items:flex-start;gap:.7rem;font-size:15px;color:var(--text-muted);"><span style="color:var(--gold);flex-shrink:0;margin-top:2px;">✦</span>Acceso vitalicio al proceso</div>
+      </div>
+
+      <div onclick="solicitarPack('raiz')" class="btn-outline" style="display:block;text-align:center;margin-top:auto;">Entrar en Raíz →</div>
+    </div>
+
+    <!-- SENDA (destacado) -->
+    <div style="background:var(--bg2);border:1px solid var(--border-gold);padding:2rem 1.5rem;position:relative;display:flex;flex-direction:column;">
+      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>
+      <div style="position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--gold);color:var(--bg);font-size:10px;padding:.2rem 1rem;letter-spacing:.2em;text-transform:uppercase;white-space:nowrap;">Más elegido</div>
+
+      <div style="font-size:10px;letter-spacing:.4em;text-transform:uppercase;color:var(--gold);margin-bottom:.5rem;">Proceso · Pago único</div>
+      <div style="font-family:'Cormorant Garamond',serif;font-size:32px;color:var(--gold-bright);margin-bottom:.3rem;">Senda</div>
+      <div style="font-family:'Cormorant Garamond',serif;font-size:52px;color:var(--gold-bright);text-shadow:0 0 20px var(--gold-glow);line-height:1;margin-bottom:.3rem;">222€</div>
+      <div style="font-size:13px;color:var(--text-muted);margin-bottom:1.5rem;padding-bottom:1.5rem;border-bottom:1px solid var(--border-gold);">Ya estás dentro y avanzas. El análisis mensual revela lo que los números solos no dicen.</div>
+
+      <div style="display:flex;flex-direction:column;gap:.7rem;flex:1;margin-bottom:1.5rem;">
+        <div style="display:flex;align-items:flex-start;gap:.7rem;font-size:15px;color:var(--text-muted);"><span style="color:var(--gold);flex-shrink:0;margin-top:2px;">✦</span>Todo lo de Raíz</div>
+        <div style="display:flex;align-items:flex-start;gap:.7rem;font-size:15px;color:var(--text-dim);"><span style="color:var(--gold-bright);flex-shrink:0;margin-top:2px;">✦</span><span>Análisis de cumplimiento mensual — generado automáticamente con tus datos reales</span></div>
+        <div style="display:flex;align-items:flex-start;gap:.7rem;font-size:15px;color:var(--text-dim);"><span style="color:var(--gold-bright);flex-shrink:0;margin-top:2px;">✦</span><span>Unamos y venzamos — trabajo colectivo del equipo en sala</span></div>
+      </div>
+
+      <div onclick="solicitarPack('senda')" class="btn-gold" style="display:block;text-align:center;margin-top:auto;">Entrar en Senda →</div>
+    </div>
+
+    <!-- CIMA -->
+    <div style="background:var(--bg2);border:1px solid var(--border);padding:2rem 1.5rem;position:relative;display:flex;flex-direction:column;">
+      <div style="font-size:10px;letter-spacing:.4em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.5rem;">Completo · Pago único</div>
+      <div style="font-family:'Cormorant Garamond',serif;font-size:32px;color:var(--text);margin-bottom:.3rem;">Cima</div>
+      <div style="font-family:'Cormorant Garamond',serif;font-size:52px;color:var(--gold);line-height:1;margin-bottom:.3rem;">333€</div>
+      <div style="font-size:13px;color:var(--text-muted);margin-bottom:1.5rem;padding-bottom:1.5rem;border-bottom:1px solid var(--border);">Acceso total al proceso. Sin límites de sala, sin barreras.</div>
+
+      <div style="display:flex;flex-direction:column;gap:.7rem;flex:1;margin-bottom:1.5rem;">
+        <div style="display:flex;align-items:flex-start;gap:.7rem;font-size:15px;color:var(--text-muted);"><span style="color:var(--gold);flex-shrink:0;margin-top:2px;">✦</span>Todo lo de Senda</div>
+        <div style="display:flex;align-items:flex-start;gap:.7rem;font-size:15px;color:var(--text-dim);"><span style="color:var(--gold-bright);flex-shrink:0;margin-top:2px;">✦</span><span>Acceso a todas las salas — no te limita tu animal</span></div>
+        <div style="display:flex;align-items:flex-start;gap:.7rem;font-size:15px;color:var(--text-dim);"><span style="color:var(--gold-bright);flex-shrink:0;margin-top:2px;">✦</span><span>Historial completo de reflexiones y análisis del equipo</span></div>
+      </div>
+
+      <div onclick="solicitarPack('cima')" class="btn-outline" style="display:block;text-align:center;margin-top:auto;">Entrar en Cima →</div>
+    </div>
+
+  </div>
+
+  <!-- Nota entorno simulado -->
+  <div style="max-width:800px;margin:0 auto 1rem;padding:1rem 1.5rem;border:1px solid var(--border);background:var(--bg2);text-align:center;">
+    <p style="font-size:15px;color:var(--text-muted);line-height:1.8;">
+      ✦ Las 3 cuentas MT5 operan en <strong style="color:var(--text-dim);">entorno simulado</strong> — capital virtual, condiciones reales de mercado. No es dinero real. Es el espacio donde construyes tu proceso sin el coste de aprenderlo con tu propio capital.
+    </p>
+  </div>
+
+  <!-- Nota OZT y reset -->
+  <div style="max-width:800px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+    <div style="padding:1.2rem 1.5rem;border:1px solid var(--border);background:var(--bg2);">
+      <div style="font-size:13px;letter-spacing:.25em;text-transform:uppercase;color:var(--gold-dim);margin-bottom:.5rem;">◈ Sistema OZT</div>
+      <p style="font-size:15px;color:var(--text-muted);line-height:1.8;">Ganas OZT participando en retos. Se usan para acceder a retos especiales o para resetear una cuenta. También se pueden comprar.</p>
+    </div>
+    <div style="padding:1.2rem 1.5rem;border:1px solid var(--border);background:var(--bg2);">
+      <div style="font-size:13px;letter-spacing:.25em;text-transform:uppercase;color:var(--gold-dim);margin-bottom:.5rem;">↺ Reset de cuenta</div>
+      <p style="font-size:15px;color:var(--text-muted);line-height:1.8;">Si pierdes una cuenta puedes resetearla con OZT. Tu historial se mantiene íntegro — el proceso lo registra todo. Si no tienes OZT, siempre puedes conseguirlos dentro del proceso.</p>
+    </div>
+  </div>
+</section>
+
+
+<!-- EVALÚAME -->
+<section style="padding:4rem 3rem;">
+  <div style="max-width:700px;margin:0 auto;text-align:center;">
+    <span class="tag" style="display:block;margin-bottom:1rem;">¿No sabes si estás preparado?</span>
+    <h2 style="font-family:'Cormorant Garamond',serif;font-size:38px;color:var(--text);margin-bottom:1rem;">Evalúame — 33€</h2>
+    <p style="font-size:15px;color:var(--text-muted);line-height:2;margin-bottom:.8rem;">
+      Sube tu historial MT5 con mínimo 111 trades en XAU/USD. Aurum analiza tu edge real — win rate, R/R, horas, lotajes — y te da una primera lectura honesta de dónde estás en tu proceso.
+    </p>
+    <p style="font-size:16px;color:var(--text-muted);line-height:2;margin-bottom:2rem;">
+      Al terminar tienes <strong style="color:var(--gold-dim);">6 horas</strong> para aplicar los 33€ como descuento en cualquier pack.
+    </p>
+    <div onclick="irA('evalua')" class="btn-outline">✦ Quiero que me evalúen</div>
+  </div>
+</section>
+
+</div>
+
+<!-- PÁGINA: LAS SALAS -->
+<div id="page-salas" class="page-content" style="display:none;">
+<!-- LISTA DE SALAS -->
+<div id="salas-lista">
+
+  <section style="padding:5rem 3rem 3rem;border-bottom:1px solid var(--border);text-align:center;">
+    <span class="tag" style="display:block;margin-bottom:1rem;">La comunidad</span>
+    <h1 style="font-family:'Cormorant Garamond',serif;font-size:clamp(36px,5vw,60px);font-weight:300;color:#F0E8D4;margin-bottom:1rem;">
+      Las <em style="color:var(--gold-bright);text-shadow:0 0 30px var(--gold-glow);">salas</em>
+    </h1>
+    <p style="font-size:16px;color:var(--text-muted);max-width:560px;margin:0 auto 1rem;line-height:2;">
+      Cada animal tiene su equipo. Cada equipo tiene su sala.<br>
+      Aquí el proceso deja de ser solitario.
+    </p>
+    <p style="font-size:15px;color:var(--text-muted);max-width:500px;margin:0 auto;line-height:1.9;font-style:italic;">
+      Por ahora solo audio y pantalla compartida. En el futuro, videollamada completa con cámara activable — como Zoom, pero dentro de Aurum.
+    </p>
+  </section>
+
+
+  <!-- SALAS DE EQUIPO -->
+  <section style="padding:3rem;border-bottom:1px solid var(--border);">
+    <div style="margin-bottom:2rem;">
+      <span class="tag" style="display:block;margin-bottom:.5rem;">Salas de equipo</span>
+      <p style="font-size:16px;color:var(--text-muted);line-height:1.8;">Tu sala es la de tu animal. La eliges al entrar al proceso y no cambia — salvo solicitud al Águila.</p>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1rem;">
+
+      <!-- Hormiga -->
+      <div style="background:var(--bg2);border:1px solid var(--border);padding:1.5rem;cursor:pointer;transition:border-color .3s;" onclick="entrarSala('hormiga')" onmouseover="this.style.borderColor='var(--border-gold)'" onmouseout="this.style.borderColor='var(--border)'">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem;">
+          <div>
+            <div style="font-size:13px;letter-spacing:.4em;text-transform:uppercase;color:var(--gold);margin-bottom:.3rem;">Hormiga</div>
+            <div style="font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--text);">Disciplina · Repetición</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:.4rem;">
+            <div style="width:5px;height:5px;border-radius:50%;background:var(--text-muted);"></div>
+            <span style="font-size:13px;color:var(--text-muted);">Cerrada</span>
+          </div>
+        </div>
+        <div style="font-size:14px;color:var(--text-muted);margin-bottom:1rem;">0 conectados</div>
+        <div style="font-size:13px;color:var(--text-muted);padding:.5rem;background:var(--bg3);border:1px solid var(--border);">Abre próximamente</div>
+      </div>
+
+      <!-- Oso -->
+      <div style="background:var(--bg2);border:1px solid var(--border);padding:1.5rem;cursor:pointer;transition:border-color .3s;" onclick="entrarSala('oso')" onmouseover="this.style.borderColor='var(--border-gold)'" onmouseout="this.style.borderColor='var(--border)'">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem;">
+          <div>
+            <div style="font-size:13px;letter-spacing:.4em;text-transform:uppercase;color:var(--gold);margin-bottom:.3rem;">Oso</div>
+            <div style="font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--text);">Paciencia · Protección</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:.4rem;">
+            <div style="width:5px;height:5px;border-radius:50%;background:var(--text-muted);"></div>
+            <span style="font-size:13px;color:var(--text-muted);">Cerrada</span>
+          </div>
+        </div>
+        <div style="font-size:14px;color:var(--text-muted);margin-bottom:1rem;">0 conectados</div>
+        <div style="font-size:13px;color:var(--text-muted);padding:.5rem;background:var(--bg3);border:1px solid var(--border);">Abre próximamente</div>
+      </div>
+
+      <!-- Toro -->
+      <div style="background:var(--bg2);border:1px solid var(--border);padding:1.5rem;cursor:pointer;transition:border-color .3s;" onclick="entrarSala('toro')" onmouseover="this.style.borderColor='var(--border-gold)'" onmouseout="this.style.borderColor='var(--border)'">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem;">
+          <div>
+            <div style="font-size:13px;letter-spacing:.4em;text-transform:uppercase;color:var(--gold);margin-bottom:.3rem;">Toro</div>
+            <div style="font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--text);">Expansión · Momentum</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:.4rem;">
+            <div style="width:5px;height:5px;border-radius:50%;background:var(--text-muted);"></div>
+            <span style="font-size:13px;color:var(--text-muted);">Cerrada</span>
+          </div>
+        </div>
+        <div style="font-size:14px;color:var(--text-muted);margin-bottom:1rem;">0 conectados</div>
+        <div style="font-size:13px;color:var(--text-muted);padding:.5rem;background:var(--bg3);border:1px solid var(--border);">Abre próximamente</div>
+      </div>
+
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;">
+
+      <!-- Elefante -->
+      <div style="background:var(--bg2);border:1px solid var(--border);padding:1.5rem;cursor:pointer;transition:border-color .3s;" onclick="entrarSala('elefante')" onmouseover="this.style.borderColor='var(--border-gold)'" onmouseout="this.style.borderColor='var(--border)'">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem;">
+          <div>
+            <div style="font-size:13px;letter-spacing:.4em;text-transform:uppercase;color:var(--gold);margin-bottom:.3rem;">Elefante</div>
+            <div style="font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--text);">Memoria · Control emocional</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:.4rem;">
+            <div style="width:5px;height:5px;border-radius:50%;background:var(--text-muted);"></div>
+            <span style="font-size:13px;color:var(--text-muted);">Cerrada</span>
+          </div>
+        </div>
+        <div style="font-size:14px;color:var(--text-muted);margin-bottom:1rem;">0 conectados</div>
+        <div style="font-size:13px;color:var(--text-muted);padding:.5rem;background:var(--bg3);border:1px solid var(--border);">Abre próximamente</div>
+      </div>
+
+      <!-- León — activa (demo) -->
+      <div style="background:var(--bg2);border:1px solid var(--border-gold);padding:1.5rem;cursor:pointer;position:relative;" onclick="entrarSala('leon')">
+        <div style="position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--green),transparent);"></div>
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem;">
+          <div>
+            <div style="font-size:13px;letter-spacing:.4em;text-transform:uppercase;color:var(--gold-bright);margin-bottom:.3rem;">León</div>
+            <div style="font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--text);">Presencia · Convicción</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:.4rem;">
+            <div style="width:5px;height:5px;border-radius:50%;background:var(--green);box-shadow:0 0 5px var(--green);animation:pulse 2s infinite;"></div>
+            <span style="font-size:13px;color:var(--green);">En vivo</span>
+          </div>
+        </div>
+        <div style="font-size:14px;color:var(--text-muted);margin-bottom:1rem;">5 conectados</div>
+        <div class="btn-outline" style="display:block;text-align:center;font-size:13px;padding:.5rem;">Entrar →</div>
+      </div>
+
+      <!-- Lobo -->
+      <div style="background:var(--bg2);border:1px solid var(--border);padding:1.5rem;cursor:pointer;transition:border-color .3s;" onclick="entrarSala('lobo')" onmouseover="this.style.borderColor='var(--border-gold)'" onmouseout="this.style.borderColor='var(--border)'">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem;">
+          <div>
+            <div style="font-size:13px;letter-spacing:.4em;text-transform:uppercase;color:var(--gold);margin-bottom:.3rem;">Lobo</div>
+            <div style="font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--text);">Instinto · Adaptación</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:.4rem;">
+            <div style="width:5px;height:5px;border-radius:50%;background:var(--text-muted);"></div>
+            <span style="font-size:13px;color:var(--text-muted);">Cerrada</span>
+          </div>
+        </div>
+        <div style="font-size:14px;color:var(--text-muted);margin-bottom:1rem;">0 conectados</div>
+        <div style="font-size:13px;color:var(--text-muted);padding:.5rem;background:var(--bg3);border:1px solid var(--border);">Abre próximamente</div>
+      </div>
+
+    </div>
+  </section>
+
+
+  <!-- SALAS ABIERTAS -->
+  <section style="padding:3rem;border-bottom:1px solid var(--border);">
+    <div style="margin-bottom:2rem;">
+      <span class="tag" style="display:block;margin-bottom:.5rem;">Salas abiertas</span>
+      <p style="font-size:16px;color:var(--text-muted);line-height:1.8;">Todos los animales juntos. Aquí nace el "Unamos y venzamos".</p>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+
+      <!-- Sala Abierta — activa (demo) -->
+      <div style="background:var(--bg2);border:1px solid var(--border-gold);padding:1.5rem;cursor:pointer;position:relative;" onclick="entrarSala('abierta')">
+        <div style="position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--green),transparent);"></div>
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.8rem;">
+          <div>
+            <div style="font-size:13px;letter-spacing:.4em;text-transform:uppercase;color:var(--gold-bright);margin-bottom:.3rem;">Sala Abierta</div>
+            <div style="font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--text);">Unamos y venzamos</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:.4rem;">
+            <div style="width:5px;height:5px;border-radius:50%;background:var(--green);box-shadow:0 0 5px var(--green);animation:pulse 2s infinite;"></div>
+            <span style="font-size:13px;color:var(--green);">En vivo</span>
+          </div>
+        </div>
+        <div style="font-size:15px;color:var(--text-muted);margin-bottom:1rem;line-height:1.7;">Todos los animales. Todos los packs. El espacio donde la comunidad trabaja junta.</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div style="font-size:14px;color:var(--text-muted);">12 conectados</div>
+          <div class="btn-outline" style="font-size:13px;padding:.4rem 1rem;">Entrar →</div>
+        </div>
+      </div>
+
+      <!-- Sala Evento -->
+      <div style="background:var(--bg2);border:1px solid var(--border);padding:1.5rem;position:relative;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.8rem;">
+          <div>
+            <div style="font-size:13px;letter-spacing:.4em;text-transform:uppercase;color:var(--gold);margin-bottom:.3rem;">Sala Evento</div>
+            <div style="font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--text);">Convocatoria especial</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:.4rem;">
+            <div style="width:5px;height:5px;border-radius:50%;background:var(--text-muted);"></div>
+            <span style="font-size:13px;color:var(--text-muted);">Cerrada</span>
+          </div>
+        </div>
+        <div style="font-size:15px;color:var(--text-muted);margin-bottom:1rem;line-height:1.7;">Para momentos de mercado especiales, análisis en vivo o convocatorias del Águila. Fecha y hora programada.</div>
+        <div style="font-size:13px;color:var(--text-muted);padding:.5rem;background:var(--bg3);border:1px solid var(--border);text-align:center;">Sin eventos programados</div>
+      </div>
+
+    </div>
+  </section>
+
+
+  <!-- NORMAS -->
+  <section style="padding:2rem 3rem;">
+    <div style="max-width:700px;margin:0 auto;padding:1.5rem;border:1px solid var(--border);background:var(--bg2);position:relative;">
+      <div style="position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--border-gold),transparent);"></div>
+      <div style="font-size:13px;letter-spacing:.3em;text-transform:uppercase;color:var(--gold-dim);margin-bottom:.8rem;">Convivencia</div>
+      <p style="font-size:16px;color:var(--text-muted);line-height:1.9;">
+        Aurum es un espacio de proceso y respeto. El comportamiento que comprometa eso tiene consecuencias.
+        Aurum se reserva el derecho de expulsión sin reembolso ante faltas de respeto o conductas que dañen la comunidad.
+      </p>
+    </div>
+  </section>
+
+</div>
+
+
+<!-- SALA INTERIOR -->
+<div id="sala-interior" style="display:none;">
+
+  <div style="padding:.6rem 1.2rem;border-bottom:1px solid var(--border);background:var(--bg2);display:flex;align-items:center;gap:1rem;">
+    <div onclick="salirDeSala()" style="font-size:14px;color:var(--text-muted);cursor:pointer;transition:color .2s;" onmouseover="this.style.color='var(--gold)'" onmouseout="this.style.color='var(--text-muted)'">← Volver a las salas</div>
+    <div style="font-size:14px;color:var(--gold-dim);" id="sala-nombre-header">Sala León</div>
+    <div style="margin-left:auto;font-size:13px;color:var(--text-muted);font-style:italic;">Solo audio · Las imágenes se cargan desde el perfil de cada usuario</div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 300px;height:calc(100vh - 107px);">
+
+    <!-- IZQUIERDA: pantalla + participantes + controles -->
+    <div style="display:flex;flex-direction:column;">
+
+      <!-- Pantalla compartida -->
+      <div style="flex:1;background:#04060E;position:relative;display:flex;align-items:center;justify-content:center;min-height:0;overflow:hidden;">
+        <div style="width:88%;height:82%;border:1px solid #1A2040;background:#050710;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+          <svg width="90%" height="70%" viewBox="0 0 700 200" style="opacity:.25;">
+            <line x1="0" y1="100" x2="700" y2="100" stroke="#C9A84C" stroke-width="0.5"/>
+            <polyline points="0,150 120,135 240,112 360,88 480,62 600,40 700,25" fill="none" stroke="#C9A84C" stroke-width="1.5"/>
+            <line x1="0" y1="60" x2="700" y2="60" stroke="#E8C870" stroke-width="1" stroke-dasharray="8 4"/>
+            <text x="10" y="55" fill="#E8C870" font-size="9" opacity="0.7">3.284 — Nivel H4</text>
+          </svg>
+          <div style="font-family:'Cormorant Garamond',serif;font-size:15px;color:#1E2840;letter-spacing:.2em;" id="sala-chart-label">XAU/USD · H4</div>
+        </div>
+        <div style="position:absolute;top:1rem;left:1rem;display:flex;align-items:center;gap:.5rem;padding:.35rem .8rem;background:#3AAA6A18;border:1px solid #3AAA6A33;">
+          <div style="width:5px;height:5px;border-radius:50%;background:var(--green);animation:pulse 2s infinite;"></div>
+          <span style="font-size:13px;color:var(--green);">Pantalla compartida activa</span>
+        </div>
+        <div style="position:absolute;top:1rem;right:1rem;text-align:right;">
+          <div style="font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--gold-bright);">3.284,50</div>
+          <div style="font-size:13px;color:var(--green);">▲ +0.53% XAU/USD</div>
+        </div>
+      </div>
+
+      <!-- Grid participantes -->
+      <div style="background:#060810;border-top:1px solid var(--border);padding:.5rem .8rem;">
+        <div style="display:flex;align-items:center;margin-bottom:.4rem;">
+          <span style="font-size:10px;letter-spacing:.25em;text-transform:uppercase;color:var(--text-muted);">Participantes · Solo audio</span>
+          <div style="display:flex;align-items:center;gap:.3rem;margin-left:auto;">
+            <div style="width:5px;height:5px;border-radius:50%;background:var(--green);animation:pulse 2s infinite;box-shadow:0 0 4px var(--green);"></div>
+            <span style="font-size:13px;color:var(--green);" id="sala-conectados">5 conectados</span>
+          </div>
+        </div>
+        <!-- Grid 8 celdas -->
+        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:.4rem;" id="sala-grid-participantes">
+
+          <!-- Roderas — TÚ -->
+          <div style="aspect-ratio:4/3;background:#0C0E18;border:2px solid var(--gold);border-radius:3px;position:relative;overflow:hidden;box-shadow:0 0 10px var(--gold-glow);">
+            <img src="img/leon.jpg" alt="Roderas" style="width:100%;height:100%;object-fit:contain;object-position:center center;display:block;background:#0C0E18;" onerror="this.style.display='none'">
+            <div style="position:absolute;top:2px;right:2px;font-size:7px;background:var(--gold);color:var(--bg);padding:0 3px;border-radius:1px;font-weight:500;">TÚ</div>
+            <div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,#00000099);padding:2px 4px;">
+              <div style="font-size:9px;color:var(--gold-bright);font-weight:500;" id="sala-tu-nick">Roderas</div>
+            </div>
+            <div style="position:absolute;bottom:3px;left:3px;width:5px;height:5px;border-radius:50%;background:var(--green);box-shadow:0 0 4px var(--green);"></div>
+            <div style="position:absolute;top:2px;left:2px;font-size:9px;color:var(--green);">🎙</div>
+          </div>
+
+          <!-- Participante 2 — imagen de perfil -->
+          <div style="aspect-ratio:4/3;background:#0C0E18;border:1px solid var(--border);border-radius:3px;position:relative;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+            <div style="width:32px;height:32px;border-radius:50%;background:var(--bg3);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--text-muted);">T</div>
+            <div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,#00000099);padding:2px 4px;"><div style="font-size:9px;color:var(--text-muted);">Toro_01</div></div>
+            <div style="position:absolute;bottom:3px;left:3px;width:5px;height:5px;border-radius:50%;background:var(--green);box-shadow:0 0 4px var(--green);"></div>
+            <div style="position:absolute;top:2px;left:2px;font-size:9px;color:var(--green);">🎙</div>
+          </div>
+
+          <!-- Participante 3 -->
+          <div style="aspect-ratio:4/3;background:#0C0E18;border:1px solid var(--border);border-radius:3px;position:relative;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+            <div style="width:32px;height:32px;border-radius:50%;background:var(--bg3);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--text-muted);">O</div>
+            <div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,#00000099);padding:2px 4px;"><div style="font-size:9px;color:var(--text-muted);">Oso_01</div></div>
+            <div style="position:absolute;bottom:3px;left:3px;width:5px;height:5px;border-radius:50%;background:var(--green);box-shadow:0 0 4px var(--green);"></div>
+          </div>
+
+          <!-- Participante 4 — silenciado -->
+          <div style="aspect-ratio:4/3;background:#080A0E;border:1px solid var(--border);border-radius:3px;position:relative;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:.55;">
+            <div style="width:32px;height:32px;border-radius:50%;background:var(--bg3);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--text-muted);">T</div>
+            <div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,#00000099);padding:2px 4px;"><div style="font-size:9px;color:var(--text-muted);">Toro_02</div></div>
+            <div style="position:absolute;bottom:3px;left:3px;width:5px;height:5px;border-radius:50%;background:#CC8844;"></div>
+            <div style="position:absolute;top:2px;right:2px;font-size:10px;color:#2A3050;">🔇</div>
+          </div>
+
+          <!-- Participante 5 -->
+          <div style="aspect-ratio:4/3;background:#0C0E18;border:1px solid var(--border);border-radius:3px;position:relative;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+            <div style="width:32px;height:32px;border-radius:50%;background:var(--bg3);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--text-muted);">E</div>
+            <div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,#00000099);padding:2px 4px;"><div style="font-size:9px;color:var(--text-muted);">Elef_01</div></div>
+            <div style="position:absolute;bottom:3px;left:3px;width:5px;height:5px;border-radius:50%;background:var(--green);box-shadow:0 0 4px var(--green);"></div>
+          </div>
+
+          <!-- Plazas vacías -->
+          <!-- Plazas vacías hasta completar 14 -->
+          <div style="aspect-ratio:4/3;background:#060810;border:1px dashed #1A2040;border-radius:3px;display:flex;align-items:center;justify-content:center;"><div style="font-size:10px;color:#1A2040;">+</div></div>
+          <div style="aspect-ratio:4/3;background:#060810;border:1px dashed #1A2040;border-radius:3px;display:flex;align-items:center;justify-content:center;"><div style="font-size:10px;color:#1A2040;">+</div></div>
+          <div style="aspect-ratio:4/3;background:#060810;border:1px dashed #1A2040;border-radius:3px;display:flex;align-items:center;justify-content:center;"><div style="font-size:10px;color:#1A2040;">+</div></div>
+          <div style="aspect-ratio:4/3;background:#060810;border:1px dashed #1A2040;border-radius:3px;display:flex;align-items:center;justify-content:center;"><div style="font-size:10px;color:#1A2040;">+</div></div>
+          <div style="aspect-ratio:4/3;background:#060810;border:1px dashed #1A2040;border-radius:3px;display:flex;align-items:center;justify-content:center;"><div style="font-size:10px;color:#1A2040;">+</div></div>
+          <div style="aspect-ratio:4/3;background:#060810;border:1px dashed #1A2040;border-radius:3px;display:flex;align-items:center;justify-content:center;"><div style="font-size:10px;color:#1A2040;">+</div></div>
+          <div style="aspect-ratio:4/3;background:#060810;border:1px dashed #1A2040;border-radius:3px;display:flex;align-items:center;justify-content:center;"><div style="font-size:10px;color:#1A2040;">+</div></div>
+          <div style="aspect-ratio:4/3;background:#060810;border:1px dashed #1A2040;border-radius:3px;display:flex;align-items:center;justify-content:center;"><div style="font-size:10px;color:#1A2040;">+</div></div>
+          <div style="aspect-ratio:4/3;background:#060810;border:1px dashed #1A2040;border-radius:3px;display:flex;align-items:center;justify-content:center;"><div style="font-size:10px;color:#1A2040;">+</div></div>
+
+        </div>
+
+        <div style="font-size:13px;color:var(--text-muted);margin-top:.5rem;font-style:italic;">
+          Las imágenes se cargan desde el perfil de cada usuario. Sin imagen aparece la inicial del nick.
+        </div>
+      </div>
+
+      <!-- Controles -->
+      <div style="border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:.55rem 1rem;background:#04060E;">
+        <div style="font-size:14px;color:var(--text-muted);" id="sala-info-bar">Sala León · Solo audio</div>
+        <div style="display:flex;gap:.4rem;">
+          <div class="ctrl-btn on">🎙 Micro</div>
+          <div class="ctrl-btn" style="opacity:.4;cursor:not-allowed;" title="Videollamada disponible próximamente">📵 Sin vídeo</div>
+          <div class="ctrl-btn">🖥 Compartir</div>
+          <div class="ctrl-btn">✋ Mano</div>
+          <div class="ctrl-btn" style="color:var(--red);border-color:#CC443333;" onclick="salirDeSala()">✕ Salir</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- CHAT -->
+    <div style="display:flex;flex-direction:column;border-left:1px solid var(--border);background:var(--bg2);">
+      <div style="padding:.8rem 1rem;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-size:14px;letter-spacing:.15em;color:var(--gold-dim);" id="sala-chat-title">Sala León · Chat</div>
+        <div style="display:flex;align-items:center;gap:.4rem;font-size:13px;color:var(--green);">
+          <div style="width:4px;height:4px;border-radius:50%;background:var(--green);animation:pulse 2s infinite;"></div>
+          <span id="sala-chat-conectados">5 conectados</span>
+        </div>
+      </div>
+
+      <div style="flex:1;padding:.8rem 1rem;overflow-y:auto;display:flex;flex-direction:column;gap:.7rem;min-height:0;" id="sala-chat-msgs">
+        <div style="border-left:2px solid var(--border-gold);padding-left:.6rem;">
+          <div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.2rem;">
+            <div style="font-size:15px;">—</div>
+            <div style="font-size:13px;color:var(--gold-dim);">Águila</div>
+            <div style="font-size:10px;color:var(--text-muted);margin-left:auto;">18:15</div>
+          </div>
+          <div style="font-size:15px;color:var(--text-dim);line-height:1.6;">Nivel H4 respetado tres semanas. Paciencia.</div>
+        </div>
+        <div>
+          <div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.2rem;">
+            <div style="font-size:15px;">—</div>
+            <div style="font-size:13px;color:var(--text-muted);">Toro_01</div>
+            <div style="font-size:10px;color:var(--text-muted);margin-left:auto;">18:17</div>
+          </div>
+          <div style="font-size:15px;color:var(--text-dim);line-height:1.6;">Lo veo clarísimo desde el martes.</div>
+        </div>
+        <div style="border-left:2px solid var(--gold);padding-left:.6rem;">
+          <div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.2rem;">
+            <div style="font-size:15px;">—</div>
+            <div style="font-size:13px;color:var(--gold-bright);" id="sala-tu-msg-name">Roderas (Tú)</div>
+            <div style="font-size:10px;color:var(--text-muted);margin-left:auto;">18:30</div>
+          </div>
+          <div style="font-size:15px;color:var(--text-dim);line-height:1.6;">Sin novedad. Esperando.</div>
+        </div>
+      </div>
+
+      <div style="padding:.6rem .8rem;background:#060810;border-top:1px solid var(--border);">
+        <div style="display:flex;gap:.4rem;margin-bottom:.5rem;">
+          <div style="padding:.3rem .5rem;border:1px solid var(--border);font-size:16px;cursor:pointer;background:#0E1020;border-radius:2px;transition:border-color .2s;" title="De acuerdo" onmouseover="this.style.borderColor='var(--border-gold)'" onmouseout="this.style.borderColor='var(--border)'">👍</div>
+          <div style="padding:.3rem .5rem;border:1px solid var(--border);font-size:16px;cursor:pointer;background:#0E1020;border-radius:2px;transition:border-color .2s;" title="Lo veo" onmouseover="this.style.borderColor='var(--border-gold)'" onmouseout="this.style.borderColor='var(--border)'">👀</div>
+          <div style="padding:.3rem .5rem;border:1px solid var(--border);font-size:16px;cursor:pointer;background:#0E1020;border-radius:2px;transition:border-color .2s;" title="Levantar mano" onmouseover="this.style.borderColor='var(--border-gold)'" onmouseout="this.style.borderColor='var(--border)'">✋</div>
+          <div style="padding:.3rem .5rem;border:1px solid var(--border);font-size:16px;cursor:pointer;background:#0E1020;border-radius:2px;transition:border-color .2s;" title="Tengo duda" onmouseover="this.style.borderColor='var(--border-gold)'" onmouseout="this.style.borderColor='var(--border)'">❓</div>
+        </div>
+        <div style="display:flex;gap:.5rem;">
+          <input id="sala-chat-input" type="text" placeholder="Escribe en la sala..." style="flex:1;background:#060810;border:1px solid var(--border);padding:.5rem .8rem;font-size:15px;color:var(--text);font-family:'Outfit',sans-serif;outline:none;transition:border-color .3s;" onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--border)'" onkeydown="if(event.key==='Enter')enviarMensajeSala()">
+          <div onclick="enviarMensajeSala()" style="padding:.5rem .8rem;border:1px solid var(--border-gold);background:var(--gold-glow);color:var(--gold);cursor:pointer;font-size:15px;">✦</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</div>
+
+<!-- PÁGINA: EVALÚAME -->
+<div id="page-evalua" class="page-content" style="display:none;">
+<!-- ============================================================
+     EVALÚAME — Evaluación de historial MT5
+     Precio: 33€ pago único · Mínimo 111 trades XAU/USD
+     ============================================================ -->
+
+<div class="hero" style="padding:5rem 3rem 3rem;">
+  <span class="hero-tag">Aurum Velare · Evaluación de historial</span>
+  <h1 class="hero-title">
+    Sube tu historial.<br>
+    Descubre tu <em>edge real.</em>
+  </h1>
+  <p class="hero-sub">
+    Aurum lee tu historial MT5 y analiza tus patrones reales — win rate, R/R, horas, lotajes, cumplimiento.
+    Una primera lectura honesta de tu operativa. El proceso empieza después.
+  </p>
+
+  <!-- Precio y qué incluye -->
+  <div style="display:flex;align-items:center;justify-content:center;gap:3rem;margin-top:2.5rem;padding-top:2rem;border-top:1px solid var(--border);flex-wrap:wrap;">
+    <div style="text-align:center;">
+      <div style="font-family:'Cormorant Garamond',serif;font-size:64px;color:var(--gold-bright);text-shadow:0 0 30px var(--gold-glow);line-height:1;">33€</div>
+      <div class="tag" style="margin-top:.3rem;">Pago único · 1 evaluación</div>
+    </div>
+    <div style="width:1px;height:60px;background:linear-gradient(to bottom,transparent,var(--border),transparent);"></div>
+    <div style="display:flex;flex-direction:column;gap:.6rem;text-align:left;">
+      <div style="font-size:15px;color:var(--text-dim);">✦ Mínimo 111 trades en XAU/USD</div>
+      <div style="font-size:15px;color:var(--text-dim);">✦ Win rate, R/R, esperanza, horas, lotajes</div>
+      <div style="font-size:15px;color:var(--text-dim);">✦ Etapa Aurum recomendada + veredicto personal</div>
+      <div style="font-size:15px;color:var(--text-dim);">✦ Los 33€ se descuentan si entras al proceso</div>
+    </div>
+  </div>
+</div>
+
+
+<!-- FLUJO DE PAGO Y EVALUACIÓN -->
+<section style="max-width:720px;margin:3rem auto;padding:0 2rem;">
+
+  <!-- PASO 1: Pagar -->
+  <div id="evalua-paso-pago">
+    <div style="font-size:14px;letter-spacing:.3em;text-transform:uppercase;color:var(--text-muted);margin-bottom:1.5rem;text-align:center;">Paso 1 de 2 — Pagar la evaluación</div>
+
+    <div style="border:1px solid var(--border-gold);background:var(--bg2);padding:2rem;position:relative;margin-bottom:1rem;">
+      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;">
+        <div>
+          <div class="tag" style="margin-bottom:.3rem;">Evalúame · Aurum Velare</div>
+          <div style="font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--text);">Evaluación completa de historial MT5</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-family:'Cormorant Garamond',serif;font-size:44px;color:var(--gold-bright);text-shadow:0 0 20px var(--gold-glow);line-height:1;">33€</div>
+          <div class="tag">Pago único</div>
+        </div>
+      </div>
+
+      <div style="font-size:15px;color:var(--text-muted);padding:.8rem;background:var(--bg3);border:1px solid var(--border);margin-bottom:1.5rem;">
+        ⚠ Mínimo 111 trades en XAU/USD. Si tu historial tiene menos, el código sigue válido hasta que los tengas.
+      </div>
+
+      <!-- Botón Stripe (en producción redirige al checkout de Stripe) -->
+      <button class="btn-gold" style="width:100%;text-align:center;" onclick="simularPago()">
+        ✦ Pagar 33€ con Stripe →
+      </button>
+
+      <div style="text-align:center;margin-top:.8rem;font-size:14px;color:var(--text-muted);">
+        Pago seguro · Stripe · Recibirás tu código por email inmediatamente
+      </div>
+    </div>
+
+    <div style="text-align:center;">
+      <span style="font-size:15px;color:var(--text-muted);">¿Ya tienes código? </span>
+      <span style="font-size:15px;color:var(--gold-dim);cursor:pointer;text-decoration:underline;" onclick="mostrarFormularioCodigo()">Introducirlo aquí →</span>
+    </div>
+  </div>
+
+
+  <!-- FORMULARIO DE CÓDIGO (oculto hasta clicar o tras pago simulado) -->
+  <div id="evalua-paso-codigo" style="display:none;">
+    <div style="font-size:14px;letter-spacing:.3em;text-transform:uppercase;color:var(--text-muted);margin-bottom:1.5rem;text-align:center;">Paso 2 de 2 — Introduce tu código</div>
+
+    <div style="border:1px solid var(--border);background:var(--bg2);padding:2rem;">
+      <div style="font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--text);margin-bottom:.5rem;">Tu código de evaluación</div>
+      <div style="font-size:16px;color:var(--text-muted);margin-bottom:1.5rem;">Recibiste este código por email tras el pago. Es de un solo uso.</div>
+
+      <input
+        id="evalua-codigo-input"
+        type="text"
+        placeholder="AURUM-EVAL-XXXX-XXXX"
+        style="width:100%;background:#060810;border:1px solid var(--border);padding:.8rem 1rem;font-size:16px;color:var(--text);font-family:'Outfit',sans-serif;outline:none;margin-bottom:.8rem;letter-spacing:.1em;transition:border-color .3s;"
+        onfocus="this.style.borderColor='var(--gold)'"
+        onblur="this.style.borderColor='var(--border)'"
+        onkeydown="if(event.key==='Enter')validarCodigoEvalua()"
+      >
+
+      <div id="evalua-codigo-err" style="font-size:14px;color:var(--red);min-height:18px;margin-bottom:.8rem;"></div>
+
+      <button class="btn-outline" style="width:100%;text-align:center;" onclick="validarCodigoEvalua()">
+        Validar código →
+      </button>
+
+      <div style="text-align:center;margin-top:1rem;font-size:14px;color:var(--border);">
+        Demo: AURUM-EVAL-DEMO-2026
+      </div>
+    </div>
+
+    <div style="text-align:center;margin-top:1rem;">
+      <span style="font-size:15px;color:var(--text-muted);cursor:pointer;" onclick="volverAlPago()">← Volver al pago</span>
+    </div>
+  </div>
+
+
+  <!-- ZONA DE SUBIDA (oculta hasta validar código) -->
+  <div id="evalua-zona-subida" style="display:none;">
+
+    <div id="evalua-confirmacion" style="background:#3AAA6A18;border:1px solid #3AAA6A33;border-left:2px solid var(--green);padding:.8rem 1.2rem;margin-bottom:1rem;font-size:15px;color:var(--green);">
+      ✓ Código validado · Sube tu historial MT5 para comenzar la evaluación
+    </div>
+
+    <div
+      id="evalua-dropzone"
+      style="border:1px dashed var(--border-gold);padding:3rem 2rem;text-align:center;cursor:pointer;background:var(--bg2);transition:all .3s;border-radius:2px;margin-bottom:1rem;"
+      onclick="document.getElementById('evalua-file-input').click()"
+      ondragover="event.preventDefault();this.style.borderColor='var(--gold)';this.style.background='#C9A84C08'"
+      ondragleave="this.style.borderColor='var(--border-gold)';this.style.background='var(--bg2)'"
+      ondrop="event.preventDefault();this.style.borderColor='var(--border-gold)';this.style.background='var(--bg2)';procesarArchivoEvalua(event.dataTransfer.files[0])"
+    >
+      <div style="font-size:48px;margin-bottom:1rem;opacity:.4;">📊</div>
+      <div style="font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--text);margin-bottom:.5rem;">Arrastra tu informe MT5 aquí</div>
+      <div style="font-size:15px;color:var(--text-muted);line-height:2;margin-bottom:1.5rem;">
+        En MetaTrader 5 → Historial → clic derecho → Guardar como informe (.xlsx)<br>
+        El archivo no sale de tu navegador.
+      </div>
+      <div class="btn-outline">Seleccionar archivo .xlsx</div>
+      <input type="file" id="evalua-file-input" accept=".xlsx,.xls" style="display:none;" onchange="procesarArchivoEvalua(this.files[0])">
+    </div>
+
+    <!-- Info anti-trampa -->
+    <div style="display:flex;align-items:flex-start;gap:.8rem;padding:.8rem 1.2rem;border:1px solid var(--border);background:var(--bg3);font-size:14px;color:var(--text-muted);">
+      <span style="font-size:16px;opacity:.5;flex-shrink:0;">🔒</span>
+      <div>
+        <strong style="color:var(--text-dim);display:block;margin-bottom:.2rem;">Sistema anti-trampa Aurum</strong>
+        El número de cuenta, la fecha del primer trade y la firma de operaciones forman una huella única. Aurum detecta si se intenta subir la misma cuenta bajo otro nombre o mezclar cuentas distintas.
+      </div>
+    </div>
+  </div>
+
+
+  <!-- PROCESANDO -->
+  <div id="evalua-procesando" style="display:none;text-align:center;padding:3rem;">
+    <div style="font-family:'Cormorant Garamond',serif;font-size:26px;color:var(--gold-bright);margin-bottom:.5rem;">Analizando tu historial...</div>
+    <div id="evalua-proc-label" style="font-size:14px;color:var(--text-muted);margin-bottom:1rem;">Leyendo archivo</div>
+    <div style="width:300px;margin:0 auto;height:3px;background:var(--border);border-radius:2px;">
+      <div id="evalua-proc-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#C9A84C44,var(--gold-bright));border-radius:2px;transition:width .3s;box-shadow:0 0 8px var(--gold-glow);"></div>
+    </div>
+  </div>
+
+
+  <!-- RESULTADOS (se rellenan por JS) -->
+  <div id="evalua-resultados" style="display:none;"></div>
+
+</section>
+
+</div>
+
+<!-- PÁGINA: MI PROCESO (DASHBOARD) — privada -->
+<div id="page-dashboard" class="page-content" style="display:none;padding-top:130px;">
+<!-- MI PROCESO — Dashboard privado -->
+<div class="sidebar-layout" style="grid-template-columns:210px 1fr 240px;">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div style="padding:0 0 1rem;">
+      <span class="sidebar-section">Navegación</span>
+      <div class="sidebar-item active">
+        <span class="sidebar-icon">⬡</span>
+        <span class="sidebar-label">Mi proceso</span>
+      </div>
+      <div class="sidebar-item" onclick="irA('salas')">
+        <span class="sidebar-icon">🎙</span>
+        <span class="sidebar-label">Mi sala</span>
+      </div>
+      <div class="sidebar-item" onclick="irA('gestion')">
+        <span class="sidebar-icon">📊</span>
+        <span class="sidebar-label">Mi gestión</span>
+      </div>
+      <div class="sidebar-item" onclick="mostrarTab('calendario')">
+        <span class="sidebar-icon">📅</span>
+        <span class="sidebar-label">Calendario</span>
+      </div>
+      <div class="sidebar-item" onclick="mostrarTab('retos')">
+        <span class="sidebar-icon">🏆</span>
+        <span class="sidebar-label">Retos</span>
+      </div>
+      <div class="sidebar-item" onclick="mostrarTab('ozt')">
+        <span class="sidebar-icon">◈</span>
+        <span class="sidebar-label">OZT</span>
+      </div>
+    </div>
+
+    <div style="height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent);margin:0 1.2rem 1rem;"></div>
+
+    <!-- Widget nivel -->
+    <div class="nivel-widget">
+      <div class="tag" style="margin-bottom:.3rem;">Tu nivel</div>
+      <div style="font-family:'Cormorant Garamond',serif;font-size:48px;color:var(--gold-bright);text-shadow:0 0 25px var(--gold-glow);line-height:1;" id="dash-nivel-num">03</div>
+      <div style="font-size:12px;letter-spacing:.25em;text-transform:uppercase;color:var(--gold-dim);margin-bottom:.6rem;" id="dash-nivel-name">Simulador</div>
+      <div class="nivel-barra" style="margin-bottom:.4rem;">
+        <div class="nivel-fill" id="dash-nivel-fill" style="width:60%;"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);">
+        <span id="dash-nivel-pct">60%</span>
+        <span style="color:var(--text-muted);">→ Confianza</span>
+      </div>
+    </div>
+
+    <!-- Historial etapas -->
+    <div style="margin:1rem 1.2rem 0;">
+      <div style="font-size:10px;letter-spacing:.3em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.8rem;">Etapas completadas</div>
+      <div style="display:flex;flex-direction:column;gap:.4rem;" id="dash-etapas-historial">
+        <!-- Se rellena por JS -->
+      </div>
+    </div>
+  </div>
+
+
+  <!-- CONTENIDO CENTRAL -->
+  <div style="overflow-y:auto;">
+
+    <!-- Panel principal -->
+    <div id="panel-inicio" style="display:block;">
+
+      <!-- Cabecera -->
+      <div style="padding:2rem;border-bottom:1px solid var(--border);">
+
+        <!-- Saludo -->
+        <div style="font-family:'Cormorant Garamond',serif;font-size:34px;color:#E8DCC0;line-height:1.1;margin-bottom:.4rem;">
+          Bienvenido, <em style="color:var(--gold-bright);text-shadow:0 0 20px var(--gold-glow);" id="dash-saludo-nick">Roderas.</em>
+        </div>
+        <div style="font-size:13px;color:var(--text-muted);margin-bottom:1.5rem;">
+          Proceso iniciado el <span id="dash-fecha-inicio" style="color:var(--text-dim);">1 de febrero de 2026</span>
+        </div>
+
+        <!-- Stats en línea -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);">
+          <div style="background:var(--bg2);padding:1rem 1.2rem;position:relative;">
+            <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>
+            <div style="font-size:11px;letter-spacing:.25em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.4rem;">Trades totales</div>
+            <div style="font-family:'Cormorant Garamond',serif;font-size:38px;color:var(--gold-bright);text-shadow:0 0 15px var(--gold-glow);line-height:1;margin-bottom:.2rem;" id="dash-trades-total">243</div>
+            <div style="font-size:12px;color:var(--text-muted);">desde el inicio</div>
+          </div>
+          <div style="background:var(--bg2);padding:1rem 1.2rem;">
+            <div style="font-size:11px;letter-spacing:.25em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.4rem;">Win Rate global</div>
+            <div style="font-family:'Cormorant Garamond',serif;font-size:38px;color:var(--green);line-height:1;margin-bottom:.2rem;">61.8%</div>
+            <div style="font-size:12px;color:var(--text-muted);">157 wins de 254</div>
+          </div>
+          <div style="background:var(--bg2);padding:1rem 1.2rem;">
+            <div style="font-size:11px;letter-spacing:.25em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.4rem;">P&L acumulado</div>
+            <div style="font-family:'Cormorant Garamond',serif;font-size:38px;color:var(--green);line-height:1;margin-bottom:.2rem;">+5.168$</div>
+            <div style="font-size:12px;color:var(--text-muted);">3 cuentas · entorno simulado</div>
+          </div>
+          <div style="background:var(--bg2);padding:1rem 1.2rem;">
+            <div style="font-size:11px;letter-spacing:.25em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.4rem;">Días en proceso</div>
+            <div style="font-family:'Cormorant Garamond',serif;font-size:38px;color:var(--text-dim);line-height:1;margin-bottom:.2rem;" id="dash-dias-proceso">101</div>
+            <div style="font-size:12px;color:var(--text-muted);">desde el 1 feb 2026</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Cards resumen -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);">
+        <div class="stat-card highlight">
+          <div class="stat-label">Nivel actual</div>
+          <div class="stat-val gold" style="font-size:32px;" id="dash-nivel-card">03 · Simulador</div>
+          <div class="stat-sub" id="dash-nivel-sub">60% hacia Confianza</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Ciclo actual</div>
+          <div class="stat-val white" style="font-size:32px;" id="dash-ciclo">Ciclo 2</div>
+          <div class="stat-sub" id="dash-ciclo-sub">32 / 111 trades · 29%</div>
+        </div>
+        <div class="stat-card highlight">
+          <div class="stat-label">OZT acumulados</div>
+          <div class="stat-val gold" style="font-size:32px;" id="dash-ozt">247</div>
+          <div class="stat-sub">3 retos completados</div>
+        </div>
+      </div>
+
+      <!-- Sala en vivo -->
+      <div style="border:1px solid var(--border);background:var(--bg2);margin:1.5rem 2rem;position:relative;">
+        <div style="position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,#C9A84C55,transparent);"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:.9rem 1.5rem;border-bottom:1px solid var(--border);">
+          <div style="font-size:13px;color:var(--gold-dim);">🦁 Sala León — Equipo activo</div>
+          <div style="display:flex;align-items:center;gap:.4rem;font-size:12px;color:var(--green);">
+            <div style="width:5px;height:5px;border-radius:50%;background:var(--green);box-shadow:0 0 4px var(--green);animation:pulse 2s infinite;"></div>
+            En vivo
+          </div>
+        </div>
+        <div style="padding:1.2rem 1.5rem;display:flex;align-items:center;gap:1rem;">
+          <div style="flex:1;background:#060810;border:1px solid var(--border);height:70px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:.4rem;">
+            <div style="font-size:18px;opacity:.15;">🎙</div>
+            <div style="font-size:13px;color:var(--text-muted);">Sala activa</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:.4rem;min-width:150px;">
+            <div style="display:flex;align-items:center;gap:.5rem;padding:.35rem .6rem;border:1px solid var(--border-gold);background:var(--gold-glow);">
+              <div style="width:6px;height:6px;border-radius:50%;background:var(--green);"></div>
+              <span style="font-size:12px;color:var(--gold-dim);">Toro_01</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:.5rem;padding:.35rem .6rem;border:1px solid var(--border);">
+              <div style="width:6px;height:6px;border-radius:50%;background:var(--green);"></div>
+              <span style="font-size:12px;color:var(--text-muted);">Oso_01</span>
+            </div>
+          </div>
+        </div>
+        <div onclick="irA('salas')" class="btn-outline" style="display:block;text-align:center;margin:0 1.5rem 1.2rem;padding:.7rem;font-size:13px;">
+          ✦ Entrar a la sala →
+        </div>
+      </div>
+
+      <!-- Retos activos preview -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);margin:0 2rem 1.5rem;">
+        <div style="background:var(--bg2);padding:1.2rem 1.5rem;position:relative;">
+          <div style="position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--border-gold),transparent);"></div>
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:.5rem;letter-spacing:.2em;text-transform:uppercase;">Reto activo · Sala León</div>
+          <div style="font-size:15px;color:var(--text-dim);margin-bottom:.8rem;line-height:1.6;">Mejor ratio beneficio/riesgo de la semana</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div style="font-size:13px;color:var(--gold-bright);">🥈 1 onza plata + 50 OZT</div>
+            <div style="font-size:12px;color:var(--text-muted);">Cierra 10 may</div>
+          </div>
+        </div>
+        <div style="background:var(--bg2);padding:1.2rem 1.5rem;">
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:.5rem;letter-spacing:.2em;text-transform:uppercase;">Reto activo · Individual</div>
+          <div style="font-size:15px;color:var(--text-dim);margin-bottom:.8rem;line-height:1.6;">5 sesiones documentadas esta semana</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div style="font-size:13px;color:var(--gold-dim);">◈ 25 OZT</div>
+            <div style="font-size:12px;color:var(--text-muted);">Cierra 11 may</div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- fin panel-inicio -->
+
+
+    <!-- PANEL CALENDARIO -->
+    <div id="panel-calendario" style="display:none;padding:1.5rem 2rem;">
+
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;">
+        <div>
+          <div style="font-family:'Cormorant Garamond',serif;font-size:28px;color:var(--gold-bright);">Mayo 2026</div>
+          <div style="font-size:13px;color:var(--text-muted);margin-top:.2rem;">
+            <span style="display:inline-block;width:10px;height:10px;background:var(--gold);border-radius:2px;margin-right:.4rem;vertical-align:middle;"></span>Eventos Aurum
+            <span style="display:inline-block;width:10px;height:10px;background:#4A7AAA;border-radius:2px;margin-left:1rem;margin-right:.4rem;vertical-align:middle;"></span>Tus notas
+          </div>
+        </div>
+        <div style="display:flex;gap:.5rem;">
+          <div class="ctrl-btn">← Anterior</div>
+          <div class="ctrl-btn">Siguiente →</div>
+        </div>
+      </div>
+
+      <!-- Grid calendario -->
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--border);margin-bottom:1rem;">
+        <!-- Cabecera días -->
+        <div style="background:var(--bg2);padding:.6rem;text-align:center;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--text-muted);">Lun</div>
+        <div style="background:var(--bg2);padding:.6rem;text-align:center;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--text-muted);">Mar</div>
+        <div style="background:var(--bg2);padding:.6rem;text-align:center;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--text-muted);">Mié</div>
+        <div style="background:var(--bg2);padding:.6rem;text-align:center;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--text-muted);">Jue</div>
+        <div style="background:var(--bg2);padding:.6rem;text-align:center;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--text-muted);">Vie</div>
+        <div style="background:var(--bg2);padding:.6rem;text-align:center;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--text-muted);">Sáb</div>
+        <div style="background:var(--bg2);padding:.6rem;text-align:center;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--text-muted);">Dom</div>
+
+        <!-- Semana 1 -->
+        <div style="background:var(--bg2);"></div>
+        <div style="background:var(--bg2);"></div>
+        <div style="background:var(--bg2);"></div>
+        <div style="background:var(--bg2);padding:.6rem;min-height:70px;">
+          <div style="font-size:13px;color:var(--text-muted);margin-bottom:.3rem;">1</div>
+        </div>
+        <div style="background:var(--bg2);padding:.6rem;min-height:70px;">
+          <div style="font-size:13px;color:var(--text-muted);margin-bottom:.3rem;">2</div>
+        </div>
+        <div style="background:var(--bg3);padding:.6rem;min-height:70px;">
+          <div style="font-size:13px;color:var(--text-muted);margin-bottom:.3rem;">3</div>
+        </div>
+        <div style="background:var(--bg3);padding:.6rem;min-height:70px;">
+          <div style="font-size:13px;color:var(--text-muted);margin-bottom:.3rem;">4</div>
+        </div>
+
+        <!-- Semana 2 -->
+        <div style="background:var(--bg2);padding:.6rem;min-height:70px;">
+          <div style="font-size:13px;color:var(--text-muted);margin-bottom:.3rem;">5</div>
+        </div>
+        <div style="background:var(--bg2);padding:.6rem;min-height:70px;">
+          <div style="font-size:13px;color:var(--text-muted);margin-bottom:.3rem;">6</div>
+          <div style="font-size:10px;background:#4A7AAA22;color:#6A9AEE;border:1px solid #4A7AAA33;padding:1px 4px;border-radius:1px;margin-top:2px;">Nota personal</div>
+        </div>
+        <div style="background:var(--bg2);padding:.6rem;min-height:70px;">
+          <div style="font-size:13px;color:var(--text-muted);margin-bottom:.3rem;">7</div>
+        </div>
+        <div style="background:var(--bg2);padding:.6rem;min-height:70px;">
+          <div style="font-size:13px;color:var(--text-muted);margin-bottom:.3rem;">8</div>
+          <div style="font-size:10px;background:var(--gold-glow);color:var(--gold-dim);border:1px solid var(--border-gold);padding:1px 4px;border-radius:1px;margin-top:2px;">Reto cierra</div>
+        </div>
+        <div style="background:var(--bg2);padding:.6rem;min-height:70px;">
+          <div style="font-size:13px;color:var(--text-muted);margin-bottom:.3rem;">9</div>
+        </div>
+        <div style="background:var(--bg3);padding:.6rem;min-height:70px;">
+          <div style="font-size:13px;color:var(--text-muted);margin-bottom:.3rem;">10</div>
+        </div>
+        <div style="background:var(--bg3);padding:.6rem;min-height:70px;">
+          <div style="font-size:13px;color:var(--text-muted);margin-bottom:.3rem;">11</div>
+        </div>
+
+        <!-- Semana 3 — hoy -->
+        <div style="background:var(--bg2);padding:.6rem;min-height:70px;">
+          <div style="font-size:13px;color:var(--text-muted);margin-bottom:.3rem;">12</div>
+          <div style="font-size:10px;background:var(--gold-glow);color:var(--gold-dim);border:1px solid var(--border-gold);padding:1px 4px;border-radius:1px;margin-top:2px;">Sala Evento 19h</div>
+        </div>
+        <div style="background:var(--bg2);padding:.6rem;min-height:70px;border:1px solid var(--border-gold);position:relative;">
+          <div style="position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>
+          <div style="font-size:13px;color:var(--gold-bright);margin-bottom:.3rem;">13 · Hoy</div>
+        </div>
+        <div style="background:var(--bg2);padding:.6rem;min-height:70px;">
+          <div style="font-size:13px;color:var(--text-muted);margin-bottom:.3rem;">14</div>
+        </div>
+        <div style="background:var(--bg2);padding:.6rem;min-height:70px;">
+          <div style="font-size:13px;color:var(--text-muted);margin-bottom:.3rem;">15</div>
+        </div>
+        <div style="background:var(--bg2);padding:.6rem;min-height:70px;">
+          <div style="font-size:13px;color:var(--text-muted);margin-bottom:.3rem;">16</div>
+        </div>
+        <div style="background:var(--bg3);padding:.6rem;min-height:70px;">
+          <div style="font-size:13px;color:var(--text-muted);margin-bottom:.3rem;">17</div>
+        </div>
+        <div style="background:var(--bg3);padding:.6rem;min-height:70px;">
+          <div style="font-size:13px;color:var(--text-muted);margin-bottom:.3rem;">18</div>
+        </div>
+      </div>
+
+      <!-- Agendar disponibilidad -->
+      <div style="border:1px solid var(--border);background:var(--bg2);padding:1.2rem 1.5rem;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+          <div style="font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);">Mis sesiones agendadas</div>
+          <div onclick="abrirAgenda()" style="font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--gold);border:1px solid var(--border-gold);padding:.3rem .8rem;cursor:pointer;">+ Agendar disponibilidad</div>
+        </div>
+        <div id="agenda-lista"><div style="font-size:13px;color:var(--text-muted);font-style:italic;padding:.5rem 0;">Sin sesiones agendadas. Añade tu disponibilidad para que Aurum sepa cuándo puedes conectarte.</div></div>
+      </div>
+      <div id="modal-agenda" style="display:none;position:fixed;inset:0;background:#080A12EE;z-index:500;align-items:center;justify-content:center;padding:2rem;">
+        <div style="background:var(--bg2);border:1px solid var(--border-gold);max-width:420px;width:100%;padding:2.5rem 2rem;position:relative;">
+          <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>
+          <div onclick="cerrarAgenda()" style="position:absolute;top:1rem;right:1rem;cursor:pointer;color:var(--text-muted);font-size:18px;opacity:.5;">✕</div>
+          <div style="font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--gold-bright);text-align:center;letter-spacing:.2em;margin-bottom:1.5rem;">Agendar disponibilidad</div>
+          <div style="margin-bottom:1rem;">
+            <div style="font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.5rem;">Día</div>
+            <input type="date" id="agenda-fecha" style="width:100%;background:#060810;border:1px solid var(--border);padding:.6rem 1rem;font-size:14px;color:var(--text);font-family:'Outfit',sans-serif;outline:none;color-scheme:dark;">
+          </div>
+          <div style="margin-bottom:1.5rem;">
+            <div style="font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.8rem;">Sesión</div>
+            <div style="display:flex;flex-direction:column;gap:.5rem;" id="agenda-sesiones">
+              <div onclick="seleccionarSesion(this,'Londres · 08:00 — 12:00')" style="padding:.8rem 1rem;border:1px solid var(--border);background:#060810;cursor:pointer;font-size:13px;color:var(--text-dim);display:flex;justify-content:space-between;">🇬🇧 Londres <span style="color:var(--text-muted);font-size:11px;">08:00 — 12:00</span></div>
+              <div onclick="seleccionarSesion(this,'Nueva York · 13:00 — 17:00')" style="padding:.8rem 1rem;border:1px solid var(--border);background:#060810;cursor:pointer;font-size:13px;color:var(--text-dim);display:flex;justify-content:space-between;">🇺🇸 Nueva York <span style="color:var(--text-muted);font-size:11px;">13:00 — 17:00</span></div>
+              <div onclick="seleccionarSesion(this,'NY Cierre · 17:00 — 21:00')" style="padding:.8rem 1rem;border:1px solid var(--border);background:#060810;cursor:pointer;font-size:13px;color:var(--text-dim);display:flex;justify-content:space-between;">🔔 NY Cierre <span style="color:var(--text-muted);font-size:11px;">17:00 — 21:00</span></div>
+              <div onclick="seleccionarSesion(this,'Asia · 00:00 — 04:00')" style="padding:.8rem 1rem;border:1px solid var(--border);background:#060810;cursor:pointer;font-size:13px;color:var(--text-dim);display:flex;justify-content:space-between;">🌏 Asia <span style="color:var(--text-muted);font-size:11px;">00:00 — 04:00</span></div>
+            </div>
+            <input type="hidden" id="agenda-hora">
+          </div>
+          <div onclick="guardarAgenda()" style="width:100%;background:transparent;border:1px solid var(--border-gold);padding:.8rem;font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);text-align:center;cursor:pointer;">✦ Confirmar disponibilidad</div>
+          <div id="agenda-msg" style="font-size:12px;color:var(--green);text-align:center;margin-top:.8rem;min-height:18px;"></div>
+        </div>
+      </div>
+
+    </div><!-- fin panel-calendario -->
+
+
+    <!-- PANEL RETOS -->
+    <div id="panel-retos" style="display:none;padding:1.5rem 2rem;">
+
+      <div style="font-family:'Cormorant Garamond',serif;font-size:28px;color:var(--gold-bright);margin-bottom:1.5rem;">Retos activos</div>
+
+      <div style="display:flex;flex-direction:column;gap:1rem;margin-bottom:2rem;">
+
+        <!-- Reto colectivo -->
+        <div style="background:var(--bg2);border:1px solid var(--border-gold);padding:1.5rem;position:relative;">
+          <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem;">
+            <div>
+              <div style="font-size:11px;letter-spacing:.25em;text-transform:uppercase;color:var(--gold);margin-bottom:.3rem;">Reto de equipo · Sala León</div>
+              <div style="font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--text);">Mejor ratio beneficio/riesgo</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:11px;color:var(--text-muted);">Cierra en</div>
+              <div style="font-family:'Cormorant Garamond',serif;font-size:26px;color:var(--gold-bright);">2 días</div>
+            </div>
+          </div>
+          <div style="font-size:14px;color:var(--text-muted);margin-bottom:1rem;line-height:1.8;">El trader con mejor ratio beneficio/riesgo acumulado esta semana gana el premio.</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div style="font-size:14px;color:var(--gold-bright);">🥈 1 onza de plata + 50 OZT</div>
+            <div style="display:flex;align-items:center;gap:.4rem;font-size:12px;color:var(--green);">
+              <div style="width:5px;height:5px;border-radius:50%;background:var(--green);animation:pulse 2s infinite;"></div>
+              Participando
+            </div>
+          </div>
+        </div>
+
+        <!-- Reto individual -->
+        <div style="background:var(--bg2);border:1px solid var(--border);padding:1.5rem;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem;">
+            <div>
+              <div style="font-size:11px;letter-spacing:.25em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.3rem;">Reto individual</div>
+              <div style="font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--text);">5 sesiones documentadas</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:11px;color:var(--text-muted);">Cierra en</div>
+              <div style="font-family:'Cormorant Garamond',serif;font-size:26px;color:var(--text);">3 días</div>
+            </div>
+          </div>
+          <div style="font-size:14px;color:var(--text-muted);margin-bottom:1rem;line-height:1.8;">Documenta 5 sesiones de trading esta semana en tu diario de proceso.</div>
+          <!-- Progreso -->
+          <div style="margin-bottom:1rem;">
+            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-bottom:.4rem;">
+              <span>Progreso</span><span style="color:var(--gold);">3 / 5</span>
+            </div>
+            <div style="height:4px;background:var(--border);border-radius:2px;">
+              <div style="height:100%;width:60%;background:linear-gradient(90deg,#C9A84C44,var(--gold-bright));border-radius:2px;"></div>
+            </div>
+          </div>
+          <div style="font-size:14px;color:var(--gold-dim);">◈ 25 OZT</div>
+        </div>
+
+      </div>
+
+      <!-- Retos completados -->
+      <div style="font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--text);margin-bottom:1rem;">Retos completados</div>
+      <div style="display:flex;flex-direction:column;gap:.5rem;">
+        <div style="background:var(--bg2);border:1px solid var(--border);padding:1rem 1.5rem;display:flex;justify-content:space-between;align-items:center;opacity:.7;">
+          <div>
+            <div style="font-size:13px;color:var(--text-dim);">WR más alto de la semana · Sala León</div>
+            <div style="font-size:12px;color:var(--text-muted);">Completado el 28 abr 2026</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:13px;color:var(--green);">✓ Ganado</div>
+            <div style="font-size:12px;color:var(--gold-dim);">+80 OZT</div>
+          </div>
+        </div>
+        <div style="background:var(--bg2);border:1px solid var(--border);padding:1rem 1.5rem;display:flex;justify-content:space-between;align-items:center;opacity:.7;">
+          <div>
+            <div style="font-size:13px;color:var(--text-dim);">10 trades sin violar el marco · Individual</div>
+            <div style="font-size:12px;color:var(--text-muted);">Completado el 15 abr 2026</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:13px;color:var(--green);">✓ Ganado</div>
+            <div style="font-size:12px;color:var(--gold-dim);">+50 OZT</div>
+          </div>
+        </div>
+        <div style="background:var(--bg2);border:1px solid var(--border);padding:1rem 1.5rem;display:flex;justify-content:space-between;align-items:center;opacity:.7;">
+          <div>
+            <div style="font-size:13px;color:var(--text-dim);">Ciclo 1 completado</div>
+            <div style="font-size:12px;color:var(--text-muted);">Completado el 31 mar 2026</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:13px;color:var(--green);">✓ Ganado</div>
+            <div style="font-size:12px;color:var(--gold-dim);">+117 OZT</div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- fin panel-retos -->
+
+
+    <!-- PANEL OZT -->
+    <div id="panel-ozt" style="display:none;padding:1.5rem 2rem;">
+
+      <!-- Saldo -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--border);margin-bottom:1.5rem;">
+        <div class="stat-card highlight" style="text-align:center;">
+          <div class="stat-label">Tu saldo OZT</div>
+          <div style="font-family:'Cormorant Garamond',serif;font-size:56px;color:var(--gold-bright);text-shadow:0 0 30px var(--gold-glow);line-height:1;" id="ozt-saldo">247</div>
+          <div class="stat-sub">disponibles</div>
+        </div>
+        <div class="stat-card" style="text-align:center;">
+          <div class="stat-label">Ganados en retos</div>
+          <div style="font-family:'Cormorant Garamond',serif;font-size:56px;color:var(--green);line-height:1;">247</div>
+          <div class="stat-sub">total histórico</div>
+        </div>
+        <div class="stat-card" style="text-align:center;">
+          <div class="stat-label">Canjeados</div>
+          <div style="font-family:'Cormorant Garamond',serif;font-size:56px;color:var(--text-muted);line-height:1;">0</div>
+          <div class="stat-sub">sin canjear aún</div>
+        </div>
+      </div>
+
+      <!-- Qué puedes hacer -->
+      <div style="font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--text);margin-bottom:1rem;">¿Qué puedes hacer con tus OZT?</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem;">
+        <div style="background:var(--bg2);border:1px solid var(--border);padding:1.2rem 1.5rem;">
+          <div style="font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);margin-bottom:.5rem;">↺ Reset de cuenta</div>
+          <div style="font-size:14px;color:var(--text-muted);line-height:1.8;margin-bottom:.8rem;">Resetea una cuenta sin perder tu historial. El proceso lo registra todo.</div>
+          <div style="font-size:13px;color:var(--text-dim);">Coste: <strong style="color:var(--gold-bright);">50 OZT</strong></div>
+        </div>
+        <div style="background:var(--bg2);border:1px solid var(--border);padding:1.2rem 1.5rem;">
+          <div style="font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);margin-bottom:.5rem;">🏆 Acceso a reto especial</div>
+          <div style="font-size:14px;color:var(--text-muted);line-height:1.8;margin-bottom:.8rem;">Algunos retos de alto premio requieren entrada con OZT.</div>
+          <div style="font-size:13px;color:var(--text-dim);">Coste: <strong style="color:var(--gold-bright);">variable</strong></div>
+        </div>
+      </div>
+
+      <!-- Comprar OZT -->
+      <div style="border:1px solid var(--border-gold);background:var(--bg2);padding:1.5rem;position:relative;">
+        <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>
+        <div style="font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--text);margin-bottom:.5rem;">Comprar OZT</div>
+        <div style="font-size:14px;color:var(--text-muted);margin-bottom:1.5rem;line-height:1.8;">Si no tienes suficientes OZT puedes comprarlos directamente dentro del proceso.</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;">
+          <div style="text-align:center;padding:1rem;border:1px solid var(--border);cursor:pointer;transition:border-color .3s;" onmouseover="this.style.borderColor='var(--border-gold)'" onmouseout="this.style.borderColor='var(--border)'">
+            <div style="font-family:'Cormorant Garamond',serif;font-size:36px;color:var(--gold-bright);line-height:1;margin-bottom:.3rem;">50</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-bottom:.8rem;">OZT</div>
+            <div style="font-size:14px;color:var(--gold);">11€</div>
+          </div>
+          <div style="text-align:center;padding:1rem;border:1px solid var(--border-gold);cursor:pointer;position:relative;" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border-gold)'">
+            <div style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:var(--gold);color:var(--bg);font-size:9px;padding:.1rem .6rem;white-space:nowrap;">Más popular</div>
+            <div style="font-family:'Cormorant Garamond',serif;font-size:36px;color:var(--gold-bright);line-height:1;margin-bottom:.3rem;">120</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-bottom:.8rem;">OZT</div>
+            <div style="font-size:14px;color:var(--gold);">22€</div>
+          </div>
+          <div style="text-align:center;padding:1rem;border:1px solid var(--border);cursor:pointer;transition:border-color .3s;" onmouseover="this.style.borderColor='var(--border-gold)'" onmouseout="this.style.borderColor='var(--border)'">
+            <div style="font-family:'Cormorant Garamond',serif;font-size:36px;color:var(--gold-bright);line-height:1;margin-bottom:.3rem;">333</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-bottom:.8rem;">OZT</div>
+            <div style="font-size:14px;color:var(--gold);">55€</div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- fin panel-ozt -->
+
+  </div><!-- fin contenido central -->
+
+
+  <!-- COLUMNA DERECHA: ranking + etapas -->
+  <div style="border-left:1px solid var(--border);padding:1.5rem;background:var(--bg2);overflow-y:auto;">
+
+    <!-- Ranking -->
+    <span class="tag" style="display:block;margin-bottom:.8rem;">Ranking · Sala León</span>
+    <div style="display:flex;flex-direction:column;gap:.2rem;margin-bottom:1.5rem;">
+      <div style="display:flex;align-items:center;gap:.7rem;padding:.5rem 0;border-bottom:1px solid #0A0C14;">
+        <div style="font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--gold-bright);text-shadow:0 0 10px var(--gold-glow);width:20px;">1</div>
+        <div style="font-size:14px;">—</div>
+        <div style="font-size:13px;color:var(--text-dim);flex:1;">Toro_03</div>
+        <div style="font-size:12px;color:var(--gold-dim);">312 OZT</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:.7rem;padding:.5rem 0;border-bottom:1px solid #0A0C14;">
+        <div style="font-family:'Cormorant Garamond',serif;font-size:20px;color:#808070;width:20px;">2</div>
+        <div style="font-size:14px;">—</div>
+        <div style="font-size:13px;color:var(--text-dim);flex:1;">Toro_01</div>
+        <div style="font-size:12px;color:var(--gold-dim);">289 OZT</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:.7rem;padding:.5rem 0;">
+        <div style="font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--text-muted);width:20px;">3</div>
+        <div style="font-size:14px;">—</div>
+        <div style="font-size:13px;color:var(--gold);flex:1;" id="dash-ranking-nick">Roderas (Tú)</div>
+        <div style="font-size:12px;color:var(--gold);" id="dash-ranking-ozt">247 OZT</div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- OZT widget -->
+    <div style="padding:1rem;border:1px solid var(--border-gold);background:linear-gradient(135deg,#0E1020,#131625);position:relative;overflow:hidden;margin-bottom:1.5rem;">
+      <div style="position:absolute;top:-30px;right:-30px;width:100px;height:100px;background:radial-gradient(circle,#C9A84C15,transparent 70%);pointer-events:none;"></div>
+      <div class="tag-gold" style="display:block;margin-bottom:.3rem;">Tu saldo OZT</div>
+      <div style="font-family:'Cormorant Garamond',serif;font-size:42px;color:var(--gold-bright);text-shadow:0 0 20px var(--gold-glow);line-height:1;margin-bottom:.2rem;" id="dash-ozt-widget">247</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:1rem;">3 retos ganados</div>
+      <div class="btn-outline" onclick="mostrarTab('ozt')" style="display:block;text-align:center;font-size:12px;padding:.5rem;">◈ Ver tienda OZT</div>
+    </div>
+
+  </div>
+
+</div><!-- fin sidebar-layout -->
+
+</div>
+
+<!-- PÁGINA: MI GESTIÓN — privada -->
+<div id="page-gestion" class="page-content" style="display:none;padding-top:130px;">
+<!-- ============================================================
+     MI GESTIÓN — 6 apartados
+     Trade Record · Ciclo 111 · Horarios · Equity · Cumplimiento · Diario
+     ============================================================ -->
+
+<div style="display:grid;grid-template-columns:210px 1fr;min-height:calc(100vh - 70px);margin-top:0;">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div style="padding:0 0 1rem;">
+      <span class="sidebar-section">Navegación</span>
+      <div class="sidebar-item" onclick="irA('dashboard')">
+        <span class="sidebar-icon">⬡</span>
+        <span class="sidebar-label">Mi proceso</span>
+      </div>
+      <div class="sidebar-item" onclick="irA('salas')">
+        <span class="sidebar-icon">🎙</span>
+        <span class="sidebar-label">Mi sala</span>
+      </div>
+      <div class="sidebar-item active" id="gest-nav-item">
+        <span class="sidebar-icon">📊</span>
+        <span class="sidebar-label">Mi gestión</span>
+      </div>
+    </div>
+
+    <div style="height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent);margin:0 1.2rem 1rem;"></div>
+
+    <!-- Nivel widget -->
+    <div class="nivel-widget">
+      <div class="tag" style="margin-bottom:.3rem;">Tu nivel</div>
+      <div style="font-family:'Cormorant Garamond',serif;font-size:48px;color:var(--gold-bright);text-shadow:0 0 25px var(--gold-glow);line-height:1;">03</div>
+      <div style="font-size:12px;letter-spacing:.25em;text-transform:uppercase;color:var(--gold-dim);margin-bottom:.6rem;">Simulador</div>
+      <div class="nivel-barra" style="margin-bottom:.4rem;">
+        <div class="nivel-fill" style="width:60%;"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);">
+        <span>60%</span><span>→ Confianza</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- CONTENIDO -->
+  <div style="overflow-y:auto;">
+
+    <!-- TABS HORIZONTALES -->
+    <div style="display:flex;border-bottom:1px solid var(--border);background:var(--bg2);position:sticky;top:130px;z-index:90;margin-top:.5rem;">
+      <button class="tab active" id="gtab-trade-record" onclick="gestTab('trade-record')">Trade Record</button>
+      <button class="tab" id="gtab-ciclo111" onclick="gestTab('ciclo111')">Ciclo 111</button>
+      <button class="tab" id="gtab-horarios" onclick="gestTab('horarios')">Horarios</button>
+      <button class="tab" id="gtab-equity" onclick="gestTab('equity')">Equity</button>
+      <button class="tab" id="gtab-cumplimiento" onclick="gestTab('cumplimiento')">Cumplimiento</button>
+      <button class="tab" id="gtab-diario" onclick="gestTab('diario')">Diario</button>
+      <button class="tab" id="gtab-historial" onclick="gestTab('historial')" style="border-left:1px solid var(--border-gold);color:var(--gold-dim);">Historial externo</button>
+    </div>
+
+    <!-- ===== TRADE RECORD ===== -->
+    <div id="gpanel-trade-record" style="display:block;">
+<!-- ============================================================
+     MI GESTIÓN — Trade Record con análisis por cuenta
+     ============================================================ -->
+
+<!-- SELECTOR DE CUENTAS -->
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);cursor:pointer;margin-top:1rem;">
+
+  <!-- Global -->
+  <div id="btn-global" onclick="verCuenta('global')"
+    style="background:linear-gradient(135deg,var(--bg2),#0E1020);padding:1.5rem;position:relative;border-bottom:2px solid var(--gold);">
+    <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>
+    <div style="font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--gold);margin-bottom:.4rem;">Global</div>
+    <div style="font-family:'Cormorant Garamond',serif;font-size:28px;color:var(--gold-bright);text-shadow:0 0 15px var(--gold-glow);line-height:1;margin-bottom:.2rem;">+4.526$</div>
+    <div style="font-size:12px;color:var(--text-muted);">243 trades · WR 65.4%</div>
+  </div>
+
+  <!-- Maestra -->
+  <div id="btn-maestra" onclick="verCuenta('maestra')"
+    style="background:var(--bg2);padding:1.5rem;position:relative;border-bottom:2px solid transparent;transition:all .2s;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.4rem;">
+      <div style="font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--text-muted);">Maestra</div>
+      <div style="font-size:10px;padding:.1rem .4rem;background:#3AAA6A18;color:var(--green);border:1px solid #3AAA6A33;border-radius:1px;">Real</div>
+    </div>
+    <div style="font-family:'Cormorant Garamond',serif;font-size:28px;color:var(--green);line-height:1;margin-bottom:.2rem;">+1.144$</div>
+    <div style="font-size:12px;color:var(--text-muted);">52 trades · WR 61.5%</div>
+  </div>
+
+  <!-- Retos -->
+  <div id="btn-retos" onclick="verCuenta('retos')"
+    style="background:var(--bg2);padding:1.5rem;position:relative;border-bottom:2px solid transparent;transition:all .2s;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.4rem;">
+      <div style="font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--text-muted);">Retos</div>
+      <div style="font-size:10px;padding:.1rem .4rem;background:#CC884418;color:#CC8844;border:1px solid #CC884433;border-radius:1px;">Challenge</div>
+    </div>
+    <div style="font-family:'Cormorant Garamond',serif;font-size:28px;color:#E8A84C;line-height:1;margin-bottom:.2rem;">+1.816$</div>
+    <div style="font-size:12px;color:var(--text-muted);">33 trades · WR 81.8%</div>
+  </div>
+
+  <!-- Prueba -->
+  <div id="btn-prueba" onclick="verCuenta('prueba')"
+    style="background:var(--bg2);padding:1.5rem;position:relative;border-bottom:2px solid transparent;transition:all .2s;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.4rem;">
+      <div style="font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--text-muted);">Prueba</div>
+      <div style="font-size:10px;padding:.1rem .4rem;background:#4A8AEE18;color:#6A9AEE;border:1px solid #4A8AEE33;border-radius:1px;">Challenge</div>
+    </div>
+    <div style="font-family:'Cormorant Garamond',serif;font-size:28px;color:#6A9AEE;line-height:1;margin-bottom:.2rem;">+1.566$</div>
+    <div style="font-size:12px;color:var(--text-muted);">158 trades · WR 58.9%</div>
+  </div>
+
+</div>
+
+
+<!-- ===== VISTA GLOBAL ===== -->
+<div id="vista-global" style="display:block;">
+
+  <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:1px;background:var(--border);border-top:1px solid var(--border);">
+    <div class="stat-card" style="text-align:center;"><div class="stat-label">P&L Total</div><div class="stat-val gold" style="font-size:26px;">+4.526$</div><div class="stat-sub">3 cuentas · Feb–May 2026</div></div>
+    <div class="stat-card" style="text-align:center;"><div class="stat-label">Win Rate</div><div class="stat-val green" style="font-size:26px;">65.4%</div><div class="stat-sub">159 de 243 trades</div></div>
+    <div class="stat-card" style="text-align:center;"><div class="stat-label">R/R Real</div><div class="stat-val gold" style="font-size:26px;">1.38</div><div class="stat-sub">promedio 3 cuentas</div></div>
+    <div class="stat-card" style="text-align:center;"><div class="stat-label">Esperanza</div><div class="stat-val green" style="font-size:26px;">+4.6</div><div class="stat-sub">pts por trade</div></div>
+    <div class="stat-card" style="text-align:center;"><div class="stat-label">Mejor día</div><div class="stat-val green" style="font-size:26px;">Viernes</div><div class="stat-sub">Prueba: 69% WR</div></div>
+    <div class="stat-card" style="text-align:center;"><div class="stat-label">Edge común</div><div class="stat-val gold" style="font-size:26px;">Swing</div><div class="stat-sub">Las 3 cuentas lo confirman</div></div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);border-top:1px solid var(--border);">
+    <div class="cell">
+      <div class="tag" style="display:block;margin-bottom:1rem;">Comparativa por tipo de trade</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--border);margin-bottom:.5rem;">
+        <div style="background:var(--bg3);padding:.5rem;text-align:center;font-size:11px;color:var(--text-muted);">Tipo</div>
+        <div style="background:var(--bg3);padding:.5rem;text-align:center;font-size:11px;color:var(--text-muted);">Maestra</div>
+        <div style="background:var(--bg3);padding:.5rem;text-align:center;font-size:11px;color:var(--text-muted);">Prueba</div>
+      </div>
+      <div id="global-comparativa"></div>
+    </div>
+    <div class="cell">
+      <div class="tag" style="display:block;margin-bottom:1rem;">Patrones comunes — las 3 cuentas</div>
+      <div style="display:flex;flex-direction:column;gap:.6rem;">
+        <div style="display:flex;gap:8px;padding:.6rem;border:1px solid var(--border);background:#0E1020;">
+          <div style="width:5px;height:5px;border-radius:50%;background:var(--green);margin-top:5px;flex-shrink:0;"></div>
+          <div><div style="font-size:14px;color:#C8BDA0;margin-bottom:1px;">✦ Swing — edge confirmado en las 3</div><div style="font-size:13px;color:var(--text-muted);">Maestra 75% · Retos 100% · Prueba 69%. No es casualidad.</div></div>
+        </div>
+        <div style="display:flex;gap:8px;padding:.6rem;border:1px solid var(--border);background:#0E1020;">
+          <div style="width:5px;height:5px;border-radius:50%;background:var(--red);margin-top:5px;flex-shrink:0;"></div>
+          <div><div style="font-size:14px;color:#C8BDA0;margin-bottom:1px;">Martes — peor día en Prueba</div><div style="font-size:13px;color:var(--text-muted);">39% WR, -2.138$. Revisar qué ocurre los martes.</div></div>
+        </div>
+        <div style="display:flex;gap:8px;padding:.6rem;border:1px solid var(--border);background:#0E1020;">
+          <div style="width:5px;height:5px;border-radius:50%;background:var(--green);margin-top:5px;flex-shrink:0;"></div>
+          <div><div style="font-size:14px;color:#C8BDA0;margin-bottom:1px;">Retos — la cuenta más limpia</div><div style="font-size:13px;color:var(--text-muted);">81.8% WR en 33 trades. Cuando operas con criterio de reto, los números mejoran.</div></div>
+        </div>
+        <div style="display:flex;gap:8px;padding:.6rem;border:1px solid var(--border);background:#0E1020;">
+          <div style="width:5px;height:5px;border-radius:50%;background:#6A9AEE;margin-top:5px;flex-shrink:0;"></div>
+          <div><div style="font-size:14px;color:#C8BDA0;margin-bottom:1px;">Anti-trampa ✓</div><div style="font-size:13px;color:var(--text-muted);">0 duplicados entre las 3 cuentas. Datos independientes verificados.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+
+<!-- ===== VISTA MAESTRA ===== -->
+<div id="vista-maestra" style="display:none;">
+  <div style="padding:1rem 1.5rem;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:1rem;">
+    <div style="width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);"></div>
+    <div style="font-size:13px;color:var(--text-dim);">Cuenta Maestra · 52 trades · 13 Abr – 11 May 2026 · Fondeada con dinero real</div>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--border);">
+    <div class="stat-card" style="text-align:center;"><div class="stat-label">P&L</div><div class="stat-val green" style="font-size:28px;">+1.144$</div></div>
+    <div class="stat-card" style="text-align:center;"><div class="stat-label">Win Rate</div><div class="stat-val green" style="font-size:28px;">61.5%</div><div class="stat-sub">32 wins de 52</div></div>
+    <div class="stat-card" style="text-align:center;"><div class="stat-label">R/R</div><div class="stat-val gold" style="font-size:28px;">0.83</div></div>
+    <div class="stat-card" style="text-align:center;"><div class="stat-label">Esperanza</div><div class="stat-val green" style="font-size:28px;">+1.4</div><div class="stat-sub">pts/trade</div></div>
+    <div class="stat-card" style="text-align:center;"><div class="stat-label">Mejor día</div><div class="stat-val green" style="font-size:28px;">Martes</div><div class="stat-sub">100% WR</div></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);border-top:1px solid var(--border);">
+    <div class="cell">
+      <div class="tag" style="display:block;margin-bottom:1rem;">Por tipo de trade</div>
+      <div id="tipos-maestra"></div>
+    </div>
+    <div class="cell">
+      <div class="tag" style="display:block;margin-bottom:1rem;">Por día de la semana</div>
+      <div id="dias-maestra"></div>
+    </div>
+  </div>
+  <div class="cell" style="border-top:1px solid var(--border);">
+    <div style="padding:.8rem 1.2rem;background:linear-gradient(135deg,var(--bg2),var(--bg));border:1px solid var(--border-gold);border-left:2px solid var(--gold);">
+      <div class="tag-gold" style="display:block;margin-bottom:.5rem;">✦ Lectura Aurum — Maestra</div>
+      <div style="font-size:14px;color:#8A7840;line-height:1.9;font-style:italic;">"WR 61.5% con R/R 0.83 en cuenta real. El swing genera +712$ en 8 trades. El scalping con 26 trades apenas da -192$. Aquí opera con más precaución — eso es correcto para una cuenta real."</div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ===== VISTA RETOS ===== -->
+<div id="vista-retos" style="display:none;">
+  <div style="padding:1rem 1.5rem;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:1rem;">
+    <div style="width:8px;height:8px;border-radius:50%;background:#CC8844;box-shadow:0 0 6px #CC884466;"></div>
+    <div style="font-size:13px;color:var(--text-dim);">Cuenta Retos · 33 trades · 28 Abr – 12 May 2026 · Challenge activo</div>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--border);">
+    <div class="stat-card" style="text-align:center;"><div class="stat-label">P&L</div><div class="stat-val" style="color:#E8A84C;font-size:28px;">+1.816$</div></div>
+    <div class="stat-card" style="text-align:center;"><div class="stat-label">Win Rate</div><div class="stat-val" style="color:#E8A84C;font-size:28px;">81.8%</div><div class="stat-sub">27 wins de 33</div></div>
+    <div class="stat-card" style="text-align:center;"><div class="stat-label">R/R</div><div class="stat-val gold" style="font-size:28px;">0.68</div></div>
+    <div class="stat-card" style="text-align:center;"><div class="stat-label">Esperanza</div><div class="stat-val green" style="font-size:28px;">+4.7</div><div class="stat-sub">pts/trade</div></div>
+    <div class="stat-card" style="text-align:center;"><div class="stat-label">Mejor día</div><div class="stat-val green" style="font-size:28px;">Todos</div><div class="stat-sub">WR positivo todos</div></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);border-top:1px solid var(--border);">
+    <div class="cell">
+      <div class="tag" style="display:block;margin-bottom:1rem;">Por tipo de trade</div>
+      <div id="tipos-retos"></div>
+    </div>
+    <div class="cell">
+      <div class="tag" style="display:block;margin-bottom:1rem;">Por día de la semana</div>
+      <div id="dias-retos"></div>
+    </div>
+  </div>
+  <div class="cell" style="border-top:1px solid var(--border);">
+    <div style="padding:.8rem 1.2rem;background:linear-gradient(135deg,var(--bg2),var(--bg));border:1px solid var(--border-gold);border-left:2px solid var(--gold);">
+      <div class="tag-gold" style="display:block;margin-bottom:.5rem;">✦ Lectura Aurum — Retos</div>
+      <div style="font-size:14px;color:#8A7840;line-height:1.9;font-style:italic;">"La cuenta más limpia de las tres. 81.8% WR con WR positivo todos los días de la semana. El swing al 100% WR en 6 trades genera +1.355$. Cuando operas con criterio de reto, el resultado mejora."</div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ===== VISTA PRUEBA ===== -->
+<div id="vista-prueba" style="display:none;">
+  <div style="padding:1rem 1.5rem;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:1rem;">
+    <div style="width:8px;height:8px;border-radius:50%;background:#4A8AEE;box-shadow:0 0 6px #4A8AEE66;"></div>
+    <div style="font-size:13px;color:var(--text-dim);">Cuenta Prueba · 158 trades · 5 Feb – 10 May 2026 · Challenge activo</div>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--border);">
+    <div class="stat-card" style="text-align:center;"><div class="stat-label">P&L</div><div class="stat-val" style="color:#6A9AEE;font-size:28px;">+1.566$</div></div>
+    <div class="stat-card" style="text-align:center;"><div class="stat-label">Win Rate</div><div class="stat-val" style="color:#6A9AEE;font-size:28px;">58.9%</div><div class="stat-sub">93 wins de 158</div></div>
+    <div class="stat-card" style="text-align:center;"><div class="stat-label">R/R</div><div class="stat-val gold" style="font-size:28px;">1.64</div></div>
+    <div class="stat-card" style="text-align:center;"><div class="stat-label">Esperanza</div><div class="stat-val green" style="font-size:28px;">+6.8</div><div class="stat-sub">pts/trade</div></div>
+    <div class="stat-card" style="text-align:center;"><div class="stat-label">Trampa</div><div class="stat-val red" style="font-size:28px;">Martes</div><div class="stat-sub">39% WR · -2.138$</div></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);border-top:1px solid var(--border);">
+    <div class="cell">
+      <div class="tag" style="display:block;margin-bottom:1rem;">Por tipo de trade</div>
+      <div id="tipos-prueba"></div>
+    </div>
+    <div class="cell">
+      <div class="tag" style="display:block;margin-bottom:1rem;">Por día de la semana</div>
+      <div id="dias-prueba"></div>
+    </div>
+  </div>
+  <div class="cell" style="border-top:1px solid var(--border);">
+    <div style="padding:.8rem 1.2rem;background:linear-gradient(135deg,var(--bg2),var(--bg));border:1px solid var(--border-gold);border-left:2px solid var(--gold);">
+      <div class="tag-gold" style="display:block;margin-bottom:.5rem;">✦ Lectura Aurum — Prueba</div>
+      <div style="font-size:14px;color:#8A7840;line-height:1.9;font-style:italic;">"La cuenta con más historia — 158 trades desde febrero. El R/R de 1.64 es el mejor de las tres. El martes destruye capital: 31 trades, 39% WR, -2.138$. Eliminar los martes o reducir a mínimo hasta entender qué ocurre ese día."</div>
+    </div>
+  </div>
+</div>
+
+    </div>
+
+
+
+    <!-- ===== CICLO 111 ===== -->
+    <div id="gpanel-ciclo111" style="display:none;padding-top:2rem;">
+
+      <div style="display:grid;grid-template-columns:140px 1fr 170px;gap:2rem;align-items:center;margin-top:2rem;padding:1.5rem 2rem;border-bottom:1px solid var(--border);background:var(--bg2);position:relative;overflow:hidden;">
+        <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>
+        <div style="position:absolute;right:1rem;top:-1rem;font-family:'Cormorant Garamond',serif;font-size:120px;color:#C9A84C04;line-height:1;user-select:none;">111</div>
+        <div style="text-align:center;">
+          <div class="tag" style="margin-bottom:.2rem;">Ciclo actual</div>
+          <div style="font-family:'Cormorant Garamond',serif;font-size:80px;color:var(--gold-bright);text-shadow:0 0 40px var(--gold-glow);line-height:1;">2</div>
+          <div style="font-size:13px;color:var(--text-dim);">En curso</div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text-muted);margin-bottom:.5rem;">
+            <span>Ciclo 1 — completado</span><span style="color:var(--gold-bright);">111 / 111 trades</span>
+          </div>
+          <div style="height:4px;background:var(--border);border-radius:2px;margin-bottom:.8rem;">
+            <div style="height:100%;width:100%;background:linear-gradient(90deg,#C9A84C44,var(--gold-bright));border-radius:2px;"></div>
+          </div>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:.5rem;">Ciclo 2 en curso — 32 trades</div>
+          <div style="display:flex;gap:3px;flex-wrap:wrap;" id="gest-ciclo-dots"></div>
+        </div>
+        <div style="text-align:center;">
+          <div class="tag" style="margin-bottom:.3rem;">Puntuación C1</div>
+          <div style="font-family:'Cormorant Garamond',serif;font-size:64px;color:var(--gold-bright);text-shadow:0 0 30px var(--gold-glow);line-height:1;">76</div>
+          <div style="font-size:13px;color:var(--gold-dim);">/100 · Proceso sólido</div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--border);">
+        <div class="stat-card" style="text-align:center;"><div class="stat-label">Win Rate</div><div class="stat-val green" style="font-size:28px;">64%</div><div class="stat-sub">71 wins de 111</div></div>
+        <div class="stat-card" style="text-align:center;"><div class="stat-label">P&L Ciclo 1</div><div class="stat-val green" style="font-size:28px;">+1.500€</div><div class="stat-sub">Rentabilidad real</div></div>
+        <div class="stat-card" style="text-align:center;"><div class="stat-label">R/R</div><div class="stat-val gold" style="font-size:28px;">1.68</div><div class="stat-sub">22.5 / 13.5 pts</div></div>
+        <div class="stat-card" style="text-align:center;"><div class="stat-label">Esperanza</div><div class="stat-val green" style="font-size:28px;">+9.57</div><div class="stat-sub">pts por trade</div></div>
+        <div class="stat-card" style="text-align:center;"><div class="stat-label">Cumplimiento</div><div class="stat-val gold" style="font-size:28px;">79.3%</div><div class="stat-sub">88 de 111 dentro</div></div>
+      </div>
+
+      <div style="padding:1.5rem 2rem;background:linear-gradient(135deg,var(--bg2),var(--bg));position:relative;">
+        <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>
+        <div class="tag-gold" style="display:block;margin-bottom:.8rem;">✦ Veredicto Aurum — Ciclo 1</div>
+        <div style="font-family:'Cormorant Garamond',serif;font-size:26px;color:var(--gold-bright);margin-bottom:.8rem;">Proceso sólido. El edge existe.</div>
+        <div style="font-size:15px;color:#8A7840;line-height:1.9;font-style:italic;max-width:700px;">"Has completado tu primer Ciclo Aurum con 64% de win rate y R/R 1.68. La matemática trabaja para ti. Esperanza: +9.57 pts/trade. Eso es un sistema. Ciclo 2: llevar el cumplimiento del 79% al 85%+. El swing es tu verdadero edge."</div>
+      </div>
+
+    </div>
+
+
+    <!-- ===== HORARIOS ===== -->
+    <div id="gpanel-horarios" style="display:none;padding-top:2rem;">
+
+      <div style="margin-top:2rem;padding:1.5rem 2rem;border-bottom:1px solid var(--border);background:var(--bg2);">
+        <div style="font-family:'Cormorant Garamond',serif;font-size:26px;color:var(--gold-bright);margin-bottom:.3rem;">Mapa horario real — 254 trades</div>
+        <div style="display:flex;height:28px;border-radius:4px;overflow:hidden;border:1px solid var(--border);margin-bottom:4px;">
+          <div style="flex:1;background:#1c1c1a;display:flex;align-items:center;justify-content:center;font-size:11px;color:#666;">00</div>
+          <div style="flex:7;background:#501313;display:flex;align-items:center;justify-content:center;font-size:12px;color:#F7C1C1;">Asia</div>
+          <div style="flex:1;background:#633806;display:flex;align-items:center;justify-content:center;font-size:11px;color:#FAC775;">Ant</div>
+          <div style="flex:5.3;background:#085041;display:flex;align-items:center;justify-content:center;font-size:12px;color:#9FE1CB;">Londres</div>
+          <div style="flex:3.2;background:#0C447C;display:flex;align-items:center;justify-content:center;font-size:12px;color:#B5D4F4;">NY open</div>
+          <div style="flex:3.5;background:#042C53;display:flex;align-items:center;justify-content:center;font-size:12px;color:#85B7EB;">NY tarde</div>
+          <div style="flex:3;background:#26215C;display:flex;align-items:center;justify-content:center;font-size:12px;color:#CECBF6;">Cierre</div>
+        </div>
+        <div style="position:relative;height:6px;margin-bottom:.4rem;">
+          <div style="position:absolute;left:calc(17/24*100%);right:0;height:6px;background:var(--gold-glow);border-top:1px solid var(--gold);border-bottom:1px solid var(--gold);"></div>
+          <div style="position:absolute;left:0;width:calc(2/24*100%);height:6px;background:var(--gold-glow);border-top:1px solid var(--gold);border-bottom:1px solid var(--gold);"></div>
+        </div>
+        <div style="font-size:13px;color:var(--gold-dim);">▲ Tu ventana real (17:00–02:00) · Dentro: +2.480$ · Fuera: -1.058$</div>
+      </div>
+
+      <div style="padding:1.5rem 2rem;border-bottom:1px solid var(--border);">
+        <div class="tag" style="display:block;margin-bottom:.8rem;">Win rate por hora · Verde ≥70% · Ámbar 50–70% · Rojo &lt;50%</div>
+        <div style="display:flex;align-items:flex-end;gap:3px;height:90px;background:#060810;border:1px solid var(--border);padding:4px;margin-bottom:4px;" id="gest-horas-barras"></div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);"><span>00h</span><span>06h</span><span>12h</span><span>18h</span><span>24h</span></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);">
+        <div class="cell">
+          <div class="tag" style="display:block;margin-bottom:1rem;">Mejor y peor día</div>
+          <div id="gest-dias-semana"></div>
+        </div>
+        <div class="cell">
+          <div class="tag" style="display:block;margin-bottom:1rem;">Patrones detectados</div>
+          <div style="display:flex;flex-direction:column;gap:.6rem;">
+            <div style="display:flex;gap:8px;padding:.6rem;border:1px solid var(--border);background:#0E1020;"><div style="width:5px;height:5px;border-radius:50%;background:var(--green);margin-top:5px;flex-shrink:0;"></div><div><div style="font-size:14px;color:#C8BDA0;margin-bottom:1px;">15:xx — tu mejor hora global</div><div style="font-size:13px;color:var(--text-muted);">81% WR, +2.613$. Overlap NY apertura.</div></div></div>
+            <div style="display:flex;gap:8px;padding:.6rem;border:1px solid var(--border);background:#0E1020;"><div style="width:5px;height:5px;border-radius:50%;background:var(--green);margin-top:5px;flex-shrink:0;"></div><div><div style="font-size:14px;color:#C8BDA0;margin-bottom:1px;">10:xx — sorpresa de Londres</div><div style="font-size:13px;color:var(--text-muted);">91.7% WR en 12 trades. LBMA Fix.</div></div></div>
+            <div style="display:flex;gap:8px;padding:.6rem;border:1px solid var(--border);background:#0E1020;"><div style="width:5px;height:5px;border-radius:50%;background:var(--red);margin-top:5px;flex-shrink:0;"></div><div><div style="font-size:14px;color:#C8BDA0;margin-bottom:1px;">09:xx — destruye capital</div><div style="font-size:13px;color:var(--text-muted);">16.7% WR, -474$. Eliminar completamente.</div></div></div>
+            <div style="display:flex;gap:8px;padding:.6rem;border:1px solid var(--border);background:#0E1020;"><div style="width:5px;height:5px;border-radius:50%;background:var(--red);margin-top:5px;flex-shrink:0;"></div><div><div style="font-size:14px;color:#C8BDA0;margin-bottom:1px;">17:xx — la trampa principal</div><div style="font-size:13px;color:var(--text-muted);">26 trades, 46% WR, -1.480$.</div></div></div>
+            <div style="display:flex;gap:8px;padding:.6rem;border:1px solid var(--border);background:#0E1020;"><div style="width:5px;height:5px;border-radius:50%;background:#6A9AEE;margin-top:5px;flex-shrink:0;"></div><div><div style="font-size:14px;color:#C8BDA0;margin-bottom:1px;">23:xx — hora oculta</div><div style="font-size:13px;color:var(--text-muted);">80% WR en 10 trades. Explorar.</div></div></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+
+    <!-- ===== EQUITY ===== -->
+    <div id="gpanel-equity" style="display:none;padding-top:2rem;">
+
+      <div style="margin-top:2rem;padding:1.5rem 2rem;border-bottom:1px solid var(--border);">
+        <div style="font-family:'Cormorant Garamond',serif;font-size:26px;color:var(--gold-bright);margin-bottom:.3rem;">Curva de Equity acumulada</div>
+        <div style="font-size:14px;color:var(--text-muted);margin-bottom:1rem;">3 cuentas · 254 trades · Feb–May 2026</div>
+        <div style="position:relative;height:180px;background:#060810;border:1px solid var(--border);border-radius:4px;overflow:hidden;margin-bottom:.5rem;">
+          <svg width="100%" height="100%" viewBox="0 0 800 180" preserveAspectRatio="none">
+            <defs><linearGradient id="eg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#C9A84C" stop-opacity="0.2"/><stop offset="100%" stop-color="#C9A84C" stop-opacity="0"/></linearGradient></defs>
+            <line x1="0" y1="45" x2="800" y2="45" stroke="#1A2040" stroke-width="0.5"/>
+            <line x1="0" y1="90" x2="800" y2="90" stroke="#1A2040" stroke-width="0.5"/>
+            <line x1="0" y1="135" x2="800" y2="135" stroke="#1A2040" stroke-width="0.5"/>
+            <path d="M0,170 C100,162 200,150 300,130 C400,110 470,90 540,70 C610,52 680,38 800,22 L800,180 L0,180 Z" fill="url(#eg)"/>
+            <path d="M0,170 C100,162 200,150 300,130 C400,110 470,90 540,70 C610,52 680,38 800,22" fill="none" stroke="#C9A84C" stroke-width="2" stroke-linecap="round"/>
+            <circle cx="800" cy="22" r="5" fill="#E8C870"/>
+            <text x="793" y="16" text-anchor="end" fill="#E8C870" font-size="11" font-family="sans-serif">+5.168$</text>
+          </svg>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text-muted);"><span>Feb 2026</span><span>Mar 2026</span><span>Abr 2026</span><span>May 2026</span></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border-bottom:1px solid var(--border);">
+        <div class="stat-card" style="text-align:center;"><div class="stat-label">Feb 2026</div><div class="stat-val green" style="font-size:26px;">+208$</div><div class="stat-sub">33 trades · Inicio</div></div>
+        <div class="stat-card" style="text-align:center;"><div class="stat-label">Mar 2026</div><div class="stat-val green" style="font-size:26px;">+2.381$</div><div class="stat-sub">111 trades · Ciclo 1</div></div>
+        <div class="stat-card" style="text-align:center;"><div class="stat-label">Abr 2026</div><div class="stat-val green" style="font-size:26px;">+2.353$</div><div class="stat-sub">104 trades · Ciclo 2</div></div>
+        <div class="stat-card" style="text-align:center;border:1px solid var(--border-gold);"><div class="stat-label" style="color:var(--gold);">May 2026 · En curso</div><div class="stat-val gold" style="font-size:26px;">+226$</div><div class="stat-sub">6 trades</div></div>
+      </div>
+
+      <div style="padding:1.5rem 2rem;background:linear-gradient(135deg,var(--bg2),var(--bg));position:relative;">
+        <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>
+        <div class="tag-gold" style="display:block;margin-bottom:1rem;">✦ Camino matemático a la Etapa 5</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;">
+          <div style="padding:1rem;border:1px solid var(--gold);background:#C9A84C08;">
+            <div class="tag-gold" style="margin-bottom:.4rem;display:block;">✦ Óptimo</div>
+            <div style="font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--gold-bright);margin-bottom:.3rem;">1:1.7 · 0.20 lotes</div>
+            <div style="font-size:14px;color:var(--text-dim);line-height:1.6;">+160€/trade · <strong style="color:var(--gold);">31 trades → 5.000€</strong></div>
+          </div>
+          <div style="padding:1rem;border:1px solid var(--border);background:#0E1020;">
+            <div class="tag" style="margin-bottom:.4rem;display:block;">Conservador</div>
+            <div style="font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--green);margin-bottom:.3rem;">1:1.5 · 0.20 lotes</div>
+            <div style="font-size:14px;color:var(--text-dim);line-height:1.6;">+132€/trade · <strong style="color:var(--green);">38 trades → 5.000€</strong></div>
+          </div>
+          <div style="padding:1rem;border:1px solid var(--border);background:#0E1020;">
+            <div class="tag" style="margin-bottom:.4rem;display:block;">Eficiente</div>
+            <div style="font-family:'Cormorant Garamond',serif;font-size:20px;color:#6A9AEE;margin-bottom:.3rem;">1:2.0 · 0.16 lotes</div>
+            <div style="font-size:14px;color:var(--text-dim);line-height:1.6;">+162€/trade · <strong style="color:#6A9AEE;">31 trades → 5.000€</strong></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+
+    <!-- ===== CUMPLIMIENTO ===== -->
+    <div id="gpanel-cumplimiento" style="display:none;padding-top:2rem;">
+
+      <!-- Hero stats -->
+      <div style="margin-top:2rem;display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);">
+        <div class="stat-card" style="text-align:center;position:relative;">
+          <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--green),transparent);"></div>
+          <div class="stat-label">Cumplen el método</div>
+          <div class="stat-val green" style="font-size:36px;">123</div>
+          <div class="stat-sub">78.8% de tus trades</div>
+        </div>
+        <div class="stat-card" style="text-align:center;position:relative;">
+          <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--red),transparent);"></div>
+          <div class="stat-label">Fuera del método</div>
+          <div class="stat-val red" style="font-size:36px;">33</div>
+          <div class="stat-sub">21.2% — a revisar</div>
+        </div>
+        <div class="stat-card" style="text-align:center;">
+          <div class="stat-label">WR dentro del método</div>
+          <div class="stat-val green" style="font-size:36px;">60.2%</div>
+          <div class="stat-sub">P&L +758€ · riesgo controlado</div>
+        </div>
+        <div class="stat-card" style="text-align:center;">
+          <div class="stat-label">WR fuera del método</div>
+          <div class="stat-val red" style="font-size:36px;">54.5%</div>
+          <div class="stat-sub">P&L +664€ · más riesgo</div>
+        </div>
+      </div>
+
+      <!-- Distribución SL -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);border-top:1px solid var(--border);">
+        <div class="cell">
+          <div class="tag" style="display:block;margin-bottom:1rem;">Distribución de SL · Dónde cerraste cada operación</div>
+
+          <div style="display:flex;align-items:center;gap:1rem;margin-bottom:.8rem;padding:.8rem 1rem;border:1px solid var(--border);background:#0e0c08;">
+            <div style="font-size:11px;padding:.2rem .7rem;letter-spacing:.15em;text-transform:uppercase;width:80px;text-align:center;flex-shrink:0;background:#c9a84c18;color:#e8c870;border:1px solid #c9a84c44;">✦ Edge</div>
+            <div style="flex:1;">
+              <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-bottom:.3rem;"><span>≤ 11 puntos — SL perfecto</span><span style="color:#e8c870;">53.2%</span></div>
+              <div style="height:4px;background:var(--border);border-radius:2px;"><div style="height:100%;width:100%;background:linear-gradient(90deg,#c9a84c44,#e8c870);"></div></div>
+            </div>
+            <div style="font-family:'Cormorant Garamond',serif;font-size:20px;color:#e8c870;width:40px;text-align:right;">83</div>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:1rem;margin-bottom:.8rem;padding:.8rem 1rem;border:1px solid var(--border);background:#0e0c08;">
+            <div style="font-size:11px;padding:.2rem .7rem;letter-spacing:.15em;text-transform:uppercase;width:80px;text-align:center;flex-shrink:0;background:#aaa03a18;color:#c8b040;border:1px solid #aaa03a33;">Aire</div>
+            <div style="flex:1;">
+              <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-bottom:.3rem;"><span>12–25 puntos — tolerable</span><span style="color:#c8b040;">29.5%</span></div>
+              <div style="height:4px;background:var(--border);border-radius:2px;"><div style="height:100%;width:55%;background:linear-gradient(90deg,#aaa03a44,#c8b040);"></div></div>
+            </div>
+            <div style="font-family:'Cormorant Garamond',serif;font-size:20px;color:#c8b040;width:40px;text-align:right;">46</div>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:1rem;margin-bottom:.8rem;padding:.8rem 1rem;border:1px solid var(--border);background:#0e0c08;">
+            <div style="font-size:11px;padding:.2rem .7rem;letter-spacing:.15em;text-transform:uppercase;width:80px;text-align:center;flex-shrink:0;background:#cc884418;color:#cc8844;border:1px solid #cc884433;">Límite</div>
+            <div style="flex:1;">
+              <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-bottom:.3rem;"><span>26–50 puntos — zona peligrosa</span><span style="color:#cc8844;">10.9%</span></div>
+              <div style="height:4px;background:var(--border);border-radius:2px;"><div style="height:100%;width:20%;background:linear-gradient(90deg,#cc884444,#cc8844);"></div></div>
+            </div>
+            <div style="font-family:'Cormorant Garamond',serif;font-size:20px;color:#cc8844;width:40px;text-align:right;">17</div>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:1rem;padding:.8rem 1rem;border:1px solid var(--border);background:#0e0c08;">
+            <div style="font-size:11px;padding:.2rem .7rem;letter-spacing:.15em;text-transform:uppercase;width:80px;text-align:center;flex-shrink:0;background:#cc443318;color:#cc5544;border:1px solid #cc443333;">Fuera</div>
+            <div style="flex:1;">
+              <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-bottom:.3rem;"><span>&gt;50 puntos — fuera del método</span><span style="color:#cc5544;">6.4%</span></div>
+              <div style="height:4px;background:var(--border);border-radius:2px;"><div style="height:100%;width:12%;background:linear-gradient(90deg,#cc443344,#cc5544);"></div></div>
+            </div>
+            <div style="font-family:'Cormorant Garamond',serif;font-size:20px;color:#cc5544;width:40px;text-align:right;">10</div>
+          </div>
+        </div>
+
+        <!-- Alertas -->
+        <div class="cell">
+          <div class="tag" style="display:block;margin-bottom:1rem;">Operaciones fuera del método · Las más críticas</div>
+
+          <div style="padding:.8rem 1rem;border:1px solid #cc443322;background:#cc443308;border-left:2px solid #cc4433;margin-bottom:.6rem;">
+            <div style="font-size:12px;letter-spacing:.1em;color:#cc7755;margin-bottom:.3rem;">⚠ 17 Abr — 0.89 lotes · Riesgo 1.382€</div>
+            <div style="font-size:13px;color:#7a4a38;line-height:1.6;">Ganó +1.378€ pero con riesgo de 1.382€. Casi el 2.8% de la cuenta en un trade. Fuera del método aunque ganara.</div>
+          </div>
+          <div style="padding:.8rem 1rem;border:1px solid #cc443322;background:#cc443308;border-left:2px solid #cc4433;margin-bottom:.6rem;">
+            <div style="font-size:12px;letter-spacing:.1em;color:#cc7755;margin-bottom:.3rem;">⚠ 10 Mar — 0.20 lotes · 40 puntos · -808€</div>
+            <div style="font-size:13px;color:#7a4a38;line-height:1.6;">La mayor pérdida. SL en zona límite con lotaje máximo. Resultado: -1.6% de cuenta en un trade.</div>
+          </div>
+          <div style="padding:.8rem 1rem;border:1px solid #cc443322;background:#cc443308;border-left:2px solid #cc4433;margin-bottom:1rem;">
+            <div style="font-size:12px;letter-spacing:.1em;color:#cc7755;margin-bottom:.3rem;">⚠ 23 Mar — 342 puntos de movimiento</div>
+            <div style="font-size:13px;color:#7a4a38;line-height:1.6;">Operación abierta demasiado tiempo sin control. No es un SL — es una posición abandonada.</div>
+          </div>
+
+          <!-- Conclusión -->
+          <div style="padding:1rem;border:1px solid #c9a84c22;background:linear-gradient(135deg,#161208,#1a1608);border-left:2px solid #c9a84c;">
+            <div style="font-size:10px;letter-spacing:.3em;text-transform:uppercase;color:#c9a84c;margin-bottom:.5rem;">✦ Lectura Aurum</div>
+            <div style="font-size:13px;color:#8a7840;line-height:1.8;font-style:italic;">"El 53% de tus trades respetan el Edge 11. Cuando lo respetas, tu win rate sube al 60.2%. El método funciona — el reto es aplicarlo siempre."</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Periodo -->
+      <div style="padding:1rem 2rem;border-top:1px solid var(--border);background:var(--bg2);display:flex;align-items:center;justify-content:space-between;">
+        <div style="font-size:13px;color:var(--text-muted);">Análisis correspondiente a: <strong style="color:var(--text-dim);">Abril 2026</strong></div>
+        <div style="display:flex;gap:.5rem;">
+          <div class="ctrl-btn" style="font-size:12px;">← Mes anterior</div>
+          <div class="ctrl-btn" style="font-size:12px;">Mes siguiente →</div>
+        </div>
+      </div>
+
+    </div>
+
+
+    <!-- ===== DIARIO ===== -->
+    <div id="gpanel-diario" style="display:none;padding:2rem 2rem 1.5rem;">
+
+      <div style="font-family:'Cormorant Garamond',serif;font-size:28px;color:var(--gold-bright);margin-bottom:.3rem;">Diario del proceso</div>
+
+    </div>
+
+    <!-- ===== HISTORIAL EXTERNO ===== -->
+    <div id="gpanel-historial" style="display:none;padding:2rem 2rem 1.5rem;">
+
+      <div style="margin-bottom:1.5rem;">
+        <div style="font-family:'Cormorant Garamond',serif;font-size:28px;color:var(--gold-bright);margin-bottom:.3rem;">Historial externo</div>
+        <p style="font-size:14px;color:var(--text-muted);line-height:1.8;">Tus cuentas anteriores — challenges, brokers externos. El sistema elimina duplicados automáticamente.</p>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);margin-bottom:1.5rem;">
+        <div class="stat-card highlight" style="text-align:center;">
+          <div class="stat-label">Trades únicos totales</div>
+          <div id="hist-global-trades" style="font-family:'Cormorant Garamond',serif;font-size:42px;color:var(--gold-bright);line-height:1;">206</div>
+          <div style="font-size:12px;color:var(--text-muted);">2 cuentas · sin duplicados</div>
+        </div>
+        <div class="stat-card" style="text-align:center;">
+          <div class="stat-label">Win Rate global</div>
+          <div id="hist-global-wr" style="font-family:'Cormorant Garamond',serif;font-size:42px;color:var(--green);line-height:1;">61.2%</div>
+          <div style="font-size:12px;color:var(--text-muted);">126 wins de 206</div>
+        </div>
+        <div class="stat-card" style="text-align:center;">
+          <div class="stat-label">P&amp;L acumulado</div>
+          <div id="hist-global-pnl" style="font-family:'Cormorant Garamond',serif;font-size:42px;color:var(--green);line-height:1;">+4.034$</div>
+          <div style="font-size:12px;color:var(--text-muted);">historial completo</div>
+        </div>
+      </div>
+
+      <div style="font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.8rem;">Cuentas en el historial</div>
+      <div id="hist-lista" style="display:flex;flex-direction:column;gap:1px;background:var(--border);margin-bottom:1.5rem;"></div>
+
+      <div id="hist-detalle" style="display:none;margin-bottom:1.5rem;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+          <div id="hist-detalle-titulo" style="font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--gold-bright);"></div>
+          <div style="font-size:12px;color:var(--text-muted);cursor:pointer;" onclick="document.getElementById('hist-detalle').style.display='none'">Cerrar ×</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);">
+          <div class="cell"><div class="tag" style="display:block;margin-bottom:1rem;">Por tipo de trade</div><div id="hist-detalle-tipos"></div></div>
+          <div class="cell"><div class="tag" style="display:block;margin-bottom:1rem;">Por día de la semana</div><div id="hist-detalle-dias"></div></div>
+        </div>
+      </div>
+
+      <div style="border:1px solid var(--border);background:var(--bg2);padding:1.5rem;position:relative;">
+        <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>
+        <div style="font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--gold);margin-bottom:1rem;">+ Subir cuenta nueva</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
+          <div>
+            <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:.4rem;">Nombre</label>
+            <input type="text" id="hist-nombre" placeholder="Se detecta automáticamente por número de cuenta"
+              style="width:100%;background:#060810;border:1px solid var(--border);padding:.6rem 1rem;font-size:14px;color:var(--text-muted);font-family:'Outfit',sans-serif;outline:none;box-sizing:border-box;"
+              onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--border)'">
+          </div>
+          <div>
+            <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:.4rem;">Tipo</label>
+            <select id="hist-tipo" style="width:100%;background:#060810;border:1px solid var(--border);padding:.6rem 1rem;font-size:14px;color:var(--text);font-family:'Outfit',sans-serif;outline:none;">
+              <option>Challenge aprobado</option><option>Challenge perdido</option><option>Cuenta real</option><option>Demo / Práctica</option>
+            </select>
+          </div>
+        </div>
+        <div id="hist-dropzone" style="border:2px dashed var(--border);padding:2rem;text-align:center;cursor:pointer;transition:border-color .3s;"
+          onclick="document.getElementById('hist-file').click()"
+          ondragover="event.preventDefault();this.style.borderColor='var(--gold)'"
+          ondragleave="this.style.borderColor='var(--border)'"
+          ondrop="event.preventDefault();this.style.borderColor='var(--border)';histDrop(event)">
+          <div style="font-size:24px;margin-bottom:.4rem;opacity:.3;">&#8593;</div>
+          <div style="font-size:14px;color:var(--text-muted);">Arrastra tu archivo MT5 aquí o haz clic</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:.2rem;">Formatos: .xlsx · .htm · .html · Sin pago · Incluido en el pack</div>
+          <input type="file" id="hist-file" accept=".xlsx,.htm,.html" style="display:none;" onchange="histSubir(this.files[0])">
+        </div>
+        <div id="hist-progreso" style="display:none;margin-top:1rem;">
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-bottom:.3rem;">
+            <span id="hist-prog-txt">Analizando...</span><span id="hist-prog-pct">0%</span>
+          </div>
+          <div style="height:3px;background:var(--border);"><div id="hist-prog-bar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--gold),var(--gold-bright));transition:width .3s;"></div></div>
+        </div>
+        <div id="hist-msg" style="font-size:13px;text-align:center;min-height:18px;margin-top:.8rem;"></div>
+      </div>
+    </div>
+      <div style="font-size:14px;color:var(--text-muted);margin-bottom:1.5rem;">Tus anotaciones. Solo las ves tú.</div>
+
+      <!-- Nueva entrada -->
+      <div style="border:1px solid var(--border-gold);background:var(--bg2);padding:1.5rem;position:relative;margin-bottom:1.5rem;">
+        <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>
+        <div style="font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--gold);margin-bottom:1rem;">+ Nueva entrada</div>
+        <textarea
+          id="diario-input"
+          placeholder="¿Qué pasó hoy en el proceso? Un trade, una reflexión, un patrón que notaste, algo que quieres recordar..."
+          rows="4"
+          style="width:100%;background:#060810;border:1px solid var(--border);padding:1rem;font-size:15px;color:var(--text);font-family:'Outfit',sans-serif;outline:none;resize:none;line-height:1.7;transition:border-color .3s;margin-bottom:1rem;"
+          onfocus="this.style.borderColor='var(--gold)'"
+          onblur="this.style.borderColor='var(--border)'"
+        ></textarea>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div style="font-size:13px;color:var(--text-muted);" id="diario-fecha-hoy"></div>
+          <div onclick="guardarEntradaDiario()" class="btn-outline" style="font-size:13px;padding:.6rem 1.5rem;">Guardar entrada →</div>
+        </div>
+        <div id="diario-msg" style="font-size:13px;color:var(--green);margin-top:.6rem;min-height:18px;"></div>
+      </div>
+
+      <!-- Entradas anteriores -->
+      <div style="font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--text-muted);margin-bottom:1rem;">Entradas anteriores</div>
+      <div style="display:flex;flex-direction:column;gap:1px;background:var(--border);" id="diario-entradas">
+
+        <div style="background:var(--bg2);padding:1.5rem 2rem;position:relative;">
+          <div style="position:absolute;top:0;left:0;bottom:0;width:2px;background:linear-gradient(to bottom,transparent,#4A7AAA,transparent);"></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem;">
+            <div style="font-size:12px;color:#6A9AEE;">10 mayo 2026</div>
+            <div style="font-size:11px;color:var(--text-muted);">Día 99 del proceso</div>
+          </div>
+          <div style="font-size:15px;color:var(--text-dim);line-height:1.8;">Hoy identifiqué que en las horas 17-18 entro por inercia, no por estructura. Lo veo clarísimo cuando lo analizo después pero en el momento no lo percibo. La próxima semana voy a marcar esa hora como zona prohibida y ver qué pasa.</div>
+        </div>
+
+        <div style="background:var(--bg2);padding:1.5rem 2rem;position:relative;">
+          <div style="position:absolute;top:0;left:0;bottom:0;width:2px;background:linear-gradient(to bottom,transparent,#4A7AAA,transparent);"></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem;">
+            <div style="font-size:12px;color:#6A9AEE;">2 mayo 2026</div>
+            <div style="font-size:11px;color:var(--text-muted);">Día 91 del proceso</div>
+          </div>
+          <div style="font-size:15px;color:var(--text-dim);line-height:1.8;">Completé el Ciclo 1. 76 puntos. El Águila dijo que el edge existe pero que el cumplimiento es el trabajo del Ciclo 2. Tiene razón. Los números son buenos cuando respeto el marco.</div>
+        </div>
+
+        <div style="background:var(--bg2);padding:1.5rem 2rem;position:relative;">
+          <div style="position:absolute;top:0;left:0;bottom:0;width:2px;background:linear-gradient(to bottom,transparent,#4A7AAA,transparent);"></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem;">
+            <div style="font-size:12px;color:#6A9AEE;">15 marzo 2026</div>
+            <div style="font-size:11px;color:var(--text-muted);">Día 43 del proceso</div>
+          </div>
+          <div style="font-size:15px;color:var(--text-dim);line-height:1.8;">Semana difícil. Tres pérdidas seguidas y la cabeza me pedía recuperar. No lo hice. Cerré el ordenador. Mañana es otro día y el proceso sigue.</div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+
+
+
+<!-- PÁGINA: PREGUNTAS -->
+<div id="page-preguntas" class="page-content" style="display:none;">
+<!-- ============================================================
+     PREGUNTAS — Página pública
+     Cualquiera puede dejar una pregunta.
+     Aurum decide cuáles se publican.
+     No hay respuestas. Solo preguntas que hacen pensar.
+     ============================================================ -->
+
+<!-- HERO -->
+<section class="hero" style="padding:5rem 3rem 3rem;">
+  <span class="hero-tag">Aurum Velare · Tablillas</span>
+  <h1 class="hero-title">
+    No buscamos respuestas.<br>
+    Buscamos <em>mejores preguntas.</em>
+  </h1>
+  <p class="hero-sub">
+    Una pregunta grabada en madera. Dejada en el camino.<br>
+    Sin nombre. Sin respuesta. Solo la pregunta.
+  </p>
+</section>
+
+
+<!-- PREGUNTAS PUBLICADAS -->
+<section style="padding:3rem;border-bottom:1px solid var(--border);max-width:800px;margin:0 auto;">
+
+  <div style="text-align:center;margin-bottom:3rem;">
+    <span class="tag" style="display:block;margin-bottom:.5rem;">Las que quedaron</span>
+    <p style="font-size:15px;color:var(--text-muted);line-height:1.9;">Estas preguntas las dejaron otros. Aurum las eligió porque no tienen respuesta fácil.</p>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:1px;background:var(--border);" id="preguntas-lista">
+
+    <div style="background:var(--bg2);padding:2rem 2.5rem;position:relative;">
+      <div style="position:absolute;top:0;left:0;bottom:0;width:2px;background:linear-gradient(to bottom,transparent,var(--gold),transparent);"></div>
+      <p style="font-family:'Cormorant Garamond',serif;font-size:26px;color:#E8DCC0;line-height:1.4;font-style:italic;">
+        "¿Cuántas veces has sabido exactamente qué hacer y aun así no lo has hecho?"
+      </p>
+    </div>
+
+    <div style="background:var(--bg2);padding:2rem 2.5rem;position:relative;">
+      <div style="position:absolute;top:0;left:0;bottom:0;width:2px;background:linear-gradient(to bottom,transparent,var(--border-gold),transparent);"></div>
+      <p style="font-family:'Cormorant Garamond',serif;font-size:26px;color:#E8DCC0;line-height:1.4;font-style:italic;">
+        "¿Operas para ganar o para no perder?"
+      </p>
+    </div>
+
+    <div style="background:var(--bg2);padding:2rem 2.5rem;position:relative;">
+      <div style="position:absolute;top:0;left:0;bottom:0;width:2px;background:linear-gradient(to bottom,transparent,var(--border-gold),transparent);"></div>
+      <p style="font-family:'Cormorant Garamond',serif;font-size:26px;color:#E8DCC0;line-height:1.4;font-style:italic;">
+        "¿Qué cambiarías si supieras que los datos no mienten?"
+      </p>
+    </div>
+
+    <div style="background:var(--bg2);padding:2rem 2.5rem;position:relative;">
+      <div style="position:absolute;top:0;left:0;bottom:0;width:2px;background:linear-gradient(to bottom,transparent,var(--border-gold),transparent);"></div>
+      <p style="font-family:'Cormorant Garamond',serif;font-size:26px;color:#E8DCC0;line-height:1.4;font-style:italic;">
+        "¿Cuánto tiempo llevas esperando el momento perfecto para empezar?"
+      </p>
+    </div>
+
+    <div style="background:var(--bg2);padding:2rem 2.5rem;position:relative;">
+      <div style="position:absolute;top:0;left:0;bottom:0;width:2px;background:linear-gradient(to bottom,transparent,var(--border-gold),transparent);"></div>
+      <p style="font-family:'Cormorant Garamond',serif;font-size:26px;color:#E8DCC0;line-height:1.4;font-style:italic;">
+        "¿Tu última pérdida fue un error o fue exactamente lo que ibas a hacer?"
+      </p>
+    </div>
+
+    <div style="background:var(--bg2);padding:2rem 2.5rem;position:relative;">
+      <div style="position:absolute;top:0;left:0;bottom:0;width:2px;background:linear-gradient(to bottom,transparent,var(--border-gold),transparent);"></div>
+      <p style="font-family:'Cormorant Garamond',serif;font-size:26px;color:#E8DCC0;line-height:1.4;font-style:italic;">
+        "Si el mercado te dijera la verdad sobre ti, ¿querrías escucharla?"
+      </p>
+    </div>
+
+  </div>
+</section>
+
+
+<!-- FORMULARIO — dejar pregunta -->
+<!-- TABLILLA FÍSICA -->
+<section style="padding:3rem;border-bottom:1px solid var(--border);">
+  <div style="max-width:700px;margin:0 auto;">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+
+      <!-- Digital -->
+      <div style="background:var(--bg2);border:1px solid var(--border);padding:2rem;position:relative;">
+        <div style="font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.8rem;">Digital</div>
+        <div style="font-family:'Cormorant Garamond',serif;font-size:24px;color:var(--text);margin-bottom:.8rem;">Tu pregunta en la web</div>
+        <p style="font-size:14px;color:var(--text-muted);line-height:1.9;margin-bottom:1.2rem;">
+          Déjala aquí. Aurum la revisa. Si resuena con el proceso, aparece publicada para que otros la encuentren.
+        </p>
+        <div style="font-size:13px;color:var(--gold-dim);">✦ Gratuito</div>
+      </div>
+
+      <!-- Física -->
+      <div style="background:var(--bg2);border:1px solid var(--border-gold);padding:2rem;position:relative;">
+        <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>
+        <div style="font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--gold);margin-bottom:.8rem;">Física · Grabada en madera</div>
+        <div style="font-family:'Cormorant Garamond',serif;font-size:24px;color:var(--gold-bright);margin-bottom:.8rem;">Tu tablilla en el Camino</div>
+        <p style="font-size:14px;color:var(--text-muted);line-height:1.9;margin-bottom:1.2rem;">
+          Tu pregunta grabada en madera. La llevas al Camino de Santiago, la dejas donde quieras, o te la quedas. Una pieza con alma.
+        </p>
+        <div style="font-size:13px;color:var(--text-muted);margin-bottom:1rem;">Personalizada · Grabado láser · Envío incluido</div>
+        <div onclick="solicitarTablilla()" class="btn-outline" style="display:block;text-align:center;font-size:13px;">Encargar tablilla →</div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<section style="padding:4rem 3rem;max-width:700px;margin:0 auto;">
+
+  <div style="text-align:center;margin-bottom:2.5rem;">
+    <span class="tag" style="display:block;margin-bottom:.8rem;">Tu turno</span>
+    <h2 style="font-family:'Cormorant Garamond',serif;font-size:36px;color:var(--text);margin-bottom:.8rem;">Deja tu pregunta</h2>
+    <p style="font-size:15px;color:var(--text-muted);line-height:1.9;max-width:500px;margin:0 auto;">
+      No tiene que tener respuesta. Solo tiene que hacer pensar.<br>
+      Aurum la revisa. Si resuena, la publicamos.
+    </p>
+  </div>
+
+  <div style="border:1px solid var(--border);background:var(--bg2);padding:2rem;position:relative;">
+    <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>
+
+    <textarea
+      id="pregunta-input"
+      placeholder="¿Cuál es tu pregunta?"
+      rows="4"
+      style="width:100%;background:#060810;border:1px solid var(--border);padding:1rem;font-size:16px;color:var(--text);font-family:'Cormorant Garamond',serif;font-style:italic;outline:none;resize:none;line-height:1.6;transition:border-color .3s;margin-bottom:1rem;"
+      onfocus="this.style.borderColor='var(--gold)'"
+      onblur="this.style.borderColor='var(--border)'"
+      maxlength="280"
+    ></textarea>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;">
+      <div style="font-size:12px;color:var(--text-muted);font-style:italic;">Máximo 280 caracteres · Sin nombre · Sin respuesta</div>
+      <div style="font-size:12px;color:var(--text-muted);" id="pregunta-contador">0 / 280</div>
+    </div>
+
+    <!-- Email opcional -->
+    <div style="border-top:1px solid var(--border);padding-top:1.2rem;margin-bottom:1.2rem;">
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:.6rem;font-style:italic;">
+        ¿Quieres saber si la publicamos? Déjanos tu email — solo te escribimos si sale.
+      </div>
+      <input
+        type="email"
+        id="pregunta-email"
+        placeholder="tu@email.com (opcional)"
+        style="width:100%;background:#060810;border:1px solid var(--border);padding:.6rem 1rem;font-size:14px;color:var(--text);font-family:'Outfit',sans-serif;outline:none;transition:border-color .3s;"
+        onfocus="this.style.borderColor='var(--gold)'"
+        onblur="this.style.borderColor='var(--border)'"
+      >
+    </div>
+
+    <div onclick="enviarPregunta()" class="btn-gold" style="display:block;text-align:center;">
+      Enviar pregunta →
+    </div>
+
+    <div id="pregunta-msg" style="font-size:13px;text-align:center;min-height:20px;margin-top:1rem;"></div>
+  </div>
+
+  <!-- Nota -->
+  <div style="text-align:center;margin-top:1.5rem;padding:1rem;border:1px solid var(--border);background:var(--bg2);">
+    <p style="font-size:13px;color:var(--text-muted);line-height:1.9;font-style:italic;">
+      "No publicamos todas. Solo las que no tienen respuesta fácil.<br>
+      Si la tuya aparece aquí, es porque hizo pensar a alguien más."
+    </p>
+  </div>
+
+</section>
+
+</div>
+
+
+  <script src="historial.js"></script>
+  <script src="utils.js"></script>
+  <script src="app.js"></script>
+  <script src="salas.js"></script>
+  <script src="evalua.js"></script>
+  <script src="tablillas.js"></script>
+  <script src="visitas.js"></script>
+  <script src="gestion.js"></script>
+  <script src="preguntas.js"></script>
+<script>
+const ANIMALES_DATA = {
+  aguila: {
+    nombre:'Águila', nick:'Williams', tag:'Visión · Silencio',
+    body:'Williams no opera. Nunca lo ha hecho en público.<br><br>Creó Aurum Velare por dos razones: una inspiración que llevaba años madurando, y una necesidad real que vio en Roderas — alguien con proceso, con criterio, pero sin un lugar donde compartirlo sin ruido.<br><br>De esa combinación nació esto. Un espacio abierto a lo que cada usuario necesite: su propio proceso, su propio equipo, su propio animal.<br><br>El Águila no habla. Construye el marco y deja que los demás vuelen.',
+    cita:'"No todos los que observan están quietos. Algunos están construyendo algo que tú aún no puedes ver."'
+  },
+  leon: {
+    nombre:'León', nick:'Roderas', tag:'Presencia · Convicción',
+    body:'Roderas lleva tiempo en el proceso. Más del que quisiera reconocer.<br><br>Todavía no es rentable. Lo sabe, lo acepta, y lo dice sin disculparse — porque eso es exactamente lo que define al León: no huir de la verdad.<br><br>Perdió a la Hormiga en el camino. Al Elefante lo tiene cerca, pero el mercado no espera a nadie. Roderas sigue.<br><br>Creó esta web para compartir su proceso real, con sus datos, sus errores y sus ciclos. Gracias a la oportunidad que le brindó Williams, el Águila. Sin ella, esto no existiría.',
+    cita:'"Seguir sin ser rentable no es fracasar. Es la única forma honesta de aprender."'
+  },
+  hormiga: {
+    nombre:'Hormiga', nick:'Mara', tag:'Disciplina · Repetición',
+    body:'Mara fue scalper. De las pocas que entienden lo que significa estar delante de una pantalla hora tras hora sin romperse.<br><br>Estuvo mucho tiempo en el proceso. Junto a Roderas, construyendo, fallando, aprendiendo. Era metódica, constante — la hormiga que levanta lo que otros no ven.<br><br>Pero al final abandonó. El mercado no siempre premia a quien más trabaja, y Mara eligió salir.<br><br>Roderas la perdió. Y esa pérdida también forma parte del proceso. Su historia sigue aquí porque el camino no se borra cuando alguien se va.',
+    cita:'"Hay quien deja el proceso antes de ver los resultados. Eso también es una decisión válida."'
+  },
+  elefante: {
+    nombre:'Elefante', nick:'Toco', tag:'Memoria · Control emocional',
+    body:'Toco opera fuerte. Pero solo cuando hay que hacerlo.<br><br>No sobreopera. No persigue el mercado. Espera con una paciencia que muy pocos tienen, y cuando el momento llega — entra con el lotaje correcto, en el timeframe correcto, sin dudar.<br><br>Es el animal más cercano al León. No por jerarquía, sino por entendimiento mutuo: Roderas confía en su criterio, y Toco confía en el proceso.<br><br>El Elefante no olvida sus errores. Ahí está su verdadera fuerza.',
+    cita:'"La paciencia no es esperar. Es saber exactamente qué estás esperando."'
+  },
+  oso: {
+    nombre:'Oso', nick:'Equipo Roderas', tag:'Paciencia · Protección',
+    body:'El Oso puede entrar en el equipo del León.<br><br>Es el perfil que protege el capital antes que cualquier otra cosa. No ataca sin razón. Analiza, defiende, y cuando mueve — mueve con peso.<br><br>Si te reconoces en esta forma de operar, si quieres formar parte del proceso de Roderas — el espacio está abierto.<br><br>El equipo no se construye con prisa.',
+    cita:'"Un oso no necesita justificar por qué espera. El mercado aprende a respetarle."'
+  },
+  toro: {
+    nombre:'Toro', nick:'Equipo Roderas', tag:'Expansión · Momentum',
+    body:'El Toro también puede entrar en el equipo del León.<br><br>Es expansión pura cuando el mercado lo permite. Aprovecha el momentum, no lo fuerza. Sabe que hay momentos para empujar y momentos para detenerse — y rara vez los confunde.<br><br>Si tu proceso tiene esa energía, si reconoces el timing antes que los demás — el equipo de Roderas podría ser tu lugar.<br><br>Pero el Toro que entra sin proceso, entra y sale sin dejar huella.',
+    cita:'"La fuerza sin dirección no es momentum. Es ruido."'
+  },
+  lobo: {
+    nombre:'Lobo', nick:'Tu propio camino', tag:'Instinto · Adaptación',
+    body:'El Lobo no está en ningún equipo. Ni falta que le hace.<br><br>Es para quien quiere vivir su propio proceso, construir su propio equipo, o simplemente ser un animal distinto — uno que no aparece en esta web porque aún no tiene nombre.<br><br>Aurum Velare está abierto a eso. No todo el mundo necesita pertenecer a una estructura. Algunos necesitan crear la suya.<br><br>Si eres el Lobo, ya lo sabes.',
+    cita:'"El lobo no busca manada. Construye territorio."'
+  }
+};
+
+const ETAPAS_DATA = {
+  e0:  { num:'0',   nombre:'Silencio',     sub:'Observas sin operar',        body:'El punto de partida. Antes de operar un solo euro, el proceso empieza aquí — mirando, leyendo, entendiendo cómo se mueve XAU/USD sin tener nada en juego.<br><br>La mayoría saltea esta etapa con prisa. Los que la respetan llegan más lejos.<br><br>No es pasividad. Es preparación.',                              cita:'"El que observa sin actuar no está perdiendo el tiempo. Está construyendo criterio."' },
+  e05: { num:'0.5', nombre:'Umbral',        sub:'Primeros trades reales',     body:'El dinero entra en juego por primera vez. Los números dejan de ser teóricos y el ruido emocional aparece sin avisar.<br><br>Aquí se descubre si el análisis aguanta presión real o solo funcionaba en papel.<br><br>No se espera rentabilidad. Se espera honestidad con los datos.',                               cita:'"El primer trade real te dice más sobre ti que cien operaciones en demo."' },
+  e1:  { num:'1',   nombre:'Estructura',   sub:'Empiezas a ver patrones',    body:'Los datos empiezan a tener forma. Hay sesiones que se repiten, horarios que funcionan mejor, tipos de setup que encajan con tu forma de operar.<br><br>No es que el mercado haya cambiado. Es que tú empiezas a leerlo de otra manera.<br><br>La estructura no se impone — se descubre.',                            cita:'"Ver patrones no es magia. Es haber fallado suficientes veces como para reconocer lo que se repite."' },
+  e15: { num:'1.5', nombre:'Fractura',     sub:'Donde la mayoría abandona',  body:'La etapa más difícil del proceso. Los resultados no acompañan, la confianza se resiente y la mente empieza a buscar atajos o excusas.<br><br>Mara se fue aquí. Muchos otros también.<br><br>Los que continúan no lo hacen porque sea fácil. Lo hacen porque entienden que la fractura forma parte del camino.',    cita:'"La fractura no es un error del proceso. Es el proceso."' },
+  e2:  { num:'2',   nombre:'Claridad',     sub:'Sabes qué haces y por qué',  body:'Por primera vez, las decisiones tienen una razón clara detrás. No intuición, no esperanza — criterio.<br><br>Sabes qué tipo de trade funciona para ti, en qué condiciones entras, cuándo no operas. El ruido exterior deja de importar.<br><br>La claridad no llega de golpe. Se construye trade a trade.',         cita:'"Claridad no es certeza. Es saber actuar bien aunque el resultado sea incierto."' },
+  e25: { num:'2.5', nombre:'Consistencia', sub:'Los números se repiten',     body:'Lo que funcionó la semana pasada funciona esta semana. No siempre, pero con una regularidad que los datos confirman.<br><br>El edge existe. Ya no es fe — es evidencia.<br><br>Aquí empieza el trabajo real de afinar, no de cambiar.',                                                                                 cita:'"Consistencia no es ganar siempre. Es que los números cuenten la misma historia mes tras mes."' },
+  e3:  { num:'3',   nombre:'Confianza',    sub:'Operas sin dudar el proceso', body:'Las dudas no desaparecen, pero ya no paralizan. Ejecutas el plan aunque el mercado empuje en contra, porque confías en lo que los datos te han enseñado.<br><br>La confianza no viene del ego. Viene de haber visto los números suficientes veces como para saber que el proceso funciona.',                          cita:'"Confiar en el proceso no es ignorar el riesgo. Es saber gestionarlo sin perder la cabeza."' },
+  e4:  { num:'4',   nombre:'Rentabilidad', sub:'Los datos confirman el edge', body:'Los números son positivos de forma sostenida. No un mes excepcional — una tendencia real que los datos respaldan.<br><br>Roderas todavía no está aquí. Lo sabe y lo comparte sin filtro. Porque llegar a esta etapa fingiendo que ya estás no sirve a nadie.<br><br>La rentabilidad es consecuencia del proceso.',  cita:'"El trader rentable no es el que más sabe. Es el que menos se equivoca con lo mismo."' },
+  e45: { num:'4.5', nombre:'Vuelo',        sub:'Escalas con criterio',        body:'El capital crece, los lotajes también — pero con la misma lógica que funcionó en etapas anteriores. No se escala por ambición, se escala porque los datos lo permiten.<br><br>El vuelo sin criterio es caída libre. Con criterio, es el resultado natural de haber construido bien.',                                cita:'"Escalar sin proceso es apostar. Escalar con proceso es crecer."' },
+  e5:  { num:'5',   nombre:'✦ Oro',        sub:'El proceso es tuyo',          body:'No es el final. Es el punto donde el proceso ya no necesita validación externa — porque tú mismo eres la evidencia.<br><br>Aurum Velare no promete que llegues aquí. Promete que si llegas, lo habrás construido de verdad.<br><br>El oro no se regala. Se trabaja.',                                                  cita:'"Llegar al cinco no significa que hayas terminado. Significa que ya sabes cómo empezar de nuevo."' }
+};
+
+function abrirEtapa(id) {
+  const e = ETAPAS_DATA[id];
+  if (!e) return;
+  document.getElementById('etapa-num').textContent = e.num;
+  document.getElementById('etapa-nombre').textContent = e.nombre;
+  document.getElementById('etapa-sub').textContent = e.sub;
+  document.getElementById('etapa-body').innerHTML = e.body;
+  document.getElementById('etapa-cita').textContent = e.cita;
+  const modal = document.getElementById('modal-etapa');
+  modal.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function cerrarEtapa() {
+  document.getElementById('modal-etapa').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+function abrirAnimal(id) {
+  const a = ANIMALES_DATA[id];
+  if (!a) return;
+  document.getElementById('animal-nombre').textContent = a.nombre;
+  document.getElementById('animal-nick').textContent = a.nick;
+  document.getElementById('animal-tag').textContent = a.tag;
+  document.getElementById('animal-body').innerHTML = a.body;
+  document.getElementById('animal-cita').textContent = a.cita;
+  const modal = document.getElementById('modal-animal');
+  modal.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function cerrarAnimal() {
+  const modal = document.getElementById('modal-animal');
+  modal.style.display = 'none';
+  document.body.style.overflow = '';
+}
+</script>
+<script>
+function seleccionarSesion(el,valor){document.querySelectorAll('#agenda-sesiones>div').forEach(d=>{d.style.borderColor='var(--border)';d.style.background='#060810';d.style.color='var(--text-dim)'});el.style.borderColor='var(--gold)';el.style.background='#C9A84C0A';el.style.color='var(--gold-bright)';document.getElementById('agenda-hora').value=valor;}
+function abrirAgenda(){const m=document.getElementById('modal-agenda');m.style.display='flex';document.body.style.overflow='hidden';document.getElementById('agenda-fecha').min=new Date().toISOString().split('T')[0];}
+function cerrarAgenda(){document.getElementById('modal-agenda').style.display='none';document.body.style.overflow='';document.getElementById('agenda-msg').textContent='';}
+function guardarAgenda(){const fecha=document.getElementById('agenda-fecha').value,hora=document.getElementById('agenda-hora').value,msg=document.getElementById('agenda-msg');if(!fecha||!hora){msg.style.color='var(--red)';msg.textContent='Selecciona día y sesión.';return;}const d=new Date(fecha+'T12:00:00'),fechaStr=d.toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'}),lista=document.getElementById('agenda-lista'),vacio=lista.querySelector('[style*="italic"]');if(vacio)vacio.remove();const item=document.createElement('div');item.style.cssText='display:flex;align-items:center;justify-content:space-between;background:#0A0C18;border:1px solid var(--border);padding:.6rem 1rem;margin-bottom:.4rem;';item.innerHTML=`<div><div style="font-size:13px;color:var(--text-dim);">${fechaStr}</div><div style="font-size:11px;color:var(--gold);">${hora}</div></div><div onclick="this.parentElement.remove()" style="font-size:12px;color:var(--text-muted);cursor:pointer;opacity:.5;padding:.2rem .5rem;">✕</div>`;lista.appendChild(item);msg.style.color='var(--green)';msg.textContent='✓ Disponibilidad registrada.';setTimeout(()=>cerrarAgenda(),1200);}
+</script>
+</body>
+</html>
