@@ -151,6 +151,7 @@ async function cargarDatosUsuario() {
   await cargarHistoriales();
   await cargarDiario();
   await cargarAgenda();
+  await actualizarDashboard();
 }
 
 // ============================================================
@@ -193,4 +194,122 @@ async function cargarTrades(cuenta) {
   var res = await query.order('created_at', { ascending: true });
   if (res.error || !res.data) return [];
   return res.data;
+}
+
+// ============================================================
+// CALCULAR MÉTRICAS DEL DASHBOARD DESDE TRADES REALES
+// ============================================================
+
+async function actualizarDashboard() {
+  if (!sb || !usuarioActual) return;
+
+  var res = await sb.from('trades').select('*').eq('usuario_email', usuarioActual.email);
+  if (res.error || !res.data || res.data.length === 0) return;
+
+  var todos = res.data;
+  var maestra = todos.filter(function(t){ return t.cuenta === 'Cuenta Maestra'; });
+  var prueba  = todos.filter(function(t){ return t.cuenta === 'Cuenta Prueba'; });
+  var retos   = todos.filter(function(t){ return t.cuenta === 'Cuenta Retos'; });
+
+  function metricas(trades) {
+    if (!trades.length) return { total:0, wins:0, wr:0, pnl:0, rr:0 };
+    var wins = trades.filter(function(t){ return t.ganadora; }).length;
+    var pnl  = trades.reduce(function(s,t){ return s + (t.beneficio||0); }, 0);
+    var ptsW = wins > 0 ? trades.filter(function(t){ return t.ganadora; }).reduce(function(s,t){ return s+(t.puntos||0); },0)/wins : 0;
+    var losses = trades.length - wins;
+    var ptsL = losses > 0 ? trades.filter(function(t){ return !t.ganadora; }).reduce(function(s,t){ return s+(t.puntos||0); },0)/losses : 0;
+    return {
+      total: trades.length,
+      wins: wins,
+      wr: Math.round(wins/trades.length*1000)/10,
+      pnl: Math.round(pnl*100)/100,
+      rr: ptsL > 0 ? Math.round(ptsW/ptsL*100)/100 : 0
+    };
+  }
+
+  function horario(trades) {
+    var horas = {};
+    trades.forEach(function(t) {
+      var h = Math.floor(t.hora || 0);
+      if (!horas[h]) horas[h] = {total:0, wins:0};
+      horas[h].total++;
+      if (t.ganadora) horas[h].wins++;
+    });
+    return horas;
+  }
+
+  function porDia(trades) {
+    var dias = {0:{nombre:'Lunes',total:0,wins:0,pnl:0},1:{nombre:'Martes',total:0,wins:0,pnl:0},2:{nombre:'Miércoles',total:0,wins:0,pnl:0},3:{nombre:'Jueves',total:0,wins:0,pnl:0},4:{nombre:'Viernes',total:0,wins:0,pnl:0}};
+    trades.forEach(function(t) {
+      var d = t.dia >= 0 && t.dia <= 4 ? t.dia : null;
+      if (d !== null) { dias[d].total++; if(t.ganadora) dias[d].wins++; dias[d].pnl += t.beneficio||0; }
+    });
+    return Object.values(dias).map(function(d){ return { d:d.nombre, wr:d.total>0?Math.round(d.wins/d.total*1000)/10:0, pnl:Math.round(d.pnl*100)/100, t:d.total, best:d.total>0&&(d.wins/d.total)>=0.7, bad:d.total>0&&(d.wins/d.total)<0.5 }; });
+  }
+
+  function porTipo(trades) {
+    var scalp = trades.filter(function(t){ return t.dur_min < 30; });
+    var intra = trades.filter(function(t){ return t.dur_min >= 30 && t.dur_min < 240; });
+    var swing = trades.filter(function(t){ return t.dur_min >= 240 && t.dur_min < 1440; });
+    var multi = trades.filter(function(t){ return t.dur_min >= 1440; });
+    function tm(arr, label) {
+      var w = arr.filter(function(t){ return t.ganadora; }).length;
+      var p = arr.reduce(function(s,t){ return s+(t.beneficio||0); },0);
+      return { l:label, t:arr.length, wr:arr.length>0?Math.round(w/arr.length*1000)/10:0, pnl:Math.round(p*100)/100 };
+    }
+    return [tm(scalp,'Scalping <30min'), tm(intra,'Intradía 30m–4h'), tm(swing,'✦ Swing 4h–24h'), tm(multi,'Multi-día >24h')];
+  }
+
+  // Actualizar cards de cuentas
+  var mM = metricas(maestra);
+  var mP = metricas(prueba);
+  var mR = metricas(retos);
+  var mG = metricas(todos);
+
+  function actualizarCard(id, m, color) {
+    var el = document.getElementById('btn-'+id);
+    if (!el) return;
+    var pnlStr = (m.pnl >= 0 ? '+' : '') + m.pnl + '$';
+    el.querySelector ? null : null;
+    var pnlEl = el.querySelector('[style*="font-size:28px"]');
+    if (pnlEl) pnlEl.textContent = pnlStr;
+    var subEl = el.querySelector('[style*="font-size:12px"]');
+    if (subEl) subEl.textContent = m.total + ' trades · WR ' + m.wr + '%';
+  }
+
+  actualizarCard('global',  mG, 'var(--gold-bright)');
+  actualizarCard('maestra', mM, 'var(--green)');
+  actualizarCard('prueba',  mP, '#6A9AEE');
+  actualizarCard('retos',   mR, '#E8A84C');
+
+  // Guardar en window para uso en otros módulos
+  window.AURUM_TRADES = {
+    todos: todos, maestra: maestra, prueba: prueba, retos: retos,
+    metricas: { global:mG, maestra:mM, prueba:mP, retos:mR },
+    horario: horario(todos),
+    dias: porDia(todos),
+    tipos: porTipo(todos)
+  };
+
+  console.log('Dashboard actualizado con ' + todos.length + ' trades reales');
+
+  // Actualizar stats globales de Trade Record
+  actualizarTradeRecord();
+}
+
+function actualizarTradeRecord() {
+  var d = window.AURUM_TRADES;
+  if (!d) return;
+  var m = d.metricas.global;
+
+  var els = {
+    'gest-global-pnl':   (m.pnl>=0?'+':'')+m.pnl+'$',
+    'gest-global-wr':    m.wr+'%',
+    'gest-global-rr':    m.rr,
+    'gest-global-trades': m.total + ' trades'
+  };
+  Object.keys(els).forEach(function(id){
+    var el = document.getElementById(id);
+    if (el) el.textContent = els[id];
+  });
 }
