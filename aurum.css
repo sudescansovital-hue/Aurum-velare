@@ -229,6 +229,10 @@ footer {
   flex-direction: column;
 }
 
+.page-content {
+  padding-top: 147px;
+}
+
 /* ===== SECCIONES HERO ===== */
 .hero {
   padding: 6rem 3rem 4rem;
