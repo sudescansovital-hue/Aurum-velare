@@ -270,10 +270,9 @@ async function actualizarDashboard() {
     var el = document.getElementById('btn-'+id);
     if (!el) return;
     var pnlStr = (m.pnl >= 0 ? '+' : '') + m.pnl + '$';
-    el.querySelector ? null : null;
-    var pnlEl = el.querySelector('[style*="font-size:28px"]');
+    var pnlEl = document.getElementById('card-'+id+'-pnl');
     if (pnlEl) pnlEl.textContent = pnlStr;
-    var subEl = el.querySelector('[style*="font-size:12px"]');
+    var subEl = document.getElementById('card-'+id+'-sub');
     if (subEl) subEl.textContent = m.total + ' trades · WR ' + m.wr + '%';
   }
 
