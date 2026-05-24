@@ -95,7 +95,7 @@
 
   <div style="display:flex;gap:1rem;justify-content:center;margin-top:2.5rem;flex-wrap:wrap;">
     <div class="btn-outline" onclick="irA('evalua')">✦ Evalúame — 33€</div>
-    <div class="btn-gold" onclick="irA('packs')">Ver los packs →</div>
+    <div class="btn-gold" onclick="irA('packs');setTimeout(function(){var el=document.getElementById('seccion-packs');if(el)el.scrollIntoView({behavior:'smooth'});},100);">Ver los packs →</div>
   </div>
 </section>
 
@@ -494,7 +494,7 @@
 
 
 <!-- LOS 4 PACKS -->
-<section style="padding:4rem 3rem;border-bottom:1px solid var(--border);">
+<section id="seccion-packs" style="padding:4rem 3rem;border-bottom:1px solid var(--border);">
   <div style="text-align:center;margin-bottom:3.5rem;">
     <span class="tag" style="display:block;margin-bottom:1rem;">El acceso</span>
     <h2 style="font-family:'Cormorant Garamond',serif;font-size:44px;color:var(--text);">Elige tu camino</h2>
