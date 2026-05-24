@@ -22,7 +22,13 @@ function gestTab(id) {
 }
 
 function getTodos() {
-  return (window.AURUM_TRADES && window.AURUM_TRADES.todos) ? window.AURUM_TRADES.todos : [];
+  var cuenta = window.cuentaActivaGestion || 'global';
+  if (!window.AURUM_TRADES) return [];
+  if (cuenta === 'global') return window.AURUM_TRADES.todos || [];
+  var mapa = { maestra:'Cuenta Maestra', retos:'Cuenta Retos', prueba:'Cuenta Prueba' };
+  var nombreCuenta = mapa[cuenta];
+  if (!nombreCuenta) return window.AURUM_TRADES.todos || [];
+  return (window.AURUM_TRADES.todos || []).filter(function(t){ return t.cuenta === nombreCuenta; });
 }
 
 function buildTradeRecord() {

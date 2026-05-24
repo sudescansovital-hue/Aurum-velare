@@ -3,6 +3,7 @@
 // ============================================================
 
 const cuentasBuilt = {};
+var cuentaActivaGestion = "global"; // cuenta seleccionada actualmente
 
 function verCuenta(cuenta) {
   ['global','maestra','retos','prueba'].forEach(function(c) {
@@ -22,6 +23,9 @@ function verCuenta(cuenta) {
     btn.style.background = 'linear-gradient(135deg,var(--bg2),#0E1020)';
   }
 
+  window.cuentaActivaGestion = cuenta;
+  // Resetear cache de tabs para que se recalculen con la nueva cuenta
+  window.yaBuiltGestion = {};
   if (!cuentasBuilt[cuenta]) {
     cuentasBuilt[cuenta] = true;
     if (cuenta === 'global')  buildGlobal();
