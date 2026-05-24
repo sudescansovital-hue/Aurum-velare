@@ -43,7 +43,6 @@ function hacerLogin() {
   document.getElementById('nav-uname').textContent  = usuarioActual.nick || usuarioActual.nombre;
   document.getElementById('nav-upack').textContent  = usuarioActual.pack;
   irA('dashboard');
-  if (typeof cargarDatosUsuario === 'function') cargarDatosUsuario();
 }
 
 function hacerLogout() {
@@ -107,4 +106,9 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('nav-upack').textContent  = usuarioActual.pack;
 
   mostrarPagina('home');
+
+  // Cargar datos de Supabase tras auto-login
+  setTimeout(function() {
+    if (typeof cargarDatosUsuario === 'function') cargarDatosUsuario();
+  }, 800);
 });
