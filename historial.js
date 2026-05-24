@@ -1,6 +1,6 @@
 // HISTORIAL EXTERNO
 // ================================================================
-var HISTORIAL_CUENTAS = [{"nombre": "Challenge Feb-Mar 2026", "periodo": "16 Feb 2026 - 25 Mar 2026", "total": 131, "wins": 75, "pnl": 1525.0, "wr": 57.3, "rr": 1.42, "fps": [], "tipos": {"scalping": {"total": 68, "wins": 36, "pnl": 245}, "intraday": {"total": 45, "wins": 26, "pnl": 892}, "swing": {"total": 18, "wins": 13, "pnl": 388}}, "dias": [{"nombre": "Lunes", "total": 28, "wins": 16, "pnl": 312, "wr": 57.1}, {"nombre": "Martes", "total": 31, "wins": 17, "pnl": -89, "wr": 54.8}, {"nombre": "Miércoles", "total": 24, "wins": 14, "pnl": 445, "wr": 58.3}, {"nombre": "Jueves", "total": 27, "wins": 16, "pnl": 523, "wr": 59.3}, {"nombre": "Viernes", "total": 21, "wins": 12, "pnl": 334, "wr": 57.1}]}, {"nombre": "Challenge Mar-Abr 2026", "periodo": "26 Mar 2026 - 09 Abr 2026", "total": 75, "wins": 51, "pnl": 2509.0, "wr": 68.0, "rr": 1.89, "fps": [], "tipos": {"scalping": {"total": 28, "wins": 18, "pnl": 412}, "intraday": {"total": 31, "wins": 22, "pnl": 889}, "swing": {"total": 16, "wins": 11, "pnl": 1208}}, "dias": [{"nombre": "Lunes", "total": 15, "wins": 10, "pnl": 489, "wr": 66.7}, {"nombre": "Martes", "total": 18, "wins": 12, "pnl": 612, "wr": 66.7}, {"nombre": "Miércoles", "total": 14, "wins": 10, "pnl": 534, "wr": 71.4}, {"nombre": "Jueves", "total": 16, "wins": 11, "pnl": 501, "wr": 68.8}, {"nombre": "Viernes", "total": 12, "wins": 8, "pnl": 373, "wr": 66.7}]}];
+var HISTORIAL_CUENTAS = [];
 var HISTORIAL_ALL_FPS = new Set();
 
 var CUENTAS_AURUM = {
