@@ -152,3 +152,45 @@ async function cargarDatosUsuario() {
   await cargarDiario();
   await cargarAgenda();
 }
+
+// ============================================================
+// TRADES INDIVIDUALES
+// ============================================================
+
+async function guardarTradesIndividuales(trades, cuenta) {
+  if (!sb || !usuarioActual || !trades || trades.length === 0) return;
+  
+  var lote = trades.map(function(t) {
+    return {
+      usuario_email: usuarioActual.email,
+      cuenta: cuenta,
+      fp: t.fp,
+      beneficio: Math.round((t.ben || 0) * 100) / 100,
+      volumen: t.vol || 0,
+      precio_entrada: t.pe || 0,
+      precio_cierre: t.pc || 0,
+      puntos: Math.round((t.puntos || 0) * 10) / 10,
+      ganadora: t.ganadora || false,
+      hora: t.hora || 0,
+      dia: t.dia || 0,
+      dur_min: t.durMin || 0
+    };
+  });
+
+  // Insertar en lotes de 50 para no superar límites
+  for (var i = 0; i < lote.length; i += 50) {
+    var bloque = lote.slice(i, i + 50);
+    var res = await sb.from('trades').upsert(bloque, { onConflict: 'fp' });
+    if (res.error) console.error('Error guardando trades:', res.error);
+  }
+  console.log(trades.length + ' trades guardados en Supabase');
+}
+
+async function cargarTrades(cuenta) {
+  if (!sb || !usuarioActual) return [];
+  var query = sb.from('trades').select('*').eq('usuario_email', usuarioActual.email);
+  if (cuenta) query = query.eq('cuenta', cuenta);
+  var res = await query.order('created_at', { ascending: true });
+  if (res.error || !res.data) return [];
+  return res.data;
+}

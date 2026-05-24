@@ -124,6 +124,8 @@ function histSubir(file) {
       HISTORIAL_CUENTAS.push(nueva);
       histAnadirFila(nueva, HISTORIAL_CUENTAS.length - 1);
       if (typeof guardarHistorial === 'function') guardarHistorial(nueva);
+      // Guardar trades individuales en Supabase
+      if (typeof guardarTradesIndividuales === 'function') guardarTradesIndividuales(fps_nuevos, nombreFinal);
       var aviso = dups > 0 ? ' (' + dups + ' duplicados ignorados)' : '';
       msg.style.color = 'var(--green)'; msg.textContent = fps_nuevos.length + ' trades únicos añadidos' + aviso + '.';
       document.getElementById('hist-nombre').value = '';
