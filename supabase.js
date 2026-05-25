@@ -74,20 +74,45 @@ async function guardarHistorial(cuenta) {
   }
 }
 
+var CUENTAS_INTERNAS_HIST = ['Cuenta Maestra', 'Cuenta Retos', 'Cuenta Prueba'];
+
 async function cargarHistoriales() {
   if (!sb || !usuarioActual) return;
   var res = await sb.from('historiales').select('*')
     .eq('usuario_email', usuarioActual.email)
     .order('created_at', { ascending: false });
   if (res.error || !res.data || res.data.length === 0) return;
+
+  // Solo cuentas externas — excluir las tres cuentas Aurum internas
+  var externas = res.data.filter(function(h) {
+    return CUENTAS_INTERNAS_HIST.indexOf(h.nombre) === -1;
+  });
+
   HISTORIAL_CUENTAS.length = 0;
-  res.data.forEach(function(h) {
+  externas.forEach(function(h) {
     HISTORIAL_CUENTAS.push({ nombre:h.nombre, tipo:h.tipo, total:h.total, wins:h.wins, pnl:h.pnl, wr:h.wr, rr:h.rr, periodo:h.periodo, dias:h.dias||[], tipos:h.tipos||{}, fps:h.fps||[] });
     (h.fps||[]).forEach(function(fp){ HISTORIAL_ALL_FPS.add(fp); });
   });
+
   var lista = document.getElementById('hist-lista');
   if (lista) { lista.innerHTML=''; HISTORIAL_CUENTAS.forEach(function(c,i){ histAnadirFila(c,i); }); }
-  console.log(res.data.length + ' historiales cargados');
+
+  actualizarGlobalesHistorial();
+  console.log(externas.length + ' historiales externos cargados (de ' + res.data.length + ' totales)');
+}
+
+function actualizarGlobalesHistorial() {
+  var totalTrades = HISTORIAL_CUENTAS.reduce(function(s,c){ return s + (c.total||0); }, 0);
+  var totalWins   = HISTORIAL_CUENTAS.reduce(function(s,c){ return s + (c.wins||0); }, 0);
+  var totalPnl    = Math.round(HISTORIAL_CUENTAS.reduce(function(s,c){ return s + (c.pnl||0); }, 0) * 100) / 100;
+  var wr = totalTrades > 0 ? Math.round(totalWins / totalTrades * 1000) / 10 : 0;
+
+  var htEl = document.getElementById('hist-global-trades');
+  if (htEl) htEl.textContent = totalTrades;
+  var hwEl = document.getElementById('hist-global-wr');
+  if (hwEl) hwEl.textContent = wr + '%';
+  var hpEl = document.getElementById('hist-global-pnl');
+  if (hpEl) hpEl.textContent = (totalPnl >= 0 ? '+' : '') + totalPnl + '$';
 }
 
 // ============================================================
@@ -306,14 +331,6 @@ async function actualizarDashboard() {
     buildCuentaReal('retos',   'Cuenta Retos');
     buildCuentaReal('prueba',  'Cuenta Prueba');
   }
-
-  // Actualizar stats globales de Historial Externo
-  var htEl = document.getElementById('hist-global-trades');
-  if (htEl) htEl.textContent = mG.total;
-  var hwEl = document.getElementById('hist-global-wr');
-  if (hwEl) hwEl.textContent = mG.wr + '%';
-  var hpEl = document.getElementById('hist-global-pnl');
-  if (hpEl) hpEl.textContent = (mG.pnl >= 0 ? '+' : '') + mG.pnl + '$';
 
   // Actualizar stats globales de Trade Record
   actualizarTradeRecord();
