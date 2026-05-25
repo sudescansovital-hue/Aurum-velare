@@ -51,7 +51,16 @@ function buildTradeRecord() {
 
 function buildHorarios() {
   var trades = getTodos();
-  if (!trades.length) return;
+  if (trades.length < 5) {
+    var elT = document.getElementById('gest-horarios-titulo');
+    if (elT) elT.textContent = 'Mapa horario real';
+    var elV = document.getElementById('gest-horarios-ventana');
+    if (elV) elV.textContent = '▲ Tu ventana real (17:00–02:00) · —';
+    ['gest-horas-barras','gest-dias-semana','gest-patrones'].forEach(function(id) {
+      var e = document.getElementById(id); if (e) e.innerHTML = '';
+    });
+    return;
+  }
 
   // Compute per-hour stats once, reused by all sections below
   var porHora = {};
@@ -156,7 +165,15 @@ function buildCicloDots() {
   var trades = getTodos();
   var cd = document.getElementById('gest-ciclo-dots');
 
-  if (!trades.length) return;
+  if (trades.length < 5) {
+    ['ciclo-num-actual','ciclo-encurso-txt','ciclo-wr','ciclo-wr-sub','ciclo-pnl',
+     'ciclo-rr','ciclo-rr-sub','ciclo-esp','ciclo-cumpl','ciclo-cumpl-sub',
+     'ciclo-puntuacion','ciclo-veredicto-txt'].forEach(function(id) {
+      var e = document.getElementById(id); if (e) e.textContent = '—';
+    });
+    if (cd) cd.innerHTML = '';
+    return;
+  }
 
   // Calcular ciclos
   var cicloActual = Math.floor(trades.length / 111) + 1;
@@ -219,7 +236,14 @@ function buildCicloDots() {
 
 function buildEquity() {
   var trades = getTodos();
-  if (!trades.length) return;
+  if (trades.length < 5) {
+    var elSub = document.getElementById('equity-sub');
+    if (elSub) elSub.textContent = '—';
+    ['equity-chart','equity-fechas','equity-meses','equity-camino'].forEach(function(id) {
+      var e = document.getElementById(id); if (e) e.innerHTML = '';
+    });
+    return;
+  }
 
   // Extract real trade date from MT5 fp (format: ticket_YYYY.MM.DD HH:MM:SS_price_vol)
   // Falls back to created_at (Supabase insertion time)
@@ -390,7 +414,16 @@ function buildEquity() {
 
 function buildCumplimiento() {
   var trades = getTodos();
-  if (!trades.length) return;
+  if (trades.length < 5) {
+    ['cumpl-dentro-num','cumpl-dentro-pct','cumpl-fuera-num','cumpl-fuera-pct',
+     'cumpl-wr-dentro','cumpl-wr-dentro-sub','cumpl-wr-fuera','cumpl-wr-fuera-sub'].forEach(function(id) {
+      var e = document.getElementById(id); if (e) e.textContent = '—';
+    });
+    ['cumpl-sl-dist','cumpl-alertas'].forEach(function(id) {
+      var e = document.getElementById(id); if (e) e.innerHTML = '';
+    });
+    return;
+  }
 
   var n      = trades.length;
   var edge   = trades.filter(function(t){ return t.puntos <= 11; });
