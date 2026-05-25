@@ -51,30 +51,60 @@ function buildTradeRecord() {
 
 function buildHorarios() {
   var trades = getTodos();
+  if (!trades.length) return;
+
+  // Compute per-hour stats once, reused by all sections below
+  var porHora = {};
+  for (var h = 0; h < 24; h++) porHora[h] = {t:0, w:0, p:0};
+  trades.forEach(function(t) {
+    var h = Math.floor(t.hora || 0);
+    if (h >= 0 && h < 24) {
+      porHora[h].t++;
+      if (t.ganadora) porHora[h].w++;
+      porHora[h].p += (t.beneficio || 0);
+    }
+  });
+
+  // Title: real trade count
+  var elTitulo = document.getElementById('gest-horarios-titulo');
+  if (elTitulo) elTitulo.textContent = 'Mapa horario real — ' + trades.length + ' trades';
+
+  // Ventana real (17:00–02:00 = hours 17–23 + 0–1): compute P&L inside/outside
+  var pnlDentro = 0, pnlFuera = 0;
+  for (var h = 0; h < 24; h++) {
+    if (h >= 17 || h <= 1) pnlDentro += porHora[h].p;
+    else pnlFuera += porHora[h].p;
+  }
+  pnlDentro = Math.round(pnlDentro);
+  pnlFuera  = Math.round(pnlFuera);
+  var elVentana = document.getElementById('gest-horarios-ventana');
+  if (elVentana) {
+    elVentana.textContent = '▲ Tu ventana real (17:00–02:00) · Dentro: ' +
+      (pnlDentro >= 0 ? '+' : '') + pnlDentro + '$ · Fuera: ' +
+      (pnlFuera  >= 0 ? '+' : '') + pnlFuera  + '$';
+  }
+
+  // Hora bars
   var hb = document.getElementById('gest-horas-barras');
-  if (hb && trades.length) {
+  if (hb) {
     hb.innerHTML = '';
-    var porHora = {};
-    for (var h = 0; h < 24; h++) porHora[h] = {t:0, w:0};
-    trades.forEach(function(t) {
-      var h = Math.floor(t.hora || 0);
-      if (h >= 0 && h < 24) { porHora[h].t++; if(t.ganadora) porHora[h].w++; }
-    });
-    var mx = Math.max.apply(null, Object.values(porHora).map(function(d){ return d.t; })) || 1;
+    var mx = Math.max.apply(null, Object.keys(porHora).map(function(k){ return porHora[k].t; })) || 1;
     for (var h = 0; h < 24; h++) {
       var d = porHora[h];
       var wr = d.t > 0 ? Math.round(d.w/d.t*100) : 0;
       var col = document.createElement('div');
       col.style.cssText = 'flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;';
       var ht = d.t === 0 ? 1 : Math.max(3, (d.t/mx)*85);
-      var bg = d.t===0 ? 'var(--border)' : wr>=70 ? '#3AAA6A' : wr>=50 ? '#C9A84C44' : '#CC554466';
-      col.innerHTML = '<div style="width:100%;height:'+ht+'px;background:'+bg+';border-radius:1px 1px 0 0;" title="'+h+':xx · '+d.t+' trades · WR '+wr+'%"></div><div style="font-size:9px;color:var(--text-muted);margin-top:2px;">'+h+'</div>';
+      var bg = d.t === 0 ? 'var(--border)' : wr >= 70 ? '#3AAA6A' : wr >= 50 ? '#C9A84C44' : '#CC554466';
+      col.innerHTML = '<div style="width:100%;height:'+ht+'px;background:'+bg+';border-radius:1px 1px 0 0;" title="'+h+':xx · '+d.t+' trades · WR '+wr+'%"></div>' +
+        '<div style="font-size:9px;color:var(--text-muted);margin-top:2px;">'+h+'</div>';
       hb.appendChild(col);
     }
   }
 
+  // Días de la semana
   var ds = document.getElementById('gest-dias-semana');
-  if (ds && trades.length) {
+  if (ds) {
     var dias = [{d:'Lunes',t:0,w:0,p:0},{d:'Martes',t:0,w:0,p:0},{d:'Miércoles',t:0,w:0,p:0},{d:'Jueves',t:0,w:0,p:0},{d:'Viernes',t:0,w:0,p:0}];
     trades.forEach(function(t) {
       var d = t.dia;
@@ -91,6 +121,34 @@ function buildHorarios() {
         '<div style="height:100%;width:'+d.wr+'%;background:'+(best?'#4ACC8A':bad?'#CC554444':'#C9A84C44')+';border-radius:2px;"></div></div>' +
         '<span style="font-size:13px;color:'+(best?'var(--green)':bad?'var(--red)':'var(--text-muted)')+';width:115px;text-align:right;">'+d.wr+'% · '+(d.pnl>=0?'+':'')+d.pnl+'$</span></div>';
     }).join('');
+  }
+
+  // Patrones detectados: top-2 mejores y top-2 peores horas (mínimo 5 trades)
+  var elPatrones = document.getElementById('gest-patrones');
+  if (elPatrones) {
+    var horaList = [];
+    for (var h = 0; h < 24; h++) {
+      if (porHora[h].t >= 5) {
+        var wr = Math.round(porHora[h].w / porHora[h].t * 100);
+        horaList.push({ h:h, t:porHora[h].t, wr:wr, pnl:Math.round(porHora[h].p) });
+      }
+    }
+    if (horaList.length) {
+      horaList.sort(function(a, b){ return b.wr - a.wr; });
+      var mejores = horaList.slice(0, 2);
+      var peores  = horaList.slice(-2).reverse();
+      var items   = mejores.concat(peores);
+      var etiquetas = ['mejor hora', 'segunda mejor', 'hora difícil', 'peor hora'];
+      elPatrones.innerHTML = items.map(function(d, i) {
+        var esMejor = i < mejores.length;
+        var color   = esMejor ? 'var(--green)' : 'var(--red)';
+        var pnlStr  = (d.pnl >= 0 ? '+' : '') + d.pnl + '$';
+        return '<div style="display:flex;gap:8px;padding:.6rem;border:1px solid var(--border);background:#0E1020;">' +
+          '<div style="width:5px;height:5px;border-radius:50%;background:'+color+';margin-top:5px;flex-shrink:0;"></div>' +
+          '<div><div style="font-size:14px;color:#C8BDA0;margin-bottom:1px;">'+d.h+':xx — '+etiquetas[i]+'</div>' +
+          '<div style="font-size:13px;color:var(--text-muted);">'+d.wr+'% WR · '+d.t+' trades · '+pnlStr+'</div></div></div>';
+      }).join('');
+    }
   }
 }
 
