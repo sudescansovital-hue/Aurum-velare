@@ -1833,12 +1833,12 @@
 <div id="vista-global" style="display:block;">
 
   <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:1px;background:var(--border);border-top:1px solid var(--border);">
-    <div class="stat-card" style="text-align:center;"><div class="stat-label">P&L Total</div><div class="stat-val gold" style="font-size:26px;">+4.526$</div><div class="stat-sub">3 cuentas · Feb–May 2026</div></div>
-    <div class="stat-card" style="text-align:center;"><div class="stat-label">Win Rate</div><div class="stat-val green" style="font-size:26px;">65.4%</div><div class="stat-sub">159 de 243 trades</div></div>
-    <div class="stat-card" style="text-align:center;"><div class="stat-label">R/R Real</div><div class="stat-val gold" style="font-size:26px;">1.38</div><div class="stat-sub">promedio 3 cuentas</div></div>
-    <div class="stat-card" style="text-align:center;"><div class="stat-label">Esperanza</div><div class="stat-val green" style="font-size:26px;">+4.6</div><div class="stat-sub">pts por trade</div></div>
-    <div class="stat-card" style="text-align:center;"><div class="stat-label">Mejor día</div><div class="stat-val green" style="font-size:26px;">Viernes</div><div class="stat-sub">Prueba: 69% WR</div></div>
-    <div class="stat-card" style="text-align:center;"><div class="stat-label">Edge común</div><div class="stat-val gold" style="font-size:26px;">Swing</div><div class="stat-sub">Las 3 cuentas lo confirman</div></div>
+    <div class="stat-card" style="text-align:center;"><div class="stat-label">P&L Total</div><div class="stat-val gold" id="global-stat-pnl" style="font-size:26px;">—</div><div class="stat-sub" id="global-stat-pnl-sub">—</div></div>
+    <div class="stat-card" style="text-align:center;"><div class="stat-label">Win Rate</div><div class="stat-val green" id="global-stat-wr" style="font-size:26px;">—</div><div class="stat-sub" id="global-stat-wr-sub">—</div></div>
+    <div class="stat-card" style="text-align:center;"><div class="stat-label">R/R Real</div><div class="stat-val gold" id="global-stat-rr" style="font-size:26px;">—</div><div class="stat-sub">promedio 3 cuentas</div></div>
+    <div class="stat-card" style="text-align:center;"><div class="stat-label">Esperanza</div><div class="stat-val green" id="global-stat-esp" style="font-size:26px;">—</div><div class="stat-sub">pts por trade</div></div>
+    <div class="stat-card" style="text-align:center;"><div class="stat-label">Mejor día</div><div class="stat-val green" id="global-stat-mejor-dia" style="font-size:26px;">—</div><div class="stat-sub" id="global-stat-mejor-dia-sub">—</div></div>
+    <div class="stat-card" style="text-align:center;"><div class="stat-label">Edge común</div><div class="stat-val gold" id="global-stat-edge" style="font-size:26px;">—</div><div class="stat-sub" id="global-stat-edge-sub">—</div></div>
   </div>
 
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);border-top:1px solid var(--border);">
@@ -1853,23 +1853,8 @@
     </div>
     <div class="cell">
       <div class="tag" style="display:block;margin-bottom:1rem;">Patrones comunes — las 3 cuentas</div>
-      <div style="display:flex;flex-direction:column;gap:.6rem;">
-        <div style="display:flex;gap:8px;padding:.6rem;border:1px solid var(--border);background:#0E1020;">
-          <div style="width:5px;height:5px;border-radius:50%;background:var(--green);margin-top:5px;flex-shrink:0;"></div>
-          <div><div style="font-size:14px;color:#C8BDA0;margin-bottom:1px;">✦ Swing — edge confirmado en las 3</div><div style="font-size:13px;color:var(--text-muted);">Maestra 75% · Retos 100% · Prueba 69%. No es casualidad.</div></div>
-        </div>
-        <div style="display:flex;gap:8px;padding:.6rem;border:1px solid var(--border);background:#0E1020;">
-          <div style="width:5px;height:5px;border-radius:50%;background:var(--red);margin-top:5px;flex-shrink:0;"></div>
-          <div><div style="font-size:14px;color:#C8BDA0;margin-bottom:1px;">Martes — peor día en Prueba</div><div style="font-size:13px;color:var(--text-muted);">39% WR, -2.138$. Revisar qué ocurre los martes.</div></div>
-        </div>
-        <div style="display:flex;gap:8px;padding:.6rem;border:1px solid var(--border);background:#0E1020;">
-          <div style="width:5px;height:5px;border-radius:50%;background:var(--green);margin-top:5px;flex-shrink:0;"></div>
-          <div><div style="font-size:14px;color:#C8BDA0;margin-bottom:1px;">Retos — la cuenta más limpia</div><div style="font-size:13px;color:var(--text-muted);">81.8% WR en 33 trades. Cuando operas con criterio de reto, los números mejoran.</div></div>
-        </div>
-        <div style="display:flex;gap:8px;padding:.6rem;border:1px solid var(--border);background:#0E1020;">
-          <div style="width:5px;height:5px;border-radius:50%;background:#6A9AEE;margin-top:5px;flex-shrink:0;"></div>
-          <div><div style="font-size:14px;color:#C8BDA0;margin-bottom:1px;">Anti-trampa ✓</div><div style="font-size:13px;color:var(--text-muted);">0 duplicados entre las 3 cuentas. Datos independientes verificados.</div></div>
-        </div>
+      <div id="global-patrones" style="display:flex;flex-direction:column;gap:.6rem;">
+        <div style="color:var(--text-muted);font-size:13px;">—</div>
       </div>
     </div>
   </div>
@@ -1881,14 +1866,14 @@
 <div id="vista-maestra" style="display:none;">
   <div style="padding:1rem 1.5rem;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:1rem;">
     <div style="width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);"></div>
-    <div style="font-size:13px;color:var(--text-dim);">Cuenta Maestra · 52 trades · 13 Abr – 11 May 2026 · Fondeada con dinero real</div>
+    <div id="maestra-header-sub" style="font-size:13px;color:var(--text-dim);">Cuenta Maestra · — · Fondeada con dinero real</div>
   </div>
   <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--border);">
-    <div class="stat-card" style="text-align:center;"><div class="stat-label">P&L</div><div class="stat-val green" style="font-size:28px;">+1.144$</div></div>
-    <div class="stat-card" style="text-align:center;"><div class="stat-label">Win Rate</div><div class="stat-val green" style="font-size:28px;">61.5%</div><div class="stat-sub">32 wins de 52</div></div>
-    <div class="stat-card" style="text-align:center;"><div class="stat-label">R/R</div><div class="stat-val gold" style="font-size:28px;">0.83</div></div>
-    <div class="stat-card" style="text-align:center;"><div class="stat-label">Esperanza</div><div class="stat-val green" style="font-size:28px;">+1.4</div><div class="stat-sub">pts/trade</div></div>
-    <div class="stat-card" style="text-align:center;"><div class="stat-label">Mejor día</div><div class="stat-val green" style="font-size:28px;">Martes</div><div class="stat-sub">100% WR</div></div>
+    <div class="stat-card" style="text-align:center;"><div class="stat-label">P&L</div><div class="stat-val green" id="maestra-stat-pnl" style="font-size:28px;">—</div></div>
+    <div class="stat-card" style="text-align:center;"><div class="stat-label">Win Rate</div><div class="stat-val green" id="maestra-stat-wr" style="font-size:28px;">—</div><div class="stat-sub" id="maestra-stat-wr-sub">—</div></div>
+    <div class="stat-card" style="text-align:center;"><div class="stat-label">R/R</div><div class="stat-val gold" id="maestra-stat-rr" style="font-size:28px;">—</div></div>
+    <div class="stat-card" style="text-align:center;"><div class="stat-label">Esperanza</div><div class="stat-val green" id="maestra-stat-esp" style="font-size:28px;">—</div><div class="stat-sub">pts/trade</div></div>
+    <div class="stat-card" style="text-align:center;"><div class="stat-label">Mejor día</div><div class="stat-val green" id="maestra-stat-mejor-dia" style="font-size:28px;">—</div><div class="stat-sub" id="maestra-stat-mejor-dia-sub">—</div></div>
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);border-top:1px solid var(--border);">
     <div class="cell">
@@ -1903,7 +1888,7 @@
   <div class="cell" style="border-top:1px solid var(--border);">
     <div style="padding:.8rem 1.2rem;background:linear-gradient(135deg,var(--bg2),var(--bg));border:1px solid var(--border-gold);border-left:2px solid var(--gold);">
       <div class="tag-gold" style="display:block;margin-bottom:.5rem;">✦ Lectura Aurum — Maestra</div>
-      <div style="font-size:14px;color:#8A7840;line-height:1.9;font-style:italic;">"WR 61.5% con R/R 0.83 en cuenta real. El swing genera +712$ en 8 trades. El scalping con 26 trades apenas da -192$. Aquí opera con más precaución — eso es correcto para una cuenta real."</div>
+      <div id="maestra-lectura" style="font-size:14px;color:#8A7840;line-height:1.9;font-style:italic;">—</div>
     </div>
   </div>
 </div>
@@ -1913,14 +1898,14 @@
 <div id="vista-retos" style="display:none;">
   <div style="padding:1rem 1.5rem;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:1rem;">
     <div style="width:8px;height:8px;border-radius:50%;background:#CC8844;box-shadow:0 0 6px #CC884466;"></div>
-    <div style="font-size:13px;color:var(--text-dim);">Cuenta Retos · 33 trades · 28 Abr – 12 May 2026 · Challenge activo</div>
+    <div id="retos-header-sub" style="font-size:13px;color:var(--text-dim);">Cuenta Retos · — · Challenge activo</div>
   </div>
   <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--border);">
-    <div class="stat-card" style="text-align:center;"><div class="stat-label">P&L</div><div class="stat-val" style="color:#E8A84C;font-size:28px;">+1.816$</div></div>
-    <div class="stat-card" style="text-align:center;"><div class="stat-label">Win Rate</div><div class="stat-val" style="color:#E8A84C;font-size:28px;">81.8%</div><div class="stat-sub">27 wins de 33</div></div>
-    <div class="stat-card" style="text-align:center;"><div class="stat-label">R/R</div><div class="stat-val gold" style="font-size:28px;">0.68</div></div>
-    <div class="stat-card" style="text-align:center;"><div class="stat-label">Esperanza</div><div class="stat-val green" style="font-size:28px;">+4.7</div><div class="stat-sub">pts/trade</div></div>
-    <div class="stat-card" style="text-align:center;"><div class="stat-label">Mejor día</div><div class="stat-val green" style="font-size:28px;">Todos</div><div class="stat-sub">WR positivo todos</div></div>
+    <div class="stat-card" style="text-align:center;"><div class="stat-label">P&L</div><div class="stat-val" id="retos-stat-pnl" style="color:#E8A84C;font-size:28px;">—</div></div>
+    <div class="stat-card" style="text-align:center;"><div class="stat-label">Win Rate</div><div class="stat-val" id="retos-stat-wr" style="color:#E8A84C;font-size:28px;">—</div><div class="stat-sub" id="retos-stat-wr-sub">—</div></div>
+    <div class="stat-card" style="text-align:center;"><div class="stat-label">R/R</div><div class="stat-val gold" id="retos-stat-rr" style="font-size:28px;">—</div></div>
+    <div class="stat-card" style="text-align:center;"><div class="stat-label">Esperanza</div><div class="stat-val green" id="retos-stat-esp" style="font-size:28px;">—</div><div class="stat-sub">pts/trade</div></div>
+    <div class="stat-card" style="text-align:center;"><div class="stat-label">Mejor día</div><div class="stat-val green" id="retos-stat-mejor-dia" style="font-size:28px;">—</div><div class="stat-sub" id="retos-stat-mejor-dia-sub">—</div></div>
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);border-top:1px solid var(--border);">
     <div class="cell">
@@ -1935,7 +1920,7 @@
   <div class="cell" style="border-top:1px solid var(--border);">
     <div style="padding:.8rem 1.2rem;background:linear-gradient(135deg,var(--bg2),var(--bg));border:1px solid var(--border-gold);border-left:2px solid var(--gold);">
       <div class="tag-gold" style="display:block;margin-bottom:.5rem;">✦ Lectura Aurum — Retos</div>
-      <div style="font-size:14px;color:#8A7840;line-height:1.9;font-style:italic;">"La cuenta más limpia de las tres. 81.8% WR con WR positivo todos los días de la semana. El swing al 100% WR en 6 trades genera +1.355$. Cuando operas con criterio de reto, el resultado mejora."</div>
+      <div id="retos-lectura" style="font-size:14px;color:#8A7840;line-height:1.9;font-style:italic;">—</div>
     </div>
   </div>
 </div>
@@ -1945,14 +1930,14 @@
 <div id="vista-prueba" style="display:none;">
   <div style="padding:1rem 1.5rem;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:1rem;">
     <div style="width:8px;height:8px;border-radius:50%;background:#4A8AEE;box-shadow:0 0 6px #4A8AEE66;"></div>
-    <div style="font-size:13px;color:var(--text-dim);">Cuenta Prueba · 158 trades · 5 Feb – 10 May 2026 · Challenge activo</div>
+    <div id="prueba-header-sub" style="font-size:13px;color:var(--text-dim);">Cuenta Prueba · — · Challenge activo</div>
   </div>
   <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--border);">
-    <div class="stat-card" style="text-align:center;"><div class="stat-label">P&L</div><div class="stat-val" style="color:#6A9AEE;font-size:28px;">+1.566$</div></div>
-    <div class="stat-card" style="text-align:center;"><div class="stat-label">Win Rate</div><div class="stat-val" style="color:#6A9AEE;font-size:28px;">58.9%</div><div class="stat-sub">93 wins de 158</div></div>
-    <div class="stat-card" style="text-align:center;"><div class="stat-label">R/R</div><div class="stat-val gold" style="font-size:28px;">1.64</div></div>
-    <div class="stat-card" style="text-align:center;"><div class="stat-label">Esperanza</div><div class="stat-val green" style="font-size:28px;">+6.8</div><div class="stat-sub">pts/trade</div></div>
-    <div class="stat-card" style="text-align:center;"><div class="stat-label">Trampa</div><div class="stat-val red" style="font-size:28px;">Martes</div><div class="stat-sub">39% WR · -2.138$</div></div>
+    <div class="stat-card" style="text-align:center;"><div class="stat-label">P&L</div><div class="stat-val" id="prueba-stat-pnl" style="color:#6A9AEE;font-size:28px;">—</div></div>
+    <div class="stat-card" style="text-align:center;"><div class="stat-label">Win Rate</div><div class="stat-val" id="prueba-stat-wr" style="color:#6A9AEE;font-size:28px;">—</div><div class="stat-sub" id="prueba-stat-wr-sub">—</div></div>
+    <div class="stat-card" style="text-align:center;"><div class="stat-label">R/R</div><div class="stat-val gold" id="prueba-stat-rr" style="font-size:28px;">—</div></div>
+    <div class="stat-card" style="text-align:center;"><div class="stat-label">Esperanza</div><div class="stat-val green" id="prueba-stat-esp" style="font-size:28px;">—</div><div class="stat-sub">pts/trade</div></div>
+    <div class="stat-card" style="text-align:center;"><div class="stat-label">Trampa</div><div class="stat-val red" id="prueba-stat-trampa" style="font-size:28px;">—</div><div class="stat-sub" id="prueba-stat-trampa-sub">—</div></div>
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);border-top:1px solid var(--border);">
     <div class="cell">
@@ -1967,7 +1952,7 @@
   <div class="cell" style="border-top:1px solid var(--border);">
     <div style="padding:.8rem 1.2rem;background:linear-gradient(135deg,var(--bg2),var(--bg));border:1px solid var(--border-gold);border-left:2px solid var(--gold);">
       <div class="tag-gold" style="display:block;margin-bottom:.5rem;">✦ Lectura Aurum — Prueba</div>
-      <div style="font-size:14px;color:#8A7840;line-height:1.9;font-style:italic;">"La cuenta con más historia — 158 trades desde febrero. El R/R de 1.64 es el mejor de las tres. El martes destruye capital: 31 trades, 39% WR, -2.138$. Eliminar los martes o reducir a mínimo hasta entender qué ocurre ese día."</div>
+      <div id="prueba-lectura" style="font-size:14px;color:#8A7840;line-height:1.9;font-style:italic;">—</div>
     </div>
   </div>
 </div>
@@ -1984,7 +1969,7 @@
         <div style="position:absolute;right:1rem;top:-1rem;font-family:'Cormorant Garamond',serif;font-size:120px;color:#C9A84C04;line-height:1;user-select:none;">111</div>
         <div style="text-align:center;">
           <div class="tag" style="margin-bottom:.2rem;">Ciclo actual</div>
-          <div style="font-family:'Cormorant Garamond',serif;font-size:80px;color:var(--gold-bright);text-shadow:0 0 40px var(--gold-glow);line-height:1;">2</div>
+          <div id="ciclo-num-actual" style="font-family:'Cormorant Garamond',serif;font-size:80px;color:var(--gold-bright);text-shadow:0 0 40px var(--gold-glow);line-height:1;">—</div>
           <div style="font-size:13px;color:var(--text-dim);">En curso</div>
         </div>
         <div>
@@ -2005,18 +1990,18 @@
       </div>
 
       <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--border);">
-        <div class="stat-card" style="text-align:center;"><div class="stat-label">Win Rate</div><div class="stat-val green" style="font-size:28px;" id="ciclo-wr">64%</div><div class="stat-sub" id="ciclo-wr-sub">71 wins de 111</div></div>
-        <div class="stat-card" style="text-align:center;"><div class="stat-label">P&L Ciclo 1</div><div class="stat-val green" style="font-size:28px;" id="ciclo-pnl">+1.500€</div><div class="stat-sub">Rentabilidad real</div></div>
-        <div class="stat-card" style="text-align:center;"><div class="stat-label">R/R</div><div class="stat-val gold" style="font-size:28px;" id="ciclo-rr">1.68</div><div class="stat-sub">22.5 / 13.5 pts</div></div>
-        <div class="stat-card" style="text-align:center;"><div class="stat-label">Esperanza</div><div class="stat-val green" style="font-size:28px;" id="ciclo-esp">+9.57</div><div class="stat-sub">pts por trade</div></div>
-        <div class="stat-card" style="text-align:center;"><div class="stat-label">Cumplimiento</div><div class="stat-val gold" style="font-size:28px;" id="ciclo-cumpl">79.3%</div><div class="stat-sub" id="ciclo-cumpl-sub">88 de 111 dentro</div></div>
+        <div class="stat-card" style="text-align:center;"><div class="stat-label">Win Rate</div><div class="stat-val green" style="font-size:28px;" id="ciclo-wr">—</div><div class="stat-sub" id="ciclo-wr-sub">—</div></div>
+        <div class="stat-card" style="text-align:center;"><div class="stat-label">P&L Ciclo</div><div class="stat-val green" style="font-size:28px;" id="ciclo-pnl">—</div><div class="stat-sub">Rentabilidad real</div></div>
+        <div class="stat-card" style="text-align:center;"><div class="stat-label">R/R</div><div class="stat-val gold" style="font-size:28px;" id="ciclo-rr">—</div><div class="stat-sub" id="ciclo-rr-sub">—</div></div>
+        <div class="stat-card" style="text-align:center;"><div class="stat-label">Esperanza</div><div class="stat-val green" style="font-size:28px;" id="ciclo-esp">—</div><div class="stat-sub">pts por trade</div></div>
+        <div class="stat-card" style="text-align:center;"><div class="stat-label">Cumplimiento</div><div class="stat-val gold" style="font-size:28px;" id="ciclo-cumpl">—</div><div class="stat-sub" id="ciclo-cumpl-sub">—</div></div>
       </div>
 
       <div style="padding:1.5rem 2rem;background:linear-gradient(135deg,var(--bg2),var(--bg));position:relative;">
         <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>
         <div class="tag-gold" style="display:block;margin-bottom:.8rem;">✦ Veredicto Aurum — Ciclo 1</div>
         <div style="font-family:'Cormorant Garamond',serif;font-size:26px;color:var(--gold-bright);margin-bottom:.8rem;">Proceso sólido. El edge existe.</div>
-        <div style="font-size:15px;color:#8A7840;line-height:1.9;font-style:italic;max-width:700px;">"Has completado tu primer Ciclo Aurum con 64% de win rate y R/R 1.68. La matemática trabaja para ti. Esperanza: +9.57 pts/trade. Eso es un sistema. Ciclo 2: llevar el cumplimiento del 79% al 85%+. El swing es tu verdadero edge."</div>
+        <div id="ciclo-veredicto-txt" style="font-size:15px;color:#8A7840;line-height:1.9;font-style:italic;max-width:700px;">—</div>
       </div>
 
     </div>
@@ -2026,7 +2011,7 @@
     <div id="gpanel-horarios" style="display:none;padding-top:3rem;">
 
       <div style="margin-top:22px;padding:1.5rem 2rem;border-bottom:1px solid var(--border);background:var(--bg2);">
-        <div id="gest-horarios-titulo" style="font-family:'Cormorant Garamond',serif;font-size:26px;color:var(--gold-bright);margin-bottom:.3rem;">Mapa horario real — 254 trades</div>
+        <div id="gest-horarios-titulo" style="font-family:'Cormorant Garamond',serif;font-size:26px;color:var(--gold-bright);margin-bottom:.3rem;">Mapa horario real</div>
         <div style="display:flex;height:28px;border-radius:4px;overflow:hidden;border:1px solid var(--border);margin-bottom:4px;">
           <div style="flex:1;background:#1c1c1a;display:flex;align-items:center;justify-content:center;font-size:11px;color:#666;">00</div>
           <div style="flex:7;background:#501313;display:flex;align-items:center;justify-content:center;font-size:12px;color:#F7C1C1;">Asia</div>
@@ -2040,7 +2025,7 @@
           <div style="position:absolute;left:calc(17/24*100%);right:0;height:6px;background:var(--gold-glow);border-top:1px solid var(--gold);border-bottom:1px solid var(--gold);"></div>
           <div style="position:absolute;left:0;width:calc(2/24*100%);height:6px;background:var(--gold-glow);border-top:1px solid var(--gold);border-bottom:1px solid var(--gold);"></div>
         </div>
-        <div id="gest-horarios-ventana" style="font-size:13px;color:var(--gold-dim);">▲ Tu ventana real (17:00–02:00) · Dentro: +2.480$ · Fuera: -1.058$</div>
+        <div id="gest-horarios-ventana" style="font-size:13px;color:var(--gold-dim);">▲ Tu ventana real (17:00–02:00) · —</div>
       </div>
 
       <div style="padding:1.5rem 2rem;border-bottom:1px solid var(--border);">

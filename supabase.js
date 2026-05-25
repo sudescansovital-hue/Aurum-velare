@@ -298,6 +298,15 @@ async function actualizarDashboard() {
   if (typeof buildCumplimiento === 'function') buildCumplimiento();
   if (typeof buildEquity === 'function') buildEquity();
 
+  // Reconstruir vistas de cuentas con datos frescos
+  if (typeof cuentasBuilt !== 'undefined') Object.keys(cuentasBuilt).forEach(function(k){ delete cuentasBuilt[k]; });
+  if (typeof buildGlobal === 'function') buildGlobal();
+  if (typeof buildCuentaReal === 'function') {
+    buildCuentaReal('maestra', 'Cuenta Maestra');
+    buildCuentaReal('retos',   'Cuenta Retos');
+    buildCuentaReal('prueba',  'Cuenta Prueba');
+  }
+
   // Actualizar stats globales de Historial Externo
   var htEl = document.getElementById('hist-global-trades');
   if (htEl) htEl.textContent = mG.total;

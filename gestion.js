@@ -198,10 +198,16 @@ function buildCicloDots() {
   el = document.getElementById('ciclo-wr-sub');   if (el) el.textContent = wins + ' wins de ' + ultimos.length;
   el = document.getElementById('ciclo-pnl');      if (el) el.textContent = (pnl>=0?'+':'') + pnl + '$';
   el = document.getElementById('ciclo-rr');       if (el) el.textContent = rr;
+  el = document.getElementById('ciclo-rr-sub');   if (el) el.textContent = ptsL > 0 ? Math.round(ptsW*10)/10 + ' / ' + Math.round(ptsL*10)/10 + ' pts' : '—';
   el = document.getElementById('ciclo-esp');      if (el) el.textContent = (esp>=0?'+':'') + esp;
   el = document.getElementById('ciclo-cumpl');    if (el) el.textContent = cumpl + '%';
   el = document.getElementById('ciclo-cumpl-sub');if (el) el.textContent = dentro.length + ' de ' + ultimos.length + ' dentro';
   el = document.getElementById('ciclo-puntuacion');if (el) el.textContent = Math.min(100, score);
+  el = document.getElementById('ciclo-veredicto-txt');
+  if (el) {
+    var nextCumpl = Math.min(100, Math.round(cumpl + 5));
+    el.textContent = '"Ciclo ' + cicloActual + (completados > 0 ? ' en curso. Ciclo ' + completados + ' completado' : '') + ' con ' + wr + '% WR y R/R ' + rr + '. Esperanza: ' + (esp>=0?'+':'') + esp + ' pts/trade. Cumplimiento actual: ' + cumpl + '%. Objetivo: ' + nextCumpl + '%+. El proceso es el edge."';
+  }
 
   // Dots
   if (cd) {
