@@ -3,7 +3,7 @@
 // ============================================================
 
 const cuentasBuilt = {};
-var cuentaActivaGestion = "global"; // cuenta seleccionada actualmente
+window.cuentaActivaGestion = "global"; // cuenta seleccionada actualmente
 
 function verCuenta(cuenta) {
   ['global','maestra','retos','prueba'].forEach(function(c) {
