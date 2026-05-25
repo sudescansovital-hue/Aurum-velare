@@ -820,116 +820,101 @@
 <!-- SALA INTERIOR -->
 <div id="sala-interior" style="display:none;">
 
-  <div style="padding:.6rem 1.2rem;border-bottom:1px solid var(--border);background:var(--bg2);display:flex;align-items:center;gap:1rem;">
-    <div onclick="salirDeSala()" style="font-size:14px;color:var(--text-muted);cursor:pointer;transition:color .2s;" onmouseover="this.style.color='var(--gold)'" onmouseout="this.style.color='var(--text-muted)'">← Volver a las salas</div>
-    <div style="font-size:14px;color:var(--gold-dim);" id="sala-nombre-header">Sala León</div>
-    <div style="margin-left:auto;font-size:13px;color:var(--text-muted);font-style:italic;">Solo audio · Las imágenes se cargan desde el perfil de cada usuario</div>
+  <!-- Barra superior -->
+  <div style="padding:.5rem 1.2rem;border-bottom:1px solid var(--border);background:var(--bg2);display:flex;align-items:center;gap:1rem;min-height:44px;">
+    <div onclick="salirDeSala()" style="font-size:13px;color:var(--text-muted);cursor:pointer;transition:color .2s;white-space:nowrap;" onmouseover="this.style.color='var(--gold)'" onmouseout="this.style.color='var(--text-muted)'">← Volver</div>
+    <div style="font-size:14px;color:var(--gold-dim);letter-spacing:.05em;" id="sala-nombre-header">Sala León</div>
+    <!-- Indicador de quién habla -->
+    <div id="sala-hablando-banner" style="display:flex;align-items:center;gap:.5rem;padding:.2rem .8rem;background:#3AAA6A0E;border:1px solid #3AAA6A33;font-size:12px;color:var(--green);">
+      <div style="width:5px;height:5px;border-radius:50%;background:var(--green);animation:pulse 1.2s infinite;flex-shrink:0;"></div>
+      🎙 <span id="sala-hablando-nick">Toro_01</span> está hablando
+    </div>
+    <div style="margin-left:auto;font-size:12px;color:var(--text-muted);font-style:italic;">Solo audio</div>
   </div>
 
   <div style="display:grid;grid-template-columns:1fr 300px;height:calc(100vh - 107px);">
 
-    <!-- IZQUIERDA: pantalla + participantes + controles -->
-    <div style="display:flex;flex-direction:column;">
+    <!-- IZQUIERDA: gráfico + participantes + controles -->
+    <div style="display:flex;flex-direction:column;min-height:0;overflow:hidden;">
 
-      <!-- Pantalla compartida -->
-      <div style="flex:1;background:#04060E;position:relative;display:flex;align-items:center;justify-content:center;min-height:0;overflow:hidden;">
-        <div style="width:88%;height:82%;border:1px solid #1A2040;background:#050710;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;">
-          <svg width="90%" height="70%" viewBox="0 0 700 200" style="opacity:.25;">
-            <line x1="0" y1="100" x2="700" y2="100" stroke="#C9A84C" stroke-width="0.5"/>
-            <polyline points="0,150 120,135 240,112 360,88 480,62 600,40 700,25" fill="none" stroke="#C9A84C" stroke-width="1.5"/>
-            <line x1="0" y1="60" x2="700" y2="60" stroke="#E8C870" stroke-width="1" stroke-dasharray="8 4"/>
-            <text x="10" y="55" fill="#E8C870" font-size="9" opacity="0.7">3.284 — Nivel H4</text>
-          </svg>
-          <div style="font-family:'Cormorant Garamond',serif;font-size:15px;color:#1E2840;letter-spacing:.2em;" id="sala-chart-label">XAU/USD · H4</div>
-        </div>
-        <div style="position:absolute;top:1rem;left:1rem;display:flex;align-items:center;gap:.5rem;padding:.35rem .8rem;background:#3AAA6A18;border:1px solid #3AAA6A33;">
-          <div style="width:5px;height:5px;border-radius:50%;background:var(--green);animation:pulse 2s infinite;"></div>
-          <span style="font-size:13px;color:var(--green);">Pantalla compartida activa</span>
-        </div>
-        <div style="position:absolute;top:1rem;right:1rem;text-align:right;">
-          <div style="font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--gold-bright);">3.284,50</div>
-          <div style="font-size:13px;color:var(--green);">▲ +0.53% XAU/USD</div>
-        </div>
+      <!-- Área del gráfico — ocupa todo el espacio disponible -->
+      <div id="sala-chart-wrap" style="flex:1;position:relative;background:#040710;min-height:0;overflow:hidden;">
+        <div id="sala-tv-container" style="width:100%;height:100%;"></div>
+
+        <!-- Botón pantalla completa -->
+        <button onclick="salaFullscreen()" style="position:absolute;bottom:.8rem;right:.8rem;background:#08091899;border:1px solid var(--border-gold);color:var(--gold);padding:.35rem .75rem;font-size:12px;cursor:pointer;letter-spacing:.07em;display:flex;align-items:center;gap:.4rem;z-index:10;backdrop-filter:blur(4px);font-family:inherit;" title="Pantalla completa">
+          <span id="sala-fullscreen-icon">⤢</span><span id="sala-fullscreen-label">Pantalla completa</span>
+        </button>
       </div>
 
-      <!-- Grid participantes -->
-      <div style="background:#060810;border-top:1px solid var(--border);padding:.5rem .8rem;">
-        <div style="display:flex;align-items:center;margin-bottom:.4rem;">
-          <span style="font-size:10px;letter-spacing:.25em;text-transform:uppercase;color:var(--text-muted);">Participantes · Solo audio</span>
-          <div style="display:flex;align-items:center;gap:.3rem;margin-left:auto;">
+      <!-- Tira de participantes (horizontal, compacta) -->
+      <div style="background:#06080E;border-top:1px solid var(--border);padding:.45rem .9rem;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.35rem;">
+          <span style="font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:var(--text-muted);">Participantes · Solo audio</span>
+          <div style="display:flex;align-items:center;gap:.3rem;">
             <div style="width:5px;height:5px;border-radius:50%;background:var(--green);animation:pulse 2s infinite;box-shadow:0 0 4px var(--green);"></div>
-            <span style="font-size:13px;color:var(--green);" id="sala-conectados">5 conectados</span>
+            <span style="font-size:11px;color:var(--green);" id="sala-conectados">5 conectados</span>
           </div>
         </div>
-        <!-- Grid 8 celdas -->
-        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:.4rem;" id="sala-grid-participantes">
+        <div style="display:flex;align-items:flex-start;gap:.55rem;overflow-x:auto;padding-bottom:.25rem;" id="sala-grid-participantes">
 
           <!-- Roderas — TÚ -->
-          <div style="aspect-ratio:4/3;background:#0C0E18;border:2px solid var(--gold);border-radius:3px;position:relative;overflow:hidden;box-shadow:0 0 10px var(--gold-glow);">
-            <img src="img/leon.jpg" alt="Roderas" style="width:100%;height:100%;object-fit:contain;object-position:center center;display:block;background:#0C0E18;" onerror="this.style.display='none'">
-            <div style="position:absolute;top:2px;right:2px;font-size:7px;background:var(--gold);color:var(--bg);padding:0 3px;border-radius:1px;font-weight:500;">TÚ</div>
-            <div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,#00000099);padding:2px 4px;">
-              <div style="font-size:9px;color:var(--gold-bright);font-weight:500;" id="sala-tu-nick">Roderas</div>
+          <div class="sala-part" id="sala-part-yo">
+            <div class="sala-avatar sala-avatar-gold" style="position:relative;overflow:hidden;">
+              <img src="img/leon.jpg" alt="" style="position:absolute;width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="this.style.display='none'">
+              <span class="sala-avatar-letra" id="sala-tu-inicial">R</span>
+              <div class="sala-badge-tu">TÚ</div>
             </div>
-            <div style="position:absolute;bottom:3px;left:3px;width:5px;height:5px;border-radius:50%;background:var(--green);box-shadow:0 0 4px var(--green);"></div>
-            <div style="position:absolute;top:2px;left:2px;font-size:9px;color:var(--green);">🎙</div>
+            <div class="sala-part-nick" id="sala-tu-nick">Roderas</div>
+            <div class="sala-mic-dot sala-mic-on" id="sala-mic-dot-yo"></div>
           </div>
 
-          <!-- Participante 2 — imagen de perfil -->
-          <div style="aspect-ratio:4/3;background:#0C0E18;border:1px solid var(--border);border-radius:3px;position:relative;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;">
-            <div style="width:32px;height:32px;border-radius:50%;background:var(--bg3);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--text-muted);">T</div>
-            <div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,#00000099);padding:2px 4px;"><div style="font-size:9px;color:var(--text-muted);">Toro_01</div></div>
-            <div style="position:absolute;bottom:3px;left:3px;width:5px;height:5px;border-radius:50%;background:var(--green);box-shadow:0 0 4px var(--green);"></div>
-            <div style="position:absolute;top:2px;left:2px;font-size:9px;color:var(--green);">🎙</div>
+          <!-- Toro_01 — hablando -->
+          <div class="sala-part sala-hablando">
+            <div class="sala-avatar"><span class="sala-avatar-letra">T</span></div>
+            <div class="sala-part-nick">Toro_01</div>
+            <div class="sala-mic-dot sala-mic-on"></div>
           </div>
 
-          <!-- Participante 3 -->
-          <div style="aspect-ratio:4/3;background:#0C0E18;border:1px solid var(--border);border-radius:3px;position:relative;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;">
-            <div style="width:32px;height:32px;border-radius:50%;background:var(--bg3);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--text-muted);">O</div>
-            <div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,#00000099);padding:2px 4px;"><div style="font-size:9px;color:var(--text-muted);">Oso_01</div></div>
-            <div style="position:absolute;bottom:3px;left:3px;width:5px;height:5px;border-radius:50%;background:var(--green);box-shadow:0 0 4px var(--green);"></div>
+          <!-- Oso_01 -->
+          <div class="sala-part">
+            <div class="sala-avatar"><span class="sala-avatar-letra">O</span></div>
+            <div class="sala-part-nick">Oso_01</div>
+            <div class="sala-mic-dot sala-mic-on"></div>
           </div>
 
-          <!-- Participante 4 — silenciado -->
-          <div style="aspect-ratio:4/3;background:#080A0E;border:1px solid var(--border);border-radius:3px;position:relative;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:.55;">
-            <div style="width:32px;height:32px;border-radius:50%;background:var(--bg3);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--text-muted);">T</div>
-            <div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,#00000099);padding:2px 4px;"><div style="font-size:9px;color:var(--text-muted);">Toro_02</div></div>
-            <div style="position:absolute;bottom:3px;left:3px;width:5px;height:5px;border-radius:50%;background:#CC8844;"></div>
-            <div style="position:absolute;top:2px;right:2px;font-size:10px;color:#2A3050;">🔇</div>
+          <!-- Toro_02 — silenciado -->
+          <div class="sala-part sala-silenciado">
+            <div class="sala-avatar" style="position:relative;">
+              <span class="sala-avatar-letra" style="color:#2A3050;">T</span>
+              <div style="position:absolute;bottom:-1px;right:-1px;width:14px;height:14px;background:#CC4433;border-radius:50%;font-size:8px;display:flex;align-items:center;justify-content:center;line-height:1;">🔇</div>
+            </div>
+            <div class="sala-part-nick">Toro_02</div>
+            <div class="sala-mic-dot sala-mic-off"></div>
           </div>
 
-          <!-- Participante 5 -->
-          <div style="aspect-ratio:4/3;background:#0C0E18;border:1px solid var(--border);border-radius:3px;position:relative;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;">
-            <div style="width:32px;height:32px;border-radius:50%;background:var(--bg3);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--text-muted);">E</div>
-            <div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,#00000099);padding:2px 4px;"><div style="font-size:9px;color:var(--text-muted);">Elef_01</div></div>
-            <div style="position:absolute;bottom:3px;left:3px;width:5px;height:5px;border-radius:50%;background:var(--green);box-shadow:0 0 4px var(--green);"></div>
+          <!-- Elef_01 -->
+          <div class="sala-part">
+            <div class="sala-avatar"><span class="sala-avatar-letra">E</span></div>
+            <div class="sala-part-nick">Elef_01</div>
+            <div class="sala-mic-dot sala-mic-on"></div>
           </div>
 
           <!-- Plazas vacías -->
-          <!-- Plazas vacías hasta completar 14 -->
-          <div style="aspect-ratio:4/3;background:#060810;border:1px dashed #1A2040;border-radius:3px;display:flex;align-items:center;justify-content:center;"><div style="font-size:10px;color:#1A2040;">+</div></div>
-          <div style="aspect-ratio:4/3;background:#060810;border:1px dashed #1A2040;border-radius:3px;display:flex;align-items:center;justify-content:center;"><div style="font-size:10px;color:#1A2040;">+</div></div>
-          <div style="aspect-ratio:4/3;background:#060810;border:1px dashed #1A2040;border-radius:3px;display:flex;align-items:center;justify-content:center;"><div style="font-size:10px;color:#1A2040;">+</div></div>
-          <div style="aspect-ratio:4/3;background:#060810;border:1px dashed #1A2040;border-radius:3px;display:flex;align-items:center;justify-content:center;"><div style="font-size:10px;color:#1A2040;">+</div></div>
-          <div style="aspect-ratio:4/3;background:#060810;border:1px dashed #1A2040;border-radius:3px;display:flex;align-items:center;justify-content:center;"><div style="font-size:10px;color:#1A2040;">+</div></div>
-          <div style="aspect-ratio:4/3;background:#060810;border:1px dashed #1A2040;border-radius:3px;display:flex;align-items:center;justify-content:center;"><div style="font-size:10px;color:#1A2040;">+</div></div>
-          <div style="aspect-ratio:4/3;background:#060810;border:1px dashed #1A2040;border-radius:3px;display:flex;align-items:center;justify-content:center;"><div style="font-size:10px;color:#1A2040;">+</div></div>
-          <div style="aspect-ratio:4/3;background:#060810;border:1px dashed #1A2040;border-radius:3px;display:flex;align-items:center;justify-content:center;"><div style="font-size:10px;color:#1A2040;">+</div></div>
-          <div style="aspect-ratio:4/3;background:#060810;border:1px dashed #1A2040;border-radius:3px;display:flex;align-items:center;justify-content:center;"><div style="font-size:10px;color:#1A2040;">+</div></div>
+          <div class="sala-part-vacio"></div>
+          <div class="sala-part-vacio"></div>
+          <div class="sala-part-vacio"></div>
+          <div class="sala-part-vacio"></div>
 
-        </div>
-
-        <div style="font-size:13px;color:var(--text-muted);margin-top:.5rem;font-style:italic;">
-          Las imágenes se cargan desde el perfil de cada usuario. Sin imagen aparece la inicial del nick.
         </div>
       </div>
 
       <!-- Controles -->
-      <div style="border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:.55rem 1rem;background:#04060E;">
-        <div style="font-size:14px;color:var(--text-muted);" id="sala-info-bar">Sala León · Solo audio</div>
+      <div style="border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:.5rem 1rem;background:#040608;">
+        <div style="font-size:13px;color:var(--text-muted);" id="sala-info-bar">Sala León · Solo audio</div>
         <div style="display:flex;gap:.4rem;">
-          <div class="ctrl-btn on">🎙 Micro</div>
-          <div class="ctrl-btn" style="opacity:.4;cursor:not-allowed;" title="Videollamada disponible próximamente">📵 Sin vídeo</div>
+          <div id="sala-btn-micro" class="ctrl-btn on" onclick="toggleMicrofono()" style="min-width:94px;text-align:center;">🎙 Micro</div>
+          <div class="ctrl-btn disabled" title="Videollamada disponible próximamente">📵 Sin vídeo</div>
           <div class="ctrl-btn">🖥 Compartir</div>
           <div class="ctrl-btn">✋ Mano</div>
           <div class="ctrl-btn" style="color:var(--red);border-color:#CC443333;" onclick="salirDeSala()">✕ Salir</div>

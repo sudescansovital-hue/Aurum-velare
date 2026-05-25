@@ -1124,3 +1124,82 @@ tr:hover td { background: #0E1020; }
   font-size: 11px;
   color: var(--text-muted);
 }
+/* ── Sala: participantes compactos ───────────────────────── */
+.sala-part {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .2rem;
+  min-width: 56px;
+  max-width: 56px;
+  flex-shrink: 0;
+}
+.sala-avatar {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: var(--bg2);
+  border: 2px solid var(--border);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition: border-color .3s, box-shadow .3s;
+}
+.sala-avatar-gold { border-color: var(--border-gold); }
+.sala-hablando .sala-avatar {
+  border-color: var(--gold);
+  box-shadow: 0 0 14px #C9A84C55;
+  animation: sala-glow 1.4s ease-in-out infinite;
+}
+.sala-silenciado { opacity: .4; }
+.sala-avatar-letra {
+  position: absolute;
+  font-size: 18px;
+  color: var(--text-muted);
+  font-family: 'Cormorant Garamond', serif;
+  pointer-events: none;
+  user-select: none;
+}
+.sala-badge-tu {
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  font-size: 7px;
+  background: var(--gold);
+  color: var(--bg);
+  padding: 0 3px;
+  font-weight: 600;
+  letter-spacing: .03em;
+  line-height: 1.7;
+}
+.sala-part-nick {
+  font-size: 9px;
+  color: var(--text-muted);
+  letter-spacing: .04em;
+  white-space: nowrap;
+  max-width: 56px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+}
+.sala-hablando .sala-part-nick { color: var(--gold-dim); }
+.sala-mic-dot { width: 7px; height: 7px; border-radius: 50%; }
+.sala-mic-on  { background: var(--green); box-shadow: 0 0 5px var(--green); }
+.sala-mic-off { background: #CC4433; }
+.sala-part-vacio {
+  min-width: 46px; max-width: 46px; height: 46px;
+  border-radius: 50%;
+  background: #060810;
+  border: 1px dashed #1A2040;
+  flex-shrink: 0;
+}
+@keyframes sala-glow {
+  0%,100% { box-shadow: 0 0 8px #C9A84C44; border-color: var(--gold); }
+  50%      { box-shadow: 0 0 20px #C9A84C77; border-color: #E8C870; }
+}
+
+/* Fullscreen: ocultar el botón propio cuando el chart ya está fullscreen */
+#sala-chart-wrap:fullscreen         { background: #040710; }
+#sala-chart-wrap:-webkit-full-screen { background: #040710; }
