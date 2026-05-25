@@ -212,32 +212,286 @@ function buildCicloDots() {
 }
 
 function buildEquity() {
-  // La curva de equity ya se renderiza en el HTML estático por ahora
-  // Se conectará con datos reales en próxima iteración
+  var trades = getTodos();
+  if (!trades.length) return;
+
+  // Extract real trade date from MT5 fp (format: ticket_YYYY.MM.DD HH:MM:SS_price_vol)
+  // Falls back to created_at (Supabase insertion time)
+  function fechaTrade(t) {
+    if (t.fp) {
+      var m = t.fp.match(/(\d{4})\.(\d{2})\.(\d{2})/);
+      if (m) return new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]));
+    }
+    if (t.created_at) return new Date(t.created_at);
+    return null;
+  }
+
+  // Attach dates and sort chronologically when dates are available
+  var withDates = trades.map(function(t) { return { t: t, d: fechaTrade(t) }; });
+  if (withDates.some(function(x) { return x.d !== null; })) {
+    withDates.sort(function(a, b) {
+      if (!a.d && !b.d) return 0;
+      if (!a.d) return 1;
+      if (!b.d) return -1;
+      return a.d - b.d;
+    });
+  }
+
+  // Cumulative P&L
+  var cumPnl = [0];
+  var running = 0;
+  withDates.forEach(function(x) {
+    running += (x.t.beneficio || 0);
+    cumPnl.push(Math.round(running * 100) / 100);
+  });
+  var totalPnl = cumPnl[cumPnl.length - 1];
+
+  // Monthly grouping
+  var porMes = {}, mesOrden = [];
+  withDates.forEach(function(x) {
+    var key;
+    if (x.d) {
+      var mon = x.d.getMonth() + 1;
+      key = x.d.getFullYear() + '-' + (mon < 10 ? '0' + mon : '' + mon);
+    } else {
+      key = 'global';
+    }
+    if (!porMes[key]) { porMes[key] = { t:0, w:0, p:0 }; mesOrden.push(key); }
+    porMes[key].t++;
+    if (x.t.ganadora) porMes[key].w++;
+    porMes[key].p += (x.t.beneficio || 0);
+  });
+
+  var MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  function mesLabel(key) {
+    if (key === 'global') return 'Total';
+    var p = key.split('-');
+    return MESES[parseInt(p[1]) - 1] + ' ' + p[0];
+  }
+
+  // Subtitle
+  var cuentas = [];
+  trades.forEach(function(t) { if (t.cuenta && cuentas.indexOf(t.cuenta) === -1) cuentas.push(t.cuenta); });
+  var subTxt = cuentas.length + ' cuenta' + (cuentas.length !== 1 ? 's' : '') + ' · ' + trades.length + ' trades';
+  if (mesOrden.length > 1 && mesOrden[0] !== 'global') {
+    subTxt += ' · ' + mesLabel(mesOrden[0]) + '–' + mesLabel(mesOrden[mesOrden.length - 1]);
+  }
+  var elSub = document.getElementById('equity-sub');
+  if (elSub) elSub.textContent = subTxt;
+
+  // SVG equity curve
+  var elChart = document.getElementById('equity-chart');
+  if (elChart && cumPnl.length > 1) {
+    var W = 800, H = 180, pad = 12;
+    var maxVal = Math.max.apply(null, cumPnl);
+    var minVal = Math.min.apply(null, [0].concat(cumPnl));
+    var range  = maxVal - minVal || 1;
+    var n      = cumPnl.length - 1;
+    var pts = cumPnl.map(function(v, i) {
+      var x = Math.round(i / n * W);
+      var y = Math.round((H - pad) - ((v - minVal) / range) * (H - 2 * pad));
+      return x + ',' + y;
+    });
+    var lastPt  = pts[pts.length - 1].split(',');
+    var lastX   = parseInt(lastPt[0]), lastY = parseInt(lastPt[1]);
+    var finalStr = (totalPnl >= 0 ? '+' : '') + Math.round(totalPnl) + '$';
+    var lineCol  = totalPnl >= 0 ? '#C9A84C' : '#CC5544';
+    var dotCol   = totalPnl >= 0 ? '#E8C870' : '#CC5544';
+    var gridLines = [Math.round(H*0.25), Math.round(H*0.5), Math.round(H*0.75)].map(function(y) {
+      return '<line x1="0" y1="'+y+'" x2="'+W+'" y2="'+y+'" stroke="#1A2040" stroke-width="0.5"/>';
+    }).join('');
+    var pathD = 'M' + pts.join(' L');
+    var fillD = pathD + ' L' + lastX + ',' + H + ' L0,' + H + ' Z';
+    var txtAnchor = lastX > W * 0.8 ? 'end' : 'start';
+    var txtX = txtAnchor === 'end' ? lastX - 8 : lastX + 8;
+    elChart.innerHTML =
+      '<svg width="100%" height="100%" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none">' +
+      '<defs><linearGradient id="eg" x1="0" y1="0" x2="0" y2="1">' +
+      '<stop offset="0%" stop-color="'+lineCol+'" stop-opacity="0.2"/>' +
+      '<stop offset="100%" stop-color="'+lineCol+'" stop-opacity="0"/>' +
+      '</linearGradient></defs>' +
+      gridLines +
+      '<path d="'+fillD+'" fill="url(#eg)"/>' +
+      '<path d="'+pathD+'" fill="none" stroke="'+lineCol+'" stroke-width="2" stroke-linecap="round"/>' +
+      '<circle cx="'+lastX+'" cy="'+lastY+'" r="5" fill="'+dotCol+'"/>' +
+      '<text x="'+txtX+'" y="'+(lastY-8)+'" text-anchor="'+txtAnchor+'" fill="'+dotCol+'" font-size="11" font-family="sans-serif">'+finalStr+'</text>' +
+      '</svg>';
+  }
+
+  // Date labels below chart
+  var elFechas = document.getElementById('equity-fechas');
+  if (elFechas) {
+    if (mesOrden.length <= 1) {
+      elFechas.innerHTML = '<span>Inicio</span><span>Hoy</span>';
+    } else {
+      elFechas.innerHTML = mesOrden.map(function(k){ return '<span>'+mesLabel(k)+'</span>'; }).join('');
+    }
+  }
+
+  // Monthly cards (show last 4 months max)
+  var elMeses = document.getElementById('equity-meses');
+  if (elMeses && mesOrden.length) {
+    var mostrar = mesOrden.length > 4 ? mesOrden.slice(-4) : mesOrden;
+    elMeses.style.gridTemplateColumns = 'repeat(' + mostrar.length + ',1fr)';
+    elMeses.innerHTML = mostrar.map(function(k, i) {
+      var m   = porMes[k];
+      var pnl = Math.round(m.p * 100) / 100;
+      var pnlStr = (pnl >= 0 ? '+' : '') + pnl + '$';
+      var isLast = i === mostrar.length - 1;
+      return '<div class="stat-card" style="text-align:center;' + (isLast ? 'border:1px solid var(--border-gold);' : '') + '">' +
+        '<div class="stat-label" style="' + (isLast ? 'color:var(--gold);' : '') + '">' + mesLabel(k) + (isLast ? ' · En curso' : '') + '</div>' +
+        '<div class="stat-val ' + (pnl >= 0 ? 'green' : 'red') + '" style="font-size:26px;">' + pnlStr + '</div>' +
+        '<div class="stat-sub">' + m.t + ' trades</div>' +
+        '</div>';
+    }).join('');
+  }
+
+  // Camino matemático — proyecciones basadas en datos reales
+  var elCamino = document.getElementById('equity-camino');
+  if (elCamino) {
+    var wins   = trades.filter(function(t){ return t.ganadora; });
+    var losses = trades.filter(function(t){ return !t.ganadora; });
+    var WR = trades.length > 0 ? wins.length / trades.length : 0;
+    var avgW = wins.length   > 0 ? wins.reduce(function(s,t){return s+(t.beneficio||0);},0)/wins.length   : 0;
+    var avgL = losses.length > 0 ? losses.reduce(function(s,t){return s+(t.beneficio||0);},0)/losses.length : 0;
+    var avgPtsW = wins.length   > 0 ? wins.reduce(function(s,t){return s+(t.puntos||0);},0)/wins.length   : 0;
+    var avgPtsL = losses.length > 0 ? losses.reduce(function(s,t){return s+(t.puntos||0);},0)/losses.length : 0;
+    var RR = avgPtsL > 0 ? Math.round(avgPtsW/avgPtsL*100)/100 : 0;
+    var meta = 5000, remaining = Math.max(0, meta - totalPnl);
+
+    function scenarioCard(label, wr, avgWin, avgLoss, borderStyle, labelClass, col) {
+      var esp = wr * avgWin + (1 - wr) * avgLoss;
+      var trNeed = esp > 0 ? Math.ceil(remaining / esp) : null;
+      var espStr = esp > 0 ? (esp >= 0 ? '+' : '') + Math.round(esp) + '$/trade' : 'sin edge';
+      var rrStr  = avgLoss !== 0 ? '1:' + Math.round(avgWin / Math.abs(avgLoss) * 100) / 100 : '';
+      var sub    = rrStr ? rrStr + ' · WR ' + Math.round(wr*1000)/10 + '%' : 'WR ' + Math.round(wr*1000)/10 + '%';
+      var meta_  = trNeed !== null
+        ? '<strong style="color:'+col+';">'+trNeed+' trades → 5.000$</strong>'
+        : '<strong style="color:var(--text-muted);">edge insuficiente</strong>';
+      return '<div style="padding:1rem;border:'+borderStyle+';background:'+(labelClass==='tag-gold'?'#C9A84C08':'#0E1020')+';"><div class="'+labelClass+'" style="margin-bottom:.4rem;display:block;">'+label+'</div><div style="font-family:\'Cormorant Garamond\',serif;font-size:20px;color:'+col+';margin-bottom:.3rem;">'+sub+'</div><div style="font-size:14px;color:var(--text-dim);line-height:1.6;">'+espStr+' · '+meta_+'</div></div>';
+    }
+
+    var s1 = scenarioCard('✦ Ritmo actual', WR, avgW, avgL, '1px solid var(--gold)', 'tag-gold', 'var(--gold)');
+    var s2 = scenarioCard('WR +5pp', Math.min(1, WR + 0.05), avgW, avgL, '1px solid var(--border)', 'tag', 'var(--green)');
+    var s3 = scenarioCard('RR +20%', WR, avgW * 1.2, avgL, '1px solid var(--border)', 'tag', '#6A9AEE');
+
+    elCamino.innerHTML =
+      '<div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>' +
+      '<div class="tag-gold" style="display:block;margin-bottom:1rem;">✦ Camino matemático a la Etapa 5</div>' +
+      '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;">' + s1 + s2 + s3 + '</div>';
+  }
 }
 
 function buildCumplimiento() {
   var trades = getTodos();
   if (!trades.length) return;
-  // SL dentro del método = puntos <= 11
-  var dentro = trades.filter(function(t){ return t.puntos <= 11; });
-  var fuera   = trades.filter(function(t){ return t.puntos > 11; });
-  var wrDentro = dentro.length > 0 ? Math.round(dentro.filter(function(t){ return t.ganadora; }).length/dentro.length*1000)/10 : 0;
-  var wrFuera  = fuera.length  > 0 ? Math.round(fuera.filter(function(t){ return t.ganadora; }).length/fuera.length*1000)/10  : 0;
 
-  // Actualizar stats de cumplimiento
+  var n      = trades.length;
+  var edge   = trades.filter(function(t){ return t.puntos <= 11; });
+  var aire   = trades.filter(function(t){ return t.puntos > 11 && t.puntos <= 25; });
+  var limite = trades.filter(function(t){ return t.puntos > 25 && t.puntos <= 50; });
+  var afuera = trades.filter(function(t){ return t.puntos > 50; });
+  var dentro = edge;
+  var fuera  = trades.filter(function(t){ return t.puntos > 11; });
+
+  function wr(arr)  { return arr.length > 0 ? Math.round(arr.filter(function(t){ return t.ganadora; }).length/arr.length*1000)/10 : 0; }
+  function pnlSum(arr) { return Math.round(arr.reduce(function(s,t){ return s+(t.beneficio||0); },0)*100)/100; }
+  function pct(arr) { return Math.round(arr.length/n*1000)/10; }
+
+  var wrDentro = wr(dentro), wrFuera = wr(fuera);
+  var pnlDentro = pnlSum(dentro), pnlFuera = pnlSum(fuera);
+
+  // Hero stats
   var els = {
-    'cumpl-dentro-num': dentro.length,
-    'cumpl-dentro-pct': Math.round(dentro.length/trades.length*1000)/10 + '% de tus trades',
-    'cumpl-fuera-num':  fuera.length,
-    'cumpl-fuera-pct':  Math.round(fuera.length/trades.length*1000)/10 + '% — a revisar',
-    'cumpl-wr-dentro':  wrDentro + '%',
-    'cumpl-wr-fuera':   wrFuera + '%'
+    'cumpl-dentro-num':    dentro.length,
+    'cumpl-dentro-pct':    pct(dentro) + '% de tus trades',
+    'cumpl-fuera-num':     fuera.length,
+    'cumpl-fuera-pct':     pct(fuera) + '% — a revisar',
+    'cumpl-wr-dentro':     wrDentro + '%',
+    'cumpl-wr-dentro-sub': 'P&L ' + (pnlDentro >= 0 ? '+' : '') + pnlDentro + '$ · riesgo controlado',
+    'cumpl-wr-fuera':      wrFuera + '%',
+    'cumpl-wr-fuera-sub':  'P&L ' + (pnlFuera >= 0 ? '+' : '') + pnlFuera + '$ · más riesgo'
   };
   Object.keys(els).forEach(function(id) {
     var el = document.getElementById(id);
     if (el) el.textContent = els[id];
   });
+
+  // SL distribution (4 zones), normalized bar widths against the largest zone
+  var elSlDist = document.getElementById('cumpl-sl-dist');
+  if (elSlDist) {
+    var zonas = [
+      { label:'✦ Edge', desc:'≤ 11 puntos — SL perfecto',       arr:edge,   bg:'#c9a84c18', col:'#e8c870', border:'#c9a84c44', grad:'#c9a84c44,#e8c870' },
+      { label:'Aire',   desc:'12–25 puntos — tolerable',         arr:aire,   bg:'#aaa03a18', col:'#c8b040', border:'#aaa03a33', grad:'#aaa03a44,#c8b040' },
+      { label:'Límite', desc:'26–50 puntos — zona peligrosa',    arr:limite, bg:'#cc884418', col:'#cc8844', border:'#cc884433', grad:'#cc884444,#cc8844' },
+      { label:'Fuera',  desc:'&gt;50 puntos — fuera del método', arr:afuera, bg:'#cc443318', col:'#cc5544', border:'#cc443333', grad:'#cc443344,#cc5544' }
+    ];
+    var maxZ = Math.max.apply(null, zonas.map(function(z){ return z.arr.length; })) || 1;
+    var tagHtml = '<div class="tag" style="display:block;margin-bottom:1rem;">Distribución de SL · Dónde cerraste cada operación</div>';
+    var zonaHtml = zonas.map(function(z, i) {
+      var pctZ = Math.round(z.arr.length/n*1000)/10;
+      var barW = Math.round(z.arr.length/maxZ*100);
+      var mb   = i < zonas.length - 1 ? 'margin-bottom:.8rem;' : '';
+      return '<div style="display:flex;align-items:center;gap:1rem;padding:.8rem 1rem;border:1px solid var(--border);background:#0e0c08;'+mb+'">' +
+        '<div style="font-size:11px;padding:.2rem .7rem;letter-spacing:.15em;text-transform:uppercase;width:80px;text-align:center;flex-shrink:0;background:'+z.bg+';color:'+z.col+';border:1px solid '+z.border+';">'+z.label+'</div>' +
+        '<div style="flex:1;">' +
+        '<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-bottom:.3rem;"><span>'+z.desc+'</span><span style="color:'+z.col+';">'+pctZ+'%</span></div>' +
+        '<div style="height:4px;background:var(--border);border-radius:2px;"><div style="height:100%;width:'+barW+'%;background:linear-gradient(90deg,'+z.grad+');"></div></div>' +
+        '</div>' +
+        '<div style="font-family:\'Cormorant Garamond\',serif;font-size:20px;color:'+z.col+';width:40px;text-align:right;">'+z.arr.length+'</div>' +
+        '</div>';
+    }).join('');
+    elSlDist.innerHTML = tagHtml + zonaHtml;
+  }
+
+  // Alertas: top-3 trades with highest puntos (worst outliers)
+  var elAlertas = document.getElementById('cumpl-alertas');
+  if (elAlertas) {
+    var outliers = trades.filter(function(t){ return t.puntos > 25; })
+      .sort(function(a, b){ return b.puntos - a.puntos; })
+      .slice(0, 3);
+
+    var alertasHtml = '';
+    if (outliers.length) {
+      alertasHtml = outliers.map(function(t) {
+        var pts  = Math.round(t.puntos * 10) / 10;
+        var vol  = t.volumen && t.volumen > 0 ? t.volumen.toFixed(2) + ' lotes · ' : '';
+        var ben  = (t.beneficio >= 0 ? '+' : '') + Math.round(t.beneficio * 100) / 100 + '$';
+        var desc = t.beneficio > 0
+          ? 'Ganó ' + ben + ' pero con ' + pts + ' puntos de SL. Fuera del método aunque ganara.'
+          : 'Perdió ' + ben + '. SL excesivo de ' + pts + ' puntos.';
+        return '<div style="padding:.8rem 1rem;border:1px solid #cc443322;background:#cc443308;border-left:2px solid #cc4433;margin-bottom:.6rem;">' +
+          '<div style="font-size:12px;letter-spacing:.1em;color:#cc7755;margin-bottom:.3rem;">⚠ ' + vol + pts + ' puntos</div>' +
+          '<div style="font-size:13px;color:#7a4a38;line-height:1.6;">' + desc + '</div>' +
+          '</div>';
+      }).join('');
+    } else {
+      alertasHtml = '<div style="padding:1rem;border:1px solid #3AAA6A44;background:#3AAA6A08;border-left:2px solid var(--green);margin-bottom:.6rem;">' +
+        '<div style="font-size:14px;color:var(--green);">✓ Sin operaciones fuera del método</div>' +
+        '<div style="font-size:13px;color:var(--text-muted);margin-top:.3rem;line-height:1.6;">Todas tus operaciones respetan el SL del método.</div>' +
+        '</div>';
+    }
+
+    var pctEdge = pct(edge);
+    var lectura = pctEdge >= 70
+      ? '"El ' + pctEdge + '% de tus trades respetan el Edge 11. Tu win rate dentro del método es ' + wrDentro + '%. El proceso está en marcha."'
+      : '"El ' + pctEdge + '% de tus trades respetan el Edge 11. Cuando lo respetas, tu win rate sube al ' + wrDentro + '%. El método funciona — el reto es aplicarlo siempre."';
+
+    var tagHtml2 = '<div class="tag" style="display:block;margin-bottom:1rem;">Operaciones fuera del método · Las más críticas</div>';
+    var lecturaHtml = '<div style="padding:1rem;border:1px solid #c9a84c22;background:linear-gradient(135deg,#161208,#1a1608);border-left:2px solid #c9a84c;">' +
+      '<div style="font-size:10px;letter-spacing:.3em;text-transform:uppercase;color:#c9a84c;margin-bottom:.5rem;">✦ Lectura Aurum</div>' +
+      '<div style="font-size:13px;color:#8a7840;line-height:1.8;font-style:italic;">' + lectura + '</div>' +
+      '</div>';
+    elAlertas.innerHTML = tagHtml2 + alertasHtml + lecturaHtml;
+  }
+
+  // Periodo: current month
+  var elPeriodo = document.getElementById('cumpl-periodo-txt');
+  if (elPeriodo) {
+    var MESES_LARGO = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    var ahora = new Date();
+    elPeriodo.textContent = MESES_LARGO[ahora.getMonth()] + ' ' + ahora.getFullYear();
+  }
 }
 
 // Diario

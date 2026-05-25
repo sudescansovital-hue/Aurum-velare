@@ -296,6 +296,7 @@ async function actualizarDashboard() {
   if (typeof buildCicloDots === 'function') buildCicloDots();
   if (typeof buildHorarios === 'function') buildHorarios();
   if (typeof buildCumplimiento === 'function') buildCumplimiento();
+  if (typeof buildEquity === 'function') buildEquity();
 
   // Actualizar stats globales de Historial Externo
   var htEl = document.getElementById('hist-global-trades');

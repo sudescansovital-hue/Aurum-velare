@@ -2074,8 +2074,8 @@
 
       <div style="margin-top:22px;padding:1.5rem 2rem;border-bottom:1px solid var(--border);">
         <div style="font-family:'Cormorant Garamond',serif;font-size:26px;color:var(--gold-bright);margin-bottom:.3rem;">Curva de Equity acumulada</div>
-        <div style="font-size:14px;color:var(--text-muted);margin-bottom:1rem;">3 cuentas · 254 trades · Feb–May 2026</div>
-        <div style="position:relative;height:180px;background:#060810;border:1px solid var(--border);border-radius:4px;overflow:hidden;margin-bottom:.5rem;">
+        <div id="equity-sub" style="font-size:14px;color:var(--text-muted);margin-bottom:1rem;">3 cuentas · 254 trades · Feb–May 2026</div>
+        <div id="equity-chart" style="position:relative;height:180px;background:#060810;border:1px solid var(--border);border-radius:4px;overflow:hidden;margin-bottom:.5rem;">
           <svg width="100%" height="100%" viewBox="0 0 800 180" preserveAspectRatio="none">
             <defs><linearGradient id="eg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#C9A84C" stop-opacity="0.2"/><stop offset="100%" stop-color="#C9A84C" stop-opacity="0"/></linearGradient></defs>
             <line x1="0" y1="45" x2="800" y2="45" stroke="#1A2040" stroke-width="0.5"/>
@@ -2087,17 +2087,17 @@
             <text x="793" y="16" text-anchor="end" fill="#E8C870" font-size="11" font-family="sans-serif">+5.168$</text>
           </svg>
         </div>
-        <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text-muted);"><span>Feb 2026</span><span>Mar 2026</span><span>Abr 2026</span><span>May 2026</span></div>
+        <div id="equity-fechas" style="display:flex;justify-content:space-between;font-size:13px;color:var(--text-muted);"><span>Feb 2026</span><span>Mar 2026</span><span>Abr 2026</span><span>May 2026</span></div>
       </div>
 
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border-bottom:1px solid var(--border);">
+      <div id="equity-meses" style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border-bottom:1px solid var(--border);">
         <div class="stat-card" style="text-align:center;"><div class="stat-label">Feb 2026</div><div class="stat-val green" style="font-size:26px;">+208$</div><div class="stat-sub">33 trades · Inicio</div></div>
         <div class="stat-card" style="text-align:center;"><div class="stat-label">Mar 2026</div><div class="stat-val green" style="font-size:26px;">+2.381$</div><div class="stat-sub">111 trades · Ciclo 1</div></div>
         <div class="stat-card" style="text-align:center;"><div class="stat-label">Abr 2026</div><div class="stat-val green" style="font-size:26px;">+2.353$</div><div class="stat-sub">104 trades · Ciclo 2</div></div>
         <div class="stat-card" style="text-align:center;border:1px solid var(--border-gold);"><div class="stat-label" style="color:var(--gold);">May 2026 · En curso</div><div class="stat-val gold" style="font-size:26px;">+226$</div><div class="stat-sub">6 trades</div></div>
       </div>
 
-      <div style="padding:1.5rem 2rem;background:linear-gradient(135deg,var(--bg2),var(--bg));position:relative;">
+      <div id="equity-camino" style="padding:1.5rem 2rem;background:linear-gradient(135deg,var(--bg2),var(--bg));position:relative;">
         <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>
         <div class="tag-gold" style="display:block;margin-bottom:1rem;">✦ Camino matemático a la Etapa 5</div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;">
@@ -2130,30 +2130,30 @@
         <div class="stat-card" style="text-align:center;position:relative;">
           <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--green),transparent);"></div>
           <div class="stat-label">Cumplen el método</div>
-          <div class="stat-val green" style="font-size:36px;">123</div>
-          <div class="stat-sub">78.8% de tus trades</div>
+          <div id="cumpl-dentro-num" class="stat-val green" style="font-size:36px;">123</div>
+          <div id="cumpl-dentro-pct" class="stat-sub">78.8% de tus trades</div>
         </div>
         <div class="stat-card" style="text-align:center;position:relative;">
           <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--red),transparent);"></div>
           <div class="stat-label">Fuera del método</div>
-          <div class="stat-val red" style="font-size:36px;">33</div>
-          <div class="stat-sub">21.2% — a revisar</div>
+          <div id="cumpl-fuera-num" class="stat-val red" style="font-size:36px;">33</div>
+          <div id="cumpl-fuera-pct" class="stat-sub">21.2% — a revisar</div>
         </div>
         <div class="stat-card" style="text-align:center;">
           <div class="stat-label">WR dentro del método</div>
-          <div class="stat-val green" style="font-size:36px;">60.2%</div>
-          <div class="stat-sub">P&L +758€ · riesgo controlado</div>
+          <div id="cumpl-wr-dentro" class="stat-val green" style="font-size:36px;">60.2%</div>
+          <div id="cumpl-wr-dentro-sub" class="stat-sub">P&L +758€ · riesgo controlado</div>
         </div>
         <div class="stat-card" style="text-align:center;">
           <div class="stat-label">WR fuera del método</div>
-          <div class="stat-val red" style="font-size:36px;">54.5%</div>
-          <div class="stat-sub">P&L +664€ · más riesgo</div>
+          <div id="cumpl-wr-fuera" class="stat-val red" style="font-size:36px;">54.5%</div>
+          <div id="cumpl-wr-fuera-sub" class="stat-sub">P&L +664€ · más riesgo</div>
         </div>
       </div>
 
       <!-- Distribución SL -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);border-top:1px solid var(--border);">
-        <div class="cell">
+        <div class="cell" id="cumpl-sl-dist">
           <div class="tag" style="display:block;margin-bottom:1rem;">Distribución de SL · Dónde cerraste cada operación</div>
 
           <div style="display:flex;align-items:center;gap:1rem;margin-bottom:.8rem;padding:.8rem 1rem;border:1px solid var(--border);background:#0e0c08;">
@@ -2194,7 +2194,7 @@
         </div>
 
         <!-- Alertas -->
-        <div class="cell">
+        <div class="cell" id="cumpl-alertas">
           <div class="tag" style="display:block;margin-bottom:1rem;">Operaciones fuera del método · Las más críticas</div>
 
           <div style="padding:.8rem 1rem;border:1px solid #cc443322;background:#cc443308;border-left:2px solid #cc4433;margin-bottom:.6rem;">
@@ -2220,7 +2220,7 @@
 
       <!-- Periodo -->
       <div style="padding:1rem 2rem;border-top:1px solid var(--border);background:var(--bg2);display:flex;align-items:center;justify-content:space-between;">
-        <div style="font-size:13px;color:var(--text-muted);">Análisis correspondiente a: <strong style="color:var(--text-dim);">Abril 2026</strong></div>
+        <div style="font-size:13px;color:var(--text-muted);">Análisis correspondiente a: <strong id="cumpl-periodo-txt" style="color:var(--text-dim);">Abril 2026</strong></div>
         <div style="display:flex;gap:.5rem;">
           <div class="ctrl-btn" style="font-size:12px;">← Mes anterior</div>
           <div class="ctrl-btn" style="font-size:12px;">Mes siguiente →</div>
