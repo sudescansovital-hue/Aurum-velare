@@ -1203,3 +1203,20 @@ tr:hover td { background: #0E1020; }
 /* Fullscreen a nivel documento — el nav queda visible, el layout ya usa 100vh */
 :fullscreen          body { overflow: hidden; }
 :-webkit-full-screen body { overflow: hidden; }
+
+/* ── Sala: tabs Chat / Jitsi ─────────────────────────────── */
+.sala-tab {
+  flex: 1;
+  padding: .55rem .4rem;
+  font-size: 10px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  cursor: pointer;
+  text-align: center;
+  border-bottom: 2px solid transparent;
+  transition: color .2s, border-color .2s;
+  user-select: none;
+}
+.sala-tab:hover { color: var(--gold-dim); }
+.sala-tab-activo { color: var(--gold); border-bottom-color: var(--gold); }

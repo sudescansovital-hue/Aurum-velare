@@ -832,10 +832,10 @@
     <div style="margin-left:auto;font-size:12px;color:var(--text-muted);font-style:italic;">Solo audio</div>
   </div>
 
-  <div style="display:grid;grid-template-columns:1fr 300px;height:calc(100vh - 107px);">
+  <div id="sala-main-layout" style="display:flex;height:calc(100vh - 107px);">
 
     <!-- IZQUIERDA: gráfico + participantes + controles -->
-    <div style="display:flex;flex-direction:column;min-height:0;overflow:hidden;">
+    <div style="display:flex;flex-direction:column;flex:1;min-width:0;min-height:0;overflow:hidden;">
 
       <!-- Área del gráfico — ocupa todo el espacio disponible -->
       <div id="sala-chart-wrap" style="flex:1;position:relative;background:#040710;min-height:0;overflow:hidden;">
@@ -915,7 +915,7 @@
         <div style="display:flex;gap:.4rem;">
           <div id="sala-btn-micro" class="ctrl-btn on" onclick="toggleMicrofono()" style="min-width:94px;text-align:center;">🎙 Micro</div>
           <div class="ctrl-btn disabled" title="Videollamada disponible próximamente">📵 Sin vídeo</div>
-          <div class="ctrl-btn">🖥 Compartir</div>
+          <div id="sala-btn-compartir" class="ctrl-btn" onclick="salaCompartirPantalla()">🖥 Compartir</div>
           <div class="ctrl-btn">✋ Mano</div>
           <div class="ctrl-btn" style="color:var(--red);border-color:#CC443333;" onclick="salirDeSala()">✕ Salir</div>
         </div>
@@ -923,55 +923,77 @@
 
     </div>
 
-    <!-- CHAT -->
-    <div style="display:flex;flex-direction:column;border-left:1px solid var(--border);background:var(--bg2);">
-      <div style="padding:.8rem 1rem;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
-        <div style="font-size:14px;letter-spacing:.15em;color:var(--gold-dim);" id="sala-chat-title">Sala León · Chat</div>
-        <div style="display:flex;align-items:center;gap:.4rem;font-size:13px;color:var(--green);">
-          <div style="width:4px;height:4px;border-radius:50%;background:var(--green);animation:pulse 2s infinite;"></div>
-          <span id="sala-chat-conectados">5 conectados</span>
+    <!-- PANEL DERECHO: Chat + Jitsi con tabs -->
+    <div id="sala-panel-derecho" style="display:flex;flex-direction:column;border-left:1px solid var(--border);background:var(--bg2);width:300px;flex-shrink:0;transition:width .3s;overflow:hidden;">
+
+      <!-- Tabs -->
+      <div style="display:flex;border-bottom:1px solid var(--border);background:#060810;flex-shrink:0;">
+        <div id="sala-tab-chat"  class="sala-tab sala-tab-activo" onclick="salaPanelTab('chat')">💬 Chat</div>
+        <div id="sala-tab-jitsi" class="sala-tab"                 onclick="salaPanelTab('jitsi')">🖥 Jitsi</div>
+        <div id="sala-jitsi-cerrar-btn" onclick="cerrarJitsi()" style="display:none;padding:.5rem .7rem;font-size:11px;color:var(--red);cursor:pointer;border-left:1px solid var(--border);white-space:nowrap;letter-spacing:.04em;" title="Cerrar Jitsi">✕ Cerrar</div>
+      </div>
+
+      <!-- ── Contenido: CHAT ── -->
+      <div id="sala-panel-chat" style="display:flex;flex-direction:column;flex:1;min-height:0;">
+        <div style="padding:.8rem 1rem;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+          <div style="font-size:14px;letter-spacing:.15em;color:var(--gold-dim);" id="sala-chat-title">Sala León · Chat</div>
+          <div style="display:flex;align-items:center;gap:.4rem;font-size:13px;color:var(--green);">
+            <div style="width:4px;height:4px;border-radius:50%;background:var(--green);animation:pulse 2s infinite;"></div>
+            <span id="sala-chat-conectados">5 conectados</span>
+          </div>
+        </div>
+        <div style="flex:1;padding:.8rem 1rem;overflow-y:auto;display:flex;flex-direction:column;gap:.7rem;min-height:0;" id="sala-chat-msgs">
+          <div style="border-left:2px solid var(--border-gold);padding-left:.6rem;">
+            <div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.2rem;">
+              <div style="font-size:15px;">—</div>
+              <div style="font-size:13px;color:var(--gold-dim);">Águila</div>
+              <div style="font-size:10px;color:var(--text-muted);margin-left:auto;">18:15</div>
+            </div>
+            <div style="font-size:15px;color:var(--text-dim);line-height:1.6;">Nivel H4 respetado tres semanas. Paciencia.</div>
+          </div>
+          <div>
+            <div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.2rem;">
+              <div style="font-size:15px;">—</div>
+              <div style="font-size:13px;color:var(--text-muted);">Toro_01</div>
+              <div style="font-size:10px;color:var(--text-muted);margin-left:auto;">18:17</div>
+            </div>
+            <div style="font-size:15px;color:var(--text-dim);line-height:1.6;">Lo veo clarísimo desde el martes.</div>
+          </div>
+          <div style="border-left:2px solid var(--gold);padding-left:.6rem;">
+            <div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.2rem;">
+              <div style="font-size:15px;">—</div>
+              <div style="font-size:13px;color:var(--gold-bright);" id="sala-tu-msg-name">Roderas (Tú)</div>
+              <div style="font-size:10px;color:var(--text-muted);margin-left:auto;">18:30</div>
+            </div>
+            <div style="font-size:15px;color:var(--text-dim);line-height:1.6;">Sin novedad. Esperando.</div>
+          </div>
+        </div>
+        <div style="padding:.6rem .8rem;background:#060810;border-top:1px solid var(--border);flex-shrink:0;">
+          <div style="display:flex;gap:.4rem;margin-bottom:.5rem;">
+            <div style="padding:.3rem .5rem;border:1px solid var(--border);font-size:16px;cursor:pointer;background:#0E1020;border-radius:2px;transition:border-color .2s;" title="De acuerdo" onmouseover="this.style.borderColor='var(--border-gold)'" onmouseout="this.style.borderColor='var(--border)'">👍</div>
+            <div style="padding:.3rem .5rem;border:1px solid var(--border);font-size:16px;cursor:pointer;background:#0E1020;border-radius:2px;transition:border-color .2s;" title="Lo veo" onmouseover="this.style.borderColor='var(--border-gold)'" onmouseout="this.style.borderColor='var(--border)'">👀</div>
+            <div style="padding:.3rem .5rem;border:1px solid var(--border);font-size:16px;cursor:pointer;background:#0E1020;border-radius:2px;transition:border-color .2s;" title="Levantar mano" onmouseover="this.style.borderColor='var(--border-gold)'" onmouseout="this.style.borderColor='var(--border)'">✋</div>
+            <div style="padding:.3rem .5rem;border:1px solid var(--border);font-size:16px;cursor:pointer;background:#0E1020;border-radius:2px;transition:border-color .2s;" title="Tengo duda" onmouseover="this.style.borderColor='var(--border-gold)'" onmouseout="this.style.borderColor='var(--border)'">❓</div>
+          </div>
+          <div style="display:flex;gap:.5rem;">
+            <input id="sala-chat-input" type="text" placeholder="Escribe en la sala..." style="flex:1;background:#060810;border:1px solid var(--border);padding:.5rem .8rem;font-size:15px;color:var(--text);font-family:'Outfit',sans-serif;outline:none;transition:border-color .3s;" onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--border)'" onkeydown="if(event.key==='Enter')enviarMensajeSala()">
+            <div onclick="enviarMensajeSala()" style="padding:.5rem .8rem;border:1px solid var(--border-gold);background:var(--gold-glow);color:var(--gold);cursor:pointer;font-size:15px;">✦</div>
+          </div>
         </div>
       </div>
 
-      <div style="flex:1;padding:.8rem 1rem;overflow-y:auto;display:flex;flex-direction:column;gap:.7rem;min-height:0;" id="sala-chat-msgs">
-        <div style="border-left:2px solid var(--border-gold);padding-left:.6rem;">
-          <div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.2rem;">
-            <div style="font-size:15px;">—</div>
-            <div style="font-size:13px;color:var(--gold-dim);">Águila</div>
-            <div style="font-size:10px;color:var(--text-muted);margin-left:auto;">18:15</div>
-          </div>
-          <div style="font-size:15px;color:var(--text-dim);line-height:1.6;">Nivel H4 respetado tres semanas. Paciencia.</div>
+      <!-- ── Contenido: JITSI ── -->
+      <div id="sala-panel-jitsi" style="display:none;flex-direction:column;flex:1;min-height:0;">
+        <div style="padding:.4rem .9rem;font-size:11px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;color:var(--text-muted);">
+          <span>🟢 <span id="sala-jitsi-room-label" style="color:var(--gold-dim);">—</span></span>
+          <span style="font-style:italic;">audio · pantalla compartida</span>
         </div>
-        <div>
-          <div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.2rem;">
-            <div style="font-size:15px;">—</div>
-            <div style="font-size:13px;color:var(--text-muted);">Toro_01</div>
-            <div style="font-size:10px;color:var(--text-muted);margin-left:auto;">18:17</div>
-          </div>
-          <div style="font-size:15px;color:var(--text-dim);line-height:1.6;">Lo veo clarísimo desde el martes.</div>
+        <div style="padding:.5rem .9rem;background:#0A0C16;font-size:11px;color:var(--text-muted);border-bottom:1px solid var(--border);flex-shrink:0;" id="sala-jitsi-estado">
+          Cargando Jitsi Meet…
         </div>
-        <div style="border-left:2px solid var(--gold);padding-left:.6rem;">
-          <div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.2rem;">
-            <div style="font-size:15px;">—</div>
-            <div style="font-size:13px;color:var(--gold-bright);" id="sala-tu-msg-name">Roderas (Tú)</div>
-            <div style="font-size:10px;color:var(--text-muted);margin-left:auto;">18:30</div>
-          </div>
-          <div style="font-size:15px;color:var(--text-dim);line-height:1.6;">Sin novedad. Esperando.</div>
-        </div>
+        <div id="sala-jitsi-container" style="flex:1;min-height:0;background:#050710;"></div>
       </div>
 
-      <div style="padding:.6rem .8rem;background:#060810;border-top:1px solid var(--border);">
-        <div style="display:flex;gap:.4rem;margin-bottom:.5rem;">
-          <div style="padding:.3rem .5rem;border:1px solid var(--border);font-size:16px;cursor:pointer;background:#0E1020;border-radius:2px;transition:border-color .2s;" title="De acuerdo" onmouseover="this.style.borderColor='var(--border-gold)'" onmouseout="this.style.borderColor='var(--border)'">👍</div>
-          <div style="padding:.3rem .5rem;border:1px solid var(--border);font-size:16px;cursor:pointer;background:#0E1020;border-radius:2px;transition:border-color .2s;" title="Lo veo" onmouseover="this.style.borderColor='var(--border-gold)'" onmouseout="this.style.borderColor='var(--border)'">👀</div>
-          <div style="padding:.3rem .5rem;border:1px solid var(--border);font-size:16px;cursor:pointer;background:#0E1020;border-radius:2px;transition:border-color .2s;" title="Levantar mano" onmouseover="this.style.borderColor='var(--border-gold)'" onmouseout="this.style.borderColor='var(--border)'">✋</div>
-          <div style="padding:.3rem .5rem;border:1px solid var(--border);font-size:16px;cursor:pointer;background:#0E1020;border-radius:2px;transition:border-color .2s;" title="Tengo duda" onmouseover="this.style.borderColor='var(--border-gold)'" onmouseout="this.style.borderColor='var(--border)'">❓</div>
-        </div>
-        <div style="display:flex;gap:.5rem;">
-          <input id="sala-chat-input" type="text" placeholder="Escribe en la sala..." style="flex:1;background:#060810;border:1px solid var(--border);padding:.5rem .8rem;font-size:15px;color:var(--text);font-family:'Outfit',sans-serif;outline:none;transition:border-color .3s;" onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--border)'" onkeydown="if(event.key==='Enter')enviarMensajeSala()">
-          <div onclick="enviarMensajeSala()" style="padding:.5rem .8rem;border:1px solid var(--border-gold);background:var(--gold-glow);color:var(--gold);cursor:pointer;font-size:15px;">✦</div>
-        </div>
-      </div>
     </div>
 
   </div>
