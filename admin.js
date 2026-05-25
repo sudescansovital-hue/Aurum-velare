@@ -24,8 +24,8 @@ const ADMIN_EMAIL = 'sudescansovital@gmail.com';
 var adminUsuarios  = [];
 var adminEditId    = null;
 
-var PACK_PRECIOS = { hormiga:97, toro:197, aguila:297, demo:0 };
-var PACK_LABELS  = { hormiga:'Hormiga', toro:'Toro', aguila:'Águila', demo:'Demo' };
+var PACK_PRECIOS = { hormiga:97, toro:197, aguila:297, leon:397, demo:0 };
+var PACK_LABELS  = { hormiga:'Hormiga', toro:'Toro', aguila:'Águila', leon:'León', demo:'Demo' };
 
 function esAdmin() {
   return usuarioActual && usuarioActual.email === ADMIN_EMAIL;
