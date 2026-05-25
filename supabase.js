@@ -199,7 +199,9 @@ async function guardarTradesIndividuales(trades, cuenta) {
       ganadora: t.ganadora || false,
       hora: t.hora || 0,
       dia: t.dia || 0,
-      dur_min: t.durMin || 0
+      dur_min: t.durMin || 0,
+      sl: t.sl != null ? Math.round(t.sl * 100) / 100 : null,
+      tp: t.tp != null ? Math.round(t.tp * 100) / 100 : null
     };
   });
 

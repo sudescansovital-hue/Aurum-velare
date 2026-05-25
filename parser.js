@@ -117,6 +117,8 @@ function _parsearCtrader(raw) {
     var tipo = String(row[3]||'').toLowerCase().trim();
     var vol  = _num(volStr);
     var pe   = _num(row[5]);
+    var sl   = _num(row[6]);
+    var tp   = _num(row[7]);
     var pc   = _num(row[9]);
     var ben  = _num(row[12]);
     if (ben === null || pe === null || pc === null) continue;
@@ -128,7 +130,7 @@ function _parsearCtrader(raw) {
     var hora = fAp ? fAp.getHours() : 0;
     var dia  = fAp ? (fAp.getDay() + 6) % 7 : 0;
     var durMin = (fAp && fCi) ? Math.round((fCi - fAp) / 60000) : 60;
-    trades.push({ fp, ben, vol, pe, pc, puntos: Math.abs(puntos), ganadora: ben > 0, hora, dia, durMin });
+    trades.push({ fp, ben, vol, pe, pc, puntos: Math.abs(puntos), ganadora: ben > 0, hora, dia, durMin, sl, tp });
   }
   return trades;
 }
@@ -136,7 +138,7 @@ function _parsearCtrader(raw) {
 // Parser MT5
 function _parsearMT5(raw) {
   var trades = [];
-  var headerRow=-1, colSym=-1, colTipo=-1, colVol=-1, colPe=-1, colPc=-1, colBen=-1, colAp=-1, colCi=-1;
+  var headerRow=-1, colSym=-1, colTipo=-1, colVol=-1, colPe=-1, colPc=-1, colBen=-1, colAp=-1, colCi=-1, colSl=-1, colTp=-1;
   for (var r = 0; r < raw.length; r++) {
     var row = raw[r].map(function(h){ return String(h||'').toLowerCase().trim(); });
     var sIdx = row.findIndex(function(h){ return h==='símbolo'||h==='simbolo'||h==='symbol'; });
@@ -147,6 +149,8 @@ function _parsearMT5(raw) {
       colPe   = row.findIndex(function(h){ return h==='precio'||h==='price'||h==='open price'; });
       colBen  = row.findIndex(function(h){ return h==='beneficio'||h==='profit'; });
       colAp   = row.findIndex(function(h){ return h==='fecha/hora'||h==='open time'||h==='time'; });
+      colSl   = row.findIndex(function(h){ return h==='s / l'||h==='sl'||h==='stop loss'||h==='s/l'; });
+      colTp   = row.findIndex(function(h){ return h==='t / p'||h==='tp'||h==='take profit'||h==='t/p'; });
       var precioIdxs = row.reduce(function(acc,h,i){ if(h==='precio'||h==='price') acc.push(i); return acc; }, []);
       colPc = precioIdxs.length>1 ? precioIdxs[1] : colBen-1;
       var fechaIdxs = row.reduce(function(acc,h,i){ if(h==='fecha/hora'||h==='time'||h==='close time') acc.push(i); return acc; }, []);
@@ -157,7 +161,7 @@ function _parsearMT5(raw) {
   if (headerRow===-1) {
     for (var r=0; r<raw.length; r++) {
       var sym=String(raw[r][2]||'').toUpperCase();
-      if (sym.includes('XAU')||sym.includes('GOLD')) { headerRow=r-1;colAp=0;colSym=2;colTipo=3;colVol=4;colPe=5;colCi=8;colPc=9;colBen=12;break; }
+      if (sym.includes('XAU')||sym.includes('GOLD')) { headerRow=r-1;colAp=0;colSym=2;colTipo=3;colVol=4;colPe=5;colSl=6;colTp=7;colCi=8;colPc=9;colBen=12;break; }
     }
   }
   if (headerRow===-1) return [];
@@ -171,11 +175,13 @@ function _parsearMT5(raw) {
     if(tipo&&tipo!=='buy'&&tipo!=='sell'&&tipo!=='compra'&&tipo!=='venta') continue;
     var ben=toNum(row[colBen]),vol=toNum(row[colVol]),pe=toNum(row[colPe]),pc=toNum(row[colPc]);
     if(isNaN(ben)||isNaN(vol)||vol===0) continue;
+    var sl=colSl>=0?toNum(row[colSl]):NaN;
+    var tp=colTp>=0?toNum(row[colTp]):NaN;
     var apDt=toDate(row[colAp]),ciDt=toDate(row[colCi]);
     var hora=0,dia=1,durMin=60;
     if(apDt&&!isNaN(apDt)){ hora=apDt.getHours(); dia=(apDt.getDay()+6)%7; if(ciDt&&!isNaN(ciDt)) durMin=(ciDt-apDt)/60000; }
     var fp=String(row[1]||'')+'_'+String(row[colAp]||'')+'_'+pe+'_'+vol;
-    trades.push({ fp, ben, vol, pe, pc:isNaN(pc)?pe:pc, puntos:Math.abs((isNaN(pc)?pe:pc)-pe), ganadora:ben>0, hora, dia, durMin });
+    trades.push({ fp, ben, vol, pe, pc:isNaN(pc)?pe:pc, puntos:Math.abs((isNaN(pc)?pe:pc)-pe), ganadora:ben>0, hora, dia, durMin, sl:isNaN(sl)?null:sl, tp:isNaN(tp)?null:tp });
   }
   return trades;
 }
