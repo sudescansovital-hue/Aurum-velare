@@ -1989,27 +1989,27 @@
         </div>
         <div>
           <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text-muted);margin-bottom:.5rem;">
-            <span>Ciclo 1 — completado</span><span style="color:var(--gold-bright);">111 / 111 trades</span>
+            <span id="ciclo-completado-label">Ciclo 1 — completado</span><span id="ciclo-completado-trades" style="color:var(--gold-bright);">111 / 111 trades</span>
           </div>
           <div style="height:4px;background:var(--border);border-radius:2px;margin-bottom:.8rem;">
             <div style="height:100%;width:100%;background:linear-gradient(90deg,#C9A84C44,var(--gold-bright));border-radius:2px;"></div>
           </div>
-          <div style="font-size:12px;color:var(--text-muted);margin-bottom:.5rem;">Ciclo 2 en curso — 32 trades</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:.5rem;" id="ciclo-encurso-txt">Ciclo 2 en curso — 32 trades</div>
           <div style="display:flex;gap:3px;flex-wrap:wrap;" id="gest-ciclo-dots"></div>
         </div>
         <div style="text-align:center;">
           <div class="tag" style="margin-bottom:.3rem;">Puntuación C1</div>
-          <div style="font-family:'Cormorant Garamond',serif;font-size:64px;color:var(--gold-bright);text-shadow:0 0 30px var(--gold-glow);line-height:1;">76</div>
+          <div style="font-family:'Cormorant Garamond',serif;font-size:64px;color:var(--gold-bright);text-shadow:0 0 30px var(--gold-glow);line-height:1;" id="ciclo-puntuacion">76</div>
           <div style="font-size:13px;color:var(--gold-dim);">/100 · Proceso sólido</div>
         </div>
       </div>
 
       <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--border);">
-        <div class="stat-card" style="text-align:center;"><div class="stat-label">Win Rate</div><div class="stat-val green" style="font-size:28px;">64%</div><div class="stat-sub">71 wins de 111</div></div>
-        <div class="stat-card" style="text-align:center;"><div class="stat-label">P&L Ciclo 1</div><div class="stat-val green" style="font-size:28px;">+1.500€</div><div class="stat-sub">Rentabilidad real</div></div>
-        <div class="stat-card" style="text-align:center;"><div class="stat-label">R/R</div><div class="stat-val gold" style="font-size:28px;">1.68</div><div class="stat-sub">22.5 / 13.5 pts</div></div>
-        <div class="stat-card" style="text-align:center;"><div class="stat-label">Esperanza</div><div class="stat-val green" style="font-size:28px;">+9.57</div><div class="stat-sub">pts por trade</div></div>
-        <div class="stat-card" style="text-align:center;"><div class="stat-label">Cumplimiento</div><div class="stat-val gold" style="font-size:28px;">79.3%</div><div class="stat-sub">88 de 111 dentro</div></div>
+        <div class="stat-card" style="text-align:center;"><div class="stat-label">Win Rate</div><div class="stat-val green" style="font-size:28px;" id="ciclo-wr">64%</div><div class="stat-sub" id="ciclo-wr-sub">71 wins de 111</div></div>
+        <div class="stat-card" style="text-align:center;"><div class="stat-label">P&L Ciclo 1</div><div class="stat-val green" style="font-size:28px;" id="ciclo-pnl">+1.500€</div><div class="stat-sub">Rentabilidad real</div></div>
+        <div class="stat-card" style="text-align:center;"><div class="stat-label">R/R</div><div class="stat-val gold" style="font-size:28px;" id="ciclo-rr">1.68</div><div class="stat-sub">22.5 / 13.5 pts</div></div>
+        <div class="stat-card" style="text-align:center;"><div class="stat-label">Esperanza</div><div class="stat-val green" style="font-size:28px;" id="ciclo-esp">+9.57</div><div class="stat-sub">pts por trade</div></div>
+        <div class="stat-card" style="text-align:center;"><div class="stat-label">Cumplimiento</div><div class="stat-val gold" style="font-size:28px;" id="ciclo-cumpl">79.3%</div><div class="stat-sub" id="ciclo-cumpl-sub">88 de 111 dentro</div></div>
       </div>
 
       <div style="padding:1.5rem 2rem;background:linear-gradient(135deg,var(--bg2),var(--bg));position:relative;">
