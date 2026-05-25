@@ -292,6 +292,11 @@ async function actualizarDashboard() {
 
   console.log('Dashboard actualizado con ' + todos.length + ' trades reales');
 
+  // Actualizar tabs visibles con datos reales
+  if (typeof buildCicloDots === 'function') buildCicloDots();
+  if (typeof buildHorarios === 'function') buildHorarios();
+  if (typeof buildCumplimiento === 'function') buildCumplimiento();
+
   // Actualizar stats globales de Historial Externo
   var htEl = document.getElementById('hist-global-trades');
   if (htEl) htEl.textContent = mG.total;
