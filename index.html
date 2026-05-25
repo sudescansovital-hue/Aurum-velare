@@ -56,6 +56,7 @@
       <a class="nav-link" onclick="irA('preguntas')">Tablillas</a>
       <a class="nav-link" onclick="irA('dashboard')">Mi proceso</a>
       <a class="nav-link" onclick="irA('gestion')">Mi gestión</a>
+      <a class="nav-link" id="nav-admin-link" style="display:none;color:#cc6644;" onclick="irA('admin')">⚙ Admin</a>
     </div>
   </div>
 
@@ -2534,6 +2535,142 @@
 </div>
 
 
+<!-- ============================================================
+     PÁGINA: ADMIN
+     ============================================================ -->
+<div id="page-admin" class="page-content" style="display:none;">
+
+  <!-- Header -->
+  <div style="padding:2rem 3rem;background:var(--bg2);border-bottom:2px solid #cc664422;display:flex;align-items:center;justify-content:space-between;">
+    <div>
+      <div style="font-family:'Cormorant Garamond',serif;font-size:30px;color:#cc9966;letter-spacing:.05em;">Panel de Administración</div>
+      <div style="font-size:11px;color:var(--text-muted);letter-spacing:.2em;text-transform:uppercase;margin-top:.2rem;">Aurum Velare · Acceso restringido · <span id="admin-email-label" style="color:#cc6644;"></span></div>
+    </div>
+    <button onclick="cargarUsuariosAdmin()" style="font-size:12px;padding:.5rem 1.2rem;background:transparent;border:1px solid #cc664444;color:#cc9966;cursor:pointer;letter-spacing:.1em;">↻ Recargar</button>
+  </div>
+
+  <!-- Stats globales -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border-bottom:1px solid var(--border);">
+    <div class="stat-card" style="text-align:center;">
+      <div class="stat-label">Total usuarios</div>
+      <div id="admin-stat-total" style="font-family:'Cormorant Garamond',serif;font-size:42px;color:#cc9966;line-height:1.1;">—</div>
+    </div>
+    <div class="stat-card" style="text-align:center;">
+      <div class="stat-label">Activos</div>
+      <div id="admin-stat-activos" style="font-family:'Cormorant Garamond',serif;font-size:42px;color:var(--green);line-height:1.1;">—</div>
+    </div>
+    <div class="stat-card" style="text-align:center;">
+      <div class="stat-label">Inactivos / Expirados</div>
+      <div id="admin-stat-inactivos" style="font-family:'Cormorant Garamond',serif;font-size:42px;color:var(--text-muted);line-height:1.1;">—</div>
+    </div>
+    <div class="stat-card" style="text-align:center;">
+      <div class="stat-label">Ingresos estimados</div>
+      <div id="admin-stat-ingresos" style="font-family:'Cormorant Garamond',serif;font-size:36px;color:#cc9966;line-height:1.1;">—</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:.3rem;">Hormiga 97€ · Toro 197€ · Águila 297€</div>
+    </div>
+  </div>
+
+  <!-- Grid principal -->
+  <div style="display:grid;grid-template-columns:1fr 340px;gap:0;background:var(--border);">
+
+    <!-- IZQUIERDA: tabla de usuarios -->
+    <div style="background:var(--bg);padding:1.5rem 2rem;">
+
+      <!-- Búsqueda -->
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem;">
+        <div style="font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#cc9966;flex-shrink:0;">Usuarios</div>
+        <input id="admin-buscar" oninput="adminFiltrarTabla(this.value)" placeholder="Buscar email, pack, etapa..." style="flex:1;background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:.45rem .9rem;font-size:13px;outline:none;font-family:inherit;">
+      </div>
+
+      <!-- Tabla -->
+      <div style="overflow-x:auto;border:1px solid var(--border);">
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr style="background:#0A0C18;border-bottom:1px solid #cc664433;">
+              <th style="padding:.6rem 1rem;font-size:11px;letter-spacing:.1em;color:#cc9966;font-weight:400;text-align:left;text-transform:uppercase;">Email</th>
+              <th style="padding:.6rem .9rem;font-size:11px;letter-spacing:.1em;color:#cc9966;font-weight:400;text-align:left;text-transform:uppercase;">Pack</th>
+              <th style="padding:.6rem .9rem;font-size:11px;letter-spacing:.1em;color:#cc9966;font-weight:400;text-align:left;text-transform:uppercase;">Etapa</th>
+              <th style="padding:.6rem .9rem;font-size:11px;letter-spacing:.1em;color:#cc9966;font-weight:400;text-align:left;text-transform:uppercase;">Cuenta MT5</th>
+              <th style="padding:.6rem .9rem;font-size:11px;letter-spacing:.1em;color:#cc9966;font-weight:400;text-align:left;text-transform:uppercase;">Expiración</th>
+              <th style="padding:.6rem .9rem;font-size:11px;letter-spacing:.1em;color:#cc9966;font-weight:400;text-align:left;text-transform:uppercase;">Estado</th>
+              <th style="padding:.6rem .9rem;font-size:11px;color:transparent;text-align:left;">—</th>
+            </tr>
+          </thead>
+          <tbody id="admin-tabla-body">
+            <tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:2rem;">Cargando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Añadir usuario -->
+      <div style="margin-top:1.5rem;padding:1.2rem 1.5rem;background:var(--bg2);border:1px solid var(--border);">
+        <div style="font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#cc9966;margin-bottom:.9rem;">+ Añadir usuario</div>
+        <div style="display:grid;grid-template-columns:1fr 130px 150px 100px;gap:.7rem;align-items:end;">
+          <div>
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:.3rem;">Email</div>
+            <input id="admin-nuevo-email" type="email" placeholder="usuario@email.com" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.45rem .7rem;font-size:13px;box-sizing:border-box;font-family:inherit;">
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:.3rem;">Pack</div>
+            <select id="admin-nuevo-pack" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.45rem .5rem;font-size:13px;font-family:inherit;">
+              <option value="hormiga">Hormiga</option>
+              <option value="toro">Toro</option>
+              <option value="aguila">Águila</option>
+              <option value="demo">Demo</option>
+            </select>
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:.3rem;">Expira</div>
+            <input id="admin-nuevo-exp" type="date" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.45rem .5rem;font-size:13px;font-family:inherit;box-sizing:border-box;">
+          </div>
+          <button onclick="adminCrearUsuario()" style="padding:.5rem;background:transparent;border:1px solid #cc664466;color:#cc9966;cursor:pointer;font-size:12px;letter-spacing:.08em;height:34px;">Añadir</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- DERECHA: generador de códigos -->
+    <div style="background:var(--bg2);padding:1.5rem;border-left:1px solid var(--border);display:flex;flex-direction:column;gap:1.5rem;">
+
+      <!-- Generador -->
+      <div style="border:1px solid #cc664433;padding:1.5rem;background:#0A0C18;">
+        <div style="font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#cc9966;margin-bottom:1rem;">✦ Códigos de evaluación</div>
+        <div id="admin-codigo-result" style="display:none;font-family:'Cormorant Garamond',serif;font-size:38px;color:#cc9966;text-align:center;padding:.8rem 0;letter-spacing:.3em;border:1px solid #cc664433;background:#0E0C08;margin-bottom:1rem;">XXXX-XXXX</div>
+        <button onclick="adminGenerarCodigo()" style="width:100%;padding:.6rem;background:transparent;border:1px solid #cc664466;color:#cc9966;cursor:pointer;font-size:13px;letter-spacing:.1em;margin-bottom:.5rem;">Generar código</button>
+        <button onclick="adminCopiarCodigo()" style="width:100%;padding:.5rem;background:transparent;border:1px solid var(--border);color:var(--text-muted);cursor:pointer;font-size:12px;letter-spacing:.05em;">Copiar</button>
+        <div style="margin-top:1rem;border-top:1px solid var(--border);padding-top:1rem;">
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:.4rem;">Asignar código a:</div>
+          <select id="admin-codigo-email" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.45rem .5rem;font-size:12px;font-family:inherit;margin-bottom:.5rem;">
+            <option value="">— Seleccionar usuario —</option>
+          </select>
+          <button onclick="adminGuardarCodigo()" style="width:100%;padding:.5rem;background:transparent;border:1px solid #cc664466;color:#cc9966;cursor:pointer;font-size:12px;letter-spacing:.08em;">Guardar en Supabase</button>
+        </div>
+      </div>
+
+      <!-- Info tabla SQL -->
+      <div style="border:1px solid var(--border);padding:1.2rem;background:#060810;">
+        <div style="font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.8rem;">Tabla Supabase</div>
+        <div style="font-size:11px;color:var(--text-muted);line-height:1.9;font-family:monospace;">
+          usuarios_aurum<br>
+          ├ id · UUID pk<br>
+          ├ email · text unique<br>
+          ├ pack · text<br>
+          ├ etapa · integer<br>
+          ├ cuenta_mt5 · text<br>
+          ├ activo · boolean<br>
+          ├ fecha_expiracion · date<br>
+          ├ codigo_eval · text<br>
+          ├ notas · text<br>
+          └ created_at · timestamptz
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+<!-- / ADMIN -->
+
+
   <script src="parser.js"></script>
   <script src="evalua.js"></script>
   <script src="utils.js"></script>
@@ -2677,7 +2814,66 @@ document.addEventListener('DOMContentLoaded', function() {
   setTimeout(aplicarEspaciadoPaneles, 200);
 });
 </script>
+<script src="admin.js"></script>
 <script src="supabase.js"></script>
 <script>document.addEventListener("DOMContentLoaded", function(){ setTimeout(initSupabase, 500); });</script>
+
+<!-- Modal edición de usuario (admin) -->
+<div id="admin-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.75);z-index:400;align-items:center;justify-content:center;">
+  <div style="background:var(--bg);border:1px solid #cc664466;padding:2rem;width:500px;max-width:95vw;position:relative;max-height:90vh;overflow-y:auto;">
+    <div onclick="adminCerrarModal()" style="position:absolute;top:1rem;right:1.5rem;cursor:pointer;color:var(--text-muted);font-size:18px;line-height:1;">✕</div>
+    <div style="font-family:'Cormorant Garamond',serif;font-size:24px;color:#cc9966;margin-bottom:.3rem;">Editar usuario</div>
+    <div id="admin-edit-email" style="font-size:13px;color:var(--text-muted);margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid var(--border);"></div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
+      <div>
+        <label style="font-size:11px;color:var(--text-muted);letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:.4rem;">Pack</label>
+        <select id="admin-edit-pack" style="width:100%;background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:.5rem .7rem;font-size:13px;font-family:inherit;">
+          <option value="hormiga">Hormiga</option>
+          <option value="toro">Toro</option>
+          <option value="aguila">Águila</option>
+          <option value="demo">Demo</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:11px;color:var(--text-muted);letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:.4rem;">Etapa</label>
+        <select id="admin-edit-etapa" style="width:100%;background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:.5rem .7rem;font-size:13px;font-family:inherit;">
+          <option value="0">Etapa 0 — Silencio</option>
+          <option value="1">Etapa 1 — Estructura</option>
+          <option value="2">Etapa 2 — Proceso</option>
+          <option value="3">Etapa 3 — Edge</option>
+          <option value="4">Etapa 4 — Sistema</option>
+          <option value="5">Etapa 5 — Vivir del trading</option>
+        </select>
+      </div>
+    </div>
+
+    <div style="margin-bottom:1rem;">
+      <label style="font-size:11px;color:var(--text-muted);letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:.4rem;">Número de cuenta MT5</label>
+      <input id="admin-edit-mt5" type="text" placeholder="ej. 135146" style="width:100%;background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:.5rem .7rem;font-size:13px;box-sizing:border-box;font-family:inherit;">
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr auto;gap:1rem;align-items:center;margin-bottom:1rem;">
+      <div>
+        <label style="font-size:11px;color:var(--text-muted);letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:.4rem;">Fecha de expiración</label>
+        <input id="admin-edit-exp" type="date" style="width:100%;background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:.5rem .7rem;font-size:13px;box-sizing:border-box;font-family:inherit;">
+      </div>
+      <div style="text-align:center;">
+        <label style="font-size:11px;color:var(--text-muted);letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:.6rem;">Activo</label>
+        <input id="admin-edit-activo" type="checkbox" style="width:18px;height:18px;cursor:pointer;accent-color:#cc9966;">
+      </div>
+    </div>
+
+    <div style="margin-bottom:1.5rem;">
+      <label style="font-size:11px;color:var(--text-muted);letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:.4rem;">Notas internas</label>
+      <textarea id="admin-edit-notas" rows="3" placeholder="Notas privadas sobre este usuario..." style="width:100%;background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:.5rem .7rem;font-size:13px;box-sizing:border-box;font-family:inherit;resize:vertical;"></textarea>
+    </div>
+
+    <div style="display:flex;gap:.8rem;">
+      <button id="admin-guardar-btn" onclick="adminGuardarUsuario()" style="flex:1;padding:.7rem;background:transparent;border:1px solid #cc664466;color:#cc9966;cursor:pointer;font-size:13px;letter-spacing:.1em;">✦ Guardar cambios</button>
+      <button onclick="adminCerrarModal()" style="padding:.7rem 1.2rem;background:transparent;border:1px solid var(--border);color:var(--text-muted);cursor:pointer;font-size:13px;">Cancelar</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>

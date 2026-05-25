@@ -13,9 +13,14 @@ const USUARIOS = {
     animal:'🐂', pack:'Pack Hormiga · Etapa 1', packLevel:1,
     etapa:1, ciclo:1, ozt:11
   },
+  'sudescansovital@gmail.com': {
+    pass:'admin2026', nombre:'Admin', nick:'Admin',
+    animal:'⚙', pack:'Administrador', packLevel:5,
+    etapa:5, ciclo:1, ozt:0
+  },
 };
 
-const PAGINAS_PRIVADAS = ['dashboard','gestion'];
+const PAGINAS_PRIVADAS = ['dashboard','gestion','admin'];
 let usuarioActual = null;
 
 function abrirLogin() {
@@ -42,13 +47,20 @@ function hacerLogin() {
   document.getElementById('nav-animal').textContent = usuarioActual.animal;
   document.getElementById('nav-uname').textContent  = usuarioActual.nick || usuarioActual.nombre;
   document.getElementById('nav-upack').textContent  = usuarioActual.pack;
-  irA('dashboard');
+  // Mostrar enlace admin solo para el administrador
+  const adminLink = document.getElementById('nav-admin-link');
+  if (adminLink) adminLink.style.display = email === 'sudescansovital@gmail.com' ? 'inline' : 'none';
+  const adminEmailLabel = document.getElementById('admin-email-label');
+  if (adminEmailLabel) adminEmailLabel.textContent = email;
+  irA(email === 'sudescansovital@gmail.com' ? 'admin' : 'dashboard');
 }
 
 function hacerLogout() {
   usuarioActual = null;
   document.getElementById('nav-user-widget').style.display = 'none';
   document.getElementById('nav-login-btn').style.display   = 'block';
+  const adminLink = document.getElementById('nav-admin-link');
+  if (adminLink) adminLink.style.display = 'none';
   irA('home');
 }
 
