@@ -14,9 +14,9 @@ const USUARIOS = {
     etapa:1, ciclo:1, ozt:11
   },
   'sudescansovital@gmail.com': {
-    pass:'admin2026', nombre:'Admin', nick:'Admin',
-    animal:'⚙', pack:'Administrador', packLevel:5,
-    etapa:5, ciclo:1, ozt:0
+    pass:'admin2026', nombre:'Roderas', nick:'Roderas',
+    animal:'🦅', pack:'Pack Águila · Etapa 3', packLevel:3,
+    etapa:3, ciclo:2, ozt:247
   },
 };
 
@@ -113,13 +113,16 @@ document.addEventListener('DOMContentLoaded', () => {
   if (p) p.addEventListener('keydown', ev => { if(ev.key==='Enter') hacerLogin(); });
   if (e) e.addEventListener('keydown', ev => { if(ev.key==='Enter') p.focus(); });
 
-  // DEMO: auto-login
-  usuarioActual = { email:'alberto@aurum.com', ...USUARIOS['alberto@aurum.com'] };
+  // Auto-login como Roderas (admin)
+  const _autoEmail = 'sudescansovital@gmail.com';
+  usuarioActual = { email: _autoEmail, ...USUARIOS[_autoEmail] };
   document.getElementById('nav-login-btn').style.display   = 'none';
   document.getElementById('nav-user-widget').style.display = 'flex';
   document.getElementById('nav-animal').textContent = usuarioActual.animal;
   document.getElementById('nav-uname').textContent  = usuarioActual.nick;
   document.getElementById('nav-upack').textContent  = usuarioActual.pack;
+  const _adminLink = document.getElementById('nav-admin-link');
+  if (_adminLink) _adminLink.style.display = 'inline';
 
   mostrarPagina('home');
 
