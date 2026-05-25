@@ -97,17 +97,59 @@ function buildHorarios() {
 function buildCicloDots() {
   var trades = getTodos();
   var cd = document.getElementById('gest-ciclo-dots');
-  if (!cd) return;
-  var ultimos = trades.slice(-111);
-  if (!ultimos.length) {
-    // Sin datos reales — usar demo
-    var arr = [];
-    for (var i=0; i<71; i++) arr.push('w');
-    for (var i=0; i<40; i++) arr.push('l');
-    for (var i=arr.length-1; i>0; i--) { var j=Math.floor(Math.random()*(i+1)); var tmp=arr[i]; arr[i]=arr[j]; arr[j]=tmp; }
-    cd.innerHTML = arr.map(function(x){ return '<div style="width:7px;height:7px;border-radius:50%;background:'+(x==='w'?'#3AAA6A':'#CC5544')+';flex-shrink:0;'+(x==='w'?'box-shadow:0 0 3px #3AAA6A44':'')+'"></div>'; }).join('');
-  } else {
-    cd.innerHTML = ultimos.map(function(t){ return '<div style="width:7px;height:7px;border-radius:50%;background:'+(t.ganadora?'#3AAA6A':'#CC5544')+';flex-shrink:0;'+(t.ganadora?'box-shadow:0 0 3px #3AAA6A44':'')+'"></div>'; }).join('');
+
+  if (!trades.length) return;
+
+  // Calcular ciclos
+  var cicloActual = Math.floor(trades.length / 111) + 1;
+  var enCurso = trades.length % 111 || 111;
+  var completados = Math.floor(trades.length / 111);
+
+  // Actualizar textos de ciclo
+  var el;
+  el = document.getElementById('ciclo-num-actual'); if (el) el.textContent = cicloActual;
+  el = document.getElementById('ciclo-encurso-txt'); if (el) el.textContent = 'Ciclo ' + cicloActual + ' en curso — ' + enCurso + ' trades';
+  if (completados > 0) {
+    el = document.getElementById('ciclo-completado-label'); if (el) el.textContent = 'Ciclo ' + completados + ' — completado';
+    el = document.getElementById('ciclo-completado-trades'); if (el) el.textContent = '111 / 111 trades';
+  }
+
+  // Métricas del ciclo actual
+  var ultimos = trades.slice(-enCurso);
+  var wins = ultimos.filter(function(t){ return t.ganadora; }).length;
+  var wr   = ultimos.length > 0 ? Math.round(wins/ultimos.length*1000)/10 : 0;
+  var pnl  = Math.round(ultimos.reduce(function(s,t){ return s+(t.beneficio||0); },0)*100)/100;
+  var ptsW = wins > 0 ? ultimos.filter(function(t){ return t.ganadora; }).reduce(function(s,t){ return s+(t.puntos||0); },0)/wins : 0;
+  var losses = ultimos.length - wins;
+  var ptsL = losses > 0 ? ultimos.filter(function(t){ return !t.ganadora; }).reduce(function(s,t){ return s+(t.puntos||0); },0)/losses : 0;
+  var rr   = ptsL > 0 ? Math.round(ptsW/ptsL*100)/100 : 0;
+  var esp  = Math.round(((wr/100*ptsW) - ((1-wr/100)*ptsL))*100)/100;
+  var dentro = ultimos.filter(function(t){ return t.puntos <= 11; });
+  var cumpl = ultimos.length > 0 ? Math.round(dentro.length/ultimos.length*1000)/10 : 0;
+
+  // Score
+  var score = 0;
+  if (wr>=60) score+=25; else if (wr>=55) score+=18; else if (wr>=50) score+=12; else if (wr>=45) score+=6;
+  if (rr>=1.8) score+=25; else if (rr>=1.5) score+=18; else if (rr>=1.2) score+=12; else if (rr>=1.0) score+=6;
+  if (esp>0) score+=20; else if (esp>-2) score+=8;
+  if (ultimos.length>=111) score+=15; else if (ultimos.length>=50) score+=8;
+  if (pnl>0) score+=15; else if (pnl>-200) score+=5;
+
+  // Actualizar stats
+  el = document.getElementById('ciclo-wr');       if (el) el.textContent = wr + '%';
+  el = document.getElementById('ciclo-wr-sub');   if (el) el.textContent = wins + ' wins de ' + ultimos.length;
+  el = document.getElementById('ciclo-pnl');      if (el) el.textContent = (pnl>=0?'+':'') + pnl + '$';
+  el = document.getElementById('ciclo-rr');       if (el) el.textContent = rr;
+  el = document.getElementById('ciclo-esp');      if (el) el.textContent = (esp>=0?'+':'') + esp;
+  el = document.getElementById('ciclo-cumpl');    if (el) el.textContent = cumpl + '%';
+  el = document.getElementById('ciclo-cumpl-sub');if (el) el.textContent = dentro.length + ' de ' + ultimos.length + ' dentro';
+  el = document.getElementById('ciclo-puntuacion');if (el) el.textContent = Math.min(100, score);
+
+  // Dots
+  if (cd) {
+    cd.innerHTML = ultimos.map(function(t){
+      return '<div style="width:7px;height:7px;border-radius:50%;background:'+(t.ganadora?'#3AAA6A':'#CC5544')+';flex-shrink:0;'+(t.ganadora?'box-shadow:0 0 3px #3AAA6A44':'')+'"></div>';
+    }).join('');
   }
 }
 
@@ -147,8 +189,16 @@ function init_gestion() {
     var ahora = new Date();
     fechaEl.textContent = ahora.toLocaleDateString('es-ES', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
   }
-  buildTradeRecord();
-  buildCicloDots();
+  // Esperar a que Supabase cargue los datos
+  function intentar(intentos) {
+    if (window.AURUM_TRADES && window.AURUM_TRADES.todos && window.AURUM_TRADES.todos.length > 0) {
+      buildTradeRecord();
+      buildCicloDots();
+    } else if (intentos > 0) {
+      setTimeout(function(){ intentar(intentos-1); }, 500);
+    }
+  }
+  intentar(10); // intenta hasta 5 segundos
 }
 
 function guardarEntradaDiario() {
