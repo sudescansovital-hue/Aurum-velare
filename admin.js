@@ -66,7 +66,7 @@ function renderAdminTabla() {
   tbody.innerHTML = adminUsuarios.map(function(u) {
     var expirado = u.fecha_expiracion && new Date(u.fecha_expiracion) < hoy;
     var activo   = u.activo && !expirado;
-    var exp      = u.fecha_expiracion ? new Date(u.fecha_expiracion + 'T12:00:00').toLocaleDateString('es-ES') : '—';
+    var exp      = u.fecha_expiracion ? new Date(u.fecha_expiracion + 'T12:00:00').toLocaleDateString('es-ES') : 'Sin límite';
     var estadoHtml = activo
       ? '<span style="color:var(--green);font-size:12px;">● Activo</span>'
       : '<span style="color:var(--red);font-size:12px;">● ' + (expirado ? 'Expirado' : 'Inactivo') + '</span>';
@@ -172,17 +172,19 @@ async function adminCrearUsuario() {
   if (!sb) return;
   var email = (document.getElementById('admin-nuevo-email').value || '').trim().toLowerCase();
   var pack  = document.getElementById('admin-nuevo-pack').value;
+  var mt5   = (document.getElementById('admin-nuevo-mt5').value || '').trim();
   var exp   = document.getElementById('admin-nuevo-exp').value || null;
   if (!email || !email.includes('@')) { showToast('Email inválido'); return; }
 
   var res = await sb.from('usuarios_aurum').insert({
-    email: email, pack: pack, etapa: 1, activo: true, fecha_expiracion: exp
+    email: email, pack: pack, etapa: 1, activo: true, cuenta_mt5: mt5, fecha_expiracion: exp
   });
   if (res.error) {
     showToast(res.error.message.includes('unique') ? 'Email ya registrado' : 'Error: ' + res.error.message);
     return;
   }
   document.getElementById('admin-nuevo-email').value = '';
+  document.getElementById('admin-nuevo-mt5').value   = '';
   document.getElementById('admin-nuevo-exp').value   = '';
   showToast('Usuario ' + email + ' creado');
   await cargarUsuariosAdmin();

@@ -2605,10 +2605,14 @@
       <!-- Añadir usuario -->
       <div style="margin-top:1.5rem;padding:1.2rem 1.5rem;background:var(--bg2);border:1px solid var(--border);">
         <div style="font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#cc9966;margin-bottom:.9rem;">+ Añadir usuario</div>
-        <div style="display:grid;grid-template-columns:1fr 130px 150px 100px;gap:.7rem;align-items:end;">
+        <div style="display:grid;grid-template-columns:2fr 1fr 110px 140px 80px;gap:.7rem;align-items:end;">
           <div>
             <div style="font-size:11px;color:var(--text-muted);margin-bottom:.3rem;">Email</div>
             <input id="admin-nuevo-email" type="email" placeholder="usuario@email.com" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.45rem .7rem;font-size:13px;box-sizing:border-box;font-family:inherit;">
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:.3rem;">Cuenta MT5</div>
+            <input id="admin-nuevo-mt5" type="text" placeholder="602252" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.45rem .7rem;font-size:13px;box-sizing:border-box;font-family:inherit;">
           </div>
           <div>
             <div style="font-size:11px;color:var(--text-muted);margin-bottom:.3rem;">Pack</div>
@@ -2621,7 +2625,7 @@
             </select>
           </div>
           <div>
-            <div style="font-size:11px;color:var(--text-muted);margin-bottom:.3rem;">Expira</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:.3rem;">Expira (opcional)</div>
             <input id="admin-nuevo-exp" type="date" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.45rem .5rem;font-size:13px;font-family:inherit;box-sizing:border-box;">
           </div>
           <button onclick="adminCrearUsuario()" style="padding:.5rem;background:transparent;border:1px solid #cc664466;color:#cc9966;cursor:pointer;font-size:12px;letter-spacing:.08em;height:34px;">Añadir</button>
