@@ -24,8 +24,8 @@ const ADMIN_EMAIL = 'sudescansovital@gmail.com';
 var adminUsuarios  = [];
 var adminEditId    = null;
 
-var PACK_PRECIOS = { hormiga:97, toro:197, aguila:297, leon:397, demo:0 };
-var PACK_LABELS  = { hormiga:'Hormiga', toro:'Toro', aguila:'Águila', leon:'León', demo:'Demo' };
+var PACK_PRECIOS = { umbral:77, raiz:111, senda:222, cima:333, demo:0 };
+var PACK_LABELS  = { umbral:'Umbral', raiz:'Raíz', senda:'Senda', cima:'Cima', demo:'Demo' };
 
 function esAdmin() {
   return usuarioActual && usuarioActual.email === ADMIN_EMAIL;
@@ -129,7 +129,7 @@ function adminAbrirEditar(id) {
 
   var set = function(elId, val) { var e = document.getElementById(elId); if (e) e.value = val; };
   document.getElementById('admin-edit-email').textContent = u.email;
-  set('admin-edit-pack',   u.pack    || 'hormiga');
+  set('admin-edit-pack',   u.pack    || 'umbral');
   set('admin-edit-etapa',  u.etapa   || 1);
   set('admin-edit-mt5',    u.cuenta_mt5 || '');
   set('admin-edit-exp',    u.fecha_expiracion ? u.fecha_expiracion.split('T')[0] : '');
