@@ -1200,6 +1200,6 @@ tr:hover td { background: #0E1020; }
   50%      { box-shadow: 0 0 20px #C9A84C77; border-color: #E8C870; }
 }
 
-/* Fullscreen: ocultar el botón propio cuando el chart ya está fullscreen */
-#sala-chart-wrap:fullscreen         { background: #040710; }
-#sala-chart-wrap:-webkit-full-screen { background: #040710; }
+/* Fullscreen a nivel documento — el nav queda visible, el layout ya usa 100vh */
+:fullscreen          body { overflow: hidden; }
+:-webkit-full-screen body { overflow: hidden; }

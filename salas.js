@@ -146,8 +146,8 @@ function _initTvWidget() {
 // ── Pantalla completa ───────────────────────────────────────
 
 function salaFullscreen() {
-  var el = document.getElementById('sala-chart-wrap');
-  if (!el) return;
+  // Fullscreen el documento completo para que el nav/header de Aurum siga visible
+  var el = document.documentElement;
 
   if (!document.fullscreenElement) {
     var req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen;
