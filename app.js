@@ -125,14 +125,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   mostrarPagina('home');
 
-  console.log('[APP] setTimeout cargarDatosUsuario programado (2000ms)');
   setTimeout(function() {
-    console.log('[APP] setTimeout disparado — cargarDatosUsuario es función:', typeof cargarDatosUsuario === 'function');
-    if (typeof cargarDatosUsuario === 'function') {
-      cargarDatosUsuario();
-      console.log('[APP] cargarDatosUsuario() llamada');
+    if (!sb) {
+      console.log('[APP] sb es null a los 2000ms — llamando initSupabase()');
+      if (typeof initSupabase === 'function') initSupabase();
     } else {
-      console.error('[APP] cargarDatosUsuario NO está definida en este momento');
+      console.log('[APP] sb listo a los 2000ms — llamando cargarDatosUsuario()');
+      if (typeof cargarDatosUsuario === 'function') cargarDatosUsuario();
     }
   }, 2000);
 });
