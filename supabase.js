@@ -246,12 +246,16 @@ async function actualizarDashboard() {
       espera++;
     }
   }
-  console.log('[AD] sb:', !!sb, '| usuarioActual:', usuarioActual && usuarioActual.email);
   if (!sb || !usuarioActual) { console.warn('[AD] Abortado — falta sb o usuarioActual'); return; }
 
+  console.log('[AD] Lanzando query para:', usuarioActual.email);
   var res = await sb.from('trades').select('*').eq('usuario_email', usuarioActual.email);
-  console.log('[AD] Query result — error:', res.error, '| rows:', res.data && res.data.length);
-  if (res.error || !res.data || res.data.length === 0) { console.warn('[AD] Sin datos de trades'); return; }
+  if (res.error) {
+    console.error('[AD] Error en query de trades:', res.error.message, '| código:', res.error.code, '| detalle:', res.error.details);
+    return;
+  }
+  if (!res.data || res.data.length === 0) { console.warn('[AD] Sin datos de trades para', usuarioActual.email); return; }
+  console.log('[AD] Query OK —', res.data.length, 'filas recibidas para', usuarioActual.email);
 
   var todos = res.data;
   var maestra = todos.filter(function(t){ return t.cuenta === 'Cuenta Maestra'; });
