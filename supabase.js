@@ -22,7 +22,7 @@ function initSupabase() {
       console.log('Supabase OK — test trades:', res.data);
     }
   });
-  if (typeof restaurarSesion === 'function') restaurarSesion();
+  if (typeof cargarDatosUsuario === 'function') cargarDatosUsuario();
 }
 
 // ============================================================
