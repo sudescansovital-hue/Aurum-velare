@@ -14,7 +14,7 @@ function _esperarTrades(fn) {
 }
 
 function gestTab(id) {
-  ['trade-record','ciclo111','horarios','equity','cumplimiento','diario','historial'].forEach(function(p) {
+  ['trade-record','ciclo111','horarios','equity','cumplimiento','estadisticas','diario','historial'].forEach(function(p) {
     var el = document.getElementById('gpanel-' + p);
     if (el) el.style.display = 'none';
     var tb = document.getElementById('gtab-' + p);
@@ -28,8 +28,9 @@ function gestTab(id) {
   if (id === 'horarios')     _esperarTrades(buildHorarios);
   if (id === 'ciclo111')     _esperarTrades(buildCicloDots);
   if (id === 'equity')       _esperarTrades(buildEquity);
-  if (id === 'cumplimiento') _esperarTrades(buildCumplimiento);
-  if (id === 'historial')    init_historial();
+  if (id === 'cumplimiento')  _esperarTrades(buildCumplimiento);
+  if (id === 'estadisticas')  _esperarTrades(buildEstadisticasAvanzadas);
+  if (id === 'historial')     init_historial();
 }
 
 function getTradesActivos() {
@@ -554,6 +555,126 @@ function buildCumplimiento() {
   }
 }
 
+function buildEstadisticasAvanzadas() {
+  var trades = getTradesActivos();
+
+  function setEl(id, val) { var el = document.getElementById(id); if (el) el.textContent = val; }
+
+  // Extraer fecha de apertura desde fp MT5 (ticket_YYYY.MM.DD HH:MM:SS_precio_vol)
+  function fechaDesdeFp(fp) {
+    if (!fp) return null;
+    var m = String(fp).match(/(\d{4})\.(\d{2})\.(\d{2})\s+(\d{2}):(\d{2}):(\d{2})/);
+    if (m) return new Date(parseInt(m[1]), parseInt(m[2])-1, parseInt(m[3]), parseInt(m[4]), parseInt(m[5]), parseInt(m[6]));
+    return null;
+  }
+
+  if (trades.length < 5) {
+    ['eav-racha-num','eav-racha-tipo','eav-racha-sub',
+     'eav-dd-max','eav-dd-sub',
+     'eav-mejor-val','eav-mejor-sub',
+     'eav-peor-val','eav-peor-sub',
+     'eav-tp-pct','eav-tp-sub',
+     'eav-revenge-num','eav-revenge-sub'].forEach(function(id){ setEl(id, '—'); });
+    var rl = document.getElementById('eav-revenge-lista'); if (rl) rl.innerHTML = '';
+    return;
+  }
+
+  // 1. Racha actual — trades consecutivos iguales al final del array
+  var racha = 1;
+  var rachaGanando = trades[trades.length - 1].ganadora;
+  for (var i = trades.length - 2; i >= 0; i--) {
+    if (trades[i].ganadora === rachaGanando) racha++;
+    else break;
+  }
+  setEl('eav-racha-num', racha);
+  setEl('eav-racha-tipo', rachaGanando ? 'ganando' : 'perdiendo');
+  setEl('eav-racha-sub', racha + ' consecutivos ' + (rachaGanando ? 'ganadores' : 'perdedores'));
+
+  // 2. Drawdown máximo — peor caída de la curva de equity acumulada
+  var cumPnl = 0, peak = 0, maxDD = 0;
+  trades.forEach(function(t) {
+    cumPnl += (t.beneficio || 0);
+    if (cumPnl > peak) peak = cumPnl;
+    var dd = peak - cumPnl;
+    if (dd > maxDD) maxDD = dd;
+  });
+  maxDD = Math.round(maxDD * 100) / 100;
+  var totalPnl = Math.round(cumPnl * 100) / 100;
+  setEl('eav-dd-max', '-' + maxDD + '$');
+  setEl('eav-dd-sub', totalPnl >= 0 ? 'Recuperado ✓' : 'En curso — P&L total: ' + totalPnl + '$');
+
+  // 3. Mejor y peor trade individual
+  var mejor = trades[0], peor = trades[0];
+  trades.forEach(function(t) {
+    if ((t.beneficio || 0) > (mejor.beneficio || 0)) mejor = t;
+    if ((t.beneficio || 0) < (peor.beneficio || 0)) peor = t;
+  });
+  var mejorVal = Math.round((mejor.beneficio || 0) * 100) / 100;
+  var peorVal  = Math.round((peor.beneficio || 0) * 100) / 100;
+  setEl('eav-mejor-val', (mejorVal >= 0 ? '+' : '') + mejorVal + '$');
+  setEl('eav-mejor-sub', mejor.cuenta || '—');
+  setEl('eav-peor-val',  peorVal + '$');
+  setEl('eav-peor-sub',  peor.cuenta || '—');
+
+  // 4. TP alcanzado vs cerrado antes
+  var conTp = trades.filter(function(t) { return t.tp != null && t.tp !== 0; });
+  if (conTp.length > 0) {
+    var hitTp = conTp.filter(function(t) {
+      if (!t.ganadora) return false;
+      var pe = t.precio_entrada, pc = t.precio_cierre, tp = t.tp;
+      if (pe == null || pc == null) return false;
+      // Inferir dirección: buy si pc > pe
+      return (pc > pe) ? (pc >= tp - 0.5) : (pc <= tp + 0.5);
+    });
+    var tpPct = Math.round(hitTp.length / conTp.length * 1000) / 10;
+    setEl('eav-tp-pct', tpPct + '%');
+    setEl('eav-tp-sub', hitTp.length + ' de ' + conTp.length + ' con TP registrado');
+  } else {
+    setEl('eav-tp-pct', '—');
+    setEl('eav-tp-sub', 'Sin TP registrado en estos trades');
+  }
+
+  // 5. Revenge trading — trade abierto < 5 min tras cierre de un perdedor
+  var revengeTrades = [];
+  for (var i = 1; i < trades.length; i++) {
+    if (!trades[i-1].ganadora) {
+      var fPrev = fechaDesdeFp(trades[i-1].fp);
+      var fCurr = fechaDesdeFp(trades[i].fp);
+      if (fPrev && fCurr) {
+        var closePrev = new Date(fPrev.getTime() + (trades[i-1].dur_min || 0) * 60000);
+        var gapMin = Math.round((fCurr - closePrev) / 60000);
+        if (gapMin >= 0 && gapMin < 5) {
+          revengeTrades.push({ gap: gapMin, t: trades[i] });
+        }
+      }
+    }
+  }
+  setEl('eav-revenge-num', revengeTrades.length);
+  setEl('eav-revenge-sub', revengeTrades.length === 0
+    ? 'Sin señales de revenge trading'
+    : 'trades abiertos < 5 min tras una pérdida');
+
+  var lista = document.getElementById('eav-revenge-lista');
+  if (lista) {
+    if (revengeTrades.length === 0) {
+      lista.innerHTML = '<div style="padding:.8rem 1rem;border:1px solid #3AAA6A44;background:#3AAA6A08;border-left:2px solid var(--green);">' +
+        '<div style="font-size:14px;color:var(--green);">✓ Sin revenge trading detectado</div>' +
+        '<div style="font-size:13px;color:var(--text-muted);margin-top:.3rem;">Ningún trade fue abierto en menos de 5 minutos tras una pérdida.</div>' +
+        '</div>';
+    } else {
+      lista.innerHTML = revengeTrades.slice(0, 5).map(function(r) {
+        var ben = Math.round((r.t.beneficio || 0) * 100) / 100;
+        var benStr = (ben >= 0 ? '+' : '') + ben + '$';
+        var col = r.t.ganadora ? 'var(--green)' : 'var(--red)';
+        return '<div style="display:flex;align-items:center;gap:1rem;padding:.5rem 1rem;border:1px solid #cc443322;background:#cc443308;border-left:2px solid #cc4433;margin-bottom:.4rem;">' +
+          '<div style="font-size:11px;color:#cc7755;flex-shrink:0;white-space:nowrap;">⚠ ' + r.gap + ' min</div>' +
+          '<div style="font-size:13px;color:var(--text-muted);">Abierto tras pérdida → <span style="color:' + col + ';">' + benStr + '</span></div>' +
+          '</div>';
+      }).join('');
+    }
+  }
+}
+
 // Diario
 function init_gestion() {
   var fechaEl = document.getElementById('diario-fecha-hoy');
@@ -569,6 +690,7 @@ function init_gestion() {
       buildHorarios();
       buildEquity();
       buildCumplimiento();
+      buildEstadisticasAvanzadas();
     } else if (intentos > 0) {
       setTimeout(function(){ intentar(intentos-1); }, 500);
     }

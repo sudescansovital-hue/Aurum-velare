@@ -1798,6 +1798,7 @@
       <button class="tab" id="gtab-horarios" onclick="gestTab('horarios')">Horarios</button>
       <button class="tab" id="gtab-equity" onclick="gestTab('equity')">Equity</button>
       <button class="tab" id="gtab-cumplimiento" onclick="gestTab('cumplimiento')">Cumplimiento</button>
+      <button class="tab" id="gtab-estadisticas" onclick="gestTab('estadisticas')">Estadísticas</button>
       <button class="tab" id="gtab-diario" onclick="gestTab('diario')">Diario</button>
       <button class="tab" id="gtab-historial" onclick="gestTab('historial')" style="border-left:1px solid var(--border-gold);color:var(--gold-dim);">Historial externo</button>
     </div>
@@ -2243,6 +2244,59 @@
 
 
     <!-- ===== DIARIO ===== -->
+    <!-- ===== ESTADÍSTICAS AVANZADAS ===== -->
+    <div id="gpanel-estadisticas" style="display:none;padding-top:3rem;">
+
+      <div style="margin-top:22px;padding:1.5rem 2rem;border-bottom:1px solid var(--border);background:var(--bg2);position:relative;">
+        <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>
+        <div style="font-family:'Cormorant Garamond',serif;font-size:26px;color:var(--gold-bright);margin-bottom:.3rem;">Estadísticas avanzadas</div>
+        <div style="font-size:13px;color:var(--text-muted);">Racha · Drawdown · TP alcanzado · Revenge trading</div>
+      </div>
+
+      <!-- Fila 1: Racha · Drawdown · Mejor trade · Peor trade -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);">
+        <div class="stat-card" style="text-align:center;">
+          <div class="stat-label">Racha actual</div>
+          <div id="eav-racha-num" style="font-family:'Cormorant Garamond',serif;font-size:52px;color:var(--gold-bright);line-height:1;">—</div>
+          <div id="eav-racha-tipo" style="font-size:14px;color:var(--text-dim);margin:.2rem 0;">—</div>
+          <div id="eav-racha-sub" class="stat-sub">—</div>
+        </div>
+        <div class="stat-card" style="text-align:center;">
+          <div class="stat-label">Drawdown máximo</div>
+          <div id="eav-dd-max" style="font-family:'Cormorant Garamond',serif;font-size:38px;color:var(--red);line-height:1;">—</div>
+          <div id="eav-dd-sub" class="stat-sub">—</div>
+        </div>
+        <div class="stat-card" style="text-align:center;">
+          <div class="stat-label">Mejor trade</div>
+          <div id="eav-mejor-val" style="font-family:'Cormorant Garamond',serif;font-size:38px;color:var(--green);line-height:1;">—</div>
+          <div id="eav-mejor-sub" class="stat-sub">—</div>
+        </div>
+        <div class="stat-card" style="text-align:center;">
+          <div class="stat-label">Peor trade</div>
+          <div id="eav-peor-val" style="font-family:'Cormorant Garamond',serif;font-size:38px;color:var(--red);line-height:1;">—</div>
+          <div id="eav-peor-sub" class="stat-sub">—</div>
+        </div>
+      </div>
+
+      <!-- Fila 2: TP alcanzado · Revenge trading -->
+      <div style="display:grid;grid-template-columns:1fr 2fr;gap:1px;background:var(--border);">
+        <div class="stat-card" style="text-align:center;">
+          <div class="stat-label">TP alcanzado</div>
+          <div id="eav-tp-pct" style="font-family:'Cormorant Garamond',serif;font-size:52px;color:var(--gold-bright);line-height:1;">—</div>
+          <div id="eav-tp-sub" class="stat-sub">—</div>
+        </div>
+        <div class="stat-card">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.5rem;">
+            <div class="stat-label" style="margin-bottom:0;">Revenge trading detectado</div>
+            <div id="eav-revenge-num" style="font-family:'Cormorant Garamond',serif;font-size:32px;color:var(--red);line-height:1;">—</div>
+          </div>
+          <div id="eav-revenge-sub" class="stat-sub" style="margin-bottom:.8rem;">—</div>
+          <div id="eav-revenge-lista"></div>
+        </div>
+      </div>
+
+    </div>
+
     <div id="gpanel-diario" style="display:none;padding:91px 2rem 1.5rem;">
 
       <div style="font-family:'Cormorant Garamond',serif;font-size:28px;color:var(--gold-bright);margin-bottom:.3rem;">Diario del proceso</div>
@@ -2819,9 +2873,10 @@ function aplicarEspaciadoPaneles() {
     'gpanel-ciclo111':    document.querySelector('#gpanel-ciclo111 > div:first-child') || document.querySelector('#gpanel-ciclo111 [style*="grid-template-columns:140px"]'),
     'gpanel-horarios':    document.querySelector('#gpanel-horarios > div:first-child'),
     'gpanel-equity':      document.querySelector('#gpanel-equity > div:first-child'),
-    'gpanel-cumplimiento':document.querySelector('#gpanel-cumplimiento > div:first-child'),
-    'gpanel-diario':      null, // ya tiene padding correcto
-    'gpanel-historial':   null  // ya tiene padding correcto
+    'gpanel-cumplimiento': document.querySelector('#gpanel-cumplimiento > div:first-child'),
+    'gpanel-estadisticas': document.querySelector('#gpanel-estadisticas > div:first-child'),
+    'gpanel-diario':       null, // ya tiene padding correcto
+    'gpanel-historial':    null  // ya tiene padding correcto
   };
 
   Object.keys(paneles).forEach(function(id) {
