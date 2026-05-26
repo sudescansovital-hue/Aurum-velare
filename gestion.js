@@ -2,6 +2,17 @@
 // LÓGICA DE MI GESTIÓN — datos reales de Supabase
 // ============================================================
 
+function _esperarTrades(fn) {
+  function intentar(n) {
+    if (window.AURUM_TRADES && window.AURUM_TRADES.todos && window.AURUM_TRADES.todos.length > 0) {
+      fn();
+    } else if (n > 0) {
+      setTimeout(function() { intentar(n - 1); }, 500);
+    }
+  }
+  intentar(10);
+}
+
 function gestTab(id) {
   ['trade-record','ciclo111','horarios','equity','cumplimiento','diario','historial'].forEach(function(p) {
     var el = document.getElementById('gpanel-' + p);
@@ -13,11 +24,11 @@ function gestTab(id) {
   if (panel) panel.style.display = 'block';
   var tab = document.getElementById('gtab-' + id);
   if (tab) tab.classList.add('active');
-  if (id === 'trade-record') buildTradeRecord();
-  if (id === 'horarios')     buildHorarios();
-  if (id === 'ciclo111')     buildCicloDots();
-  if (id === 'equity')       buildEquity();
-  if (id === 'cumplimiento') buildCumplimiento();
+  if (id === 'trade-record') _esperarTrades(buildTradeRecord);
+  if (id === 'horarios')     _esperarTrades(buildHorarios);
+  if (id === 'ciclo111')     _esperarTrades(buildCicloDots);
+  if (id === 'equity')       _esperarTrades(buildEquity);
+  if (id === 'cumplimiento') _esperarTrades(buildCumplimiento);
   if (id === 'historial')    init_historial();
 }
 
