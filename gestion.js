@@ -32,7 +32,7 @@ function gestTab(id) {
   if (id === 'historial')    init_historial();
 }
 
-function getTodos() {
+function getTradesActivos() {
   var cuenta = window.cuentaActivaGestion || 'global';
   if (!window.AURUM_TRADES) return [];
   if (cuenta === 'global') return window.AURUM_TRADES.todos || [];
@@ -43,10 +43,19 @@ function getTodos() {
 }
 
 function buildTradeRecord() {
-  var trades = getTodos();
+  var trades = getTradesActivos();
   var tb = document.getElementById('gest-tipos-bars');
   if (tb && trades.length) {
-    var tipos = window.AURUM_TRADES.tipos || [];
+    var scalp = trades.filter(function(t){ return t.dur_min < 30; });
+    var intra = trades.filter(function(t){ return t.dur_min >= 30 && t.dur_min < 240; });
+    var swing = trades.filter(function(t){ return t.dur_min >= 240 && t.dur_min < 1440; });
+    var multi = trades.filter(function(t){ return t.dur_min >= 1440; });
+    function _tm(arr, label) {
+      var w = arr.filter(function(t){ return t.ganadora; }).length;
+      var p = arr.reduce(function(s,t){ return s+(t.beneficio||0); },0);
+      return { l:label, t:arr.length, wr:arr.length>0?Math.round(w/arr.length*1000)/10:0, pnl:Math.round(p*100)/100 };
+    }
+    var tipos = [_tm(scalp,'Scalping <30min'), _tm(intra,'Intradía 30m–4h'), _tm(swing,'✦ Swing 4h–24h'), _tm(multi,'Multi-día >24h')];
     var maxT = Math.max.apply(null, tipos.map(function(d){ return d.t; })) || 1;
     tb.innerHTML = tipos.map(function(d) {
       var col = d.l.includes('Swing') ? 'linear-gradient(90deg,#C9A84C44,#E8C870)' : d.l.includes('Multi') ? '#4ACC8A' : d.l.includes('Scalp') ? '#6A8AEE55' : '#CC554455';
@@ -61,7 +70,7 @@ function buildTradeRecord() {
 }
 
 function buildHorarios() {
-  var trades = window.AURUM_TRADES ? (window.AURUM_TRADES.todos || []) : [];
+  var trades = getTradesActivos();
   if (trades.length < 5) {
     var elT = document.getElementById('gest-horarios-titulo');
     if (elT) elT.textContent = 'Mapa horario real';
@@ -173,7 +182,7 @@ function buildHorarios() {
 }
 
 function buildCicloDots() {
-  var trades = window.AURUM_TRADES ? (window.AURUM_TRADES.todos || []) : [];
+  var trades = getTradesActivos();
   var cd = document.getElementById('gest-ciclo-dots');
 
   if (trades.length < 5) {
@@ -246,7 +255,7 @@ function buildCicloDots() {
 }
 
 function buildEquity() {
-  var trades = window.AURUM_TRADES ? (window.AURUM_TRADES.todos || []) : [];
+  var trades = getTradesActivos();
   if (trades.length < 5) {
     var elSub = document.getElementById('equity-sub');
     if (elSub) elSub.textContent = '—';
@@ -424,7 +433,7 @@ function buildEquity() {
 }
 
 function buildCumplimiento() {
-  var trades = window.AURUM_TRADES ? (window.AURUM_TRADES.todos || []) : [];
+  var trades = getTradesActivos();
   if (trades.length < 5) {
     ['cumpl-dentro-num','cumpl-dentro-pct','cumpl-fuera-num','cumpl-fuera-pct',
      'cumpl-wr-dentro','cumpl-wr-dentro-sub','cumpl-wr-fuera','cumpl-wr-fuera-sub'].forEach(function(id) {
