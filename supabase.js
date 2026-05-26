@@ -8,21 +8,13 @@ const SUPABASE_KEY = 'sb_publishable_KjuStc-6eWMM5IfWLerZLw_BIKiZ5iV';
 let sb = null;
 
 function initSupabase() {
+  if (sb) return;
   if (typeof window.supabase === 'undefined') {
     console.error('Supabase SDK no disponible');
     return;
   }
   sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  console.log('Supabase cliente creado');
-  // Test de conectividad
-  sb.from('trades').select('id').limit(1).then(function(res) {
-    if (res.error) {
-      console.error('Supabase test query error:', res.error.message);
-    } else {
-      console.log('Supabase OK — test trades:', res.data);
-    }
-  });
-  if (typeof cargarDatosUsuario === 'function') cargarDatosUsuario();
+  cargarDatosUsuario();
 }
 
 // ============================================================
@@ -183,12 +175,10 @@ async function cargarAgenda() {
 // ============================================================
 
 async function cargarDatosUsuario() {
-  console.log('[CDU] cargarDatosUsuario iniciada — sb:', !!sb, '| usuarioActual:', usuarioActual && usuarioActual.email);
   await cargarHistoriales();
   await cargarDiario();
   await cargarAgenda();
   await actualizarDashboard();
-  console.log('[CDU] cargarDatosUsuario completada');
 }
 
 // ============================================================
@@ -240,30 +230,15 @@ async function cargarTrades(cuenta) {
 // ============================================================
 
 async function actualizarDashboard() {
-  if (!sb) {
-    initSupabase();
-    var espera = 0;
-    while (!sb && espera < 25) {
-      await new Promise(function(r) { setTimeout(r, 200); });
-      espera++;
-    }
-  }
-  if (!sb || !usuarioActual) { console.warn('[AD] Abortado — falta sb o usuarioActual'); return; }
+  if (!sb || !usuarioActual) return;
 
-  console.log('[AD] Lanzando query para:', usuarioActual.email);
   var res = await sb.from('trades').select('*').eq('usuario_email', usuarioActual.email);
-  if (res.error) {
-    console.error('[AD] Error en query de trades:', res.error.message, '| código:', res.error.code, '| detalle:', res.error.details);
-    return;
-  }
-  if (!res.data || res.data.length === 0) { console.warn('[AD] Sin datos de trades para', usuarioActual.email); return; }
-  console.log('[AD] Query OK —', res.data.length, 'filas recibidas para', usuarioActual.email);
+  if (res.error || !res.data || res.data.length === 0) return;
 
   var todos = res.data;
   var maestra = todos.filter(function(t){ return t.cuenta === 'Cuenta Maestra'; });
   var prueba  = todos.filter(function(t){ return t.cuenta === 'Cuenta Prueba'; });
   var retos   = todos.filter(function(t){ return t.cuenta === 'Cuenta Retos'; });
-  console.log('[AD] Trades — total:', todos.length, '| maestra:', maestra.length, '| prueba:', prueba.length, '| retos:', retos.length);
 
   function metricas(trades) {
     if (!trades.length) return { total:0, wins:0, wr:0, pnl:0, rr:0 };
@@ -319,7 +294,6 @@ async function actualizarDashboard() {
   var mP = metricas(prueba);
   var mR = metricas(retos);
   var mG = metricas(todos);
-  console.log('[AD] Métricas — global:', mG, '| maestra:', mM);
 
   // Guardar en window ANTES de llamar a los builders
   window.AURUM_TRADES = {
@@ -330,18 +304,11 @@ async function actualizarDashboard() {
     tipos: porTipo(todos)
   };
 
-  console.log('[AD] AURUM_TRADES asignado con ' + todos.length + ' trades');
-
   // Actualizar cards explícitamente con IDs reales
-  function setEl(id, val) {
-    var el = document.getElementById(id);
-    console.log('[AD] setEl', id, '→', el ? 'ENCONTRADO' : 'NO ENCONTRADO', '|', val);
-    if (el) el.textContent = val;
-  }
+  function setEl(id, val) { var el = document.getElementById(id); if (el) el.textContent = val; }
   function pnlStr(m) { return (m.pnl >= 0 ? '+' : '') + m.pnl + '$'; }
   function subStr(m) { return m.total + ' trades · WR ' + m.wr + '%'; }
 
-  console.log('[AD] Actualizando cards DOM...');
   setEl('card-global-pnl',   pnlStr(mG)); setEl('card-global-sub',   subStr(mG));
   setEl('card-maestra-pnl',  pnlStr(mM)); setEl('card-maestra-sub',  subStr(mM));
   setEl('card-retos-pnl',    pnlStr(mR)); setEl('card-retos-sub',    subStr(mR));

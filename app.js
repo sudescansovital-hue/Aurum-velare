@@ -124,14 +124,5 @@ document.addEventListener('DOMContentLoaded', () => {
   if (_adminLink) _adminLink.style.display = 'none';
 
   mostrarPagina('home');
-
-  setTimeout(function() {
-    if (!sb) {
-      console.log('[APP] sb es null a los 2000ms — llamando initSupabase()');
-      if (typeof initSupabase === 'function') initSupabase();
-    } else {
-      console.log('[APP] sb listo a los 2000ms — llamando cargarDatosUsuario()');
-      if (typeof cargarDatosUsuario === 'function') cargarDatosUsuario();
-    }
-  }, 2000);
+  initSupabase();
 });
