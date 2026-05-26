@@ -305,26 +305,13 @@ async function actualizarDashboard() {
     return [tm(scalp,'Scalping <30min'), tm(intra,'Intradía 30m–4h'), tm(swing,'✦ Swing 4h–24h'), tm(multi,'Multi-día >24h')];
   }
 
-  // Actualizar cards de cuentas
+  // Calcular métricas
   var mM = metricas(maestra);
   var mP = metricas(prueba);
   var mR = metricas(retos);
   var mG = metricas(todos);
 
-  function actualizarCard(id, m, color) {
-    var pnlStr = (m.pnl >= 0 ? '+' : '') + m.pnl + '$';
-    var pnlEl = document.getElementById('card-'+id+'-pnl');
-    if (pnlEl) pnlEl.textContent = pnlStr;
-    var subEl = document.getElementById('card-'+id+'-sub');
-    if (subEl) subEl.textContent = m.total + ' trades · WR ' + m.wr + '%';
-  }
-
-  actualizarCard('global',  mG, 'var(--gold-bright)');
-  actualizarCard('maestra', mM, 'var(--green)');
-  actualizarCard('prueba',  mP, '#6A9AEE');
-  actualizarCard('retos',   mR, '#E8A84C');
-
-  // Guardar en window para uso en otros módulos
+  // Guardar en window ANTES de llamar a los builders
   window.AURUM_TRADES = {
     todos: todos, maestra: maestra, prueba: prueba, retos: retos,
     metricas: { global:mG, maestra:mM, prueba:mP, retos:mR },
@@ -335,22 +322,33 @@ async function actualizarDashboard() {
 
   console.log('Dashboard actualizado con ' + todos.length + ' trades reales');
 
-  // Actualizar tabs visibles con datos reales
-  if (typeof buildCicloDots === 'function') buildCicloDots();
-  if (typeof buildHorarios === 'function') buildHorarios();
+  // Actualizar cards explícitamente con IDs reales
+  function setEl(id, val) { var el = document.getElementById(id); if (el) el.textContent = val; }
+  function pnlStr(m) { return (m.pnl >= 0 ? '+' : '') + m.pnl + '$'; }
+  function subStr(m) { return m.total + ' trades · WR ' + m.wr + '%'; }
+
+  setEl('card-global-pnl',   pnlStr(mG)); setEl('card-global-sub',   subStr(mG));
+  setEl('card-maestra-pnl',  pnlStr(mM)); setEl('card-maestra-sub',  subStr(mM));
+  setEl('card-retos-pnl',    pnlStr(mR)); setEl('card-retos-sub',    subStr(mR));
+  setEl('card-prueba-pnl',   pnlStr(mP)); setEl('card-prueba-sub',   subStr(mP));
+
+  // Build functions — tabs de gestión y dashboard
+  if (typeof buildCicloDots    === 'function') buildCicloDots();
+  if (typeof buildHorarios     === 'function') buildHorarios();
   if (typeof buildCumplimiento === 'function') buildCumplimiento();
-  if (typeof buildEquity === 'function') buildEquity();
+  if (typeof buildEquity       === 'function') buildEquity();
+  if (typeof buildTradeRecord  === 'function') buildTradeRecord();
 
   // Reconstruir vistas de cuentas con datos frescos
   if (typeof cuentasBuilt !== 'undefined') Object.keys(cuentasBuilt).forEach(function(k){ delete cuentasBuilt[k]; });
-  if (typeof buildGlobal === 'function') buildGlobal();
+  if (typeof buildGlobal    === 'function') buildGlobal();
   if (typeof buildCuentaReal === 'function') {
     buildCuentaReal('maestra', 'Cuenta Maestra');
     buildCuentaReal('retos',   'Cuenta Retos');
     buildCuentaReal('prueba',  'Cuenta Prueba');
   }
 
-  // Actualizar stats globales de Trade Record
+  // Stats globales de Trade Record
   actualizarTradeRecord();
 }
 
