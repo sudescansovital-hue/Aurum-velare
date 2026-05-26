@@ -1,21 +1,42 @@
 // ============================================================
-// SUPABASE — Conexión y funciones de datos
+// SUPABASE — Fetch nativo (sin supabase-js SDK)
 // ============================================================
 
 const SUPABASE_URL = 'https://rsrbxcvlnbwpiyhumqmt.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_KjuStc-6eWMM5IfWLerZLw_BIKiZ5iV';
 
-let sb = null;
+const SUPA_HEADERS = {
+  'apikey': SUPABASE_KEY,
+  'Authorization': 'Bearer ' + SUPABASE_KEY,
+  'Content-Type': 'application/json'
+};
+
+async function supaGet(tabla, params) {
+  var qs = params ? '?' + params : '';
+  var r = await fetch(SUPABASE_URL + '/rest/v1/' + tabla + qs, { headers: SUPA_HEADERS });
+  if (!r.ok) return { data: null, error: await r.text() };
+  return { data: await r.json(), error: null };
+}
+
+async function supaPost(tabla, body, prefer) {
+  var headers = Object.assign({}, SUPA_HEADERS, { 'Prefer': prefer || 'return=minimal' });
+  var r = await fetch(SUPABASE_URL + '/rest/v1/' + tabla, {
+    method: 'POST', headers: headers, body: JSON.stringify(body)
+  });
+  if (!r.ok) return { error: await r.text() };
+  return { error: null };
+}
+
+async function supaPatch(tabla, params, body) {
+  var headers = Object.assign({}, SUPA_HEADERS, { 'Prefer': 'return=minimal' });
+  var r = await fetch(SUPABASE_URL + '/rest/v1/' + tabla + '?' + params, {
+    method: 'PATCH', headers: headers, body: JSON.stringify(body)
+  });
+  if (!r.ok) return { error: await r.text() };
+  return { error: null };
+}
 
 function initSupabase() {
-  if (sb) return;
-  if (typeof window.supabase === 'undefined') {
-    console.error('Supabase SDK no disponible');
-    return;
-  }
-  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
-    auth: { persistSession: false, autoRefreshToken: false }
-  });
   cargarDatosUsuario();
 }
 
@@ -24,29 +45,24 @@ function initSupabase() {
 // ============================================================
 
 async function guardarHistorial(cuenta) {
-  if (!sb || !usuarioActual) return;
+  if (!usuarioActual) return;
 
-  // Buscar si ya existe un registro para esta cuenta
-  var res = await sb.from('historiales')
-    .select('*')
-    .eq('usuario_email', usuarioActual.email)
-    .eq('nombre', cuenta.nombre)
-    .single();
+  var res = await supaGet('historiales',
+    'usuario_email=eq.' + encodeURIComponent(usuarioActual.email) +
+    '&nombre=eq.' + encodeURIComponent(cuenta.nombre) +
+    '&limit=1');
 
-  if (res.data) {
-    // Existe — actualizar acumulando
-    var existente = res.data;
+  if (res.error) return;
+
+  if (res.data && res.data.length > 0) {
+    var existente = res.data[0];
     var totalNuevo = existente.total + cuenta.total;
-    var winsNuevo = existente.wins + cuenta.wins;
-    var pnlNuevo = Math.round((existente.pnl + cuenta.pnl) * 100) / 100;
-    var wrNuevo = Math.round((winsNuevo / totalNuevo * 100) * 10) / 10;
+    var winsNuevo  = existente.wins + cuenta.wins;
+    var pnlNuevo   = Math.round((existente.pnl + cuenta.pnl) * 100) / 100;
+    var wrNuevo    = Math.round((winsNuevo / totalNuevo * 100) * 10) / 10;
+    var fpsMerged  = [...new Set([...(existente.fps || []), ...(cuenta.fps || [])])];
 
-    // Fusionar fps
-    var fpsExistentes = existente.fps || [];
-    var fpsNuevos = cuenta.fps || [];
-    var fpsMerged = [...new Set([...fpsExistentes, ...fpsNuevos])];
-
-    await sb.from('historiales').update({
+    await supaPatch('historiales', 'id=eq.' + existente.id, {
       total: totalNuevo,
       wins: winsNuevo,
       pnl: pnlNuevo,
@@ -54,12 +70,10 @@ async function guardarHistorial(cuenta) {
       rr: Math.round(((existente.rr + cuenta.rr) / 2) * 100) / 100,
       periodo: existente.periodo + ' + ' + cuenta.periodo,
       fps: fpsMerged
-    }).eq('id', existente.id);
-
+    });
     console.log('Historial actualizado: ' + cuenta.nombre);
   } else {
-    // No existe — insertar nuevo
-    await sb.from('historiales').insert({
+    await supaPost('historiales', {
       usuario_email: usuarioActual.email,
       nombre: cuenta.nombre,
       tipo: cuenta.tipo || 'challenge',
@@ -73,7 +87,6 @@ async function guardarHistorial(cuenta) {
       tipos: cuenta.tipos,
       fps: cuenta.fps || []
     });
-
     console.log('Historial nuevo: ' + cuenta.nombre);
   }
 }
@@ -81,13 +94,12 @@ async function guardarHistorial(cuenta) {
 var CUENTAS_INTERNAS_HIST = ['Cuenta Maestra', 'Cuenta Retos', 'Cuenta Prueba'];
 
 async function cargarHistoriales() {
-  if (!sb || !usuarioActual) return;
-  var res = await sb.from('historiales').select('*')
-    .eq('usuario_email', usuarioActual.email)
-    .order('created_at', { ascending: false });
+  if (!usuarioActual) return;
+  var res = await supaGet('historiales',
+    'usuario_email=eq.' + encodeURIComponent(usuarioActual.email) +
+    '&order=created_at.desc');
   if (res.error || !res.data || res.data.length === 0) return;
 
-  // Solo cuentas externas — excluir las tres cuentas Aurum internas
   var externas = res.data.filter(function(h) {
     return CUENTAS_INTERNAS_HIST.indexOf(h.nombre) === -1;
   });
@@ -124,14 +136,20 @@ function actualizarGlobalesHistorial() {
 // ============================================================
 
 async function guardarEntradaDiarioSupabase(texto) {
-  if (!sb || !usuarioActual) return false;
-  var res = await sb.from('diario').insert({ usuario_email:usuarioActual.email, texto:texto, fecha:new Date().toISOString().split('T')[0] });
+  if (!usuarioActual) return false;
+  var res = await supaPost('diario', {
+    usuario_email: usuarioActual.email,
+    texto: texto,
+    fecha: new Date().toISOString().split('T')[0]
+  });
   return !res.error;
 }
 
 async function cargarDiario() {
-  if (!sb || !usuarioActual) return;
-  var res = await sb.from('diario').select('*').eq('usuario_email', usuarioActual.email).order('created_at',{ascending:false}).limit(20);
+  if (!usuarioActual) return;
+  var res = await supaGet('diario',
+    'usuario_email=eq.' + encodeURIComponent(usuarioActual.email) +
+    '&order=created_at.desc&limit=20');
   if (res.error || !res.data) return;
   var entradas = document.getElementById('diario-entradas');
   if (!entradas) return;
@@ -150,16 +168,19 @@ async function cargarDiario() {
 // ============================================================
 
 async function guardarAgendaSupabase(fecha, sesion) {
-  if (!sb || !usuarioActual) return false;
-  var res = await sb.from('agenda').insert({ usuario_email:usuarioActual.email, fecha:fecha, sesion:sesion });
+  if (!usuarioActual) return false;
+  var res = await supaPost('agenda', { usuario_email: usuarioActual.email, fecha: fecha, sesion: sesion });
   return !res.error;
 }
 
 async function cargarAgenda() {
-  if (!sb || !usuarioActual) return;
+  if (!usuarioActual) return;
   var hoy = new Date().toISOString().split('T')[0];
-  var res = await sb.from('agenda').select('*').eq('usuario_email',usuarioActual.email).gte('fecha',hoy).order('fecha',{ascending:true});
-  if (res.error || !res.data || res.data.length===0) return;
+  var res = await supaGet('agenda',
+    'usuario_email=eq.' + encodeURIComponent(usuarioActual.email) +
+    '&fecha=gte.' + hoy +
+    '&order=fecha.asc');
+  if (res.error || !res.data || res.data.length === 0) return;
   var lista = document.getElementById('agenda-lista');
   if (!lista) return;
   lista.innerHTML = '';
@@ -188,8 +209,8 @@ async function cargarDatosUsuario() {
 // ============================================================
 
 async function guardarTradesIndividuales(trades, cuenta) {
-  if (!sb || !usuarioActual || !trades || trades.length === 0) return;
-  
+  if (!usuarioActual || !trades || trades.length === 0) return;
+
   var lote = trades.map(function(t) {
     return {
       usuario_email: usuarioActual.email,
@@ -209,20 +230,20 @@ async function guardarTradesIndividuales(trades, cuenta) {
     };
   });
 
-  // Insertar en lotes de 50 para no superar límites
   for (var i = 0; i < lote.length; i += 50) {
     var bloque = lote.slice(i, i + 50);
-    var res = await sb.from('trades').upsert(bloque, { onConflict: 'fp' });
+    var res = await supaPost('trades', bloque, 'resolution=merge-duplicates,return=minimal');
     if (res.error) console.error('Error guardando trades:', res.error);
   }
   console.log(trades.length + ' trades guardados en Supabase');
 }
 
 async function cargarTrades(cuenta) {
-  if (!sb || !usuarioActual) return [];
-  var query = sb.from('trades').select('*').eq('usuario_email', usuarioActual.email);
-  if (cuenta) query = query.eq('cuenta', cuenta);
-  var res = await query.order('created_at', { ascending: true });
+  if (!usuarioActual) return [];
+  var params = 'usuario_email=eq.' + encodeURIComponent(usuarioActual.email) +
+               '&order=created_at.asc&limit=10000';
+  if (cuenta) params += '&cuenta=eq.' + encodeURIComponent(cuenta);
+  var res = await supaGet('trades', params);
   if (res.error || !res.data) return [];
   return res.data;
 }
@@ -232,10 +253,11 @@ async function cargarTrades(cuenta) {
 // ============================================================
 
 async function actualizarDashboard() {
-  if (!sb || !usuarioActual) return;
+  if (!usuarioActual) return;
 
   console.log('[SUPA] Cargando trades para: ' + usuarioActual.email);
-  var res = await sb.from('trades').select('*').eq('usuario_email', usuarioActual.email).limit(10000);
+  var res = await supaGet('trades',
+    'usuario_email=eq.' + encodeURIComponent(usuarioActual.email) + '&limit=10000');
   console.log('[SUPA] Trades recibidos: ' + (res.data ? res.data.length : 0));
   if (res.error || !res.data || res.data.length === 0) return;
 
@@ -293,13 +315,11 @@ async function actualizarDashboard() {
     return [tm(scalp,'Scalping <30min'), tm(intra,'Intradía 30m–4h'), tm(swing,'✦ Swing 4h–24h'), tm(multi,'Multi-día >24h')];
   }
 
-  // Calcular métricas
   var mM = metricas(maestra);
   var mP = metricas(prueba);
   var mR = metricas(retos);
   var mG = metricas(todos);
 
-  // Guardar en window ANTES de llamar a los builders
   window.AURUM_TRADES = {
     todos: todos, maestra: maestra, prueba: prueba, retos: retos,
     metricas: { global:mG, maestra:mM, prueba:mP, retos:mR },
@@ -308,7 +328,6 @@ async function actualizarDashboard() {
     tipos: porTipo(todos)
   };
 
-  // Actualizar cards explícitamente con IDs reales
   function setEl(id, val) { var el = document.getElementById(id); if (el) el.textContent = val; }
   function pnlStr(m) { return (m.pnl >= 0 ? '+' : '') + m.pnl + '$'; }
   function subStr(m) { return m.total + ' trades · WR ' + m.wr + '%'; }
@@ -318,14 +337,12 @@ async function actualizarDashboard() {
   setEl('card-retos-pnl',    pnlStr(mR)); setEl('card-retos-sub',    subStr(mR));
   setEl('card-prueba-pnl',   pnlStr(mP)); setEl('card-prueba-sub',   subStr(mP));
 
-  // Build functions — tabs de gestión y dashboard
   if (typeof buildCicloDots    === 'function') buildCicloDots();
   if (typeof buildHorarios     === 'function') buildHorarios();
   if (typeof buildCumplimiento === 'function') buildCumplimiento();
   if (typeof buildEquity       === 'function') buildEquity();
   if (typeof buildTradeRecord  === 'function') buildTradeRecord();
 
-  // Reconstruir vistas de cuentas con datos frescos
   if (typeof cuentasBuilt !== 'undefined') Object.keys(cuentasBuilt).forEach(function(k){ delete cuentasBuilt[k]; });
   if (typeof buildGlobal    === 'function') buildGlobal();
   if (typeof buildCuentaReal === 'function') {
@@ -334,7 +351,6 @@ async function actualizarDashboard() {
     buildCuentaReal('prueba',  'Cuenta Prueba');
   }
 
-  // Stats globales de Trade Record
   actualizarTradeRecord();
 }
 
