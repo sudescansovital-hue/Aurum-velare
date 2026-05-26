@@ -23,7 +23,15 @@
       <div class="login-title">Aurum Velare</div>
       <div class="login-subtitle">Acceso al proceso · Pack requerido</div>
     </div>
-    <div class="login-body">
+
+    <!-- Tabs -->
+    <div style="display:flex;border-bottom:1px solid var(--border);">
+      <div id="tab-login" onclick="mostrarFormLogin()" style="flex:1;text-align:center;padding:.7rem;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold-bright);cursor:pointer;border-bottom:1px solid var(--gold);margin-bottom:-1px;">Entrar</div>
+      <div id="tab-registro" onclick="mostrarFormRegistro()" style="flex:1;text-align:center;padding:.7rem;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--text-muted);cursor:pointer;">Registrarse</div>
+    </div>
+
+    <!-- Formulario: login -->
+    <div id="login-form" class="login-body">
       <label class="login-label">Email</label>
       <input class="login-input" id="login-email" type="email" placeholder="tu@email.com">
       <label class="login-label">Contraseña</label>
@@ -32,8 +40,29 @@
       <button class="login-btn" onclick="hacerLogin()">✦ Entrar al proceso</button>
       <div class="login-hint">
         ¿Sin pack? <span onclick="cerrarLogin();irA('packs')" style="color:var(--gold-dim);cursor:pointer;text-decoration:underline;">Ver los packs →</span>
-        <br><span style="color:var(--border);font-size:10px;">Demo: alberto@aurum.com / aurum2026</span>
       </div>
+    </div>
+
+    <!-- Formulario: registro -->
+    <div id="registro-form" class="login-body" style="display:none;">
+      <label class="login-label">Email</label>
+      <input class="login-input" id="reg-email" type="email" placeholder="tu@email.com">
+      <label class="login-label">Contraseña</label>
+      <input class="login-input" id="reg-pass" type="password" placeholder="Mínimo 6 caracteres">
+      <label class="login-label">Nick</label>
+      <input class="login-input" id="reg-nick" type="text" placeholder="Tu nombre en Aurum">
+      <label class="login-label">Tu animal</label>
+      <select class="login-input" id="reg-animal" style="cursor:pointer;appearance:none;-webkit-appearance:none;">
+        <option value="" style="background:#060810;">— Elige tu animal —</option>
+        <option value="hormiga" style="background:#060810;">🐜 Hormiga — Disciplina · Repetición</option>
+        <option value="leon" style="background:#060810;">🦁 León — Presencia · Convicción</option>
+        <option value="elefante" style="background:#060810;">🐘 Elefante — Memoria · Control emocional</option>
+        <option value="oso" style="background:#060810;">🐻 Oso — Paciencia · Protección</option>
+        <option value="toro" style="background:#060810;">🐂 Toro — Expansión · Momentum</option>
+        <option value="lobo" style="background:#060810;">🐺 Lobo — Instinto · Adaptación</option>
+      </select>
+      <div class="login-err" id="registro-err"></div>
+      <button class="login-btn" onclick="hacerRegistro()">✦ Unirme al proceso</button>
     </div>
   </div>
 </div>

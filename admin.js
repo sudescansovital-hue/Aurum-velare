@@ -20,7 +20,6 @@
 // ALTER TABLE usuarios_aurum ENABLE ROW LEVEL SECURITY;
 // CREATE POLICY "service_role_all" ON usuarios_aurum USING (true) WITH CHECK (true);
 
-const ADMIN_EMAIL = 'sudescansovital@gmail.com';
 var adminUsuarios  = [];
 var adminEditId    = null;
 

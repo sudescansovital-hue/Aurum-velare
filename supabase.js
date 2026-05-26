@@ -11,7 +11,7 @@ function initSupabase() {
   if (typeof window.supabase !== 'undefined') {
     sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     console.log('Supabase conectado');
-    cargarDatosUsuario();
+    if (typeof restaurarSesion === 'function') restaurarSesion();
   }
 }
 
