@@ -13,7 +13,9 @@ function initSupabase() {
     console.error('Supabase SDK no disponible');
     return;
   }
-  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false }
+  });
   cargarDatosUsuario();
 }
 
