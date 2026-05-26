@@ -12,27 +12,44 @@ const SUPA_HEADERS = {
 };
 
 async function supaGet(tabla, params) {
-  var qs = params ? '?' + params : '';
-  var r = await fetch(SUPABASE_URL + '/rest/v1/' + tabla + qs, { headers: SUPA_HEADERS });
-  if (!r.ok) return { data: null, error: await r.text() };
-  return { data: await r.json(), error: null };
+  var url = SUPABASE_URL + '/rest/v1/' + tabla + (params ? '?' + params : '');
+  console.log('[SUPA GET]', tabla, params || '');
+  var r = await fetch(url, { headers: SUPA_HEADERS }).catch(function(e) {
+    console.error('[SUPA GET FETCH ERROR]', tabla, e);
+    return null;
+  });
+  if (!r) return { data: null, error: 'fetch failed' };
+  if (!r.ok) { var err = await r.text(); console.error('[SUPA GET HTTP]', tabla, r.status, err); return { data: null, error: err }; }
+  var data = await r.json();
+  console.log('[SUPA GET OK]', tabla, Array.isArray(data) ? data.length + ' rows' : data);
+  return { data: data, error: null };
 }
 
 async function supaPost(tabla, body, prefer) {
   var headers = Object.assign({}, SUPA_HEADERS, { 'Prefer': prefer || 'return=minimal' });
+  console.log('[SUPA POST]', tabla);
   var r = await fetch(SUPABASE_URL + '/rest/v1/' + tabla, {
     method: 'POST', headers: headers, body: JSON.stringify(body)
+  }).catch(function(e) {
+    console.error('[SUPA POST FETCH ERROR]', tabla, e);
+    return null;
   });
-  if (!r.ok) return { error: await r.text() };
+  if (!r) return { error: 'fetch failed' };
+  if (!r.ok) { var err = await r.text(); console.error('[SUPA POST HTTP]', tabla, r.status, err); return { error: err }; }
   return { error: null };
 }
 
 async function supaPatch(tabla, params, body) {
   var headers = Object.assign({}, SUPA_HEADERS, { 'Prefer': 'return=minimal' });
+  console.log('[SUPA PATCH]', tabla, params);
   var r = await fetch(SUPABASE_URL + '/rest/v1/' + tabla + '?' + params, {
     method: 'PATCH', headers: headers, body: JSON.stringify(body)
+  }).catch(function(e) {
+    console.error('[SUPA PATCH FETCH ERROR]', tabla, e);
+    return null;
   });
-  if (!r.ok) return { error: await r.text() };
+  if (!r) return { error: 'fetch failed' };
+  if (!r.ok) { var err = await r.text(); console.error('[SUPA PATCH HTTP]', tabla, r.status, err); return { error: err }; }
   return { error: null };
 }
 
@@ -198,10 +215,15 @@ async function cargarAgenda() {
 // ============================================================
 
 async function cargarDatosUsuario() {
+  console.log('[SUPA] cargarDatosUsuario — inicio, usuarioActual:', usuarioActual && usuarioActual.email);
   await cargarHistoriales();
+  console.log('[SUPA] cargarHistoriales — OK');
   await cargarDiario();
+  console.log('[SUPA] cargarDiario — OK');
   await cargarAgenda();
+  console.log('[SUPA] cargarAgenda — OK');
   await actualizarDashboard();
+  console.log('[SUPA] actualizarDashboard — OK, AURUM_TRADES:', window.AURUM_TRADES ? window.AURUM_TRADES.todos.length + ' trades' : 'undefined');
 }
 
 // ============================================================
@@ -253,13 +275,15 @@ async function cargarTrades(cuenta) {
 // ============================================================
 
 async function actualizarDashboard() {
-  if (!usuarioActual) return;
+  console.log('[DASH] actualizarDashboard — inicio, usuarioActual:', usuarioActual && usuarioActual.email);
+  if (!usuarioActual) { console.warn('[DASH] sin usuarioActual — abortando'); return; }
 
   console.log('[SUPA] Cargando trades para: ' + usuarioActual.email);
   var res = await supaGet('trades',
     'usuario_email=eq.' + encodeURIComponent(usuarioActual.email) + '&limit=10000');
   console.log('[SUPA] Trades recibidos: ' + (res.data ? res.data.length : 0));
-  if (res.error || !res.data || res.data.length === 0) return;
+  if (res.error) { console.error('[DASH] error en query trades:', res.error); return; }
+  if (!res.data || res.data.length === 0) { console.warn('[DASH] sin trades — abortando'); return; }
 
   var todos = res.data;
   var maestra = todos.filter(function(t){ return t.cuenta === 'Cuenta Maestra'; });
