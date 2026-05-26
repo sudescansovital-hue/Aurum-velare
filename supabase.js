@@ -232,6 +232,7 @@ async function cargarTrades(cuenta) {
 async function actualizarDashboard() {
   if (!sb || !usuarioActual) return;
 
+  console.log('[SUPA] Cargando trades para: ' + usuarioActual.email);
   var res = await sb.from('trades').select('*').eq('usuario_email', usuarioActual.email);
   if (res.error || !res.data || res.data.length === 0) return;
 

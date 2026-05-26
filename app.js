@@ -2,11 +2,16 @@
 // NAVEGACIÓN Y LOGIN PRINCIPAL — app.js
 // ============================================================
 
-const ADMIN_EMAIL = 'sudescansovital@gmail.com';
+const ADMIN_EMAIL = 'roderas@gmail.com';
 
 const USUARIOS = {
-  'alberto@aurum.com': {
-    pass:'aurum2026', nombre:'Alberto F.', nick:'Roderas',
+  'sudescansovital@gmail.com': {
+    pass:'admin2026', nombre:'Roderas', nick:'Roderas',
+    animal:'🦁', pack:'Pack León · Etapa 3', packLevel:3,
+    etapa:3, ciclo:2, ozt:247
+  },
+  'roderas@gmail.com': {
+    pass:'aurum2026', nombre:'Willian', nick:'Willian',
     animal:'🦅', pack:'Pack Águila · Etapa 3', packLevel:3,
     etapa:3, ciclo:2, ozt:247
   },
@@ -14,11 +19,6 @@ const USUARIOS = {
     pass:'hormiga2026', nombre:'Usuario Demo', nick:'León Demo',
     animal:'🐂', pack:'Pack Hormiga · Etapa 1', packLevel:1,
     etapa:1, ciclo:1, ozt:11
-  },
-  'sudescansovital@gmail.com': {
-    pass:'admin2026', nombre:'Roderas', nick:'Roderas',
-    animal:'🦅', pack:'Pack Águila · Etapa 3', packLevel:3,
-    etapa:3, ciclo:2, ozt:247
   },
 };
 
@@ -112,8 +112,8 @@ document.addEventListener('DOMContentLoaded', () => {
   if (p) p.addEventListener('keydown', ev => { if(ev.key==='Enter') hacerLogin(); });
   if (e) e.addEventListener('keydown', ev => { if(ev.key==='Enter') p.focus(); });
 
-  // Auto-login temporal como alberto@aurum.com para cargar datos
-  const _autoEmail = 'alberto@aurum.com';
+  // Auto-login temporal como sudescansovital@gmail.com para cargar datos
+  const _autoEmail = 'sudescansovital@gmail.com';
   usuarioActual = { email: _autoEmail, ...USUARIOS[_autoEmail] };
   document.getElementById('nav-login-btn').style.display   = 'none';
   document.getElementById('nav-user-widget').style.display = 'flex';
