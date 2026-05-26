@@ -233,7 +233,8 @@ async function actualizarDashboard() {
   if (!sb || !usuarioActual) return;
 
   console.log('[SUPA] Cargando trades para: ' + usuarioActual.email);
-  var res = await sb.from('trades').select('*').eq('usuario_email', usuarioActual.email);
+  var res = await sb.from('trades').select('*').eq('usuario_email', usuarioActual.email).limit(10000);
+  console.log('[SUPA] Trades recibidos: ' + (res.data ? res.data.length : 0));
   if (res.error || !res.data || res.data.length === 0) return;
 
   var todos = res.data;
