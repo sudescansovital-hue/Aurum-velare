@@ -125,7 +125,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   mostrarPagina('home');
 
+  console.log('[APP] setTimeout cargarDatosUsuario programado (2000ms)');
   setTimeout(function() {
-    if (typeof cargarDatosUsuario === 'function') cargarDatosUsuario();
+    console.log('[APP] setTimeout disparado — cargarDatosUsuario es función:', typeof cargarDatosUsuario === 'function');
+    if (typeof cargarDatosUsuario === 'function') {
+      cargarDatosUsuario();
+      console.log('[APP] cargarDatosUsuario() llamada');
+    } else {
+      console.error('[APP] cargarDatosUsuario NO está definida en este momento');
+    }
   }, 2000);
 });

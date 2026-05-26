@@ -183,10 +183,12 @@ async function cargarAgenda() {
 // ============================================================
 
 async function cargarDatosUsuario() {
+  console.log('[CDU] cargarDatosUsuario iniciada — sb:', !!sb, '| usuarioActual:', usuarioActual && usuarioActual.email);
   await cargarHistoriales();
   await cargarDiario();
   await cargarAgenda();
   await actualizarDashboard();
+  console.log('[CDU] cargarDatosUsuario completada');
 }
 
 // ============================================================
