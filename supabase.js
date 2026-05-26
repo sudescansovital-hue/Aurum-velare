@@ -8,11 +8,21 @@ const SUPABASE_KEY = 'sb_publishable_KjuStc-6eWMM5IfWLerZLw_BIKiZ5iV';
 let sb = null;
 
 function initSupabase() {
-  if (typeof window.supabase !== 'undefined') {
-    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    console.log('Supabase conectado');
-    if (typeof restaurarSesion === 'function') restaurarSesion();
+  if (typeof window.supabase === 'undefined') {
+    console.error('Supabase SDK no disponible');
+    return;
   }
+  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  console.log('Supabase cliente creado');
+  // Test de conectividad
+  sb.from('trades').select('id').limit(1).then(function(res) {
+    if (res.error) {
+      console.error('Supabase test query error:', res.error.message);
+    } else {
+      console.log('Supabase OK — test trades:', res.data);
+    }
+  });
+  if (typeof restaurarSesion === 'function') restaurarSesion();
 }
 
 // ============================================================
