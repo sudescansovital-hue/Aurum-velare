@@ -2295,6 +2295,46 @@
         </div>
       </div>
 
+      <!-- Fila 3: Lotaje tras pérdida · Consistencia de lotaje -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);">
+        <div class="stat-card">
+          <div class="stat-label">Lotaje tras pérdida</div>
+          <div class="stat-sub" style="margin-bottom:.8rem;">¿Subes el lote cuando pierdes?</div>
+          <div id="eav-lote-tras-perdida"></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Consistencia de lotaje</div>
+          <div class="stat-sub" style="margin-bottom:.8rem;">Coeficiente de variación del sizing</div>
+          <div id="eav-lote-consistencia"></div>
+        </div>
+      </div>
+
+      <!-- Fila 4: Franja horaria · Peor día · Duración media -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);">
+        <div class="stat-card">
+          <div class="stat-label">Franja horaria</div>
+          <div class="stat-sub" style="margin-bottom:.8rem;">Mejor WR vs donde más operas</div>
+          <div id="eav-hora-analisis"></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Peor día</div>
+          <div class="stat-sub" style="margin-bottom:.8rem;">¿Insistes en tu peor jornada?</div>
+          <div id="eav-peor-dia-analisis"></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Duración media</div>
+          <div class="stat-sub" style="margin-bottom:.8rem;">Ganadoras vs perdedoras</div>
+          <div id="eav-duracion-analisis"></div>
+        </div>
+      </div>
+
+      <!-- Veredicto del inversor -->
+      <div style="padding:1.5rem 2rem;border-top:1px solid var(--border);position:relative;">
+        <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>
+        <div style="font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--gold-bright);margin-bottom:1rem;">Veredicto del inversor</div>
+        <div id="eav-veredicto"></div>
+      </div>
+
     </div>
 
     <div id="gpanel-diario" style="display:none;padding:91px 2rem 1.5rem;">

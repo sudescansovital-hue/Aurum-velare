@@ -555,12 +555,20 @@ function buildCumplimiento() {
   }
 }
 
+function _eavBarra(label, pct, col) {
+  return '<div style="margin-bottom:.5rem;">' +
+    '<div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text-muted);margin-bottom:.25rem;">' +
+    '<span>' + label + '</span><span style="color:' + col + ';">' + pct + '%</span></div>' +
+    '<div style="height:3px;background:var(--border);border-radius:2px;">' +
+    '<div style="height:100%;width:' + Math.min(100, pct) + '%;background:' + col + ';border-radius:2px;"></div></div></div>';
+}
+
 function buildEstadisticasAvanzadas() {
   var trades = getTradesActivos();
 
   function setEl(id, val) { var el = document.getElementById(id); if (el) el.textContent = val; }
+  function setHTML(id, html) { var el = document.getElementById(id); if (el) el.innerHTML = html; }
 
-  // Extraer fecha de apertura desde fp MT5 (ticket_YYYY.MM.DD HH:MM:SS_precio_vol)
   function fechaDesdeFp(fp) {
     if (!fp) return null;
     var m = String(fp).match(/(\d{4})\.(\d{2})\.(\d{2})\s+(\d{2}):(\d{2}):(\d{2})/);
@@ -575,11 +583,12 @@ function buildEstadisticasAvanzadas() {
      'eav-peor-val','eav-peor-sub',
      'eav-tp-pct','eav-tp-sub',
      'eav-revenge-num','eav-revenge-sub'].forEach(function(id){ setEl(id, '—'); });
-    var rl = document.getElementById('eav-revenge-lista'); if (rl) rl.innerHTML = '';
+    ['eav-revenge-lista','eav-lote-tras-perdida','eav-lote-consistencia',
+     'eav-hora-analisis','eav-peor-dia-analisis','eav-duracion-analisis','eav-veredicto'].forEach(function(id){ setHTML(id, ''); });
     return;
   }
 
-  // 1. Racha actual — trades consecutivos iguales al final del array
+  // 1. Racha actual
   var racha = 1;
   var rachaGanando = trades[trades.length - 1].ganadora;
   for (var i = trades.length - 2; i >= 0; i--) {
@@ -590,7 +599,7 @@ function buildEstadisticasAvanzadas() {
   setEl('eav-racha-tipo', rachaGanando ? 'ganando' : 'perdiendo');
   setEl('eav-racha-sub', racha + ' consecutivos ' + (rachaGanando ? 'ganadores' : 'perdedores'));
 
-  // 2. Drawdown máximo — peor caída de la curva de equity acumulada
+  // 2. Drawdown máximo
   var cumPnl = 0, peak = 0, maxDD = 0;
   trades.forEach(function(t) {
     cumPnl += (t.beneficio || 0);
@@ -623,7 +632,6 @@ function buildEstadisticasAvanzadas() {
       if (!t.ganadora) return false;
       var pe = t.precio_entrada, pc = t.precio_cierre, tp = t.tp;
       if (pe == null || pc == null) return false;
-      // Inferir dirección: buy si pc > pe
       return (pc > pe) ? (pc >= tp - 0.5) : (pc <= tp + 0.5);
     });
     var tpPct = Math.round(hitTp.length / conTp.length * 1000) / 10;
@@ -634,7 +642,7 @@ function buildEstadisticasAvanzadas() {
     setEl('eav-tp-sub', 'Sin TP registrado en estos trades');
   }
 
-  // 5. Revenge trading — trade abierto < 5 min tras cierre de un perdedor
+  // 5. Revenge trading
   var revengeTrades = [];
   for (var i = 1; i < trades.length; i++) {
     if (!trades[i-1].ganadora) {
@@ -643,9 +651,7 @@ function buildEstadisticasAvanzadas() {
       if (fPrev && fCurr) {
         var closePrev = new Date(fPrev.getTime() + (trades[i-1].dur_min || 0) * 60000);
         var gapMin = Math.round((fCurr - closePrev) / 60000);
-        if (gapMin >= 0 && gapMin < 5) {
-          revengeTrades.push({ gap: gapMin, t: trades[i] });
-        }
+        if (gapMin >= 0 && gapMin < 5) revengeTrades.push({ gap: gapMin, t: trades[i] });
       }
     }
   }
@@ -653,7 +659,6 @@ function buildEstadisticasAvanzadas() {
   setEl('eav-revenge-sub', revengeTrades.length === 0
     ? 'Sin señales de revenge trading'
     : 'trades abiertos < 5 min tras una pérdida');
-
   var lista = document.getElementById('eav-revenge-lista');
   if (lista) {
     if (revengeTrades.length === 0) {
@@ -664,14 +669,206 @@ function buildEstadisticasAvanzadas() {
     } else {
       lista.innerHTML = revengeTrades.slice(0, 5).map(function(r) {
         var ben = Math.round((r.t.beneficio || 0) * 100) / 100;
-        var benStr = (ben >= 0 ? '+' : '') + ben + '$';
         var col = r.t.ganadora ? 'var(--green)' : 'var(--red)';
         return '<div style="display:flex;align-items:center;gap:1rem;padding:.5rem 1rem;border:1px solid #cc443322;background:#cc443308;border-left:2px solid #cc4433;margin-bottom:.4rem;">' +
           '<div style="font-size:11px;color:#cc7755;flex-shrink:0;white-space:nowrap;">⚠ ' + r.gap + ' min</div>' +
-          '<div style="font-size:13px;color:var(--text-muted);">Abierto tras pérdida → <span style="color:' + col + ';">' + benStr + '</span></div>' +
+          '<div style="font-size:13px;color:var(--text-muted);">Abierto tras pérdida → <span style="color:' + col + ';">' + (ben >= 0 ? '+' : '') + ben + '$</span></div>' +
           '</div>';
       }).join('');
     }
+  }
+
+  // 6. Lotaje tras pérdida
+  var lpSube = 0, lpMant = 0, lpBaja = 0;
+  for (var i = 1; i < trades.length; i++) {
+    if (!trades[i-1].ganadora) {
+      var vPrev = trades[i-1].volumen || 0;
+      var vNext = trades[i].volumen || 0;
+      if (vPrev > 0) {
+        if (vNext > vPrev * 1.05) lpSube++;
+        else if (vNext < vPrev * 0.95) lpBaja++;
+        else lpMant++;
+      }
+    }
+  }
+  var lpTotal = lpSube + lpMant + lpBaja;
+  var elLoteP = document.getElementById('eav-lote-tras-perdida');
+  if (elLoteP) {
+    if (lpTotal === 0) {
+      elLoteP.innerHTML = '<div style="font-size:13px;color:var(--text-muted);">Sin datos suficientes de lotaje.</div>';
+    } else {
+      var pSube = Math.round(lpSube / lpTotal * 100);
+      var pMant = Math.round(lpMant / lpTotal * 100);
+      var pBaja = Math.round(lpBaja / lpTotal * 100);
+      var alertaLp = lpSube > lpTotal * 0.4
+        ? '<div style="margin-top:.8rem;padding:.6rem;border:1px solid #cc443322;border-left:2px solid #cc4433;background:#cc443308;font-size:12px;color:#cc7755;">⚠ Aumentas el lote el ' + pSube + '% de las veces tras una pérdida — riesgo de over-trading reactivo.</div>'
+        : '<div style="margin-top:.8rem;padding:.6rem;border:1px solid #3AAA6A44;border-left:2px solid var(--green);background:#3AAA6A08;font-size:12px;color:var(--green);">✓ Gestionas bien el lotaje tras pérdidas.</div>';
+      elLoteP.innerHTML = _eavBarra('Sube el lote', pSube, '#CC5544') +
+        _eavBarra('Mantiene', pMant, '#C9A84C') +
+        _eavBarra('Baja el lote', pBaja, '#3AAA6A') +
+        alertaLp;
+    }
+  }
+
+  // 7. Consistencia de lotaje (coeficiente de variación)
+  var vols = trades.map(function(t){ return t.volumen || 0; }).filter(function(v){ return v > 0; });
+  var elLoteC = document.getElementById('eav-lote-consistencia');
+  if (elLoteC) {
+    if (vols.length < 3) {
+      elLoteC.innerHTML = '<div style="font-size:13px;color:var(--text-muted);">Sin datos suficientes.</div>';
+    } else {
+      var meanV = vols.reduce(function(s, v){ return s + v; }, 0) / vols.length;
+      var varV  = vols.reduce(function(s, v){ return s + Math.pow(v - meanV, 2); }, 0) / vols.length;
+      var cv    = meanV > 0 ? Math.round(Math.sqrt(varV) / meanV * 1000) / 10 : 0;
+      var cvCol   = cv < 15 ? '#3AAA6A' : cv < 30 ? '#C9A84C' : '#CC5544';
+      var cvLabel = cv < 15 ? 'Muy consistente' : cv < 30 ? 'Variable' : 'Inconsistente';
+      var cvMsg   = cv < 15 ? 'Tu tamaño de posición es estable y disciplinado.' : cv < 30 ? 'Hay variabilidad en tu lotaje. Revisa el criterio de sizing.' : 'Lotaje muy irregular — puede afectar el control de riesgo.';
+      elLoteC.innerHTML = '<div style="text-align:center;padding:1rem 0;">' +
+        '<div style="font-family:\'Cormorant Garamond\',serif;font-size:48px;color:' + cvCol + ';line-height:1;">' + cv + '%</div>' +
+        '<div style="font-size:14px;color:' + cvCol + ';margin:.3rem 0;">' + cvLabel + '</div>' +
+        '<div style="font-size:12px;color:var(--text-muted);">CV lotaje · media ' + (Math.round(meanV * 100) / 100) + ' lots</div>' +
+        '</div><div style="padding:.6rem;border:1px solid ' + cvCol + '44;border-left:2px solid ' + cvCol + ';background:' + cvCol + '08;font-size:12px;color:var(--text-muted);">' + cvMsg + '</div>';
+    }
+  }
+
+  // 8. Mejor franja horaria vs donde más opera
+  var porHoraEav = {};
+  for (var h = 0; h < 24; h++) porHoraEav[h] = { t:0, w:0 };
+  trades.forEach(function(t) {
+    var h = Math.floor(t.hora || 0);
+    if (h >= 0 && h < 24) { porHoraEav[h].t++; if (t.ganadora) porHoraEav[h].w++; }
+  });
+  var elHoraA = document.getElementById('eav-hora-analisis');
+  if (elHoraA) {
+    var horasConDatos = [];
+    for (var h = 0; h < 24; h++) {
+      if (porHoraEav[h].t >= 3) horasConDatos.push({ h:h, t:porHoraEav[h].t, wr:Math.round(porHoraEav[h].w / porHoraEav[h].t * 100) });
+    }
+    if (horasConDatos.length < 2) {
+      elHoraA.innerHTML = '<div style="font-size:13px;color:var(--text-muted);">Insuficientes datos por hora.</div>';
+    } else {
+      var mejorHora = horasConDatos.reduce(function(a, b){ return b.wr > a.wr ? b : a; });
+      var masOpera  = horasConDatos.reduce(function(a, b){ return b.t > a.t ? b : a; });
+      var coincide  = mejorHora.h === masOpera.h;
+      var alertaH = coincide
+        ? '<div style="padding:.6rem;border:1px solid #3AAA6A44;border-left:2px solid var(--green);background:#3AAA6A08;font-size:12px;color:var(--green);">✓ Operas más donde mejor te va — ' + mejorHora.h + ':xx con ' + mejorHora.wr + '% WR</div>'
+        : '<div style="padding:.6rem;border:1px solid #cc443322;border-left:2px solid #cc4433;background:#cc443308;font-size:12px;color:#cc7755;">⚠ Tu mejor hora es ' + mejorHora.h + ':xx (' + mejorHora.wr + '% WR) pero operas más a las ' + masOpera.h + ':xx (' + masOpera.wr + '% WR)</div>';
+      elHoraA.innerHTML = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-bottom:.6rem;">' +
+        '<div style="padding:.6rem;border:1px solid var(--border);background:#0E1020;">' +
+        '<div style="font-size:11px;color:var(--text-muted);margin-bottom:.3rem;">Mejor WR</div>' +
+        '<div style="font-family:\'Cormorant Garamond\',serif;font-size:24px;color:var(--green);">' + mejorHora.h + ':xx</div>' +
+        '<div style="font-size:12px;color:var(--text-muted);">' + mejorHora.wr + '% · ' + mejorHora.t + ' trades</div></div>' +
+        '<div style="padding:.6rem;border:1px solid var(--border);background:#0E1020;">' +
+        '<div style="font-size:11px;color:var(--text-muted);margin-bottom:.3rem;">Más activo</div>' +
+        '<div style="font-family:\'Cormorant Garamond\',serif;font-size:24px;color:var(--gold-bright);">' + masOpera.h + ':xx</div>' +
+        '<div style="font-size:12px;color:var(--text-muted);">' + masOpera.wr + '% · ' + masOpera.t + ' trades</div></div></div>' + alertaH;
+    }
+  }
+
+  // 9. Insistencia en peor día
+  var DIAS_ES = ['Lunes','Martes','Miércoles','Jueves','Viernes'];
+  var porDiaEav = [0,1,2,3,4].map(function(){ return { t:0, w:0 }; });
+  trades.forEach(function(t) {
+    var d = t.dia;
+    if (d >= 0 && d <= 4) { porDiaEav[d].t++; if (t.ganadora) porDiaEav[d].w++; }
+  });
+  var elDiaA = document.getElementById('eav-peor-dia-analisis');
+  if (elDiaA) {
+    var diasConDatos = porDiaEav.map(function(d, i){ return { i:i, t:d.t, wr:d.t > 0 ? Math.round(d.w / d.t * 100) : null }; })
+      .filter(function(d){ return d.t >= 3 && d.wr !== null; });
+    if (diasConDatos.length < 2) {
+      elDiaA.innerHTML = '<div style="font-size:13px;color:var(--text-muted);">Insuficientes datos por día.</div>';
+    } else {
+      var peorDia = diasConDatos.reduce(function(a, b){ return b.wr < a.wr ? b : a; });
+      var pctPeorDia = Math.round(peorDia.t / trades.length * 100);
+      var alertaD = pctPeorDia > 25
+        ? '<div style="padding:.6rem;border:1px solid #cc443322;border-left:2px solid #cc4433;background:#cc443308;font-size:12px;color:#cc7755;">⚠ El ' + pctPeorDia + '% de tus trades son los ' + DIAS_ES[peorDia.i] + ' (' + peorDia.wr + '% WR) — considera reducir ese día.</div>'
+        : '<div style="padding:.6rem;border:1px solid #c9a84c22;border-left:2px solid var(--gold);background:#c9a84c08;font-size:12px;color:var(--gold-dim);">Los ' + DIAS_ES[peorDia.i] + ' son tu peor día (' + peorDia.wr + '% WR) con ' + pctPeorDia + '% de tus trades — exposición controlada.</div>';
+      elDiaA.innerHTML = '<div style="text-align:center;padding:.8rem 0;">' +
+        '<div style="font-size:11px;color:var(--text-muted);margin-bottom:.2rem;">Peor día</div>' +
+        '<div style="font-family:\'Cormorant Garamond\',serif;font-size:28px;color:var(--red);">' + DIAS_ES[peorDia.i] + '</div>' +
+        '<div style="font-size:12px;color:var(--text-muted);">' + peorDia.wr + '% WR · ' + peorDia.t + ' trades</div>' +
+        '</div>' + alertaD;
+    }
+  }
+
+  // 10. Duración media ganadoras vs perdedoras
+  var wins   = trades.filter(function(t){ return t.ganadora; });
+  var losses = trades.filter(function(t){ return !t.ganadora; });
+  var avgDurW = wins.length   > 0 ? Math.round(wins.reduce(function(s, t){ return s + (t.dur_min || 0); }, 0) / wins.length) : 0;
+  var avgDurL = losses.length > 0 ? Math.round(losses.reduce(function(s, t){ return s + (t.dur_min || 0); }, 0) / losses.length) : 0;
+  function fmtMin(m) { if (m < 60) return m + ' min'; var hh = Math.floor(m/60); var mm = m%60; return hh + 'h' + (mm > 0 ? mm + 'm' : ''); }
+  var elDurA = document.getElementById('eav-duracion-analisis');
+  if (elDurA) {
+    var alertaDur = wins.length > 0 && losses.length > 0
+      ? (avgDurW < avgDurL
+        ? '<div style="padding:.6rem;border:1px solid #3AAA6A44;border-left:2px solid var(--green);background:#3AAA6A08;font-size:12px;color:var(--green);">✓ Cierras ganadoras antes que perdedoras — buena gestión de salida.</div>'
+        : '<div style="padding:.6rem;border:1px solid #c9a84c22;border-left:2px solid var(--gold);background:#c9a84c08;font-size:12px;color:var(--gold-dim);">Tus ganadoras duran más — cortas pérdidas rápido y dejas correr ganancias.</div>')
+      : '';
+    elDurA.innerHTML = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-bottom:.6rem;">' +
+      '<div style="padding:.8rem;border:1px solid #3AAA6A44;background:#3AAA6A08;text-align:center;">' +
+      '<div style="font-size:11px;color:var(--green);margin-bottom:.2rem;">Ganadoras</div>' +
+      '<div style="font-family:\'Cormorant Garamond\',serif;font-size:24px;color:var(--green);">' + fmtMin(avgDurW) + '</div>' +
+      '<div style="font-size:12px;color:var(--text-muted);">' + wins.length + ' trades</div></div>' +
+      '<div style="padding:.8rem;border:1px solid #cc443322;background:#cc443308;text-align:center;">' +
+      '<div style="font-size:11px;color:var(--red);margin-bottom:.2rem;">Perdedoras</div>' +
+      '<div style="font-family:\'Cormorant Garamond\',serif;font-size:24px;color:var(--red);">' + fmtMin(avgDurL) + '</div>' +
+      '<div style="font-size:12px;color:var(--text-muted);">' + losses.length + ' trades</div></div></div>' + alertaDur;
+  }
+
+  // 11. Veredicto del inversor
+  var elVeredicto = document.getElementById('eav-veredicto');
+  if (elVeredicto) {
+    var wr_total  = trades.length > 0 ? Math.round(wins.length / trades.length * 1000) / 10 : 0;
+    var ptsW_tot  = wins.length   > 0 ? wins.reduce(function(s, t){ return s + (t.puntos || 0); }, 0) / wins.length : 0;
+    var ptsL_tot  = losses.length > 0 ? losses.reduce(function(s, t){ return s + (t.puntos || 0); }, 0) / losses.length : 0;
+    var rr_total  = ptsL_tot > 0 ? Math.round(ptsW_tot / ptsL_tot * 100) / 100 : 0;
+
+    var lomejor = [];
+    if (wr_total >= 60) lomejor.push('WR del ' + wr_total + '% — ratio de acierto sólido');
+    if (rr_total >= 1.5) lomejor.push('R/R de ' + rr_total + ' — dejas correr las ganancias');
+    if (maxDD < 200) lomejor.push('Drawdown controlado (' + maxDD + '$)');
+    if (revengeTrades.length === 0) lomejor.push('Sin revenge trading detectado');
+    if (lomejor.length === 0) lomejor.push('Estás en proceso — cada trade es datos');
+
+    var lomalo = [];
+    if (wr_total < 50) lomalo.push('WR del ' + wr_total + '% — menos de la mitad son ganadores');
+    if (rr_total < 1.0 && ptsL_tot > 0) lomalo.push('R/R de ' + rr_total + ' — las pérdidas superan ganancias en puntos');
+    if (maxDD > 500) lomalo.push('Drawdown de ' + maxDD + '$ — episodio de pérdida significativo');
+    if (revengeTrades.length > 3) lomalo.push(revengeTrades.length + ' episodios de revenge trading');
+    if (lpSube > lpTotal * 0.4 && lpTotal > 0) lomalo.push('Aumentas el lote tras pérdidas con frecuencia');
+    if (lomalo.length === 0) lomalo.push('Sin alertas críticas — mantén la disciplina');
+
+    var recomendacion;
+    if (revengeTrades.length > 3) {
+      recomendacion = 'Prioridad: stop de 15 minutos obligatorio tras cada pérdida. El revenge trading está costándote edge.';
+    } else if (lpSube > lpTotal * 0.4 && lpTotal > 0) {
+      recomendacion = 'Prioridad: fija el lotaje antes de abrir cada trade, no lo decidas después de una pérdida.';
+    } else if (wr_total < 50 && rr_total < 1.2) {
+      recomendacion = 'Prioridad: revisa los puntos de entrada — ni el WR ni el RR están a favor ahora mismo.';
+    } else if (maxDD > totalPnl * 2 && totalPnl > 0) {
+      recomendacion = 'Prioridad: reduce el tamaño de posición — el drawdown es desproporcionado respecto al beneficio.';
+    } else {
+      recomendacion = 'Sigue el proceso. El edge se consolida con muestra. Foco en cumplimiento del método.';
+    }
+
+    function _vcol(titulo, items, col, icon, border) {
+      return '<div style="padding:1rem;border:1px solid ' + border + ';background:#0E1020;">' +
+        '<div style="font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:' + col + ';margin-bottom:.8rem;">' + icon + ' ' + titulo + '</div>' +
+        items.map(function(item){ return '<div style="font-size:13px;color:var(--text-dim);line-height:1.8;padding:.2rem 0;border-bottom:1px solid #0A0C14;">' + item + '</div>'; }).join('') +
+        '</div>';
+    }
+
+    elVeredicto.innerHTML =
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">' +
+      _vcol('Lo mejor', lomejor, '#3AAA6A', '✓', '#3AAA6A44') +
+      _vcol('Lo peor', lomalo, '#CC5544', '⚠', '#CC554422') +
+      '</div>' +
+      '<div style="padding:1rem;border:1px solid var(--border-gold);background:linear-gradient(135deg,#161208,#1a1608);position:relative;">' +
+      '<div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>' +
+      '<div style="font-size:10px;letter-spacing:.3em;text-transform:uppercase;color:var(--gold);margin-bottom:.5rem;">✦ Recomendación urgente</div>' +
+      '<div style="font-size:14px;color:var(--text-dim);line-height:1.8;">' + recomendacion + '</div>' +
+      '</div>';
   }
 }
 
