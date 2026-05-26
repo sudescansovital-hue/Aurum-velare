@@ -228,6 +228,14 @@ async function cargarTrades(cuenta) {
 // ============================================================
 
 async function actualizarDashboard() {
+  if (!sb) {
+    initSupabase();
+    var espera = 0;
+    while (!sb && espera < 25) {
+      await new Promise(function(r) { setTimeout(r, 200); });
+      espera++;
+    }
+  }
   if (!sb || !usuarioActual) return;
 
   var res = await sb.from('trades').select('*').eq('usuario_email', usuarioActual.email);

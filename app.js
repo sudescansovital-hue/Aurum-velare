@@ -129,5 +129,5 @@ document.addEventListener('DOMContentLoaded', () => {
   // Cargar datos de Supabase tras auto-login
   setTimeout(function() {
     if (typeof cargarDatosUsuario === 'function') cargarDatosUsuario();
-  }, 800);
+  }, 2000);
 });
