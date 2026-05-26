@@ -45,6 +45,7 @@ function getTradesActivos() {
 function buildTradeRecord() {
   var trades = getTradesActivos();
   var tb = document.getElementById('gest-tipos-bars');
+  if (tb && !trades.length) { tb.innerHTML = ''; return; }
   if (tb && trades.length) {
     var scalp = trades.filter(function(t){ return t.dur_min < 30; });
     var intra = trades.filter(function(t){ return t.dur_min >= 30 && t.dur_min < 240; });
