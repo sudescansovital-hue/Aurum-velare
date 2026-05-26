@@ -294,8 +294,6 @@ async function actualizarDashboard() {
   var mG = metricas(todos);
 
   function actualizarCard(id, m, color) {
-    var el = document.getElementById('btn-'+id);
-    if (!el) return;
     var pnlStr = (m.pnl >= 0 ? '+' : '') + m.pnl + '$';
     var pnlEl = document.getElementById('card-'+id+'-pnl');
     if (pnlEl) pnlEl.textContent = pnlStr;

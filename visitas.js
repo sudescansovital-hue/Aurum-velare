@@ -25,6 +25,7 @@ function verCuenta(cuenta) {
 
   window.cuentaActivaGestion = cuenta;
   window.yaBuiltGestion = {};
+  if (typeof buildTradeRecord === 'function') buildTradeRecord();
   if (!cuentasBuilt[cuenta]) {
     cuentasBuilt[cuenta] = true;
     if (cuenta === 'global')  buildGlobal();
