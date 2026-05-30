@@ -41,21 +41,22 @@ function _parsearCtraderNuevo(raw) {
   var trades = [];
   // Encontrar fila de cabecera
   var headerRow = -1;
-  var colSim=-1, colDir=-1, colAp=-1, colCi=-1, colPe=-1, colPc=-1, colVol=-1, colNeto=-1;
+  var colSim=-1, colDir=-1, colAp=-1, colCi=-1, colPe=-1, colPc=-1, colVol=-1, colNeto=-1, colPosicion=-1;
 
   for (var r = 0; r < Math.min(raw.length, 10); r++) {
     var row = (raw[r] || []).map(function(c){ return String(c||'').toLowerCase().trim(); });
     var simIdx = row.findIndex(function(h){ return h === 'símbolo' || h === 'simbolo' || h === 'symbol'; });
     if (simIdx >= 0) {
       headerRow = r;
-      colSim  = simIdx;
-      colDir  = row.findIndex(function(h){ return h.includes('direcci'); });
-      colAp   = row.findIndex(function(h){ return h.includes('apertura') && h.includes('hora'); });
-      colCi   = row.findIndex(function(h){ return h.includes('cierre') && h.includes('hora'); });
-      colPe   = row.findIndex(function(h){ return h.includes('entrada'); });
-      colPc   = row.findIndex(function(h){ return h.includes('cierre') && h.includes('precio'); });
-      colVol  = row.findIndex(function(h){ return h.includes('volumen') || h === 'vol' || h.includes('vol.'); });
-      colNeto = row.findIndex(function(h){ return h.includes('neto') || h === '$ neto'; });
+      colSim      = simIdx;
+      colDir      = row.findIndex(function(h){ return h.includes('direcci'); });
+      colAp       = row.findIndex(function(h){ return h.includes('apertura') && h.includes('hora'); });
+      colCi       = row.findIndex(function(h){ return h.includes('cierre') && h.includes('hora'); });
+      colPe       = row.findIndex(function(h){ return h.includes('entrada'); });
+      colPc       = row.findIndex(function(h){ return h.includes('cierre') && h.includes('precio'); });
+      colVol      = row.findIndex(function(h){ return h.includes('volumen') || h === 'vol' || h.includes('vol.'); });
+      colNeto     = row.findIndex(function(h){ return h.includes('neto') || h === '$ neto'; });
+      colPosicion = row.findIndex(function(h){ return h.includes('posici') || h === 'id' || h.includes('ticket') || h.includes('position'); });
       break;
     }
   }
@@ -97,7 +98,8 @@ function _parsearCtraderNuevo(raw) {
     var hora   = fAp ? fAp.getHours() : 0;
     var dia    = fAp ? (fAp.getDay() + 6) % 7 : 0;
     var durMin = (fAp && fCi) ? Math.round((fCi - fAp) / 60000) : 60;
-    var fp     = String(i) + '_' + pe + '_' + ben;
+    var posicionId = colPosicion >= 0 && row[colPosicion] ? String(row[colPosicion]) : '';
+    var fp = (posicionId || (fAp ? fAp.getTime() : String(i))) + '_' + pe + '_' + ben;
 
     trades.push({ fp, ben, vol, pe, pc, puntos: Math.abs(puntos), ganadora: ben > 0, hora, dia, durMin });
   }

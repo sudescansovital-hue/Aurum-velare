@@ -24,10 +24,7 @@ function detectarNombreCuenta(raw) {
 function init_historial() {
   var lista = document.getElementById('hist-lista');
   if (!lista) return;
-  // Solo evitar re-render si el panel está visible y ya tiene filas
-  var panel = document.getElementById('gpanel-historial');
-  var panelVisible = panel && panel.style.display !== 'none';
-  if (panelVisible && lista.children.length > 0) return;
+  if (lista.children.length === HISTORIAL_CUENTAS.length && HISTORIAL_CUENTAS.length > 0) return;
   lista.innerHTML = '';
   HISTORIAL_CUENTAS.forEach(function(c, idx) {
     histAnadirFila(c, idx);
@@ -119,8 +116,9 @@ function histSubir(file) {
       }
       var nombreFinal = detectarNombreCuenta(raw) || nombre || 'Cuenta externa';
       var m = calcularMetricas(fps_nuevos);
-      var nueva = { nombre: nombreFinal, tipo: document.getElementById('hist-tipo').value, total: fps_nuevos.length, wins: m.wins||0, pnl: Math.round((m.pnl||0)*100)/100, wr: Math.round((m.wr||0)*10)/10, rr: Math.round((m.rr||0)*100)/100, periodo: new Date().toLocaleDateString('es-ES'), dias: m.dias||[], tipos: m.tipos||{}, fps: [] };
-      fps_nuevos.forEach(function(t) { if(t.fp) HISTORIAL_ALL_FPS.add(t.fp); });
+      var fps_list = fps_nuevos.map(function(t){ return t.fp; }).filter(Boolean);
+      fps_list.forEach(function(fp) { HISTORIAL_ALL_FPS.add(fp); });
+      var nueva = { nombre: nombreFinal, tipo: document.getElementById('hist-tipo').value, total: fps_nuevos.length, wins: m.wins||0, pnl: Math.round((m.pnl||0)*100)/100, wr: Math.round((m.wr||0)*10)/10, rr: Math.round((m.rr||0)*100)/100, periodo: new Date().toLocaleDateString('es-ES'), dias: m.dias||[], tipos: m.tipos||{}, fps: fps_list };
       HISTORIAL_CUENTAS.push(nueva);
       histAnadirFila(nueva, HISTORIAL_CUENTAS.length - 1);
       if (typeof guardarHistorial === 'function') guardarHistorial(nueva);

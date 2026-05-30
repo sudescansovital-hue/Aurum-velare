@@ -25,10 +25,11 @@ async function supaGet(tabla, params) {
   return { data: data, error: null };
 }
 
-async function supaPost(tabla, body, prefer) {
+async function supaPost(tabla, body, prefer, params) {
   var headers = Object.assign({}, SUPA_HEADERS, { 'Prefer': prefer || 'return=minimal' });
+  var url = SUPABASE_URL + '/rest/v1/' + tabla + (params ? '?' + params : '');
   console.log('[SUPA POST]', tabla);
-  var r = await fetch(SUPABASE_URL + '/rest/v1/' + tabla, {
+  var r = await fetch(url, {
     method: 'POST', headers: headers, body: JSON.stringify(body)
   }).catch(function(e) {
     console.error('[SUPA POST FETCH ERROR]', tabla, e);
@@ -73,22 +74,19 @@ async function guardarHistorial(cuenta) {
 
   if (res.data && res.data.length > 0) {
     var existente = res.data[0];
-    var totalNuevo = existente.total + cuenta.total;
-    var winsNuevo  = existente.wins + cuenta.wins;
-    var pnlNuevo   = Math.round((existente.pnl + cuenta.pnl) * 100) / 100;
-    var wrNuevo    = Math.round((winsNuevo / totalNuevo * 100) * 10) / 10;
-    var fpsMerged  = [...new Set([...(existente.fps || []), ...(cuenta.fps || [])])];
-
+    var fpsMerged = [...new Set([...(existente.fps || []), ...(cuenta.fps || [])])];
     await supaPatch('historiales', 'id=eq.' + existente.id, {
-      total: totalNuevo,
-      wins: winsNuevo,
-      pnl: pnlNuevo,
-      wr: wrNuevo,
-      rr: Math.round(((existente.rr + cuenta.rr) / 2) * 100) / 100,
-      periodo: existente.periodo + ' + ' + cuenta.periodo,
+      total: cuenta.total,
+      wins: cuenta.wins,
+      pnl: cuenta.pnl,
+      wr: cuenta.wr,
+      rr: cuenta.rr,
+      periodo: cuenta.periodo,
+      dias: cuenta.dias,
+      tipos: cuenta.tipos,
       fps: fpsMerged
     });
-    console.log('Historial actualizado: ' + cuenta.nombre);
+    console.log('Historial reemplazado: ' + cuenta.nombre);
   } else {
     await supaPost('historiales', {
       usuario_email: usuarioActual.email,
@@ -122,6 +120,7 @@ async function cargarHistoriales() {
   });
 
   HISTORIAL_CUENTAS.length = 0;
+  HISTORIAL_ALL_FPS.clear();
   externas.forEach(function(h) {
     HISTORIAL_CUENTAS.push({ nombre:h.nombre, tipo:h.tipo, total:h.total, wins:h.wins, pnl:h.pnl, wr:h.wr, rr:h.rr, periodo:h.periodo, dias:h.dias||[], tipos:h.tipos||{}, fps:h.fps||[] });
     (h.fps||[]).forEach(function(fp){ HISTORIAL_ALL_FPS.add(fp); });
@@ -254,7 +253,7 @@ async function guardarTradesIndividuales(trades, cuenta) {
 
   for (var i = 0; i < lote.length; i += 50) {
     var bloque = lote.slice(i, i + 50);
-    var res = await supaPost('trades', bloque, 'resolution=merge-duplicates,return=minimal');
+    var res = await supaPost('trades', bloque, 'resolution=merge-duplicates,return=minimal', 'on_conflict=fp');
     if (res.error) console.error('Error guardando trades:', res.error);
   }
   console.log(trades.length + ' trades guardados en Supabase');
