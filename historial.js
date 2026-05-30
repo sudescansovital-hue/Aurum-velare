@@ -9,7 +9,10 @@ var CUENTAS_AURUM = {
   '4011477': 'Cuenta Retos',
 };
 
-function detectarNombreCuenta(raw) {
+function detectarNombreCuenta(raw, nombreArchivo) {
+  for (var num in CUENTAS_AURUM) {
+    if (nombreArchivo && String(nombreArchivo).indexOf(num) >= 0) return CUENTAS_AURUM[num];
+  }
   for (var r = 0; r < Math.min(raw.length, 10); r++) {
     for (var c = 0; c < (raw[r]||[]).length; c++) {
       var val = String(raw[r][c] || '');
@@ -114,7 +117,7 @@ function histSubir(file) {
       if (fps_nuevos.length === 0) {
         msg.style.color = 'var(--gold)'; msg.textContent = 'Todos los trades ya estaban registrados (' + dups + ' duplicados).'; return;
       }
-      var nombreFinal = detectarNombreCuenta(raw) || nombre || 'Cuenta externa';
+      var nombreFinal = detectarNombreCuenta(raw, file.name) || nombre || 'Cuenta externa';
       var m = calcularMetricas(fps_nuevos);
       var fps_list = fps_nuevos.map(function(t){ return t.fp; }).filter(Boolean);
       fps_list.forEach(function(fp) { HISTORIAL_ALL_FPS.add(fp); });
