@@ -4,9 +4,10 @@ function parsearTrades(raw) {
   if (!raw || raw.length < 2) return [];
 
   // Detectar formato cTrader nuevo — buscar en las primeras 10 filas (HTML tiene metadatos antes de la cabecera)
+  // normalize('NFC') cubre tildes en forma compuesta vs descompuesta (ó precompuesta vs o + combining accent)
   const esCtraderNuevo = raw.slice(0, 10).some(function(fila) {
-    return (fila || []).map(function(c){ return String(c||'').toLowerCase().trim(); })
-      .some(function(h){ return h.includes('dirección') || h.includes('direccion') || h.includes('direction') || h === '$ neto' || h === 'net profit' || h.includes('neto'); });
+    return (fila || []).map(function(c){ return String(c||'').normalize('NFC').toLowerCase().trim(); })
+      .some(function(h){ return h.includes('dirección') || h.includes('direccion') || h.includes('direction') || h === '$ neto' || h === 'net profit' || h.includes('neto') || h === 'símbolo' || h === 'simbolo' || h === 'symbol'; });
   });
 
   // Detectar formato cTrader clásico (fila 0 contiene "informe del historial")
@@ -46,7 +47,7 @@ function _parsearCtraderNuevo(raw) {
   var colSim=-1, colDir=-1, colAp=-1, colCi=-1, colPe=-1, colPc=-1, colVol=-1, colNeto=-1, colPosicion=-1;
 
   for (var r = 0; r < Math.min(raw.length, 10); r++) {
-    var row = (raw[r] || []).map(function(c){ return String(c||'').toLowerCase().trim(); });
+    var row = (raw[r] || []).map(function(c){ return String(c||'').normalize('NFC').toLowerCase().trim(); });
     var simIdx = row.findIndex(function(h){ return h === 'símbolo' || h === 'simbolo' || h === 'symbol' || h === 'instrument'; });
     if (simIdx >= 0) {
       headerRow = r;
