@@ -3,6 +3,8 @@
 function parsearTrades(raw) {
   if (!raw || raw.length < 2) return [];
 
+  console.log('[PARSER] filas raw:', raw.length, '| fila0:', JSON.stringify((raw[0]||[]).slice(0,5)));
+
   // Detectar formato cTrader nuevo — buscar en las primeras 10 filas (HTML tiene metadatos antes de la cabecera)
   // normalize('NFC') cubre tildes en forma compuesta vs descompuesta (ó precompuesta vs o + combining accent)
   const esCtraderNuevo = raw.slice(0, 10).some(function(fila) {
@@ -15,8 +17,12 @@ function parsearTrades(raw) {
     (raw[0]?.[0] && String(raw[0][0]).toLowerCase().includes('informe del historial')) ||
     (raw[5]?.[0] && String(raw[5][0]).trim() === 'Posiciones');
 
-  if (esCtraderNuevo) return _parsearCtraderNuevo(raw);
-  if (esCtraderClasico) return _parsearCtrader(raw);
+  console.log('[PARSER] esCtraderNuevo:', esCtraderNuevo, '| esCtraderClasico:', esCtraderClasico);
+  console.log('[PARSER] fila0 normalizada:', JSON.stringify((raw[0]||[]).map(function(c){ return String(c||'').normalize('NFC').toLowerCase().trim(); }).slice(0,5)));
+
+  if (esCtraderNuevo) { console.log('[PARSER] → _parsearCtraderNuevo'); return _parsearCtraderNuevo(raw); }
+  if (esCtraderClasico) { console.log('[PARSER] → _parsearCtrader (clásico)'); return _parsearCtrader(raw); }
+  console.log('[PARSER] → _parsearMT5');
   return _parsearMT5(raw);
 }
 
