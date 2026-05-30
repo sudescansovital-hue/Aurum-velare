@@ -56,7 +56,7 @@ function _parsearCtraderNuevo(raw) {
       colCi       = row.findIndex(function(h){ return (h.includes('cierre') && h.includes('hora')) || (h.includes('close') && h.includes('time')); });
       colPe       = row.findIndex(function(h){ return h.includes('entrada') || (h.includes('open') && h.includes('price')) || h === 'entry price'; });
       colPc       = row.findIndex(function(h){ return (h.includes('cierre') && h.includes('precio')) || (h.includes('close') && h.includes('price')) || h === 'exit price'; });
-      colVol      = row.findIndex(function(h){ return h.includes('volumen') || h === 'vol' || h.includes('vol.') || h === 'lots' || h === 'quantity' || h.includes('qty'); });
+      colVol      = row.findIndex(function(h){ return h.includes('volumen') || h === 'vol' || h.includes('vol.') || h === 'lots' || h === 'quantity' || h.includes('qty') || h.includes('cantidad'); });
       colNeto     = row.findIndex(function(h){ return h.includes('neto') || h === '$ neto' || h === 'net profit' || h === 'profit'; });
       colPosicion = row.findIndex(function(h){ return h.includes('posici') || h === 'id' || h.includes('ticket') || h.includes('position'); });
       break;
