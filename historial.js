@@ -115,6 +115,8 @@ function histSubir(file) {
     setTimeout(function() {
       document.getElementById('hist-progreso').style.display = 'none';
       if (fps_nuevos.length === 0) {
+        var nombreFinalDup = detectarNombreCuenta(raw, file.name) || nombre || 'Cuenta externa';
+        if (typeof guardarTradesIndividuales === 'function') guardarTradesIndividuales(trades, nombreFinalDup);
         msg.style.color = 'var(--gold)'; msg.textContent = 'Todos los trades ya estaban registrados (' + dups + ' duplicados).'; return;
       }
       var nombreFinal = detectarNombreCuenta(raw, file.name) || nombre || 'Cuenta externa';
