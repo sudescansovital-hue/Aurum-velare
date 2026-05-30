@@ -3,9 +3,11 @@
 function parsearTrades(raw) {
   if (!raw || raw.length < 2) return [];
 
-  // Detectar formato cTrader nuevo (cabecera: Símbolo, Dirección de apertura...)
-  const fila0 = (raw[0] || []).map(function(c){ return String(c||'').toLowerCase().trim(); });
-  const esCtraderNuevo = fila0.some(function(h){ return h.includes('dirección') || h.includes('direccion') || h === '$ neto' || h.includes('neto'); });
+  // Detectar formato cTrader nuevo — buscar en las primeras 10 filas (HTML tiene metadatos antes de la cabecera)
+  const esCtraderNuevo = raw.slice(0, 10).some(function(fila) {
+    return (fila || []).map(function(c){ return String(c||'').toLowerCase().trim(); })
+      .some(function(h){ return h.includes('dirección') || h.includes('direccion') || h.includes('direction') || h === '$ neto' || h === 'net profit' || h.includes('neto'); });
+  });
 
   // Detectar formato cTrader clásico (fila 0 contiene "informe del historial")
   const esCtraderClasico =
@@ -45,17 +47,17 @@ function _parsearCtraderNuevo(raw) {
 
   for (var r = 0; r < Math.min(raw.length, 10); r++) {
     var row = (raw[r] || []).map(function(c){ return String(c||'').toLowerCase().trim(); });
-    var simIdx = row.findIndex(function(h){ return h === 'símbolo' || h === 'simbolo' || h === 'symbol'; });
+    var simIdx = row.findIndex(function(h){ return h === 'símbolo' || h === 'simbolo' || h === 'symbol' || h === 'instrument'; });
     if (simIdx >= 0) {
       headerRow = r;
       colSim      = simIdx;
-      colDir      = row.findIndex(function(h){ return h.includes('direcci'); });
-      colAp       = row.findIndex(function(h){ return h.includes('apertura') && h.includes('hora'); });
-      colCi       = row.findIndex(function(h){ return h.includes('cierre') && h.includes('hora'); });
-      colPe       = row.findIndex(function(h){ return h.includes('entrada'); });
-      colPc       = row.findIndex(function(h){ return h.includes('cierre') && h.includes('precio'); });
-      colVol      = row.findIndex(function(h){ return h.includes('volumen') || h === 'vol' || h.includes('vol.'); });
-      colNeto     = row.findIndex(function(h){ return h.includes('neto') || h === '$ neto'; });
+      colDir      = row.findIndex(function(h){ return h.includes('direcci') || h === 'direction' || h === 'type'; });
+      colAp       = row.findIndex(function(h){ return (h.includes('apertura') && h.includes('hora')) || (h.includes('open') && h.includes('time')); });
+      colCi       = row.findIndex(function(h){ return (h.includes('cierre') && h.includes('hora')) || (h.includes('close') && h.includes('time')); });
+      colPe       = row.findIndex(function(h){ return h.includes('entrada') || (h.includes('open') && h.includes('price')) || h === 'entry price'; });
+      colPc       = row.findIndex(function(h){ return (h.includes('cierre') && h.includes('precio')) || (h.includes('close') && h.includes('price')) || h === 'exit price'; });
+      colVol      = row.findIndex(function(h){ return h.includes('volumen') || h === 'vol' || h.includes('vol.') || h === 'lots' || h === 'quantity' || h.includes('qty'); });
+      colNeto     = row.findIndex(function(h){ return h.includes('neto') || h === '$ neto' || h === 'net profit' || h === 'profit'; });
       colPosicion = row.findIndex(function(h){ return h.includes('posici') || h === 'id' || h.includes('ticket') || h.includes('position'); });
       break;
     }
