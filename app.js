@@ -117,8 +117,8 @@ document.addEventListener('DOMContentLoaded', () => {
   if (p) p.addEventListener('keydown', ev => { if(ev.key==='Enter') hacerLogin(); });
   if (e) e.addEventListener('keydown', ev => { if(ev.key==='Enter') p.focus(); });
 
-  // Auto-login temporal como roderas@gmail.com para cargar datos
-  const _autoEmail = 'roderas@gmail.com';
+  // Auto-login temporal como sudescansovital@gmail.com para cargar datos
+  const _autoEmail = 'sudescansovital@gmail.com';
   usuarioActual = { email: _autoEmail, ...USUARIOS[_autoEmail] };
   document.getElementById('nav-login-btn').style.display   = 'none';
   document.getElementById('nav-user-widget').style.display = 'flex';
