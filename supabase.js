@@ -1,395 +1,93 @@
 // ============================================================
-// SUPABASE — Fetch nativo (sin supabase-js SDK)
+// SUPABASE CLIENT — aurum-3.5
+// Fetch nativo, sin SDK
 // ============================================================
 
-const SUPABASE_URL = 'https://rsrbxcvlnbwpiyhumqmt.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzcmJ4Y3ZsbmJ3cGl5aHVtcW10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2NDYzNTAsImV4cCI6MjA5NTIyMjM1MH0.DpcY9s7DK7l4qVHmint9HQIJK6icnwnfbGvQ-XH15mY';
+const SUPA_URL = 'https://rsrbxcvlnbwpiyhumqmt.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzcmJ4Y3ZsbmJ3cGl5aHVtcW10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2NDYzNTAsImV4cCI6MjA5NTIyMjM1MH0.DpcY9s7DK7l4qVHmint9HQIJK6icnwnfbGvQ-XH15mY';
 
-const SUPA_HEADERS = {
-  'apikey': SUPABASE_KEY,
-  'Authorization': 'Bearer ' + SUPABASE_KEY,
-  'Content-Type': 'application/json'
-};
-
-async function supaGet(tabla, params) {
-  var url = SUPABASE_URL + '/rest/v1/' + tabla + (params ? '?' + params : '');
-  console.log('[SUPA GET]', tabla, params || '');
-  var r = await fetch(url, { headers: SUPA_HEADERS }).catch(function(e) {
-    console.error('[SUPA GET FETCH ERROR]', tabla, e);
-    return null;
-  });
-  if (!r) return { data: null, error: 'fetch failed' };
-  if (!r.ok) { var err = await r.text(); console.error('[SUPA GET HTTP]', tabla, r.status, err); return { data: null, error: err }; }
-  var data = await r.json();
-  console.log('[SUPA GET OK]', tabla, Array.isArray(data) ? data.length + ' rows' : data);
-  return { data: data, error: null };
+function _headers(token) {
+  var h = {
+    'apikey': SUPA_KEY,
+    'Content-Type': 'application/json'
+  };
+  h['Authorization'] = 'Bearer ' + (token || SUPA_KEY);
+  return h;
 }
 
-async function supaPost(tabla, body, prefer, params) {
-  var headers = Object.assign({}, SUPA_HEADERS, { 'Prefer': prefer || 'return=minimal' });
-  var url = SUPABASE_URL + '/rest/v1/' + tabla + (params ? '?' + params : '');
-  console.log('[SUPA POST]', tabla);
+async function supaGet(tabla, params, token) {
+  var url = SUPA_URL + '/rest/v1/' + tabla + (params ? '?' + params : '');
+  var r = await fetch(url, { headers: _headers(token) });
+  if (!r.ok) { var e = await r.text(); return { data: null, error: e }; }
+  return { data: await r.json(), error: null };
+}
+
+async function supaPost(tabla, body, prefer, token) {
+  var url = SUPA_URL + '/rest/v1/' + tabla;
   var r = await fetch(url, {
-    method: 'POST', headers: headers, body: JSON.stringify(body)
-  }).catch(function(e) {
-    console.error('[SUPA POST FETCH ERROR]', tabla, e);
-    return null;
+    method: 'POST',
+    headers: Object.assign(_headers(token), { 'Prefer': prefer || 'return=representation' }),
+    body: JSON.stringify(body)
   });
-  if (!r) return { error: 'fetch failed' };
-  if (!r.ok) { var err = await r.text(); console.error('[SUPA POST HTTP]', tabla, r.status, err); return { error: err }; }
+  if (!r.ok) { var e = await r.text(); return { data: null, error: e }; }
+  var text = await r.text();
+  return { data: text ? JSON.parse(text) : null, error: null };
+}
+
+async function supaPatch(tabla, params, body, token) {
+  var url = SUPA_URL + '/rest/v1/' + tabla + '?' + params;
+  var r = await fetch(url, {
+    method: 'PATCH',
+    headers: Object.assign(_headers(token), { 'Prefer': 'return=representation' }),
+    body: JSON.stringify(body)
+  });
+  if (!r.ok) { var e = await r.text(); return { data: null, error: e }; }
+  var text = await r.text();
+  return { data: text ? JSON.parse(text) : null, error: null };
+}
+
+async function supaDelete(tabla, params, token) {
+  var url = SUPA_URL + '/rest/v1/' + tabla + '?' + params;
+  var r = await fetch(url, {
+    method: 'DELETE',
+    headers: _headers(token)
+  });
+  if (!r.ok) { var e = await r.text(); return { error: e }; }
   return { error: null };
 }
 
-async function supaPatch(tabla, params, body) {
-  var headers = Object.assign({}, SUPA_HEADERS, { 'Prefer': 'return=minimal' });
-  console.log('[SUPA PATCH]', tabla, params);
-  var r = await fetch(SUPABASE_URL + '/rest/v1/' + tabla + '?' + params, {
-    method: 'PATCH', headers: headers, body: JSON.stringify(body)
-  }).catch(function(e) {
-    console.error('[SUPA PATCH FETCH ERROR]', tabla, e);
-    return null;
+async function supaAuthPost(path, body, token) {
+  var url = SUPA_URL + '/auth/v1' + path;
+  var r = await fetch(url, {
+    method: 'POST',
+    headers: Object.assign(_headers(token), { 'apikey': SUPA_KEY }),
+    body: JSON.stringify(body)
   });
-  if (!r) return { error: 'fetch failed' };
-  if (!r.ok) { var err = await r.text(); console.error('[SUPA PATCH HTTP]', tabla, r.status, err); return { error: err }; }
-  return { error: null };
+  var data = await r.json();
+  if (!r.ok) return { data: null, error: data.error_description || data.msg || JSON.stringify(data) };
+  return { data, error: null };
 }
 
-function initSupabase() {
-  cargarDatosUsuario();
-}
-
-// ============================================================
-// HISTORIALES — acumulativo por cuenta
-// ============================================================
-
-async function guardarHistorial(cuenta) {
-  if (!usuarioActual) return;
-
-  var res = await supaGet('historiales',
-    'usuario_email=eq.' + encodeURIComponent(usuarioActual.email) +
-    '&nombre=eq.' + encodeURIComponent(cuenta.nombre) +
-    '&limit=1');
-
-  if (res.error) return;
-
-  if (res.data && res.data.length > 0) {
-    var existente = res.data[0];
-    var fpsMerged = [...new Set([...(existente.fps || []), ...(cuenta.fps || [])])];
-    await supaPatch('historiales', 'id=eq.' + existente.id, {
-      total: cuenta.total,
-      wins: cuenta.wins,
-      pnl: cuenta.pnl,
-      wr: cuenta.wr,
-      rr: cuenta.rr,
-      periodo: cuenta.periodo,
-      dias: cuenta.dias,
-      tipos: cuenta.tipos,
-      fps: fpsMerged
-    });
-    console.log('Historial reemplazado: ' + cuenta.nombre);
-  } else {
-    await supaPost('historiales', {
-      usuario_email: usuarioActual.email,
-      nombre: cuenta.nombre,
-      tipo: cuenta.tipo || 'challenge',
-      total: cuenta.total,
-      wins: cuenta.wins,
-      pnl: cuenta.pnl,
-      wr: cuenta.wr,
-      rr: cuenta.rr,
-      periodo: cuenta.periodo,
-      dias: cuenta.dias,
-      tipos: cuenta.tipos,
-      fps: cuenta.fps || []
-    });
-    console.log('Historial nuevo: ' + cuenta.nombre);
-  }
-}
-
-var CUENTAS_INTERNAS_HIST = ['Cuenta Maestra', 'Cuenta Retos', 'Cuenta Prueba'];
-
-async function cargarHistoriales() {
-  if (!usuarioActual) return;
-  var res = await supaGet('historiales',
-    'usuario_email=eq.' + encodeURIComponent(usuarioActual.email) +
-    '&order=created_at.desc');
-  if (res.error || !res.data || res.data.length === 0) return;
-
-  var externas = res.data.filter(function(h) {
-    return CUENTAS_INTERNAS_HIST.indexOf(h.nombre) === -1;
+async function supaAdminPost(endpoint, body) {
+  var url = SUPA_URL + '/auth/v1' + endpoint;
+  var r = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'apikey':        SUPA_KEY,
+      'Authorization': 'Bearer ' + SUPA_KEY,
+      'Content-Type':  'application/json'
+    },
+    body: JSON.stringify(body)
   });
-
-  HISTORIAL_CUENTAS.length = 0;
-  HISTORIAL_ALL_FPS.clear();
-  externas.forEach(function(h) {
-    HISTORIAL_CUENTAS.push({ nombre:h.nombre, tipo:h.tipo, total:h.total, wins:h.wins, pnl:h.pnl, wr:h.wr, rr:h.rr, periodo:h.periodo, dias:h.dias||[], tipos:h.tipos||{}, fps:h.fps||[] });
-    (h.fps||[]).forEach(function(fp){ HISTORIAL_ALL_FPS.add(fp); });
-  });
-
-  var lista = document.getElementById('hist-lista');
-  if (lista) { lista.innerHTML=''; HISTORIAL_CUENTAS.forEach(function(c,i){ histAnadirFila(c,i); }); }
-
-  actualizarGlobalesHistorial();
-  console.log(externas.length + ' historiales externos cargados (de ' + res.data.length + ' totales)');
+  var data = await r.json();
+  if (!r.ok) return { data: null, error: data.error_description || data.msg || JSON.stringify(data) };
+  return { data, error: null };
 }
 
-function actualizarGlobalesHistorial() {
-  var totalTrades = HISTORIAL_CUENTAS.reduce(function(s,c){ return s + (c.total||0); }, 0);
-  var totalWins   = HISTORIAL_CUENTAS.reduce(function(s,c){ return s + (c.wins||0); }, 0);
-  var totalPnl    = Math.round(HISTORIAL_CUENTAS.reduce(function(s,c){ return s + (c.pnl||0); }, 0) * 100) / 100;
-  var wr = totalTrades > 0 ? Math.round(totalWins / totalTrades * 1000) / 10 : 0;
-
-  var htEl = document.getElementById('hist-global-trades');
-  if (htEl) htEl.textContent = totalTrades;
-  var hwEl = document.getElementById('hist-global-wr');
-  if (hwEl) hwEl.textContent = wr + '%';
-  var hpEl = document.getElementById('hist-global-pnl');
-  if (hpEl) hpEl.textContent = (totalPnl >= 0 ? '+' : '') + totalPnl + '$';
-}
-
-// ============================================================
-// DIARIO
-// ============================================================
-
-async function guardarEntradaDiarioSupabase(texto) {
-  if (!usuarioActual) return false;
-  var res = await supaPost('diario', {
-    usuario_email: usuarioActual.email,
-    texto: texto,
-    fecha: new Date().toISOString().split('T')[0]
-  });
-  return !res.error;
-}
-
-async function cargarDiario() {
-  if (!usuarioActual) return;
-  var res = await supaGet('diario',
-    'usuario_email=eq.' + encodeURIComponent(usuarioActual.email) +
-    '&order=created_at.desc&limit=20');
-  if (res.error || !res.data) return;
-  var entradas = document.getElementById('diario-entradas');
-  if (!entradas) return;
-  entradas.innerHTML = '';
-  res.data.forEach(function(e) {
-    var fechaStr = new Date(e.created_at).toLocaleDateString('es-ES',{day:'numeric',month:'long',year:'numeric'});
-    var div = document.createElement('div');
-    div.style.cssText = 'background:var(--bg2);padding:1.5rem 2rem;position:relative;';
-    div.innerHTML = '<div style="position:absolute;top:0;left:0;bottom:0;width:2px;background:linear-gradient(to bottom,transparent,var(--gold),transparent);"></div><div style="display:flex;justify-content:space-between;margin-bottom:.6rem;"><div style="font-size:12px;color:var(--gold-dim);">'+fechaStr+'</div><div style="font-size:11px;color:var(--green);">Guardada</div></div><div style="font-size:15px;color:var(--text-dim);line-height:1.8;">'+e.texto+'</div>';
-    entradas.appendChild(div);
-  });
-}
-
-// ============================================================
-// AGENDA
-// ============================================================
-
-async function guardarAgendaSupabase(fecha, sesion) {
-  if (!usuarioActual) return false;
-  var res = await supaPost('agenda', { usuario_email: usuarioActual.email, fecha: fecha, sesion: sesion });
-  return !res.error;
-}
-
-async function cargarAgenda() {
-  if (!usuarioActual) return;
-  var hoy = new Date().toISOString().split('T')[0];
-  var res = await supaGet('agenda',
-    'usuario_email=eq.' + encodeURIComponent(usuarioActual.email) +
-    '&fecha=gte.' + hoy +
-    '&order=fecha.asc');
-  if (res.error || !res.data || res.data.length === 0) return;
-  var lista = document.getElementById('agenda-lista');
-  if (!lista) return;
-  lista.innerHTML = '';
-  res.data.forEach(function(a) {
-    var fechaStr = new Date(a.fecha+'T12:00:00').toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'});
-    var item = document.createElement('div');
-    item.style.cssText = 'display:flex;align-items:center;justify-content:space-between;background:#0A0C18;border:1px solid var(--border);padding:.6rem 1rem;margin-bottom:.4rem;';
-    item.innerHTML = '<div><div style="font-size:13px;color:var(--text-dim);">'+fechaStr+'</div><div style="font-size:11px;color:var(--gold);">'+a.sesion+'</div></div><div onclick="this.parentElement.remove()" style="font-size:12px;color:var(--text-muted);cursor:pointer;opacity:.5;">X</div>';
-    lista.appendChild(item);
-  });
-}
-
-// ============================================================
-// CARGAR TODO AL INICIO
-// ============================================================
-
-async function cargarDatosUsuario() {
-  console.log('[SUPA] cargarDatosUsuario — inicio, usuarioActual:', usuarioActual && usuarioActual.email);
-  await cargarHistoriales();
-  console.log('[SUPA] cargarHistoriales — OK');
-  await cargarDiario();
-  console.log('[SUPA] cargarDiario — OK');
-  await cargarAgenda();
-  console.log('[SUPA] cargarAgenda — OK');
-  await actualizarDashboard();
-  console.log('[SUPA] actualizarDashboard — OK, AURUM_TRADES:', window.AURUM_TRADES ? window.AURUM_TRADES.todos.length + ' trades' : 'undefined');
-}
-
-// ============================================================
-// TRADES INDIVIDUALES
-// ============================================================
-
-async function guardarTradesIndividuales(trades, cuenta) {
-  if (!usuarioActual || !trades || trades.length === 0) return;
-
-  var lote = trades.map(function(t) {
-    return {
-      usuario_email: usuarioActual.email,
-      cuenta: cuenta,
-      fp: t.fp,
-      beneficio: Math.round((t.ben || 0) * 100) / 100,
-      volumen: t.vol || 0,
-      precio_entrada: t.pe || 0,
-      precio_cierre: t.pc || 0,
-      puntos: Math.round((t.puntos || 0) * 10) / 10,
-      ganadora: t.ganadora || false,
-      hora: t.hora || 0,
-      dia: t.dia || 0,
-      dur_min: t.durMin || 0,
-      sl: t.sl != null ? Math.round(t.sl * 100) / 100 : null,
-      tp: t.tp != null ? Math.round(t.tp * 100) / 100 : null
-    };
-  });
-
-  for (var i = 0; i < lote.length; i += 50) {
-    var bloque = lote.slice(i, i + 50);
-    var res = await supaPost('trades', bloque, 'resolution=merge-duplicates,return=minimal', 'on_conflict=fp');
-    if (res.error) console.error('Error guardando trades:', res.error);
-  }
-  console.log(trades.length + ' trades guardados en Supabase');
-}
-
-async function cargarTrades(cuenta) {
-  if (!usuarioActual) return [];
-  var params = 'usuario_email=eq.' + encodeURIComponent(usuarioActual.email) +
-               '&order=created_at.asc&limit=10000';
-  if (cuenta) params += '&cuenta=eq.' + encodeURIComponent(cuenta);
-  var res = await supaGet('trades', params);
-  if (res.error || !res.data) return [];
-  return res.data;
-}
-
-// ============================================================
-// CALCULAR MÉTRICAS DEL DASHBOARD DESDE TRADES REALES
-// ============================================================
-
-async function actualizarDashboard() {
-  console.log('[DASH] actualizarDashboard — inicio, usuarioActual:', usuarioActual && usuarioActual.email);
-  if (!usuarioActual) { console.warn('[DASH] sin usuarioActual — abortando'); return; }
-
-  console.log('[SUPA] Cargando trades para: ' + usuarioActual.email);
-  var res = await supaGet('trades',
-    'usuario_email=eq.' + encodeURIComponent(usuarioActual.email) + '&limit=10000');
-  console.log('[SUPA] Trades recibidos: ' + (res.data ? res.data.length : 0));
-  if (res.error) { console.error('[DASH] error en query trades:', res.error); return; }
-  if (!res.data || res.data.length === 0) { console.warn('[DASH] sin trades — abortando'); return; }
-
-  var todos = res.data;
-  var maestra = todos.filter(function(t){ return t.cuenta === 'Cuenta Maestra'; });
-  var prueba  = todos.filter(function(t){ return t.cuenta === 'Cuenta Prueba'; });
-  var retos   = todos.filter(function(t){ return t.cuenta === 'Cuenta Retos'; });
-
-  function metricas(trades) {
-    if (!trades.length) return { total:0, wins:0, wr:0, pnl:0, rr:0 };
-    var wins = trades.filter(function(t){ return t.ganadora; }).length;
-    var pnl  = trades.reduce(function(s,t){ return s + (t.beneficio||0); }, 0);
-    var ptsW = wins > 0 ? trades.filter(function(t){ return t.ganadora; }).reduce(function(s,t){ return s+(t.puntos||0); },0)/wins : 0;
-    var losses = trades.length - wins;
-    var ptsL = losses > 0 ? trades.filter(function(t){ return !t.ganadora; }).reduce(function(s,t){ return s+(t.puntos||0); },0)/losses : 0;
-    return {
-      total: trades.length,
-      wins: wins,
-      wr: Math.round(wins/trades.length*1000)/10,
-      pnl: Math.round(pnl*100)/100,
-      rr: ptsL > 0 ? Math.round(ptsW/ptsL*100)/100 : 0
-    };
-  }
-
-  function horario(trades) {
-    var horas = {};
-    trades.forEach(function(t) {
-      var h = Math.floor(t.hora || 0);
-      if (!horas[h]) horas[h] = {total:0, wins:0};
-      horas[h].total++;
-      if (t.ganadora) horas[h].wins++;
-    });
-    return horas;
-  }
-
-  function porDia(trades) {
-    var dias = {0:{nombre:'Lunes',total:0,wins:0,pnl:0},1:{nombre:'Martes',total:0,wins:0,pnl:0},2:{nombre:'Miércoles',total:0,wins:0,pnl:0},3:{nombre:'Jueves',total:0,wins:0,pnl:0},4:{nombre:'Viernes',total:0,wins:0,pnl:0}};
-    trades.forEach(function(t) {
-      var d = t.dia >= 0 && t.dia <= 4 ? t.dia : null;
-      if (d !== null) { dias[d].total++; if(t.ganadora) dias[d].wins++; dias[d].pnl += t.beneficio||0; }
-    });
-    return Object.values(dias).map(function(d){ return { d:d.nombre, wr:d.total>0?Math.round(d.wins/d.total*1000)/10:0, pnl:Math.round(d.pnl*100)/100, t:d.total, best:d.total>0&&(d.wins/d.total)>=0.7, bad:d.total>0&&(d.wins/d.total)<0.5 }; });
-  }
-
-  function porTipo(trades) {
-    var scalp = trades.filter(function(t){ return t.dur_min < 30; });
-    var intra = trades.filter(function(t){ return t.dur_min >= 30 && t.dur_min < 240; });
-    var swing = trades.filter(function(t){ return t.dur_min >= 240 && t.dur_min < 1440; });
-    var multi = trades.filter(function(t){ return t.dur_min >= 1440; });
-    function tm(arr, label) {
-      var w = arr.filter(function(t){ return t.ganadora; }).length;
-      var p = arr.reduce(function(s,t){ return s+(t.beneficio||0); },0);
-      return { l:label, t:arr.length, wr:arr.length>0?Math.round(w/arr.length*1000)/10:0, pnl:Math.round(p*100)/100 };
-    }
-    return [tm(scalp,'Scalping <30min'), tm(intra,'Intradía 30m–4h'), tm(swing,'✦ Swing 4h–24h'), tm(multi,'Multi-día >24h')];
-  }
-
-  var mM = metricas(maestra);
-  var mP = metricas(prueba);
-  var mR = metricas(retos);
-  var mG = metricas(todos);
-
-  window.AURUM_TRADES = {
-    todos: todos, maestra: maestra, prueba: prueba, retos: retos,
-    metricas: { global:mG, maestra:mM, prueba:mP, retos:mR },
-    horario: horario(todos),
-    dias: porDia(todos),
-    tipos: porTipo(todos)
-  };
-
-  function setEl(id, val) { var el = document.getElementById(id); if (el) el.textContent = val; }
-  function pnlStr(m) { return (m.pnl >= 0 ? '+' : '') + m.pnl + '$'; }
-  function subStr(m) { return m.total + ' trades · WR ' + m.wr + '%'; }
-
-  setEl('card-global-pnl',   pnlStr(mG)); setEl('card-global-sub',   subStr(mG));
-  setEl('card-maestra-pnl',  pnlStr(mM)); setEl('card-maestra-sub',  subStr(mM));
-  setEl('card-retos-pnl',    pnlStr(mR)); setEl('card-retos-sub',    subStr(mR));
-  setEl('card-prueba-pnl',   pnlStr(mP)); setEl('card-prueba-sub',   subStr(mP));
-
-  if (typeof buildCicloDots    === 'function') buildCicloDots();
-  if (typeof buildHorarios     === 'function') buildHorarios();
-  if (typeof buildCumplimiento === 'function') buildCumplimiento();
-  if (typeof buildEquity       === 'function') buildEquity();
-  if (typeof buildTradeRecord  === 'function') buildTradeRecord();
-
-  if (typeof cuentasBuilt !== 'undefined') Object.keys(cuentasBuilt).forEach(function(k){ delete cuentasBuilt[k]; });
-  if (typeof buildGlobal    === 'function') buildGlobal();
-  if (typeof buildCuentaReal === 'function') {
-    buildCuentaReal('maestra', 'Cuenta Maestra');
-    buildCuentaReal('retos',   'Cuenta Retos');
-    buildCuentaReal('prueba',  'Cuenta Prueba');
-  }
-
-  actualizarTradeRecord();
-}
-
-function actualizarTradeRecord() {
-  var d = window.AURUM_TRADES;
-  if (!d) return;
-  var m = d.metricas.global;
-
-  var els = {
-    'gest-global-pnl':   (m.pnl>=0?'+':'')+m.pnl+'$',
-    'gest-global-wr':    m.wr+'%',
-    'gest-global-rr':    m.rr,
-    'gest-global-trades': m.total + ' trades'
-  };
-  Object.keys(els).forEach(function(id){
-    var el = document.getElementById(id);
-    if (el) el.textContent = els[id];
-  });
+async function supaAuthGet(path, token) {
+  var url = SUPA_URL + '/auth/v1' + path;
+  var r = await fetch(url, { headers: _headers(token) });
+  var data = await r.json();
+  if (!r.ok) return { data: null, error: data.error_description || data.msg || JSON.stringify(data) };
+  return { data, error: null };
 }

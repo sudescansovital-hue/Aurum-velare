@@ -4,29 +4,6 @@
 
 const ADMIN_EMAIL = 'roderastrader@gmail.com';
 
-const USUARIOS = {
-  'sudescansovital@gmail.com': {
-    pass:'admin2026', nombre:'Roderas', nick:'Roderas',
-    animal:'🦁', pack:'Pack León · Etapa 3', packLevel:3,
-    etapa:3, ciclo:2, ozt:247
-  },
-  'roderastrader@gmail.com': {
-    pass:'admin2026', nombre:'Roderas', nick:'Roderas',
-    animal:'🦁', pack:'Pack León · Etapa 3', packLevel:3,
-    etapa:3, ciclo:2, ozt:247
-  },
-  'roderas@gmail.com': {
-    pass:'aurum2026', nombre:'Willian', nick:'Willian',
-    animal:'🦅', pack:'Pack Águila · Etapa 3', packLevel:3,
-    etapa:3, ciclo:2, ozt:247
-  },
-  'demo@aurum.com': {
-    pass:'hormiga2026', nombre:'Usuario Demo', nick:'León Demo',
-    animal:'🐂', pack:'Pack Hormiga · Etapa 1', packLevel:1,
-    etapa:1, ciclo:1, ozt:11
-  },
-};
-
 const PAGINAS_PRIVADAS = ['dashboard','gestion','admin'];
 let usuarioActual = null;
 
@@ -40,19 +17,41 @@ function cerrarLogin() {
   document.getElementById('login-err').textContent = '';
 }
 
-function hacerLogin() {
+async function hacerLogin() {
   const email = (document.getElementById('login-email').value||'').trim().toLowerCase();
   const pass  = (document.getElementById('login-pass').value||'').trim();
   const err   = document.getElementById('login-err');
-  if (!USUARIOS[email]) { err.textContent='Email no reconocido.'; return; }
-  if (USUARIOS[email].pass !== pass) { err.textContent='Contraseña incorrecta.'; return; }
-  usuarioActual = { email, ...USUARIOS[email] };
+  if (!email || !pass) { err.textContent='Completa email y contraseña.'; return; }
+
+  const auth = await signInWithPassword(email, pass);
+  if (auth.error) { err.textContent = auth.error; return; }
+
+  const perfil = await supaGet('usuarios_aurum', 'email=eq.' + encodeURIComponent(email) + '&limit=1', getToken());
+  if (perfil.error || !perfil.data || !perfil.data.length) {
+    err.textContent = 'Usuario no encontrado en el sistema.'; return;
+  }
+  const u = perfil.data[0];
+
+  const packMap = { umbral:'Pack Umbral', raiz:'Pack Raíz', senda:'Pack Senda', cima:'Pack Cima', demo:'Pack Demo' };
+  const animalMap = { umbral:'🐝', raiz:'🌱', senda:'🦅', cima:'🦁', demo:'🐂' };
+
+  usuarioActual = {
+    email:     email,
+    nombre:    u.nombre || email.split('@')[0],
+    nick:      u.nombre || email.split('@')[0],
+    animal:    animalMap[u.pack] || '✦',
+    pack:      packMap[u.pack]   || u.pack || 'Sin pack',
+    packLevel: u.etapa || 1,
+    etapa:     u.etapa || 1,
+    activo:    u.activo
+  };
+
   err.textContent = '';
   cerrarLogin();
   document.getElementById('nav-login-btn').style.display = 'none';
   document.getElementById('nav-user-widget').style.display = 'flex';
   document.getElementById('nav-animal').textContent = usuarioActual.animal;
-  document.getElementById('nav-uname').textContent  = usuarioActual.nick || usuarioActual.nombre;
+  document.getElementById('nav-uname').textContent  = usuarioActual.nick;
   document.getElementById('nav-upack').textContent  = usuarioActual.pack;
   const adminLink = document.getElementById('nav-admin-link');
   if (adminLink) adminLink.style.display = email === ADMIN_EMAIL ? 'inline' : 'none';
@@ -61,7 +60,8 @@ function hacerLogin() {
   irA(email === ADMIN_EMAIL ? 'admin' : 'dashboard');
 }
 
-function hacerLogout() {
+async function hacerLogout() {
+  await signOut();
   usuarioActual = null;
   document.getElementById('nav-user-widget').style.display = 'none';
   document.getElementById('nav-login-btn').style.display   = 'block';
