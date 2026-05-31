@@ -66,6 +66,26 @@
   </div>
 </div>
 
+<!-- ============================================================
+     RECOVERY — Nueva contraseña (token desde email de Supabase)
+     ============================================================ -->
+<div class="login-overlay" id="recovery-overlay" style="display:none;">
+  <div class="login-box">
+    <div class="login-head">
+      <div class="login-title">Aurum Velare</div>
+      <div class="login-subtitle">Establece tu nueva contraseña</div>
+    </div>
+    <div class="login-body">
+      <label class="login-label">Nueva contraseña</label>
+      <input class="login-input" id="recovery-pass1" type="password" placeholder="Mínimo 6 caracteres">
+      <label class="login-label">Confirmar contraseña</label>
+      <input class="login-input" id="recovery-pass2" type="password" placeholder="Repite la contraseña">
+      <div class="login-err" id="recovery-err"></div>
+      <button class="login-btn" onclick="hacerResetPassword()">✦ Guardar nueva contraseña</button>
+    </div>
+  </div>
+</div>
+
 
 <!-- ============================================================
      NAV PRINCIPAL

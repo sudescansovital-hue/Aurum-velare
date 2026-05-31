@@ -111,12 +111,54 @@ function showToast(msg) {
   t._t = setTimeout(() => { t.style.opacity='0'; }, 3000);
 }
 
+// ── Recovery de contraseña ───────────────────────────────────
+
+var _recoveryToken = null;
+
+function checkRecoveryToken() {
+  const hash = window.location.hash.substring(1);
+  const params = new URLSearchParams(hash);
+  if (params.get('type') !== 'recovery') return false;
+  _recoveryToken = params.get('access_token');
+  if (!_recoveryToken) return false;
+  history.replaceState(null, '', window.location.pathname);
+  document.getElementById('recovery-overlay').style.display = 'flex';
+  return true;
+}
+
+async function hacerResetPassword() {
+  const pass1 = document.getElementById('recovery-pass1').value;
+  const pass2 = document.getElementById('recovery-pass2').value;
+  const err   = document.getElementById('recovery-err');
+  if (!pass1 || pass1.length < 6) { err.textContent = 'Mínimo 6 caracteres.'; return; }
+  if (pass1 !== pass2)            { err.textContent = 'Las contraseñas no coinciden.'; return; }
+  err.textContent = '';
+
+  const r = await fetch(SUPA_URL + '/auth/v1/user', {
+    method: 'PUT',
+    headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + _recoveryToken, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password: pass1 })
+  });
+  if (!r.ok) {
+    const e = await r.json();
+    err.textContent = e.message || 'Error al actualizar la contraseña.'; return;
+  }
+  _recoveryToken = null;
+  document.getElementById('recovery-overlay').style.display = 'none';
+  showToast('Contraseña actualizada — inicia sesión');
+  abrirLogin();
+}
+
+// ── Init ─────────────────────────────────────────────────────
+
 document.addEventListener('DOMContentLoaded', () => {
   const p = document.getElementById('login-pass');
   const e = document.getElementById('login-email');
   if (p) p.addEventListener('keydown', ev => { if(ev.key==='Enter') hacerLogin(); });
   if (e) e.addEventListener('keydown', ev => { if(ev.key==='Enter') p.focus(); });
 
-  mostrarPagina('home');
-  initSupabase();
+  if (!checkRecoveryToken()) {
+    mostrarPagina('home');
+    initSupabase();
+  }
 });
