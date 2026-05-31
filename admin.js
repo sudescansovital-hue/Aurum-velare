@@ -32,7 +32,6 @@ function esAdmin() {
 
 async function init_admin() {
   if (!esAdmin()) { irA('home'); return; }
-  if (!sb) { setTimeout(init_admin, 600); return; }
   await cargarUsuariosAdmin();
 }
 
@@ -42,10 +41,10 @@ async function cargarUsuariosAdmin() {
   var tbody = document.getElementById('admin-tabla-body');
   if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:2rem;">Cargando...</td></tr>';
 
-  var res = await sb.from('usuarios_aurum').select('*').order('created_at', { ascending: false });
+  var res = await supaGet('usuarios_aurum', 'order=created_at.desc');
   if (res.error) {
     console.error('Admin error:', res.error);
-    if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="color:var(--red);padding:1rem;">Error: ' + res.error.message + '</td></tr>';
+    if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="color:var(--red);padding:1rem;">Error: ' + res.error + '</td></tr>';
     return;
   }
   adminUsuarios = res.data || [];
@@ -143,7 +142,7 @@ function adminCerrarModal() {
 }
 
 async function adminGuardarUsuario() {
-  if (!adminEditId || !sb) return;
+  if (!adminEditId) return;
   var btn = document.getElementById('admin-guardar-btn');
   if (btn) { btn.textContent = 'Guardando...'; btn.disabled = true; }
 
@@ -157,9 +156,9 @@ async function adminGuardarUsuario() {
     updated_at:       new Date().toISOString()
   };
 
-  var res = await sb.from('usuarios_aurum').update(datos).eq('id', adminEditId);
+  var res = await supaPatch('usuarios_aurum', 'id=eq.' + adminEditId, datos);
   if (btn) { btn.textContent = '✦ Guardar cambios'; btn.disabled = false; }
-  if (res.error) { showToast('Error: ' + res.error.message); return; }
+  if (res.error) { showToast('Error: ' + res.error); return; }
   adminCerrarModal();
   showToast('Usuario actualizado');
   await cargarUsuariosAdmin();
@@ -168,18 +167,17 @@ async function adminGuardarUsuario() {
 // ── Añadir usuario ──────────────────────────────────────────
 
 async function adminCrearUsuario() {
-  if (!sb) return;
   var email = (document.getElementById('admin-nuevo-email').value || '').trim().toLowerCase();
   var pack  = document.getElementById('admin-nuevo-pack').value;
   var mt5   = (document.getElementById('admin-nuevo-mt5').value || '').trim();
   var exp   = document.getElementById('admin-nuevo-exp').value || null;
   if (!email || !email.includes('@')) { showToast('Email inválido'); return; }
 
-  var res = await sb.from('usuarios_aurum').insert({
+  var res = await supaPost('usuarios_aurum', {
     email: email, pack: pack, etapa: 1, activo: true, cuenta_mt5: mt5, fecha_expiracion: exp
   });
   if (res.error) {
-    showToast(res.error.message.includes('unique') ? 'Email ya registrado' : 'Error: ' + res.error.message);
+    showToast(res.error.includes('23505') || res.error.includes('unique') ? 'Email ya registrado' : 'Error: ' + res.error);
     return;
   }
   document.getElementById('admin-nuevo-email').value = '';
@@ -204,13 +202,12 @@ function adminGenerarCodigo() {
 }
 
 async function adminGuardarCodigo() {
-  if (!sb) return;
   var codigo = (document.getElementById('admin-codigo-result').textContent || '').trim();
   var email  = document.getElementById('admin-codigo-email').value;
   if (!codigo || !email) { showToast('Genera un código y elige un usuario'); return; }
 
-  var res = await sb.from('usuarios_aurum').update({ codigo_eval: codigo, updated_at: new Date().toISOString() }).eq('email', email);
-  if (res.error) { showToast('Error: ' + res.error.message); return; }
+  var res = await supaPatch('usuarios_aurum', 'email=eq.' + encodeURIComponent(email), { codigo_eval: codigo, updated_at: new Date().toISOString() });
+  if (res.error) { showToast('Error: ' + res.error); return; }
   showToast('Código ' + codigo + ' asignado a ' + email);
   await cargarUsuariosAdmin();
 }
