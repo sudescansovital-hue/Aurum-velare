@@ -2,10 +2,15 @@
 // NAVEGACIÓN Y LOGIN PRINCIPAL — app.js
 // ============================================================
 
-const ADMIN_EMAIL = 'roderas@gmail.com';
+const ADMIN_EMAIL = 'roderastrader@gmail.com';
 
 const USUARIOS = {
   'sudescansovital@gmail.com': {
+    pass:'admin2026', nombre:'Roderas', nick:'Roderas',
+    animal:'🦁', pack:'Pack León · Etapa 3', packLevel:3,
+    etapa:3, ciclo:2, ozt:247
+  },
+  'roderastrader@gmail.com': {
     pass:'admin2026', nombre:'Roderas', nick:'Roderas',
     animal:'🦁', pack:'Pack León · Etapa 3', packLevel:3,
     etapa:3, ciclo:2, ozt:247
