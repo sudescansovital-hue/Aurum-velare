@@ -117,17 +117,6 @@ document.addEventListener('DOMContentLoaded', () => {
   if (p) p.addEventListener('keydown', ev => { if(ev.key==='Enter') hacerLogin(); });
   if (e) e.addEventListener('keydown', ev => { if(ev.key==='Enter') p.focus(); });
 
-  // Auto-login temporal como sudescansovital@gmail.com para cargar datos
-  const _autoEmail = 'sudescansovital@gmail.com';
-  usuarioActual = { email: _autoEmail, ...USUARIOS[_autoEmail] };
-  document.getElementById('nav-login-btn').style.display   = 'none';
-  document.getElementById('nav-user-widget').style.display = 'flex';
-  document.getElementById('nav-animal').textContent = usuarioActual.animal;
-  document.getElementById('nav-uname').textContent  = usuarioActual.nick;
-  document.getElementById('nav-upack').textContent  = usuarioActual.pack;
-  const _adminLink = document.getElementById('nav-admin-link');
-  if (_adminLink) _adminLink.style.display = 'none';
-
   mostrarPagina('home');
   initSupabase();
 });
