@@ -40,6 +40,7 @@ async function hacerLogin() {
     nombre:    u.nombre || email.split('@')[0],
     nick:      u.nombre || email.split('@')[0],
     animal:    animalMap[u.pack] || '✦',
+    animalSala: u.animal || null,
     pack:      packMap[u.pack]   || u.pack || 'Sin pack',
     packLevel: u.etapa || 1,
     etapa:     u.etapa || 1,

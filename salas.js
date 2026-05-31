@@ -1,3 +1,34 @@
+function init_salas() {
+  var ANIMALES = ['hormiga','leon','elefante','oso','toro','lobo'];
+  ANIMALES.forEach(function(a) {
+    var c = document.getElementById('sala-card-' + a);
+    if (!c) return;
+    var badge = document.getElementById('tu-sala-badge-' + a);
+    if (badge) badge.remove();
+    if (a !== 'leon') {
+      c.style.borderColor = 'var(--border)';
+      c.onmouseover = function() { this.style.borderColor = 'var(--border-gold)'; };
+      c.onmouseout  = function() { this.style.borderColor = 'var(--border)'; };
+    }
+  });
+
+  if (typeof usuarioActual === 'undefined' || !usuarioActual || !usuarioActual.animalSala) return;
+  var animal = usuarioActual.animalSala.toLowerCase();
+  var card = document.getElementById('sala-card-' + animal);
+  if (!card) return;
+
+  card.style.borderColor = 'var(--gold)';
+  card.style.position    = 'relative';
+  card.onmouseover = null;
+  card.onmouseout  = null;
+
+  var badge = document.createElement('div');
+  badge.id = 'tu-sala-badge-' + animal;
+  badge.style.cssText = 'position:absolute;top:.5rem;right:.5rem;font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--gold);background:var(--gold-glow);border:1px solid var(--border-gold);padding:2px 6px;pointer-events:none;';
+  badge.textContent = 'Tu sala';
+  card.insertBefore(badge, card.firstChild);
+}
+
 var salaMicMuted    = false;
 var salaTvCargado   = false;
 var salaActualTipo  = null;
