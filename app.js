@@ -149,6 +149,28 @@ async function hacerResetPassword() {
   abrirLogin();
 }
 
+// ── Supabase init + dashboard loader ────────────────────────
+
+function initSupabase() {}
+
+async function actualizarDashboard() {
+  if (!usuarioActual || !usuarioActual.email) return;
+  var token = getToken();
+  var params = 'usuario_email=eq.' + encodeURIComponent(usuarioActual.email) + '&order=created_at.asc&limit=5000';
+  var res = await supaGet('trades', params, token);
+  if (res.error || !res.data) {
+    console.error('[DASHBOARD] Error cargando trades:', res.error);
+    return;
+  }
+  window.AURUM_TRADES = { todos: res.data };
+  if (typeof buildTradeRecord         === 'function') buildTradeRecord();
+  if (typeof buildCicloDots           === 'function') buildCicloDots();
+  if (typeof buildHorarios            === 'function') buildHorarios();
+  if (typeof buildEquity              === 'function') buildEquity();
+  if (typeof buildCumplimiento        === 'function') buildCumplimiento();
+  if (typeof buildEstadisticasAvanzadas === 'function') buildEstadisticasAvanzadas();
+}
+
 // ── Init ─────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => {

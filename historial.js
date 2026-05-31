@@ -156,3 +156,29 @@ function histSubir(file) {
     }; reader.readAsText(file);
   }
 }
+
+async function guardarTradesIndividuales(trades, nombreCuenta) {
+  if (!window.usuarioActual || !window.usuarioActual.email) return;
+  if (!trades || !trades.length) return;
+  var token = getToken();
+  var rows = trades.map(function(t) {
+    return {
+      fp:            t.fp,
+      usuario_email: usuarioActual.email,
+      cuenta:        nombreCuenta || 'Externa',
+      ganadora:      !!t.ganadora,
+      beneficio:     t.ben != null ? t.ben : (t.beneficio != null ? t.beneficio : 0),
+      dur_min:       Math.round(t.durMin != null ? t.durMin : (t.dur_min != null ? t.dur_min : 0)),
+      hora:          t.hora != null ? t.hora : 0,
+      dia:           t.dia != null ? t.dia : 0,
+      vol:           t.vol || null,
+      pe:            t.pe || null,
+      pc:            t.pc || null,
+      puntos:        t.puntos != null ? t.puntos : null,
+      sl:            t.sl || null,
+      tp:            t.tp || null
+    };
+  });
+  var res = await supaPost('trades', rows, 'resolution=ignore-duplicates,return=minimal', token);
+  if (res.error) console.error('[HISTORIAL] Error guardando trades:', res.error);
+}

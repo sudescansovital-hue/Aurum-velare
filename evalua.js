@@ -173,6 +173,10 @@ function calcularMetricas(trades) {
 }
 
 function mostrarResultados(trades, m, nombreArchivo) {
+  if (window.usuarioActual && window.usuarioActual.email && typeof guardarTradesIndividuales === 'function') {
+    var cuentaEval = typeof detectarNombreCuenta === 'function' ? detectarNombreCuenta([], nombreArchivo) : null;
+    guardarTradesIndividuales(trades, cuentaEval || 'Evaluación');
+  }
   const res = document.getElementById('evalua-resultados');
   res.style.display = 'block';
 
@@ -324,6 +328,72 @@ function reiniciarEvalua() {
   document.getElementById('evalua-paso-pago').style.display = 'block';
   document.getElementById('evalua-codigo-input').value = '';
   document.getElementById('evalua-file-input').value = '';
+}
+
+function init_evalua() {
+  if (!window.usuarioActual || !window.usuarioActual.email) return;
+  var container = document.getElementById('evalua-paso-pago');
+  if (!container || document.getElementById('evalua-btn-supabase')) return;
+  var btn = document.createElement('div');
+  btn.id = 'evalua-btn-supabase';
+  btn.style.cssText = 'text-align:center;margin-top:1.5rem;padding:1rem;border:1px solid var(--border);background:var(--bg2);';
+  btn.innerHTML = '<div style="font-size:14px;color:var(--text-muted);margin-bottom:.6rem;">¿Ya tienes trades guardados en Aurum?</div>' +
+    '<div onclick="cargarYEvaluarDesdeSupabase()" style="display:inline-block;padding:.6rem 1.5rem;border:1px solid var(--border-gold);font-size:14px;color:var(--gold-dim);cursor:pointer;letter-spacing:.1em;">✦ Evaluar mis trades guardados →</div>';
+  container.appendChild(btn);
+}
+
+async function cargarYEvaluarDesdeSupabase() {
+  if (!window.usuarioActual || !window.usuarioActual.email) { abrirLogin(); return; }
+  var paso = document.getElementById('evalua-paso-pago');
+  if (paso) paso.style.display = 'none';
+  var proc = document.getElementById('evalua-procesando');
+  if (proc) proc.style.display = 'block';
+  setProgreso(20, 'Cargando trades desde Aurum...');
+
+  var token = getToken();
+  var params = 'usuario_email=eq.' + encodeURIComponent(usuarioActual.email) + '&order=created_at.asc&limit=5000';
+  var res = await supaGet('trades', params, token);
+
+  if (res.error || !res.data || !res.data.length) {
+    if (proc) proc.style.display = 'none';
+    if (paso) paso.style.display = 'block';
+    alert('No tienes trades guardados. Sube un historial MT5 desde la sección Historial primero.');
+    return;
+  }
+
+  setProgreso(70, 'Calculando métricas...');
+  var trades = res.data.map(function(t) {
+    return {
+      fp:       t.fp,
+      ben:      t.beneficio || 0,
+      beneficio: t.beneficio || 0,
+      vol:      t.vol,
+      pe:       t.pe,
+      pc:       t.pc,
+      puntos:   t.puntos || 0,
+      ganadora: !!t.ganadora,
+      hora:     t.hora || 0,
+      dia:      t.dia || 0,
+      durMin:   t.dur_min || 0,
+      dur_min:  t.dur_min || 0,
+      cuenta:   t.cuenta
+    };
+  });
+
+  if (trades.length < 111) {
+    if (proc) proc.style.display = 'none';
+    if (paso) paso.style.display = 'block';
+    alert('Solo tienes ' + trades.length + ' trades guardados. Aurum requiere mínimo 111 para una evaluación válida.');
+    return;
+  }
+
+  setProgreso(90, 'Generando evaluación...');
+  var metricas = calcularMetricas(trades);
+  setProgreso(100, 'Listo.');
+  setTimeout(function() {
+    if (proc) proc.style.display = 'none';
+    mostrarResultados(trades, metricas, 'Trades guardados (' + trades.length + ')');
+  }, 300);
 }
 
 function unirseListaEspera() {
