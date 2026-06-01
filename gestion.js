@@ -874,7 +874,6 @@ function buildEstadisticasAvanzadas() {
 
 function buildDashboardHero() {
   var todos = window.AURUM_TRADES ? (window.AURUM_TRADES.todos || []) : [];
-  if (!todos.length) return;
 
   var totalTrades = todos.length;
   var wins = todos.filter(function(t) { return t.ganadora; });
