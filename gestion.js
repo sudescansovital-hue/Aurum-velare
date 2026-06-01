@@ -30,10 +30,8 @@ function gestTab(id) {
   if (id === 'equity')       _esperarTrades(buildEquity);
   if (id === 'cumplimiento')  _esperarTrades(buildCumplimiento);
   if (id === 'estadisticas')  _esperarTrades(buildEstadisticasAvanzadas);
-  if (id === 'historial') {
-    console.log('[GESTAB] historial tab clicked — usuarioActual:', window.usuarioActual && window.usuarioActual.email, '| AURUM_TRADES:', window.AURUM_TRADES ? window.AURUM_TRADES.todos.length + ' trades' : 'null');
-    init_historial();
-  }
+  if (id === 'historial') init_historial();
+  if (typeof aplicarEspaciadoPaneles === 'function') setTimeout(aplicarEspaciadoPaneles, 50);
 }
 
 function getTradesActivos() {

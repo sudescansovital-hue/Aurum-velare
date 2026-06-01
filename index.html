@@ -2947,12 +2947,6 @@ function aplicarEspaciadoPaneles() {
   if (trSelector) trSelector.style.marginTop = espacioNecesario + 'px';
 }
 
-// Ejecutar cuando se cambia de tab
-var originalGestTab = window.gestTab;
-window.gestTab = function(id) {
-  if (originalGestTab) originalGestTab(id);
-  setTimeout(aplicarEspaciadoPaneles, 50);
-};
 
 document.addEventListener('DOMContentLoaded', function() {
   setTimeout(aplicarEspaciadoPaneles, 200);
