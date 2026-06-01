@@ -109,6 +109,8 @@ function calcDias(trades) {
 function _set(id, val) { var el = document.getElementById(id); if (el) el.textContent = val; }
 
 function buildCuentaReal(cuenta, nombreCuenta) {
+  // Data source: window.AURUM_TRADES.todos, already filtered by usuario_email in actualizarDashboard()
+  if (!window.AURUM_TRADES || !window.AURUM_TRADES.todos) return;
   var trades = getTrades(nombreCuenta);
   if (!trades.length) return;
 
@@ -198,6 +200,9 @@ function buildCuentaReal(cuenta, nombreCuenta) {
 }
 
 function buildGlobal() {
+  // Data source: window.AURUM_TRADES.todos, already filtered by usuario_email in actualizarDashboard()
+  if (!window.AURUM_TRADES || !window.AURUM_TRADES.todos || !window.AURUM_TRADES.todos.length) return;
+
   var todos   = getTrades('todos');
   if (!todos.length) return;
 
