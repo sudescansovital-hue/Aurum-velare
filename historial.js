@@ -101,6 +101,21 @@ async function cargarHistorialDesdeSupabase() {
     lista.innerHTML = '';
     HISTORIAL_CUENTAS.forEach(function(c, idx) { histAnadirFila(c, idx); });
   }
+
+  // Totales globales del historial
+  var totalTrades = res.data.length;
+  var totalWins   = res.data.filter(function(t) { return t.ganadora; }).length;
+  var totalPnl    = Math.round(res.data.reduce(function(s, t) { return s + (t.beneficio || 0); }, 0) * 100) / 100;
+  var totalWr     = totalTrades > 0 ? Math.round(totalWins / totalTrades * 1000) / 10 : 0;
+  var numCuentas  = Object.keys(porCuenta).length;
+  var pnlStr      = (totalPnl >= 0 ? '+' : '') + totalPnl + '$';
+
+  var el;
+  el = document.getElementById('hist-global-trades');     if (el) el.textContent = totalTrades;
+  el = document.getElementById('hist-global-trades-sub'); if (el) el.textContent = numCuentas + ' cuenta' + (numCuentas !== 1 ? 's' : '') + ' · sin duplicados';
+  el = document.getElementById('hist-global-wr');         if (el) el.textContent = totalWr + '%';
+  el = document.getElementById('hist-global-wr-sub');     if (el) el.textContent = totalWins + ' wins de ' + totalTrades;
+  el = document.getElementById('hist-global-pnl');        if (el) el.textContent = pnlStr;
 }
 
 function histAnadirFila(cuenta, idx) {
