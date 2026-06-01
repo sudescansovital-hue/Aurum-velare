@@ -25,12 +25,15 @@ function detectarNombreCuenta(raw, nombreArchivo) {
 }
 
 function init_historial() {
+  console.log('[HISTORIAL] init_historial llamado — HISTORIAL_CUENTAS.length antes de reset:', HISTORIAL_CUENTAS.length);
   var lista = document.getElementById('hist-lista');
   if (!lista) return;
   HISTORIAL_CUENTAS = [];
   HISTORIAL_ALL_FPS = new Set();
   lista.innerHTML = '';
-  cargarHistorialDesdeSupabase();
+  cargarHistorialDesdeSupabase().then(function() {
+    console.log('[HISTORIAL] cargarHistorialDesdeSupabase completado — cuentas cargadas:', HISTORIAL_CUENTAS.length);
+  });
 }
 
 async function cargarHistorialDesdeSupabase() {
