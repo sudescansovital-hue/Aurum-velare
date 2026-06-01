@@ -227,15 +227,14 @@ function histSubir(file) {
         msg.style.color = 'var(--gold)'; msg.textContent = 'Todos los trades ya estaban registrados (' + dups + ' duplicados).'; return;
       }
       var nombreFinal = detectarNombreCuenta(raw, file.name) || nombre || 'Cuenta externa';
-      var m = calcularMetricas(fps_nuevos);
       var fps_list = fps_nuevos.map(function(t){ return t.fp; }).filter(Boolean);
       fps_list.forEach(function(fp) { HISTORIAL_ALL_FPS.add(fp); });
-      var nueva = { nombre: nombreFinal, tipo: document.getElementById('hist-tipo').value, total: fps_nuevos.length, wins: m.wins||0, pnl: Math.round((m.pnl||0)*100)/100, wr: Math.round((m.wr||0)*10)/10, rr: Math.round((m.rr||0)*100)/100, periodo: new Date().toLocaleDateString('es-ES'), dias: m.dias||[], tipos: m.tipos||{}, fps: fps_list };
-      HISTORIAL_CUENTAS.push(nueva);
-      histAnadirFila(nueva, HISTORIAL_CUENTAS.length - 1);
-      if (typeof guardarHistorial === 'function') guardarHistorial(nueva);
-      // Guardar trades individuales en Supabase
-      if (typeof guardarTradesIndividuales === 'function') guardarTradesIndividuales(fps_nuevos, nombreFinal);
+      // Guardar trades individuales en Supabase y luego recargar métricas completas
+      if (typeof guardarTradesIndividuales === 'function') {
+        guardarTradesIndividuales(fps_nuevos, nombreFinal).then(function() {
+          _actualizarEntradaHistorial(nombreFinal, document.getElementById('hist-tipo').value);
+        });
+      }
       var aviso = dups > 0 ? ' (' + dups + ' duplicados ignorados)' : '';
       msg.style.color = 'var(--green)'; msg.textContent = fps_nuevos.length + ' trades únicos añadidos' + aviso + '.';
       document.getElementById('hist-nombre').value = '';
@@ -261,6 +260,69 @@ function histSubir(file) {
       try { var parser = new DOMParser(); var doc = parser.parseFromString(e.target.result,'text/html'); var raw=[]; doc.querySelectorAll('table').forEach(function(table){table.querySelectorAll('tr').forEach(function(tr){var cells=Array.from(tr.querySelectorAll('td,th')).map(function(td){return td.textContent.trim();}); if(cells.length>3)raw.push(cells);})}); procesarRaw(raw); }
       catch(err) { msg.style.color='var(--red)'; msg.textContent='Error al leer el archivo.'; document.getElementById('hist-progreso').style.display='none'; }
     }; reader.readAsText(file);
+  }
+}
+
+async function _actualizarEntradaHistorial(nombreCuenta, tipo) {
+  if (!window.usuarioActual || !window.usuarioActual.email) return;
+  var token = getToken();
+  var params = 'usuario_email=eq.' + encodeURIComponent(usuarioActual.email) + '&order=created_at.asc&limit=5000';
+  var res = await supaGet('trades', params, token);
+  if (res.error || !res.data) return;
+
+  // Filter to this specific account (partial case-insensitive match)
+  var keyword = nombreCuenta.toLowerCase();
+  var trades = res.data.filter(function(t) {
+    return t.cuenta && t.cuenta.toLowerCase().indexOf(keyword) >= 0;
+  });
+  if (!trades.length) return;
+
+  var wins = trades.filter(function(t) { return t.ganadora; }).length;
+  var pnl  = Math.round(trades.reduce(function(s, t) { return s + (t.beneficio || 0); }, 0) * 100) / 100;
+  var wr   = Math.round(wins / trades.length * 1000) / 10;
+  var wT   = trades.filter(function(t) { return t.ganadora; });
+  var lT   = trades.filter(function(t) { return !t.ganadora; });
+  var ptsW = wT.length > 0 ? wT.reduce(function(s, t) { return s + (t.puntos || 0); }, 0) / wT.length : 0;
+  var ptsL = lT.length > 0 ? lT.reduce(function(s, t) { return s + (t.puntos || 0); }, 0) / lT.length : 0;
+  var rr   = ptsL > 0 ? Math.round(ptsW / ptsL * 100) / 100 : 0;
+
+  var MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  var fechas = trades.map(function(t) {
+    if (t.fp) { var m = String(t.fp).match(/(\d{4})\.(\d{2})\.(\d{2})/); if (m) return new Date(+m[1], +m[2]-1, +m[3]); }
+    if (t.created_at) return new Date(t.created_at);
+    return null;
+  }).filter(Boolean).sort(function(a, b) { return a - b; });
+  var periodo = fechas.length > 0
+    ? fechas[0].getDate() + ' ' + MESES[fechas[0].getMonth()] + ' – ' +
+      fechas[fechas.length-1].getDate() + ' ' + MESES[fechas[fechas.length-1].getMonth()] + ' ' + fechas[fechas.length-1].getFullYear()
+    : new Date().toLocaleDateString('es-ES');
+
+  var entrada = {
+    nombre:  nombreCuenta,
+    tipo:    tipo || 'real',
+    total:   trades.length,
+    wins:    wins,
+    pnl:     pnl,
+    wr:      wr,
+    rr:      rr,
+    periodo: periodo,
+    dias:    [],
+    tipos:   {},
+    fps:     trades.map(function(t) { return t.fp; }).filter(Boolean)
+  };
+
+  var idx = HISTORIAL_CUENTAS.findIndex(function(c) { return c.nombre === nombreCuenta; });
+  if (idx >= 0) {
+    HISTORIAL_CUENTAS[idx] = entrada;
+  } else {
+    HISTORIAL_CUENTAS.push(entrada);
+  }
+
+  // Re-render full list
+  var lista = document.getElementById('hist-lista');
+  if (lista) {
+    lista.innerHTML = '';
+    HISTORIAL_CUENTAS.forEach(function(c, i) { histAnadirFila(c, i); });
   }
 }
 
