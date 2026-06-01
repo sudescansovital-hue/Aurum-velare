@@ -2987,20 +2987,33 @@ document.addEventListener('DOMContentLoaded', function() {
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
       <div>
         <label style="font-size:11px;color:var(--text-muted);letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:.4rem;">Animal (sala)</label>
-        <select id="admin-edit-animal" style="width:100%;background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:.5rem .7rem;font-size:13px;font-family:inherit;">
+        <select id="admin-edit-animal" onchange="adminActualizarSalaAsignada(this.value)" style="width:100%;background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:.5rem .7rem;font-size:13px;font-family:inherit;">
           <option value="">Sin animal</option>
-          <option value="🐝">🐝 Abeja</option>
-          <option value="🌱">🌱 Raíz</option>
-          <option value="🦅">🦅 Águila</option>
+          <option value="🐝">🐝 Hormiga</option>
           <option value="🦁">🦁 León</option>
-          <option value="🐂">🐂 Toro</option>
+          <option value="🐘">🐘 Elefante</option>
           <option value="🐻">🐻 Oso</option>
+          <option value="🐂">🐂 Toro</option>
+          <option value="🐺">🐺 Lobo</option>
         </select>
       </div>
-      <div style="display:flex;align-items:center;gap:.6rem;padding-top:1.4rem;">
-        <input id="admin-edit-acceso-sala" type="checkbox" style="width:18px;height:18px;cursor:pointer;accent-color:#cc9966;">
-        <label for="admin-edit-acceso-sala" style="font-size:12px;color:var(--text-muted);cursor:pointer;">Acceso sala extra</label>
+      <div>
+        <label style="font-size:11px;color:var(--text-muted);letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:.4rem;">Sala asignada (auto)</label>
+        <div id="admin-edit-sala-asignada" style="padding:.5rem .7rem;font-size:13px;color:var(--gold-dim);background:var(--bg2);border:1px solid var(--border);min-height:2.2rem;">—</div>
       </div>
+    </div>
+
+    <div style="margin-bottom:1rem;">
+      <label style="font-size:11px;color:var(--text-muted);letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:.4rem;">Acceso sala extra</label>
+      <select id="admin-edit-acceso-sala" style="width:100%;background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:.5rem .7rem;font-size:13px;font-family:inherit;">
+        <option value="">Sin acceso extra</option>
+        <option value="Sala Hormiga">🐝 Sala Hormiga</option>
+        <option value="Sala León">🦁 Sala León</option>
+        <option value="Sala Elefante">🐘 Sala Elefante</option>
+        <option value="Sala Oso">🐻 Sala Oso</option>
+        <option value="Sala Toro">🐂 Sala Toro</option>
+        <option value="Sala Lobo">🐺 Sala Lobo</option>
+      </select>
     </div>
 
     <div id="admin-edit-dias-proceso" style="font-size:12px;color:var(--text-muted);margin-bottom:1rem;padding:.5rem .7rem;border:1px solid var(--border);background:var(--bg2);">Días en proceso: —</div>

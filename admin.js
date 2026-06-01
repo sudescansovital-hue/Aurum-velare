@@ -26,6 +26,20 @@ var adminEditId    = null;
 var PACK_PRECIOS = { umbral:77, raiz:111, senda:222, cima:333, demo:0 };
 var PACK_LABELS  = { umbral:'Umbral', raiz:'Raíz', senda:'Senda', cima:'Cima', demo:'Demo' };
 
+var ANIMAL_SALA = {
+  '🐝': 'Sala Hormiga',
+  '🦁': 'Sala León',
+  '🐘': 'Sala Elefante',
+  '🐻': 'Sala Oso',
+  '🐂': 'Sala Toro',
+  '🐺': 'Sala Lobo'
+};
+
+function adminActualizarSalaAsignada(animal) {
+  var el = document.getElementById('admin-edit-sala-asignada');
+  if (el) el.textContent = (animal && ANIMAL_SALA[animal]) ? ANIMAL_SALA[animal] + ' (auto)' : '—';
+}
+
 function esAdmin() {
   return usuarioActual && usuarioActual.email === ADMIN_EMAIL;
 }
@@ -129,12 +143,13 @@ function adminAbrirEditar(id) {
   document.getElementById('admin-edit-email').textContent = u.email;
   set('admin-edit-pack',   u.pack    || 'umbral');
   set('admin-edit-etapa',  u.etapa   || 1);
-  set('admin-edit-animal', u.animal  || '');
-  set('admin-edit-mt5',    u.cuenta_mt5 || '');
-  set('admin-edit-exp',    u.fecha_expiracion ? u.fecha_expiracion.split('T')[0] : '');
-  set('admin-edit-notas',  u.notas   || '');
-  document.getElementById('admin-edit-activo').checked      = !!u.activo;
-  document.getElementById('admin-edit-acceso-sala').checked = !!u.acceso_sala_extra;
+  set('admin-edit-animal',      u.animal  || '');
+  set('admin-edit-acceso-sala', u.acceso_sala_extra || '');
+  set('admin-edit-mt5',         u.cuenta_mt5 || '');
+  set('admin-edit-exp',         u.fecha_expiracion ? u.fecha_expiracion.split('T')[0] : '');
+  set('admin-edit-notas',       u.notas   || '');
+  document.getElementById('admin-edit-activo').checked = !!u.activo;
+  adminActualizarSalaAsignada(u.animal || '');
 
   // Calcular días en proceso desde el primer trade del usuario
   var dpEl = document.getElementById('admin-edit-dias-proceso');
@@ -175,7 +190,7 @@ async function adminGuardarUsuario() {
     pack:             document.getElementById('admin-edit-pack').value,
     etapa:            parseInt(document.getElementById('admin-edit-etapa').value) || 1,
     animal:           document.getElementById('admin-edit-animal').value || null,
-    acceso_sala_extra: document.getElementById('admin-edit-acceso-sala').checked,
+    acceso_sala_extra: document.getElementById('admin-edit-acceso-sala').value || null,
     cuenta_mt5:       document.getElementById('admin-edit-mt5').value.trim(),
     fecha_expiracion: document.getElementById('admin-edit-exp').value || null,
     activo:           document.getElementById('admin-edit-activo').checked,
