@@ -203,13 +203,33 @@ async function adminGuardarUsuario() {
     notas:            document.getElementById('admin-edit-notas').value.trim(),
     updated_at:       new Date().toISOString()
   };
-  console.log('[ADMIN] datos a guardar:', datos);
+  console.log('[ADMIN] datos a guardar:', JSON.stringify(datos));
+
+  // Verify columns exist before attempting PATCH
+  var colCheck = await supaGet('usuarios_aurum', 'limit=1', getToken());
+  if (colCheck.data && colCheck.data[0]) {
+    var cols = Object.keys(colCheck.data[0]);
+    console.log('[ADMIN] columnas en usuarios_aurum:', cols);
+    if (cols.indexOf('animal') === -1)           console.warn('[ADMIN] ⚠ columna "animal" NO existe — el PATCH fallará');
+    if (cols.indexOf('acceso_sala_extra') === -1) console.warn('[ADMIN] ⚠ columna "acceso_sala_extra" NO existe — el PATCH fallará');
+  } else {
+    console.warn('[ADMIN] no se pudo verificar columnas:', colCheck.error);
+  }
 
   try {
     var res = await supaPatch('usuarios_aurum', 'id=eq.' + adminEditId, datos);
-    console.log('[ADMIN] supaPatch respuesta — error:', res.error, '| data:', res.data);
+    console.log('[ADMIN] supaPatch res.error (raw):', res.error);
+    console.log('[ADMIN] supaPatch res.data:', res.data);
+
     if (btn) { btn.textContent = '✦ Guardar cambios'; btn.disabled = false; }
-    if (res.error) { console.error('[ADMIN] error al guardar:', res.error); showToast('Error: ' + res.error); return; }
+
+    if (res.error) {
+      var errorMsg = res.error;
+      try { var parsed = JSON.parse(res.error); errorMsg = parsed.message || parsed.error || res.error; } catch(e) {}
+      console.error('[ADMIN] error Supabase parseado:', errorMsg);
+      showToast('Error: ' + errorMsg);
+      return;
+    }
     adminCerrarModal();
     showToast('Usuario actualizado');
     await cargarUsuariosAdmin();
