@@ -1,6 +1,7 @@
 // Parser MT5 + cTrader — Aurum Velare
 
 function parsearTrades(raw) {
+  console.log('[PARSER] llamado con filas:', raw ? raw.length : 0);
   if (!raw || raw.length < 2) return [];
 
   // Detectar formato cTrader nuevo — buscar en las primeras 10 filas (HTML tiene metadatos antes de la cabecera)
@@ -14,6 +15,8 @@ function parsearTrades(raw) {
   const esCtraderClasico =
     (raw[0]?.[0] && String(raw[0][0]).toLowerCase().includes('informe del historial')) ||
     (raw[5]?.[0] && String(raw[5][0]).normalize('NFC').trim() === 'Posiciones');
+
+  console.log('[PARSER] esCtraderNuevo:', esCtraderNuevo, '| esCtraderClasico:', esCtraderClasico);
 
   if (esCtraderNuevo) return _parsearCtraderNuevo(raw);
   if (esCtraderClasico) return _parsearCtrader(raw);
