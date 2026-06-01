@@ -13,7 +13,7 @@ function parsearTrades(raw) {
   // Detectar formato cTrader clásico (fila 0 contiene "informe del historial")
   const esCtraderClasico =
     (raw[0]?.[0] && String(raw[0][0]).toLowerCase().includes('informe del historial')) ||
-    (raw[5]?.[0] && String(raw[5][0]).trim() === 'Posiciones');
+    (raw[5]?.[0] && String(raw[5][0]).normalize('NFC').trim() === 'Posiciones');
 
   if (esCtraderNuevo) return _parsearCtraderNuevo(raw);
   if (esCtraderClasico) return _parsearCtrader(raw);
@@ -112,7 +112,7 @@ function _parsearCtraderNuevo(raw) {
 // Parser cTrader CLÁSICO
 function _parsearCtrader(raw) {
   var trades = [];
-  var INICIO = 7;
+  var INICIO = 8;
   for (var i = INICIO; i < raw.length; i++) {
     var row = raw[i];
     var volStr = row[4] != null ? String(row[4]) : '';
