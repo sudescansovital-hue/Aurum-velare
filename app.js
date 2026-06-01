@@ -67,6 +67,7 @@ async function hacerLogin() {
 }
 
 async function hacerLogout() {
+  console.log('[LOGOUT] hacerLogout llamado — usuarioActual:', usuarioActual && usuarioActual.email, '| SESSION:', typeof SESSION !== 'undefined' ? SESSION : 'undefined');
   await signOut();
   usuarioActual = null;
   window.AURUM_TRADES = null;
