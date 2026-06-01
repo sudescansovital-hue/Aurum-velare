@@ -71,7 +71,7 @@ function renderAdminTabla() {
   var tbody = document.getElementById('admin-tabla-body');
   if (!tbody) return;
   if (!adminUsuarios.length) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:2rem;">Sin usuarios registrados</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:2rem;">Sin usuarios registrados</td></tr>';
     return;
   }
   var hoy = new Date();
@@ -82,11 +82,16 @@ function renderAdminTabla() {
     var estadoHtml = activo
       ? '<span style="color:var(--green);font-size:12px;">● Activo</span>'
       : '<span style="color:var(--red);font-size:12px;">● ' + (expirado ? 'Expirado' : 'Inactivo') + '</span>';
-    var packLabel = PACK_LABELS[u.pack] || u.pack || '—';
+    var packLabel  = PACK_LABELS[u.pack] || u.pack || '—';
+    var animalHtml = u.animal || '—';
+    var salaAuto   = (u.animal && ANIMAL_SALA[u.animal]) ? ANIMAL_SALA[u.animal] : '—';
+    var salaExtra  = u.acceso_sala_extra ? '<span style="font-size:10px;color:#6A9AEE;margin-left:.3rem;">+' + u.acceso_sala_extra + '</span>' : '';
     var th = 'padding:.65rem .9rem;font-size:13px;';
     return '<tr style="border-bottom:1px solid var(--border);" onmouseover="this.style.background=\'#0E1020\'" onmouseout="this.style.background=\'\'">' +
       '<td style="' + th + 'color:var(--text-dim);">' + (u.email || '—') + '</td>' +
       '<td style="' + th + '"><span style="color:var(--gold);">' + packLabel + '</span></td>' +
+      '<td style="' + th + 'font-size:18px;">' + animalHtml + '</td>' +
+      '<td style="' + th + 'font-size:12px;color:var(--text-muted);">' + salaAuto + salaExtra + '</td>' +
       '<td style="' + th + 'color:var(--text-muted);">Etapa ' + (u.etapa || 1) + '</td>' +
       '<td style="' + th + 'color:var(--text-muted);font-size:12px;">' + (u.cuenta_mt5 || '—') + '</td>' +
       '<td style="' + th + 'font-size:12px;color:' + (expirado ? 'var(--red)' : 'var(--text-muted)') + ';">' + exp + '</td>' +
