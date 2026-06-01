@@ -2,7 +2,7 @@
 // LÓGICA DE VISTAS POR CUENTA — datos reales de Supabase
 // ============================================================
 
-const cuentasBuilt = {};
+var cuentasBuilt = {};
 window.cuentaActivaGestion = "global";
 
 function verCuenta(cuenta) {
