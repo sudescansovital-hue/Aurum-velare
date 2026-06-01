@@ -69,6 +69,9 @@ async function hacerLogin() {
 async function hacerLogout() {
   await signOut();
   usuarioActual = null;
+  window.AURUM_TRADES = null;
+  if (typeof HISTORIAL_CUENTAS !== 'undefined') { HISTORIAL_CUENTAS = []; }
+  if (typeof HISTORIAL_ALL_FPS !== 'undefined') { HISTORIAL_ALL_FPS = new Set(); }
   document.getElementById('nav-user-widget').style.display = 'none';
   document.getElementById('nav-login-btn').style.display   = 'block';
   const adminLink = document.getElementById('nav-admin-link');

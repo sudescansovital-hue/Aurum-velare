@@ -27,10 +27,10 @@ function detectarNombreCuenta(raw, nombreArchivo) {
 function init_historial() {
   var lista = document.getElementById('hist-lista');
   if (!lista) return;
-  if (lista.children.length === HISTORIAL_CUENTAS.length && HISTORIAL_CUENTAS.length > 0) return;
+  HISTORIAL_CUENTAS = [];
+  HISTORIAL_ALL_FPS = new Set();
   lista.innerHTML = '';
-  HISTORIAL_CUENTAS.forEach(function(c, idx) { histAnadirFila(c, idx); });
-  if (HISTORIAL_CUENTAS.length === 0) cargarHistorialDesdeSupabase();
+  cargarHistorialDesdeSupabase();
 }
 
 async function cargarHistorialDesdeSupabase() {
