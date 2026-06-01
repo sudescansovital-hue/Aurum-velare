@@ -947,14 +947,20 @@ function buildDashboardHero() {
   }
 
   // Cards por cuenta — coincidencia parcial case-insensitive
-  function pnlCuenta(keyword) {
+  function statsCuenta(keyword) {
     var sub = todos.filter(function(t) { return t.cuenta && t.cuenta.toLowerCase().indexOf(keyword) >= 0; });
-    var p = Math.round(sub.reduce(function(s, t) { return s + (t.beneficio || 0); }, 0) * 100) / 100;
-    return (p >= 0 ? '+' : '') + p + '$';
+    var p   = Math.round(sub.reduce(function(s, t) { return s + (t.beneficio || 0); }, 0) * 100) / 100;
+    var w   = sub.filter(function(t) { return t.ganadora; }).length;
+    var wr  = sub.length > 0 ? Math.round(w / sub.length * 1000) / 10 : 0;
+    return { pnl: (p >= 0 ? '+' : '') + p + '$', sub: sub.length + ' trades · WR ' + wr + '%' };
   }
-  el = document.getElementById('card-maestra-pnl'); if (el) el.textContent = pnlCuenta('maestra');
-  el = document.getElementById('card-retos-pnl');   if (el) el.textContent = pnlCuenta('retos');
-  el = document.getElementById('card-prueba-pnl');  if (el) el.textContent = pnlCuenta('prueba');
+  var sM = statsCuenta('maestra'), sR = statsCuenta('retos'), sP = statsCuenta('prueba');
+  el = document.getElementById('card-maestra-pnl'); if (el) el.textContent = sM.pnl;
+  el = document.getElementById('card-maestra-sub'); if (el) el.textContent = sM.sub;
+  el = document.getElementById('card-retos-pnl');   if (el) el.textContent = sR.pnl;
+  el = document.getElementById('card-retos-sub');   if (el) el.textContent = sR.sub;
+  el = document.getElementById('card-prueba-pnl');  if (el) el.textContent = sP.pnl;
+  el = document.getElementById('card-prueba-sub');  if (el) el.textContent = sP.sub;
 }
 
 // Diario
