@@ -37,8 +37,10 @@ function verCuenta(cuenta) {
 
 function getTrades(nombreCuenta) {
   if (!window.AURUM_TRADES) return [];
-  if (nombreCuenta === 'todos') return window.AURUM_TRADES.todos || [];
-  return (window.AURUM_TRADES.todos || []).filter(function(t){ return t.cuenta === nombreCuenta; });
+  var todos = window.AURUM_TRADES.todos || [];
+  if (nombreCuenta === 'todos') return todos;
+  var keyword = nombreCuenta.toLowerCase();
+  return todos.filter(function(t) { return t.cuenta && t.cuenta.toLowerCase().indexOf(keyword) >= 0; });
 }
 
 function _fechaTrade(t) {

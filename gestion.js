@@ -36,11 +36,13 @@ function gestTab(id) {
 function getTradesActivos() {
   var cuenta = window.cuentaActivaGestion || 'global';
   if (!window.AURUM_TRADES) return [];
-  if (cuenta === 'global') return window.AURUM_TRADES.todos || [];
-  var mapa = { maestra:'Cuenta Maestra', retos:'Cuenta Retos', prueba:'Cuenta Prueba' };
-  var nombreCuenta = mapa[cuenta];
-  if (!nombreCuenta) return window.AURUM_TRADES.todos || [];
-  return (window.AURUM_TRADES.todos || []).filter(function(t){ return t.cuenta === nombreCuenta; });
+  var todos = window.AURUM_TRADES.todos || [];
+  if (cuenta === 'global') return todos;
+  var keyword = { maestra:'maestra', retos:'retos', prueba:'prueba' }[cuenta];
+  if (!keyword) return todos;
+  return todos.filter(function(t) {
+    return t.cuenta && t.cuenta.toLowerCase().indexOf(keyword) >= 0;
+  });
 }
 
 function buildTradeRecord() {
@@ -875,6 +877,10 @@ function buildEstadisticasAvanzadas() {
 function buildDashboardHero() {
   var todos = window.AURUM_TRADES ? (window.AURUM_TRADES.todos || []) : [];
 
+  console.log('[AURUM] t.cuenta valores únicos:', todos.reduce(function(acc, t) {
+    if (acc.indexOf(t.cuenta) === -1) acc.push(t.cuenta); return acc;
+  }, []));
+
   var totalTrades = todos.length;
   var wins = todos.filter(function(t) { return t.ganadora; });
   var wr = totalTrades > 0 ? Math.round(wins.length / totalTrades * 1000) / 10 : 0;
@@ -929,6 +935,16 @@ function buildDashboardHero() {
     var dias = Math.floor((new Date() - primerFecha) / 86400000);
     el = document.getElementById('dash-dias-proceso'); if (el) el.textContent = dias;
   }
+
+  // Cards por cuenta — coincidencia parcial case-insensitive
+  function pnlCuenta(keyword) {
+    var sub = todos.filter(function(t) { return t.cuenta && t.cuenta.toLowerCase().indexOf(keyword) >= 0; });
+    var p = Math.round(sub.reduce(function(s, t) { return s + (t.beneficio || 0); }, 0) * 100) / 100;
+    return (p >= 0 ? '+' : '') + p + '$';
+  }
+  el = document.getElementById('card-maestra-pnl'); if (el) el.textContent = pnlCuenta('maestra');
+  el = document.getElementById('card-retos-pnl');   if (el) el.textContent = pnlCuenta('retos');
+  el = document.getElementById('card-prueba-pnl');  if (el) el.textContent = pnlCuenta('prueba');
 }
 
 // Diario
