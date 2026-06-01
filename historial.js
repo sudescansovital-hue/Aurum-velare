@@ -38,12 +38,14 @@ function init_historial() {
 
 async function cargarHistorialDesdeSupabase() {
   if (!window.usuarioActual || !window.usuarioActual.email) return;
+  try {
   var token = getToken();
   var params = 'usuario_email=eq.' + encodeURIComponent(usuarioActual.email) + '&order=created_at.asc&limit=5000';
   console.log('[HISTORIAL] URL:', 'https://rsrbxcvlnbwpiyhumqmt.supabase.co/rest/v1/trades?' + params);
   var res = await supaGet('trades', params, token);
+  if (res.error) { console.error('[HISTORIAL] res.error:', res.error); return; }
   console.log('[HISTORIAL] trades recibidos:', res.data ? res.data.length : 0, '| primer usuario_email:', res.data && res.data[0] ? res.data[0].usuario_email : 'n/a');
-  if (res.error || !res.data || !res.data.length) return;
+  if (!res.data || !res.data.length) return;
 
   console.log('[HISTORIAL] tipo res.data:', typeof res.data, '| isArray:', Array.isArray(res.data));
   console.log('[HISTORIAL] primer trade completo:', res.data[0]);
@@ -123,6 +125,9 @@ async function cargarHistorialDesdeSupabase() {
   el = document.getElementById('hist-global-wr');         if (el) el.textContent = totalWr + '%';
   el = document.getElementById('hist-global-wr-sub');     if (el) el.textContent = totalWins + ' wins de ' + totalTrades;
   el = document.getElementById('hist-global-pnl');        if (el) el.textContent = pnlStr;
+  } catch (err) {
+    console.error('[HISTORIAL] excepción en cargarHistorialDesdeSupabase:', err);
+  }
 }
 
 function histAnadirFila(cuenta, idx) {
