@@ -70,6 +70,7 @@ async function hacerLogout() {
   await signOut();
   usuarioActual = null;
   window.AURUM_TRADES = null;
+  if (typeof cuentasBuilt    !== 'undefined') { cuentasBuilt = {}; }
   if (typeof HISTORIAL_CUENTAS !== 'undefined') { HISTORIAL_CUENTAS = []; }
   if (typeof HISTORIAL_ALL_FPS !== 'undefined') { HISTORIAL_ALL_FPS = new Set(); }
   document.getElementById('nav-user-widget').style.display = 'none';
