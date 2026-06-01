@@ -288,6 +288,4 @@ function buildGlobal() {
   }
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-  setTimeout(function() { if (window.AURUM_TRADES) buildGlobal(); }, 2000);
-});
+// buildGlobal() is now driven by buildTradeRecord() after trades load.

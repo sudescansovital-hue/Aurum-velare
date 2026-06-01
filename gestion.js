@@ -48,7 +48,7 @@ function getTradesActivos() {
 function buildTradeRecord() {
   var trades = getTradesActivos();
   var tb = document.getElementById('gest-tipos-bars');
-  if (tb && !trades.length) { tb.innerHTML = ''; return; }
+  if (tb && !trades.length) { tb.innerHTML = ''; }
   if (tb && trades.length) {
     var scalp = trades.filter(function(t){ return t.dur_min < 30; });
     var intra = trades.filter(function(t){ return t.dur_min >= 30 && t.dur_min < 240; });
@@ -71,6 +71,15 @@ function buildTradeRecord() {
         '<div style="height:100%;width:'+Math.round(d.t/maxT*100)+'%;background:'+col+';border-radius:2px;"></div></div></div>';
     }).join('');
   }
+
+  // Populate the stats row for the active account view.
+  // Reset cuentasBuilt so the builder always runs with fresh data.
+  var cuenta = window.cuentaActivaGestion || 'global';
+  if (typeof cuentasBuilt !== 'undefined') cuentasBuilt[cuenta] = false;
+  if (cuenta === 'global'  && typeof buildGlobal     === 'function') buildGlobal();
+  if (cuenta === 'maestra' && typeof buildCuentaReal === 'function') buildCuentaReal('maestra', 'Cuenta Maestra');
+  if (cuenta === 'retos'   && typeof buildCuentaReal === 'function') buildCuentaReal('retos',   'Cuenta Retos');
+  if (cuenta === 'prueba'  && typeof buildCuentaReal === 'function') buildCuentaReal('prueba',  'Cuenta Prueba');
 }
 
 function buildHorarios() {
