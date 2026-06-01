@@ -83,7 +83,8 @@ function renderAdminTabla() {
       ? '<span style="color:var(--green);font-size:12px;">● Activo</span>'
       : '<span style="color:var(--red);font-size:12px;">● ' + (expirado ? 'Expirado' : 'Inactivo') + '</span>';
     var packLabel  = PACK_LABELS[u.pack] || u.pack || '—';
-    var animalText = u.animal || '—';
+    var ANIMAL_NOMBRE = { '🐝':'Hormiga','🦁':'León','🐘':'Elefante','🐻':'Oso','🐂':'Toro','🐺':'Lobo' };
+    var animalText = u.animal ? (ANIMAL_NOMBRE[u.animal] || u.animal.replace(/\p{Emoji}/gu, '').trim() || '—') : '—';
     var salaAuto   = (u.animal && ANIMAL_SALA[u.animal]) ? ANIMAL_SALA[u.animal] : '—';
     var salaExtra  = u.acceso_sala_extra ? '<span style="font-size:10px;color:#6A9AEE;margin-left:.3rem;">+' + u.acceso_sala_extra + '</span>' : '';
     var th = 'padding:.65rem .9rem;font-size:13px;';
