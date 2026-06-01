@@ -41,10 +41,21 @@ async function cargarHistorialDesdeSupabase() {
   try {
   var token = getToken();
   var params = 'usuario_email=eq.' + encodeURIComponent(usuarioActual.email) + '&order=created_at.asc&limit=5000';
-  console.log('[HISTORIAL] URL:', 'https://rsrbxcvlnbwpiyhumqmt.supabase.co/rest/v1/trades?' + params);
-  var res = await supaGet('trades', params, token);
+
+  // Query both tables to find where the data lives
+  var resTrades     = await supaGet('trades',     params, token);
+  var resHistoriales = await supaGet('historiales', params, token);
+
+  console.log('[HISTORIAL] tabla trades     — error:', resTrades.error,     '| count:', resTrades.data     ? resTrades.data.length     : 0, '| primer row:', resTrades.data     && resTrades.data[0]);
+  console.log('[HISTORIAL] tabla historiales — error:', resHistoriales.error, '| count:', resHistoriales.data ? resHistoriales.data.length : 0, '| primer row:', resHistoriales.data && resHistoriales.data[0]);
+
+  // Use whichever table returned data
+  var res = (resTrades.data && resTrades.data.length) ? resTrades
+          : (resHistoriales.data && resHistoriales.data.length) ? resHistoriales
+          : resTrades;
+
   if (res.error) { console.error('[HISTORIAL] res.error:', res.error); return; }
-  console.log('[HISTORIAL] trades recibidos:', res.data ? res.data.length : 0, '| primer usuario_email:', res.data && res.data[0] ? res.data[0].usuario_email : 'n/a');
+  console.log('[HISTORIAL] usando tabla con', res.data ? res.data.length : 0, 'filas');
   if (!res.data || !res.data.length) return;
 
   console.log('[HISTORIAL] tipo res.data:', typeof res.data, '| isArray:', Array.isArray(res.data));
