@@ -182,7 +182,8 @@ function adminCerrarModal() {
 }
 
 async function adminGuardarUsuario() {
-  if (!adminEditId) return;
+  console.log('[ADMIN] adminGuardarUsuario llamado — adminEditId:', adminEditId);
+  if (!adminEditId) { console.warn('[ADMIN] adminEditId es null, abortando'); return; }
   var btn = document.getElementById('admin-guardar-btn');
   if (btn) { btn.textContent = 'Guardando...'; btn.disabled = true; }
 
@@ -197,13 +198,21 @@ async function adminGuardarUsuario() {
     notas:            document.getElementById('admin-edit-notas').value.trim(),
     updated_at:       new Date().toISOString()
   };
+  console.log('[ADMIN] datos a guardar:', datos);
 
-  var res = await supaPatch('usuarios_aurum', 'id=eq.' + adminEditId, datos);
-  if (btn) { btn.textContent = '✦ Guardar cambios'; btn.disabled = false; }
-  if (res.error) { showToast('Error: ' + res.error); return; }
-  adminCerrarModal();
-  showToast('Usuario actualizado');
-  await cargarUsuariosAdmin();
+  try {
+    var res = await supaPatch('usuarios_aurum', 'id=eq.' + adminEditId, datos);
+    console.log('[ADMIN] supaPatch respuesta — error:', res.error, '| data:', res.data);
+    if (btn) { btn.textContent = '✦ Guardar cambios'; btn.disabled = false; }
+    if (res.error) { console.error('[ADMIN] error al guardar:', res.error); showToast('Error: ' + res.error); return; }
+    adminCerrarModal();
+    showToast('Usuario actualizado');
+    await cargarUsuariosAdmin();
+  } catch (err) {
+    console.error('[ADMIN] excepción en adminGuardarUsuario:', err);
+    if (btn) { btn.textContent = '✦ Guardar cambios'; btn.disabled = false; }
+    showToast('Error inesperado — ver consola');
+  }
 }
 
 // ── Añadir usuario ──────────────────────────────────────────
