@@ -22,6 +22,10 @@ async function _activarSesion(email) {
   if (perfil.error || !perfil.data || !perfil.data.length) return false;
   const u = perfil.data[0];
 
+  window.AURUM_TRADES = null;
+  if (typeof HISTORIAL_CUENTAS !== 'undefined') HISTORIAL_CUENTAS = [];
+  if (typeof HISTORIAL_ALL_FPS !== 'undefined') HISTORIAL_ALL_FPS = new Set();
+
   const packMap  = { umbral:'Pack Umbral', raiz:'Pack Raíz', senda:'Pack Senda', cima:'Pack Cima', demo:'Pack Demo' };
   const animalMap = { umbral:'🐝', raiz:'🌱', senda:'🦅', cima:'🦁', demo:'🐂' };
 
@@ -71,7 +75,7 @@ async function hacerLogout() {
   await signOut();
   usuarioActual = null;
   window.AURUM_TRADES = null;
-  if (typeof cuentasBuilt    !== 'undefined') { cuentasBuilt = {}; }
+  if (typeof cuentasBuilt !== 'undefined') { Object.keys(cuentasBuilt).forEach(function(k){ delete cuentasBuilt[k]; }); }
   if (typeof HISTORIAL_CUENTAS !== 'undefined') { HISTORIAL_CUENTAS = []; }
   if (typeof HISTORIAL_ALL_FPS !== 'undefined') { HISTORIAL_ALL_FPS = new Set(); }
   document.getElementById('nav-user-widget').style.display = 'none';
