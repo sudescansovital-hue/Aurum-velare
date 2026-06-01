@@ -244,7 +244,7 @@ function histSubir(file) {
   if (file.name.toLowerCase().endsWith('.xlsx')) {
     reader.onload = function(e) {
       function leerConXLSX() {
-        try { var data = new Uint8Array(e.target.result); var wb = XLSX.read(data,{type:'array',cellDates:true}); var ws = wb.Sheets[wb.SheetNames[0]]; procesarRaw(XLSX.utils.sheet_to_json(ws,{header:1,defval:''})); }
+        try { var data = new Uint8Array(e.target.result); var wb = XLSX.read(data,{type:'array',cellDates:true}); var ws = wb.Sheets[wb.SheetNames[0]]; var raw = XLSX.utils.sheet_to_json(ws,{header:1,defval:''}); console.log('[XLSX] filas totales:', raw.length, '| fila0:', JSON.stringify(raw[0]), '| fila1:', JSON.stringify(raw[1]), '| fila2:', JSON.stringify(raw[2])); procesarRaw(raw); }
         catch(err) { msg.style.color='var(--red)'; msg.textContent='Error al leer el archivo.'; document.getElementById('hist-progreso').style.display='none'; }
       }
       if (typeof XLSX !== 'undefined') {
