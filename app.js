@@ -17,38 +17,26 @@ function cerrarLogin() {
   document.getElementById('login-err').textContent = '';
 }
 
-async function hacerLogin() {
-  const email = (document.getElementById('login-email').value||'').trim().toLowerCase();
-  const pass  = (document.getElementById('login-pass').value||'').trim();
-  const err   = document.getElementById('login-err');
-  if (!email || !pass) { err.textContent='Completa email y contraseña.'; return; }
-
-  const auth = await signInWithPassword(email, pass);
-  if (auth.error) { err.textContent = auth.error; return; }
-
+async function _activarSesion(email) {
   const perfil = await supaGet('usuarios_aurum', 'email=eq.' + encodeURIComponent(email) + '&limit=1', getToken());
-  if (perfil.error || !perfil.data || !perfil.data.length) {
-    err.textContent = 'Usuario no encontrado en el sistema.'; return;
-  }
+  if (perfil.error || !perfil.data || !perfil.data.length) return false;
   const u = perfil.data[0];
 
-  const packMap = { umbral:'Pack Umbral', raiz:'Pack Raíz', senda:'Pack Senda', cima:'Pack Cima', demo:'Pack Demo' };
+  const packMap  = { umbral:'Pack Umbral', raiz:'Pack Raíz', senda:'Pack Senda', cima:'Pack Cima', demo:'Pack Demo' };
   const animalMap = { umbral:'🐝', raiz:'🌱', senda:'🦅', cima:'🦁', demo:'🐂' };
 
   usuarioActual = {
-    email:     email,
-    nombre:    u.nombre || email.split('@')[0],
-    nick:      u.nombre || email.split('@')[0],
-    animal:    animalMap[u.pack] || '✦',
+    email:      email,
+    nombre:     u.nombre || email.split('@')[0],
+    nick:       u.nombre || email.split('@')[0],
+    animal:     animalMap[u.pack] || '✦',
     animalSala: u.animal || null,
-    pack:      packMap[u.pack]   || u.pack || 'Sin pack',
-    packLevel: u.etapa || 1,
-    etapa:     u.etapa || 1,
-    activo:    u.activo
+    pack:       packMap[u.pack] || u.pack || 'Sin pack',
+    packLevel:  u.etapa || 1,
+    etapa:      u.etapa || 1,
+    activo:     u.activo
   };
 
-  err.textContent = '';
-  cerrarLogin();
   document.getElementById('nav-login-btn').style.display = 'none';
   document.getElementById('nav-user-widget').style.display = 'flex';
   document.getElementById('nav-animal').textContent = usuarioActual.animal;
@@ -58,6 +46,23 @@ async function hacerLogin() {
   if (adminLink) adminLink.style.display = email === ADMIN_EMAIL ? 'inline' : 'none';
   const adminEmailLabel = document.getElementById('admin-email-label');
   if (adminEmailLabel) adminEmailLabel.textContent = email;
+  return true;
+}
+
+async function hacerLogin() {
+  const email = (document.getElementById('login-email').value||'').trim().toLowerCase();
+  const pass  = (document.getElementById('login-pass').value||'').trim();
+  const err   = document.getElementById('login-err');
+  if (!email || !pass) { err.textContent='Completa email y contraseña.'; return; }
+
+  const auth = await signInWithPassword(email, pass);
+  if (auth.error) { err.textContent = auth.error; return; }
+
+  const ok = await _activarSesion(email);
+  if (!ok) { err.textContent = 'Usuario no encontrado en el sistema.'; return; }
+
+  err.textContent = '';
+  cerrarLogin();
   irA(email === ADMIN_EMAIL ? 'admin' : 'dashboard');
 }
 
@@ -175,14 +180,18 @@ async function actualizarDashboard() {
 
 // ── Init ─────────────────────────────────────────────────────
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   const p = document.getElementById('login-pass');
   const e = document.getElementById('login-email');
   if (p) p.addEventListener('keydown', ev => { if(ev.key==='Enter') hacerLogin(); });
   if (e) e.addEventListener('keydown', ev => { if(ev.key==='Enter') p.focus(); });
 
-  if (!checkRecoveryToken()) {
-    mostrarPagina('home');
-    initSupabase();
+  if (checkRecoveryToken()) return;
+
+  const stored = await loadStoredSession();
+  if (stored && stored.user && stored.user.email) {
+    const ok = await _activarSesion(stored.user.email);
+    if (ok) { irA('dashboard'); return; }
   }
+  mostrarPagina('home');
 });

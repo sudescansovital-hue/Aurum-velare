@@ -4,6 +4,7 @@
 // ============================================================
 
 var SESSION = null; // { access_token, refresh_token, user }
+var _AURUM_SK = 'aurum_session';
 
 async function signInWithPassword(email, password) {
   var res = await supaAuthPost('/token?grant_type=password', { email, password });
@@ -13,6 +14,7 @@ async function signInWithPassword(email, password) {
     refresh_token: res.data.refresh_token,
     user:          res.data.user
   };
+  localStorage.setItem(_AURUM_SK, JSON.stringify(SESSION));
   return { user: SESSION.user, error: null };
 }
 
@@ -20,6 +22,17 @@ async function signOut() {
   if (!SESSION) return;
   await supaAuthPost('/logout', {}, SESSION.access_token);
   SESSION = null;
+  localStorage.removeItem(_AURUM_SK);
+}
+
+async function loadStoredSession() {
+  var raw = localStorage.getItem(_AURUM_SK);
+  if (!raw) return null;
+  try { SESSION = JSON.parse(raw); } catch(e) { localStorage.removeItem(_AURUM_SK); return null; }
+  var res = await supaAuthGet('/user', SESSION.access_token);
+  if (res.error) { SESSION = null; localStorage.removeItem(_AURUM_SK); return null; }
+  SESSION.user = res.data;
+  return SESSION;
 }
 
 async function getSession() {
