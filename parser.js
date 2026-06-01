@@ -4,23 +4,31 @@ function parsearTrades(raw) {
   console.log('[PARSER] llamado con filas:', raw ? raw.length : 0);
   if (!raw || raw.length < 2) return [];
 
-  // Detectar formato cTrader nuevo — buscar en las primeras 10 filas (HTML tiene metadatos antes de la cabecera)
-  // normalize('NFC') cubre tildes en forma compuesta vs descompuesta (ó precompuesta vs o + combining accent)
-  const esCtraderNuevo = raw.slice(0, 10).some(function(fila) {
-    return (fila || []).map(function(c){ return String(c||'').normalize('NFC').toLowerCase().trim(); })
-      .some(function(h){ return h.includes('dirección') || h.includes('direccion') || h.includes('direction') || h === '$ neto' || h === 'net profit' || h.includes('neto') || h === 'símbolo' || h === 'simbolo' || h === 'symbol'; });
+  function norm(v) { return String(v||'').normalize('NFC').toLowerCase().trim(); }
+  function rowNorm(r) { return (r||[]).map(norm); }
+
+  // 1. MT5: alguna fila en las primeras 10 contiene "fecha/hora" u "open time" como cabecera
+  var esMT5 = raw.slice(0, 10).some(function(fila) {
+    return rowNorm(fila).some(function(h) {
+      return h === 'fecha/hora' || h === 'open time' || h === 'time';
+    });
   });
 
-  // Detectar formato cTrader clásico (fila 0 contiene "informe del historial")
-  const esCtraderClasico =
-    (raw[0]?.[0] && String(raw[0][0]).toLowerCase().includes('informe del historial')) ||
-    (raw[5]?.[0] && String(raw[5][0]).normalize('NFC').trim() === 'Posiciones');
+  // 2. cTrader clásico: fila 0 contiene "informe del historial" Y alguna fila contiene columna "dirección"/"direction"
+  var fila0 = norm(raw[0]?.[0] || '');
+  var tieneInforme = fila0.includes('informe del historial');
+  var tieneDireccion = raw.slice(0, 12).some(function(fila) {
+    return rowNorm(fila).some(function(h) {
+      return h.includes('direcci') || h === 'direction';
+    });
+  });
+  var esCtraderClasico = tieneInforme && tieneDireccion;
 
-  console.log('[PARSER] esCtraderNuevo:', esCtraderNuevo, '| esCtraderClasico:', esCtraderClasico);
+  console.log('[PARSER] esMT5:', esMT5, '| esCtraderClasico:', esCtraderClasico, '| fila0:', fila0.slice(0,40));
 
-  if (esCtraderNuevo) return _parsearCtraderNuevo(raw);
+  if (esMT5)           return _parsearMT5(raw);
   if (esCtraderClasico) return _parsearCtrader(raw);
-  return _parsearMT5(raw);
+  return _parsearCtraderNuevo(raw);
 }
 
 function _num(v) {
