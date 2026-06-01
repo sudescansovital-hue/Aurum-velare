@@ -71,7 +71,7 @@ function renderAdminTabla() {
   var tbody = document.getElementById('admin-tabla-body');
   if (!tbody) return;
   if (!adminUsuarios.length) {
-    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:2rem;">Sin usuarios registrados</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;color:var(--text-muted);padding:2rem;">Sin usuarios registrados</td></tr>';
     return;
   }
   var hoy = new Date();
@@ -95,7 +95,9 @@ function renderAdminTabla() {
       '<td style="' + th + 'color:var(--text-muted);">' + animalText + '</td>' +
       '<td style="' + th + 'font-size:12px;color:var(--text-muted);">' + salaAuto + salaExtra + '</td>' +
       '<td style="' + th + 'color:var(--text-muted);">Etapa ' + (u.etapa || 1) + '</td>' +
-      '<td style="' + th + 'color:var(--text-muted);font-size:12px;">' + (u.cuenta_mt5 || '—') + '</td>' +
+      '<td style="' + th + 'color:var(--green);font-size:12px;">' + (u.cuenta_maestra || '—') + '</td>' +
+      '<td style="' + th + 'color:#6A9AEE;font-size:12px;">' + (u.cuenta_prueba  || '—') + '</td>' +
+      '<td style="' + th + 'color:#E8A84C;font-size:12px;">' + (u.cuenta_retos   || '—') + '</td>' +
       '<td style="' + th + 'font-size:12px;color:' + (expirado ? 'var(--red)' : 'var(--text-muted)') + ';">' + exp + '</td>' +
       '<td style="' + th + '">' + estadoHtml + '</td>' +
       '<td style="' + th + '">' +
@@ -152,7 +154,9 @@ function adminAbrirEditar(id) {
   set('admin-edit-etapa',  u.etapa   || 1);
   set('admin-edit-animal',      u.animal  || '');
   set('admin-edit-acceso-sala', u.acceso_sala_extra || '');
-  set('admin-edit-mt5',         u.cuenta_mt5 || '');
+  set('admin-edit-maestra', u.cuenta_maestra || '');
+  set('admin-edit-prueba',  u.cuenta_prueba  || '');
+  set('admin-edit-retos',   u.cuenta_retos   || '');
   set('admin-edit-exp',         u.fecha_expiracion ? u.fecha_expiracion.split('T')[0] : '');
   set('admin-edit-notas',       u.notas   || '');
   document.getElementById('admin-edit-activo').checked = !!u.activo;
@@ -199,7 +203,9 @@ async function adminGuardarUsuario() {
     etapa:            parseInt(document.getElementById('admin-edit-etapa').value) || 1,
     animal:           document.getElementById('admin-edit-animal').value || null,
     acceso_sala_extra: document.getElementById('admin-edit-acceso-sala').value || null,
-    cuenta_mt5:       document.getElementById('admin-edit-mt5').value.trim(),
+    cuenta_maestra:   document.getElementById('admin-edit-maestra').value.trim() || null,
+    cuenta_prueba:    document.getElementById('admin-edit-prueba').value.trim()  || null,
+    cuenta_retos:     document.getElementById('admin-edit-retos').value.trim()   || null,
     fecha_expiracion: document.getElementById('admin-edit-exp').value || null,
     activo:           document.getElementById('admin-edit-activo').checked,
     notas:            document.getElementById('admin-edit-notas').value.trim(),
