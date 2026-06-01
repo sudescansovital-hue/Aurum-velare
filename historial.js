@@ -45,13 +45,14 @@ async function cargarHistorialDesdeSupabase() {
   console.log('[HISTORIAL] trades recibidos:', res.data ? res.data.length : 0, '| primer usuario_email:', res.data && res.data[0] ? res.data[0].usuario_email : 'n/a');
   if (res.error || !res.data || !res.data.length) return;
 
-  // Agrupar por cuenta
+  // Agrupar por cuenta — sin filtrar, se muestran todos los valores exactos de t.cuenta
   var porCuenta = {};
   res.data.forEach(function(t) {
-    var c = t.cuenta || 'Externa';
+    var c = t.cuenta || '(sin cuenta)';
     if (!porCuenta[c]) porCuenta[c] = [];
     porCuenta[c].push(t);
   });
+  console.log('[HISTORIAL] cuentas encontradas:', Object.keys(porCuenta));
 
   HISTORIAL_CUENTAS = [];
   HISTORIAL_ALL_FPS = new Set();
