@@ -34,7 +34,9 @@ function _num(v) {
 
 function _esXauusd(simbolo) {
   if (!simbolo) return false;
-  const s = String(simbolo).toUpperCase().replace(/[^A-Z]/g, '');
+  // Strip spaces, slashes, dashes, underscores, dots; then uppercase
+  // Accepts: XAUUSD, XAU/USD, XAU_USD, xauusd, xau/usd, GOLD, gold, Gold, XAUUSD.pro, etc.
+  const s = String(simbolo).trim().toUpperCase().replace(/[\s\/\-\._]/g, '');
   return s.includes('XAU') || s.includes('GOLD');
 }
 
@@ -171,8 +173,7 @@ function _parsearMT5(raw) {
   }
   if (headerRow===-1) {
     for (var r=0; r<raw.length; r++) {
-      var sym=String(raw[r][2]||'').toUpperCase();
-      if (sym.includes('XAU')||sym.includes('GOLD')) { headerRow=r-1;colAp=0;colSym=2;colTipo=3;colVol=4;colPe=5;colSl=6;colTp=7;colCi=8;colPc=9;colBen=12;break; }
+      if (_esXauusd(raw[r][2])) { headerRow=r-1;colAp=0;colSym=2;colTipo=3;colVol=4;colPe=5;colSl=6;colTp=7;colCi=8;colPc=9;colBen=12;break; }
     }
   }
   if (headerRow===-1) return [];
@@ -180,8 +181,7 @@ function _parsearMT5(raw) {
   function toDate(v){ if(!v) return null; if(v instanceof Date) return v; var s=String(v).trim(); var m=s.match(/(\d{4})\.(\d{2})\.(\d{2})\s+(\d{2}):(\d{2}):(\d{2})/); if(m) return new Date(m[1],m[2]-1,m[3],m[4],m[5],m[6]); return new Date(s); }
   for (var i=headerRow+1; i<raw.length; i++) {
     var row=raw[i];
-    var sym=String(row[colSym]||'').toUpperCase().trim();
-    if(!sym.includes('XAU')&&!sym.includes('GOLD')) continue;
+    if(!_esXauusd(row[colSym])) continue;
     var tipo=String(row[colTipo]||'').toLowerCase().trim();
     if(tipo&&tipo!=='buy'&&tipo!=='sell'&&tipo!=='compra'&&tipo!=='venta') continue;
     var ben=toNum(row[colBen]),vol=toNum(row[colVol]),pe=toNum(row[colPe]),pc=toNum(row[colPc]);
