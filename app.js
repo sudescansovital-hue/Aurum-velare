@@ -25,7 +25,7 @@ async function _activarSesion(email) {
   const packMap  = { umbral:'Pack Umbral', raiz:'Pack Raíz', senda:'Pack Senda', cima:'Pack Cima', demo:'Pack Demo' };
   const animalMap = { umbral:'🐝', raiz:'🌱', senda:'🦅', cima:'🦁', demo:'🐂' };
 
-  usuarioActual = {
+  window.usuarioActual = usuarioActual = {
     email:      email,
     nombre:     u.nombre || email.split('@')[0],
     nick:       u.nombre || email.split('@')[0],
