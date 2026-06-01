@@ -29,9 +29,73 @@ function init_historial() {
   if (!lista) return;
   if (lista.children.length === HISTORIAL_CUENTAS.length && HISTORIAL_CUENTAS.length > 0) return;
   lista.innerHTML = '';
-  HISTORIAL_CUENTAS.forEach(function(c, idx) {
-    histAnadirFila(c, idx);
+  HISTORIAL_CUENTAS.forEach(function(c, idx) { histAnadirFila(c, idx); });
+  if (HISTORIAL_CUENTAS.length === 0) cargarHistorialDesdeSupabase();
+}
+
+async function cargarHistorialDesdeSupabase() {
+  if (!window.usuarioActual || !window.usuarioActual.email) return;
+  var token = getToken();
+  var params = 'usuario_email=eq.' + encodeURIComponent(usuarioActual.email) + '&order=created_at.asc&limit=5000';
+  var res = await supaGet('trades', params, token);
+  if (res.error || !res.data || !res.data.length) return;
+
+  // Agrupar por cuenta
+  var porCuenta = {};
+  res.data.forEach(function(t) {
+    var c = t.cuenta || 'Externa';
+    if (!porCuenta[c]) porCuenta[c] = [];
+    porCuenta[c].push(t);
   });
+
+  HISTORIAL_CUENTAS = [];
+  HISTORIAL_ALL_FPS = new Set();
+
+  var MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  Object.keys(porCuenta).forEach(function(nombreCuenta) {
+    var trades = porCuenta[nombreCuenta];
+    trades.forEach(function(t) { if (t.fp) HISTORIAL_ALL_FPS.add(t.fp); });
+
+    var wins  = trades.filter(function(t) { return t.ganadora; }).length;
+    var pnl   = Math.round(trades.reduce(function(s, t) { return s + (t.beneficio || 0); }, 0) * 100) / 100;
+    var wr    = trades.length > 0 ? Math.round(wins / trades.length * 1000) / 10 : 0;
+    var wT    = trades.filter(function(t) { return t.ganadora; });
+    var lT    = trades.filter(function(t) { return !t.ganadora; });
+    var ptsW  = wT.length > 0 ? wT.reduce(function(s, t) { return s + (t.puntos || 0); }, 0) / wT.length : 0;
+    var ptsL  = lT.length > 0 ? lT.reduce(function(s, t) { return s + (t.puntos || 0); }, 0) / lT.length : 0;
+    var rr    = ptsL > 0 ? Math.round(ptsW / ptsL * 100) / 100 : 0;
+
+    var fechas = trades.map(function(t) {
+      if (t.fp) { var m = String(t.fp).match(/(\d{4})\.(\d{2})\.(\d{2})/); if (m) return new Date(+m[1], +m[2]-1, +m[3]); }
+      if (t.created_at) return new Date(t.created_at);
+      return null;
+    }).filter(Boolean).sort(function(a, b) { return a - b; });
+
+    var periodo = fechas.length > 0
+      ? fechas[0].getDate() + ' ' + MESES[fechas[0].getMonth()] + ' – ' +
+        fechas[fechas.length-1].getDate() + ' ' + MESES[fechas[fechas.length-1].getMonth()] + ' ' + fechas[fechas.length-1].getFullYear()
+      : new Date().toLocaleDateString('es-ES');
+
+    HISTORIAL_CUENTAS.push({
+      nombre:  nombreCuenta,
+      tipo:    'real',
+      total:   trades.length,
+      wins:    wins,
+      pnl:     pnl,
+      wr:      wr,
+      rr:      rr,
+      periodo: periodo,
+      dias:    [],
+      tipos:   {},
+      fps:     trades.map(function(t) { return t.fp; }).filter(Boolean)
+    });
+  });
+
+  var lista = document.getElementById('hist-lista');
+  if (lista) {
+    lista.innerHTML = '';
+    HISTORIAL_CUENTAS.forEach(function(c, idx) { histAnadirFila(c, idx); });
+  }
 }
 
 function histAnadirFila(cuenta, idx) {
