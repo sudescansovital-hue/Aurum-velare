@@ -4,7 +4,7 @@
 
 const ADMIN_EMAIL = 'roderastrader@gmail.com';
 
-const PAGINAS_PRIVADAS = ['dashboard','gestion','admin'];
+const PAGINAS_PRIVADAS = ['dashboard','gestion','admin','onboarding'];
 let usuarioActual = null;
 
 function abrirLogin() {
@@ -67,7 +67,14 @@ async function hacerLogin() {
 
   err.textContent = '';
   cerrarLogin();
-  irA(email === ADMIN_EMAIL ? 'admin' : 'dashboard');
+  irA(_destinoLogin());
+}
+
+function _destinoLogin() {
+  if (!usuarioActual) return 'home';
+  if (usuarioActual.email === ADMIN_EMAIL) return 'admin';
+  if (!usuarioActual.animalSala) return 'onboarding';
+  return 'dashboard';
 }
 
 async function hacerLogout() {
@@ -190,6 +197,48 @@ async function actualizarDashboard() {
   if (typeof buildEstadisticasAvanzadas === 'function') buildEstadisticasAvanzadas();
 }
 
+// ── Onboarding ───────────────────────────────────────────────
+
+var _animalElegido = null;
+
+function seleccionarAnimal(emoji) {
+  _animalElegido = emoji;
+  document.querySelectorAll('.onboarding-animal-card').forEach(function(card) {
+    card.style.borderColor = card.dataset.animal === emoji ? 'var(--gold)' : 'var(--border)';
+    card.style.background  = card.dataset.animal === emoji ? '#C9A84C11' : 'var(--bg2)';
+  });
+}
+
+async function guardarOnboarding() {
+  var nick = (document.getElementById('onboarding-nick').value || '').trim();
+  var err  = document.getElementById('onboarding-err');
+  if (!_animalElegido) { if (err) err.textContent = 'Elige tu animal.'; return; }
+  if (!nick)           { if (err) err.textContent = 'Escribe tu nick.'; return; }
+  if (err) err.textContent = '';
+
+  var btn = document.getElementById('onboarding-btn');
+  if (btn) { btn.textContent = 'Guardando...'; btn.disabled = true; }
+
+  var res = await supaPatch('usuarios_aurum', 'email=eq.' + encodeURIComponent(usuarioActual.email),
+    { animal: _animalElegido, nombre: nick, updated_at: new Date().toISOString() }, getToken());
+
+  if (btn) { btn.textContent = 'Entrar al proceso →'; btn.disabled = false; }
+  if (res.error) {
+    var msg = res.error; try { msg = JSON.parse(res.error).message || msg; } catch(e) {}
+    if (err) err.textContent = 'Error: ' + msg; return;
+  }
+
+  usuarioActual.animalSala = _animalElegido;
+  usuarioActual.animal     = _animalElegido;
+  usuarioActual.nick       = nick;
+  usuarioActual.nombre     = nick;
+  window.usuarioActual     = usuarioActual;
+  document.getElementById('nav-animal').textContent = _animalElegido;
+  document.getElementById('nav-uname').textContent  = nick;
+  _animalElegido = null;
+  irA('dashboard');
+}
+
 // ── Init ─────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -203,7 +252,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const stored = await loadStoredSession();
   if (stored && stored.user && stored.user.email) {
     const ok = await _activarSesion(stored.user.email);
-    if (ok) { irA('dashboard'); return; }
+    if (ok) { irA(_destinoLogin()); return; }
   }
   mostrarPagina('home');
 });
