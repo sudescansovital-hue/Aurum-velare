@@ -4,7 +4,7 @@
 // ============================================================
 
 var SESSION = null; // { access_token, refresh_token, user }
-var _AURUM_SK = 'aurum_session';
+var _AURUM_SK = 'aurum_session_v12';
 
 async function signInWithPassword(email, password) {
   var res = await supaAuthPost('/token?grant_type=password', { email, password });

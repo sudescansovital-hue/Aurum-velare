@@ -25,14 +25,12 @@ function verCuenta(cuenta) {
 
   window.cuentaActivaGestion = cuenta;
   window.yaBuiltGestion = {};
+  Object.keys(cuentasBuilt).forEach(function(k){ delete cuentasBuilt[k]; });
   if (typeof buildTradeRecord === 'function') buildTradeRecord();
-  if (!cuentasBuilt[cuenta]) {
-    cuentasBuilt[cuenta] = true;
-    if (cuenta === 'global')  buildGlobal();
-    if (cuenta === 'maestra') buildCuentaReal('maestra', 'Cuenta Maestra');
-    if (cuenta === 'retos')   buildCuentaReal('retos',   'Cuenta Retos');
-    if (cuenta === 'prueba')  buildCuentaReal('prueba',  'Cuenta Prueba');
-  }
+  if (cuenta === 'global')  buildGlobal();
+  if (cuenta === 'maestra') buildCuentaReal('maestra', 'Cuenta Maestra');
+  if (cuenta === 'retos')   buildCuentaReal('retos',   'Cuenta Retos');
+  if (cuenta === 'prueba')  buildCuentaReal('prueba',  'Cuenta Prueba');
 }
 
 function getTrades(nombreCuenta) {
