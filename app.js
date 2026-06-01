@@ -87,7 +87,7 @@ function irA(pagina) {
   if (msg) msg.style.display = 'none';
   mostrarPagina(pagina);
   if (typeof window['init_'+pagina] === 'function') window['init_'+pagina]();
-  if ((pagina === 'gestion' || pagina === 'dashboard') && typeof actualizarDashboard === 'function') {
+  if ((pagina === 'gestion' || pagina === 'dashboard' || pagina === 'admin') && typeof actualizarDashboard === 'function') {
     setTimeout(actualizarDashboard, 300);
   }
 }
