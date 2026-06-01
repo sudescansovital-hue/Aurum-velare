@@ -42,6 +42,9 @@ function init_dashboard() {
   const rankOzt = document.getElementById('dash-ranking-ozt');
   if (rankOzt) rankOzt.textContent = (usuarioActual.ozt || 0) + ' OZT';
 
+  // Stats del dashboard con datos reales si ya están disponibles
+  if (typeof buildDashboardHero === 'function') buildDashboardHero();
+
   // Historial etapas
   const etapasEl = document.getElementById('dash-etapas-historial');
   if (etapasEl) {

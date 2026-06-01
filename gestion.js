@@ -872,6 +872,66 @@ function buildEstadisticasAvanzadas() {
   }
 }
 
+function buildDashboardHero() {
+  var todos = window.AURUM_TRADES ? (window.AURUM_TRADES.todos || []) : [];
+  if (!todos.length) return;
+
+  var totalTrades = todos.length;
+  var wins = todos.filter(function(t) { return t.ganadora; });
+  var wr = totalTrades > 0 ? Math.round(wins.length / totalTrades * 1000) / 10 : 0;
+  var pnl = Math.round(todos.reduce(function(s, t) { return s + (t.beneficio || 0); }, 0) * 100) / 100;
+  var pnlStr = (pnl >= 0 ? '+' : '') + pnl + '$';
+  var cuentas = [];
+  todos.forEach(function(t) { if (t.cuenta && cuentas.indexOf(t.cuenta) === -1) cuentas.push(t.cuenta); });
+
+  var el;
+  el = document.getElementById('dash-trades-total');  if (el) el.textContent = totalTrades;
+  el = document.getElementById('dash-wr-global');     if (el) el.textContent = wr + '%';
+  el = document.getElementById('dash-wr-global-sub'); if (el) el.textContent = wins.length + ' wins de ' + totalTrades;
+  el = document.getElementById('dash-pnl-global');    if (el) el.textContent = pnlStr;
+  el = document.getElementById('dash-pnl-global-sub');if (el) el.textContent = cuentas.length + ' cuenta' + (cuentas.length !== 1 ? 's' : '') + ' · entorno real';
+  el = document.getElementById('card-global-pnl');    if (el) el.textContent = pnlStr;
+  el = document.getElementById('card-global-sub');    if (el) el.textContent = totalTrades + ' trades · WR ' + wr + '%';
+
+  // Ciclo actual
+  var cicloActual = Math.floor(totalTrades / 111) + 1;
+  var enCurso = totalTrades % 111 || 111;
+  var pctCiclo = Math.round(enCurso / 111 * 100);
+  el = document.getElementById('dash-ciclo');     if (el) el.textContent = 'Ciclo ' + cicloActual;
+  el = document.getElementById('dash-ciclo-sub'); if (el) el.textContent = enCurso + ' / 111 trades · ' + pctCiclo + '%';
+  el = document.getElementById('ciclo-encurso-txt'); if (el) el.textContent = 'Ciclo ' + cicloActual + ' en curso — ' + enCurso + ' trades';
+
+  // Nivel/etapa
+  var ETAPAS = ['Inicio', 'Disciplina', 'Despertar', 'Simulador', 'Rentable', '✦ Oro'];
+  var etapa = (typeof usuarioActual !== 'undefined' && usuarioActual && usuarioActual.etapa) ? usuarioActual.etapa : 1;
+  var idx = Math.min(Math.max(0, etapa), ETAPAS.length - 1);
+  var nombreActual = ETAPAS[idx];
+  var nombreSig = ETAPAS[Math.min(idx + 1, ETAPAS.length - 1)];
+  var numStr = (idx < 10 ? '0' : '') + idx;
+  el = document.getElementById('dash-nivel-num');  if (el) el.textContent = numStr;
+  el = document.getElementById('dash-nivel-name'); if (el) el.textContent = nombreActual;
+  el = document.getElementById('dash-nivel-fill'); if (el) el.style.width = pctCiclo + '%';
+  el = document.getElementById('dash-nivel-pct');  if (el) el.textContent = pctCiclo + '%';
+  el = document.getElementById('dash-nivel-card'); if (el) el.textContent = numStr + ' · ' + nombreActual;
+  el = document.getElementById('dash-nivel-sub');  if (el) el.textContent = pctCiclo + '% hacia ' + nombreSig;
+
+  // Días en proceso desde el primer trade
+  var primerFecha = null;
+  todos.forEach(function(t) {
+    var d = null;
+    if (t.fp) {
+      var m = String(t.fp).match(/(\d{4})\.(\d{2})\.(\d{2})/);
+      if (m) d = new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]));
+    }
+    if (!d && t.created_at) d = new Date(t.created_at);
+    if (d && (!primerFecha || d < primerFecha)) primerFecha = d;
+  });
+  if (primerFecha) {
+    var dias = Math.floor((new Date() - primerFecha) / 86400000);
+    el = document.getElementById('dash-dias-proceso'); if (el) el.textContent = dias;
+  }
+}
+
 // Diario
 function init_gestion() {
   var fechaEl = document.getElementById('diario-fecha-hoy');

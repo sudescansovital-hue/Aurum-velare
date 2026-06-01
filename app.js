@@ -82,7 +82,7 @@ function irA(pagina) {
   if (msg) msg.style.display = 'none';
   mostrarPagina(pagina);
   if (typeof window['init_'+pagina] === 'function') window['init_'+pagina]();
-  if (pagina === 'gestion' && typeof actualizarDashboard === 'function') {
+  if ((pagina === 'gestion' || pagina === 'dashboard') && typeof actualizarDashboard === 'function') {
     setTimeout(actualizarDashboard, 300);
   }
 }
@@ -164,6 +164,7 @@ async function actualizarDashboard() {
     return;
   }
   window.AURUM_TRADES = { todos: res.data };
+  if (typeof buildDashboardHero       === 'function') buildDashboardHero();
   if (typeof buildTradeRecord         === 'function') buildTradeRecord();
   if (typeof buildCicloDots           === 'function') buildCicloDots();
   if (typeof buildHorarios            === 'function') buildHorarios();
