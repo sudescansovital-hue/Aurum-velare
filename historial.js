@@ -204,6 +204,23 @@ function histVerDetalle(idx) {
   if (det) det.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
+// Busca en HISTORIAL_ALL_FPS (cargado desde Supabase) el nombre de cuenta
+// asociado a alguno de los fps del archivo. Prioridad sobre la detección del archivo.
+function _nombreCuentaDesdeHISTORIAL(fps) {
+  if (!HISTORIAL_ALL_FPS.size || !fps.length) return null;
+  var fpSet = new Set(fps);
+  var found = null;
+  HISTORIAL_ALL_FPS.forEach(function(entry) {
+    if (found) return;
+    var sep = entry.indexOf('|');
+    if (sep < 0) return;
+    var cuenta = entry.substring(0, sep);
+    var fp     = entry.substring(sep + 1);
+    if (cuenta !== '(sin cuenta)' && fpSet.has(fp)) found = cuenta;
+  });
+  return found;
+}
+
 function histDrop(event) {
   var file = event.dataTransfer.files[0];
   if (file) histSubir(file);
@@ -219,7 +236,7 @@ function histSubir(file) {
   document.getElementById('hist-prog-txt').textContent = 'Leyendo archivo...';
 
   var reader = new FileReader();
-  function procesarRaw(raw) {
+  async function procesarRaw(raw) {
     document.getElementById('hist-prog-bar').style.width = '70%';
     document.getElementById('hist-prog-txt').textContent = 'Calculando...';
     var trades = parsearTrades(raw);
@@ -227,7 +244,19 @@ function histSubir(file) {
       msg.style.color = 'var(--red)'; msg.textContent = 'No se encontraron trades XAU/USD suficientes.';
       document.getElementById('hist-progreso').style.display = 'none'; return;
     }
-    var nombreFinal = detectarNombreCuenta(raw, file.name) || nombre || 'Cuenta externa';
+    // 1. Buscar nombre de cuenta en datos ya cargados de Supabase (HISTORIAL_ALL_FPS)
+    var fps = trades.map(function(t) { return t.fp; }).filter(Boolean);
+    var nombreFinal = _nombreCuentaDesdeHISTORIAL(fps);
+    // 2. Si no está en cache, consultar Supabase con el primer fp del archivo
+    if (!nombreFinal && fps.length && window.usuarioActual) {
+      var _lr = await supaGet('trades',
+        'usuario_email=eq.' + encodeURIComponent(usuarioActual.email) +
+        '&fp=eq.' + encodeURIComponent(fps[0]) +
+        '&cuenta=not.is.null&limit=1', getToken());
+      if (!_lr.error && _lr.data && _lr.data.length) nombreFinal = _lr.data[0].cuenta;
+    }
+    // 3. Fallback: detectar del archivo o usar el input del usuario
+    if (!nombreFinal) nombreFinal = detectarNombreCuenta(raw, file.name) || nombre || 'Cuenta externa';
     var fps_nuevos = trades.filter(function(t) { return !HISTORIAL_ALL_FPS.has(nombreFinal + '|' + (t.fp || '')); });
     var dups = trades.length - fps_nuevos.length;
     setTimeout(function() {
