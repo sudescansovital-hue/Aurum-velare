@@ -441,7 +441,7 @@ async function guardarTradesIndividuales(trades, nombreCuenta) {
     if (patchRes.error) console.error('[HISTORIAL] Error reparando cuenta nula:', patchRes.error);
   }
 
-  // 2. INSERT / UPDATE del resto de trades del archivo
+  // 2. INSERT / UPDATE del resto de trades del archivo — fetch raw para ver respuesta completa
   var rows = trades.map(function(t) {
     return {
       fp:            t.fp,
@@ -460,8 +460,24 @@ async function guardarTradesIndividuales(trades, nombreCuenta) {
       tp:            t.tp || null
     };
   });
-  var res = await supaPost('trades', rows, 'resolution=merge-duplicates,return=minimal', token);
-  if (res.error) console.error('[HISTORIAL] Error guardando trades:', res.error);
+  console.log('[INSERT] enviando', rows.length, 'rows | cuenta:', nombreCuenta, '| primer fp:', rows[0] && rows[0].fp);
+  var _insertResp, _insertBody;
+  try {
+    _insertResp = await fetch(SUPA_URL + '/rest/v1/trades', {
+      method:  'POST',
+      headers: Object.assign(_headers(token), { 'Prefer': 'resolution=merge-duplicates,return=minimal' }),
+      body:    JSON.stringify(rows)
+    });
+    _insertBody = await _insertResp.text();
+    console.log('[INSERT] status:', _insertResp.status, '| statusText:', _insertResp.statusText, '| ok:', _insertResp.ok);
+    console.log('[INSERT] response headers Content-Range:', _insertResp.headers.get('Content-Range'));
+    console.log('[INSERT] body:', _insertBody || '(vacío — esperado con return=minimal)');
+    if (!_insertResp.ok) {
+      console.error('[INSERT] FALLO HTTP —', _insertResp.status, _insertResp.statusText, '— body:', _insertBody);
+    }
+  } catch (err) {
+    console.error('[INSERT] excepción en fetch:', err);
+  }
 
   // 3. DELETE: eliminar todos los trades sin cuenta de este usuario (datos corruptos)
   var delRes = await supaDelete('trades', emailParam + '&cuenta=is.null', token);
