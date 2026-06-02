@@ -296,8 +296,11 @@ async function _actualizarEntradaHistorial(nombreCuenta, tipo) {
       fechas[fechas.length-1].getDate() + ' ' + MESES[fechas[fechas.length-1].getMonth()] + ' ' + fechas[fechas.length-1].getFullYear()
     : new Date().toLocaleDateString('es-ES');
 
+  // Usar el campo cuenta tal como está guardado en Supabase como clave canónica
+  var nombre = (trades.length > 0 && trades[0].cuenta) || nombreCuenta;
+
   var entrada = {
-    nombre:  nombreCuenta,
+    nombre:  nombre,
     tipo:    tipo || 'real',
     total:   trades.length,
     wins:    wins,
@@ -310,7 +313,7 @@ async function _actualizarEntradaHistorial(nombreCuenta, tipo) {
     fps:     trades.map(function(t) { return t.fp; }).filter(Boolean)
   };
 
-  var idx = HISTORIAL_CUENTAS.findIndex(function(c) { return c.nombre === nombreCuenta; });
+  var idx = HISTORIAL_CUENTAS.findIndex(function(c) { return c.nombre === nombre; });
   if (idx >= 0) {
     HISTORIAL_CUENTAS[idx] = entrada;
   } else {
