@@ -49,29 +49,39 @@ async function cargarHistorialDesdeSupabase() {
   console.log('[HISTORIAL] tabla trades     — error:', resTrades.error,     '| count:', resTrades.data     ? resTrades.data.length     : 0, '| primer row:', resTrades.data     && resTrades.data[0]);
   console.log('[HISTORIAL] tabla historiales — error:', resHistoriales.error, '| count:', resHistoriales.data ? resHistoriales.data.length : 0, '| primer row:', resHistoriales.data && resHistoriales.data[0]);
 
-  // Use whichever table returned data
-  var res = (resTrades.data && resTrades.data.length) ? resTrades
-          : (resHistoriales.data && resHistoriales.data.length) ? resHistoriales
-          : resTrades;
+  // Merge ambas tablas deduplicando por (usuario_email, fp) — campo cuenta es la clave de agrupación
+  var allData = [];
+  var _mergedFps = new Set();
+  function _addUnique(rows) {
+    if (!rows || !rows.length) return;
+    rows.forEach(function(t) {
+      if (t.fp) {
+        var key = (t.usuario_email || '') + '|' + t.fp;
+        if (!_mergedFps.has(key)) { _mergedFps.add(key); allData.push(t); }
+      } else {
+        allData.push(t);
+      }
+    });
+  }
+  _addUnique(resTrades.data);
+  _addUnique(resHistoriales.data);
 
-  if (res.error) { console.error('[HISTORIAL] res.error:', res.error); return; }
-  console.log('[HISTORIAL] usando tabla con', res.data ? res.data.length : 0, 'filas');
-  if (!res.data || !res.data.length) return;
+  console.log('[HISTORIAL] merge — trades:', resTrades.data ? resTrades.data.length : 0, '| historiales:', resHistoriales.data ? resHistoriales.data.length : 0, '| combinados:', allData.length);
+  if (!allData.length) return;
 
-  console.log('[HISTORIAL] tipo res.data:', typeof res.data, '| isArray:', Array.isArray(res.data));
-  console.log('[HISTORIAL] primer trade completo:', res.data[0]);
-  console.log('[HISTORIAL] primer trade .cuenta:', res.data[0] && res.data[0].cuenta);
-  console.log('[HISTORIAL] claves del primer trade:', res.data[0] && Object.keys(res.data[0]));
+  console.log('[HISTORIAL] primer row completo:', allData[0]);
+  console.log('[HISTORIAL] primer row .cuenta:', allData[0] && allData[0].cuenta);
+  console.log('[HISTORIAL] claves del primer row:', allData[0] && Object.keys(allData[0]));
 
-  // Agrupar por cuenta — sin filtrar, se muestran todos los valores exactos de t.cuenta
+  // Agrupar por cuenta — campo exacto usado en ambas tablas
   var porCuenta = {};
-  res.data.forEach(function(t, i) {
+  allData.forEach(function(t, i) {
     var c = t.cuenta || '(sin cuenta)';
-    if (i < 3) console.log('[HISTORIAL] trade[' + i + '] t.cuenta:', t.cuenta, '→ c:', c);
+    if (i < 3) console.log('[HISTORIAL] row[' + i + '] t.cuenta:', t.cuenta, '→ c:', c);
     if (!porCuenta[c]) porCuenta[c] = [];
     porCuenta[c].push(t);
   });
-  console.log('[HISTORIAL] porCuenta keys tras forEach:', Object.keys(porCuenta));
+  console.log('[HISTORIAL] porCuenta keys tras merge:', Object.keys(porCuenta));
 
   HISTORIAL_CUENTAS = [];
   HISTORIAL_ALL_FPS = new Set();
@@ -123,9 +133,9 @@ async function cargarHistorialDesdeSupabase() {
   }
 
   // Totales globales del historial
-  var totalTrades = res.data.length;
-  var totalWins   = res.data.filter(function(t) { return t.ganadora; }).length;
-  var totalPnl    = Math.round(res.data.reduce(function(s, t) { return s + (t.beneficio || 0); }, 0) * 100) / 100;
+  var totalTrades = allData.length;
+  var totalWins   = allData.filter(function(t) { return t.ganadora; }).length;
+  var totalPnl    = Math.round(allData.reduce(function(s, t) { return s + (t.beneficio || 0); }, 0) * 100) / 100;
   var totalWr     = totalTrades > 0 ? Math.round(totalWins / totalTrades * 1000) / 10 : 0;
   var numCuentas  = Object.keys(porCuenta).length;
   var pnlStr      = (totalPnl >= 0 ? '+' : '') + totalPnl + '$';
