@@ -79,7 +79,7 @@ async function cargarHistorialDesdeSupabase() {
   var MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
   Object.keys(porCuenta).forEach(function(nombreCuenta) {
     var trades = porCuenta[nombreCuenta];
-    trades.forEach(function(t) { if (t.fp) HISTORIAL_ALL_FPS.add(t.fp); });
+    trades.forEach(function(t) { if (t.fp) HISTORIAL_ALL_FPS.add(nombreCuenta + '|' + t.fp); });
 
     var wins  = trades.filter(function(t) { return t.ganadora; }).length;
     var pnl   = Math.round(trades.reduce(function(s, t) { return s + (t.beneficio || 0); }, 0) * 100) / 100;
@@ -217,18 +217,17 @@ function histSubir(file) {
       msg.style.color = 'var(--red)'; msg.textContent = 'No se encontraron trades XAU/USD suficientes.';
       document.getElementById('hist-progreso').style.display = 'none'; return;
     }
-    var fps_nuevos = trades.filter(function(t) { return !HISTORIAL_ALL_FPS.has(t.fp || ''); });
+    var nombreFinal = detectarNombreCuenta(raw, file.name) || nombre || 'Cuenta externa';
+    var fps_nuevos = trades.filter(function(t) { return !HISTORIAL_ALL_FPS.has(nombreFinal + '|' + (t.fp || '')); });
     var dups = trades.length - fps_nuevos.length;
     setTimeout(function() {
       document.getElementById('hist-progreso').style.display = 'none';
       if (fps_nuevos.length === 0) {
-        var nombreFinalDup = detectarNombreCuenta(raw, file.name) || nombre || 'Cuenta externa';
-        if (typeof guardarTradesIndividuales === 'function') guardarTradesIndividuales(trades, nombreFinalDup);
+        if (typeof guardarTradesIndividuales === 'function') guardarTradesIndividuales(trades, nombreFinal);
         msg.style.color = 'var(--gold)'; msg.textContent = 'Todos los trades ya estaban registrados (' + dups + ' duplicados).'; return;
       }
-      var nombreFinal = detectarNombreCuenta(raw, file.name) || nombre || 'Cuenta externa';
       var fps_list = fps_nuevos.map(function(t){ return t.fp; }).filter(Boolean);
-      fps_list.forEach(function(fp) { HISTORIAL_ALL_FPS.add(fp); });
+      fps_list.forEach(function(fp) { HISTORIAL_ALL_FPS.add(nombreFinal + '|' + fp); });
       // Guardar trades individuales en Supabase y luego recargar métricas completas
       if (typeof guardarTradesIndividuales === 'function') {
         guardarTradesIndividuales(fps_nuevos, nombreFinal).then(function() {
