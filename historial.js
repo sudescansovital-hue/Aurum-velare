@@ -276,12 +276,30 @@ async function _actualizarEntradaHistorial(nombreCuenta, tipo) {
   if (!window.usuarioActual || !window.usuarioActual.email) return;
   var token = getToken();
   var params = 'usuario_email=eq.' + encodeURIComponent(usuarioActual.email) + '&order=created_at.asc&limit=5000';
-  var res = await supaGet('trades', params, token);
-  if (res.error || !res.data) return;
 
-  // Filter to this specific account (partial case-insensitive match)
+  // Merge trades + historiales igual que cargarHistorialDesdeSupabase para ver el total real
+  var resTrades      = await supaGet('trades',     params, token);
+  var resHistoriales = await supaGet('historiales', params, token);
+  var allRows = [];
+  var _seenFps = new Set();
+  function _addRows(rows) {
+    if (!rows || !rows.length) return;
+    rows.forEach(function(t) {
+      if (t.fp) {
+        var key = (t.usuario_email || '') + '|' + t.fp;
+        if (!_seenFps.has(key)) { _seenFps.add(key); allRows.push(t); }
+      } else {
+        allRows.push(t);
+      }
+    });
+  }
+  _addRows(resTrades.data);
+  _addRows(resHistoriales.data);
+  if (!allRows.length) return;
+
+  // Filtrar a esta cuenta por nombre exacto del campo cuenta
   var keyword = nombreCuenta.toLowerCase();
-  var trades = res.data.filter(function(t) {
+  var trades = allRows.filter(function(t) {
     return t.cuenta && t.cuenta.toLowerCase().indexOf(keyword) >= 0;
   });
   if (!trades.length) return;
@@ -360,6 +378,6 @@ async function guardarTradesIndividuales(trades, nombreCuenta) {
       tp:            t.tp || null
     };
   });
-  var res = await supaPost('trades', rows, 'resolution=ignore-duplicates,return=minimal', token);
+  var res = await supaPost('trades', rows, 'resolution=merge-duplicates,return=minimal', token);
   if (res.error) console.error('[HISTORIAL] Error guardando trades:', res.error);
 }
