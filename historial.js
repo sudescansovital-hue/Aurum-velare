@@ -360,6 +360,25 @@ async function guardarTradesIndividuales(trades, nombreCuenta) {
   if (!window.usuarioActual || !window.usuarioActual.email) return;
   if (!trades || !trades.length) return;
   var token = getToken();
+  var emailParam = 'usuario_email=eq.' + encodeURIComponent(usuarioActual.email);
+
+  // 1. UPDATE: asignar nombre de cuenta a trades existentes con cuenta = null
+  //    que coincidan por fp con el archivo que se está subiendo
+  var fps = trades.map(function(t) { return t.fp; }).filter(Boolean);
+  if (fps.length) {
+    var fpList = fps.map(function(fp) {
+      return '%22' + encodeURIComponent(fp) + '%22';
+    }).join(',');
+    var patchRes = await supaPatch(
+      'trades',
+      emailParam + '&cuenta=is.null&fp=in.(' + fpList + ')',
+      { cuenta: nombreCuenta },
+      token
+    );
+    if (patchRes.error) console.error('[HISTORIAL] Error reparando cuenta nula:', patchRes.error);
+  }
+
+  // 2. INSERT / UPDATE del resto de trades del archivo
   var rows = trades.map(function(t) {
     return {
       fp:            t.fp,
@@ -380,4 +399,8 @@ async function guardarTradesIndividuales(trades, nombreCuenta) {
   });
   var res = await supaPost('trades', rows, 'resolution=merge-duplicates,return=minimal', token);
   if (res.error) console.error('[HISTORIAL] Error guardando trades:', res.error);
+
+  // 3. DELETE: eliminar todos los trades sin cuenta de este usuario (datos corruptos)
+  var delRes = await supaDelete('trades', emailParam + '&cuenta=is.null', token);
+  if (delRes.error) console.error('[HISTORIAL] Error eliminando trades sin cuenta:', delRes.error);
 }
