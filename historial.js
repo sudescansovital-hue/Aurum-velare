@@ -468,14 +468,19 @@ async function guardarTradesIndividuales(trades, nombreCuenta) {
       body:    JSON.stringify(rows)
     });
     _insertBody = await _insertResp.text();
-    console.log('[INSERT] status:', _insertResp.status, '| statusText:', _insertResp.statusText, '| ok:', _insertResp.ok);
-    console.log('[INSERT] response headers Content-Range:', _insertResp.headers.get('Content-Range'));
-    console.log('[INSERT] body:', _insertBody || '(vacío — esperado con return=minimal)');
+    console.log('[INSERT] status:', _insertResp.status, '| ok:', _insertResp.ok, '| rows enviados:', rows.length);
+    var _insertParsed = null;
+    try { _insertParsed = JSON.parse(_insertBody); } catch(_) {}
     if (!_insertResp.ok) {
-      console.error('[INSERT] FALLO HTTP —', _insertResp.status, _insertResp.statusText, '— body:', _insertBody);
+      console.error('[INSERT] FALLO —', _insertResp.status, _insertResp.statusText);
+      console.error('[INSERT] body raw:', _insertBody);
+      console.error('[INSERT] body parsed:', _insertParsed);
+    } else {
+      console.log('[INSERT] OK — body:', _insertBody || '(vacío, esperado con return=minimal)');
     }
   } catch (err) {
     console.error('[INSERT] excepción en fetch:', err);
+    console.error('[INSERT] body hasta el momento:', _insertBody);
   }
 
   // 3. DELETE: eliminar todos los trades sin cuenta de este usuario (datos corruptos)
