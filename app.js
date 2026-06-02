@@ -23,6 +23,7 @@ async function _activarSesion(email) {
   const u = perfil.data[0];
 
   window.AURUM_TRADES = null;
+  if (typeof cuentasBuilt !== 'undefined') { Object.keys(cuentasBuilt).forEach(function(k){ delete cuentasBuilt[k]; }); }
   if (typeof HISTORIAL_CUENTAS !== 'undefined') HISTORIAL_CUENTAS = [];
   if (typeof HISTORIAL_ALL_FPS !== 'undefined') HISTORIAL_ALL_FPS = new Set();
 
@@ -177,15 +178,17 @@ function initSupabase() {}
 
 async function actualizarDashboard() {
   if (!usuarioActual || !usuarioActual.email) return;
+  var emailActual = usuarioActual.email;
   var token = getToken();
-  var params = 'usuario_email=eq.' + encodeURIComponent(usuarioActual.email) + '&order=created_at.asc&limit=5000';
+  var params = 'usuario_email=eq.' + encodeURIComponent(emailActual) + '&order=created_at.asc&limit=5000';
   console.log('[AURUM] actualizarDashboard URL:', 'https://rsrbxcvlnbwpiyhumqmt.supabase.co/rest/v1/trades?' + params);
-  console.log('[AURUM] usuario_email param:', 'eq.' + encodeURIComponent(usuarioActual.email), '| raw email:', usuarioActual.email);
+  console.log('[AURUM] usuario_email param:', 'eq.' + encodeURIComponent(emailActual), '| raw email:', emailActual);
   var res = await supaGet('trades', params, token);
   if (res.error || !res.data) {
     console.error('[DASHBOARD] Error cargando trades:', res.error);
     return;
   }
+  if (!usuarioActual || usuarioActual.email !== emailActual) return;
   console.log('[AURUM] trades recibidos:', res.data.length, '| primer usuario_email en datos:', res.data[0] && res.data[0].usuario_email);
   window.AURUM_TRADES = { todos: res.data };
   if (typeof buildDashboardHero       === 'function') buildDashboardHero();
