@@ -454,7 +454,6 @@ async function guardarTradesIndividuales(trades, nombreCuenta) {
       dia:           t.dia != null ? t.dia : 0,
       vol:           t.vol || null,
       pe:            t.pe || null,
-      pc:            t.pc || null,
       puntos:        t.puntos != null ? t.puntos : null,
       sl:            t.sl || null,
       tp:            t.tp || null
