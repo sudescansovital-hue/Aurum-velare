@@ -42,6 +42,9 @@ async function cargarHistorialDesdeSupabase() {
   var token = getToken();
   var params = 'usuario_email=eq.' + encodeURIComponent(usuarioActual.email) + '&order=created_at.asc&limit=5000';
 
+  // Borrar trades sin cuenta asignada antes de cargar (limpieza de datos corruptos)
+  await supaDelete('trades', 'usuario_email=eq.' + encodeURIComponent(usuarioActual.email) + '&cuenta=is.null', token);
+
   // Query both tables to find where the data lives
   var resTrades     = await supaGet('trades',     params, token);
   var resHistoriales = await supaGet('historiales', params, token);
