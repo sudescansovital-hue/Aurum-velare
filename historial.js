@@ -62,6 +62,9 @@ function init_historial() {
 
 async function cargarHistorialDesdeSupabase() {
   if (!window.usuarioActual || !window.usuarioActual.email) return;
+  var emailInicio = window.usuarioActual.email;
+  HISTORIAL_CUENTAS = [];
+  HISTORIAL_ALL_FPS = new Set();
   try {
   var token = getToken();
   var params = 'usuario_email=eq.' + encodeURIComponent(usuarioActual.email) + '&order=created_at.asc&limit=5000';
@@ -94,7 +97,7 @@ async function cargarHistorialDesdeSupabase() {
   _addUnique(resHistoriales.data);
 
   console.log('[HISTORIAL] merge — trades:', resTrades.data ? resTrades.data.length : 0, '| historiales:', resHistoriales.data ? resHistoriales.data.length : 0, '| combinados:', allData.length);
-  if (!allData.length) return;
+  if (!allData.length) { console.log('[HISTORIAL] allData vacío — salida sin render'); return; }
 
   console.log('[HISTORIAL] primer row completo:', allData[0]);
   console.log('[HISTORIAL] primer row .cuenta:', allData[0] && allData[0].cuenta);
@@ -110,6 +113,7 @@ async function cargarHistorialDesdeSupabase() {
   });
   console.log('[HISTORIAL] porCuenta keys tras merge:', Object.keys(porCuenta));
 
+  if (!window.usuarioActual || window.usuarioActual.email !== emailInicio) { console.log('[HISTORIAL] email cambió — salida sin render'); return; }
   HISTORIAL_CUENTAS = [];
   HISTORIAL_ALL_FPS = new Set();
 
@@ -303,7 +307,9 @@ function histSubir(file) {
       // Guardar trades individuales en Supabase y luego recargar métricas completas
       if (typeof guardarTradesIndividuales === 'function') {
         guardarTradesIndividuales(fps_nuevos, nombreFinal).then(function() {
-          _actualizarEntradaHistorial(nombreFinal, document.getElementById('hist-tipo').value, numeroCuenta);
+          return _actualizarEntradaHistorial(nombreFinal, document.getElementById('hist-tipo').value, numeroCuenta);
+        }).then(function() {
+          cargarHistorialDesdeSupabase();
         });
       }
       var aviso = dups > 0 ? ' (' + dups + ' duplicados ignorados)' : '';
