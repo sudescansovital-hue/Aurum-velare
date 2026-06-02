@@ -449,11 +449,8 @@ async function guardarTradesIndividuales(trades, nombreCuenta) {
       cuenta:        nombreCuenta || 'Externa',
       ganadora:      !!t.ganadora,
       beneficio:     t.ben != null ? t.ben : (t.beneficio != null ? t.beneficio : 0),
-      dur_min:       Math.round(t.durMin != null ? t.durMin : (t.dur_min != null ? t.dur_min : 0)),
       hora:          t.hora != null ? t.hora : 0,
       dia:           t.dia != null ? t.dia : 0,
-      vol:           t.vol || null,
-      pe:            t.pe || null,
       puntos:        t.puntos != null ? t.puntos : null,
       sl:            t.sl || null,
       tp:            t.tp || null
