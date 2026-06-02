@@ -9,6 +9,30 @@ var CUENTAS_AURUM = {
   '4011477': 'Cuenta Retos',
 };
 
+// Devuelve el número de cuenta desde el nombre usando CUENTAS_AURUM inverso
+function _numeroDesdeNombre(nombre) {
+  for (var num in CUENTAS_AURUM) {
+    if (CUENTAS_AURUM[num] === nombre) return num;
+  }
+  return null;
+}
+
+// Extrae el número de cuenta de la fila "Cuenta de trading:" del Excel
+function detectarNumeroCuentaDeRaw(raw) {
+  var keywords = ['cuenta de trading', 'account'];
+  for (var r = 0; r < Math.min(raw.length, 20); r++) {
+    var row = raw[r] || [];
+    for (var c = 0; c < row.length; c++) {
+      var cell = String(row[c] || '').toLowerCase().trim();
+      if (!keywords.some(function(k) { return cell.indexOf(k) >= 0; })) continue;
+      var combined = String(row[c] || '') + ' ' + String(row[c + 1] != null ? row[c + 1] : '');
+      var m = combined.match(/\b(\d{4,})\b/);
+      if (m) return m[1];
+    }
+  }
+  return null;
+}
+
 function detectarNombreCuenta(raw, nombreArchivo) {
   for (var num in CUENTAS_AURUM) {
     if (nombreArchivo && String(nombreArchivo).indexOf(num) >= 0) return CUENTAS_AURUM[num];
@@ -116,6 +140,7 @@ async function cargarHistorialDesdeSupabase() {
 
     HISTORIAL_CUENTAS.push({
       nombre:  nombreCuenta,
+      numero:  _numeroDesdeNombre(nombreCuenta),
       tipo:    'real',
       total:   trades.length,
       wins:    wins,
@@ -166,7 +191,11 @@ function histAnadirFila(cuenta, idx) {
   div.onmouseover = function() { this.style.borderLeftColor = 'var(--gold)'; };
   div.onmouseout = function() { this.style.borderLeftColor = 'transparent'; };
   div.innerHTML = '<div style="display:grid;grid-template-columns:1fr auto auto auto auto;gap:1rem;align-items:center;">' +
-    '<div><div style="font-size:14px;color:var(--text-dim);">' + cuenta.nombre + '</div><div style="font-size:12px;color:var(--text-muted);">' + cuenta.periodo + '</div></div>' +
+    '<div>' +
+      '<div style="font-size:14px;color:var(--text-dim);">' + cuenta.nombre + '</div>' +
+      (cuenta.numero ? '<div style="font-size:11px;color:var(--text-muted);letter-spacing:.05em;">' + cuenta.numero + '</div>' : '') +
+      '<div style="font-size:12px;color:var(--text-muted);">' + cuenta.periodo + '</div>' +
+    '</div>' +
     '<div style="text-align:center;"><div style="font-size:11px;color:var(--text-muted);">Trades</div><div style="font-size:18px;color:var(--text);">' + cuenta.total + '</div></div>' +
     '<div style="text-align:center;"><div style="font-size:11px;color:var(--text-muted);">WR</div><div style="font-size:18px;color:' + wrColor + ';">' + cuenta.wr + '%</div></div>' +
     '<div style="text-align:center;"><div style="font-size:11px;color:var(--text-muted);">P&L</div><div style="font-size:18px;color:' + plColor + ';">' + plStr + '</div></div>' +
@@ -260,6 +289,7 @@ function histSubir(file) {
     }
     // 3. Fallback: detectar del archivo o usar el input del usuario
     if (!nombreFinal) nombreFinal = detectarNombreCuenta(raw, file.name) || nombre || 'Cuenta externa';
+    var numeroCuenta = detectarNumeroCuentaDeRaw(raw) || _numeroDesdeNombre(nombreFinal);
     var fps_nuevos = trades.filter(function(t) { return !HISTORIAL_ALL_FPS.has(nombreFinal + '|' + (t.fp || '')); });
     var dups = trades.length - fps_nuevos.length;
     setTimeout(function() {
@@ -273,7 +303,7 @@ function histSubir(file) {
       // Guardar trades individuales en Supabase y luego recargar métricas completas
       if (typeof guardarTradesIndividuales === 'function') {
         guardarTradesIndividuales(fps_nuevos, nombreFinal).then(function() {
-          _actualizarEntradaHistorial(nombreFinal, document.getElementById('hist-tipo').value);
+          _actualizarEntradaHistorial(nombreFinal, document.getElementById('hist-tipo').value, numeroCuenta);
         });
       }
       var aviso = dups > 0 ? ' (' + dups + ' duplicados ignorados)' : '';
@@ -304,7 +334,7 @@ function histSubir(file) {
   }
 }
 
-async function _actualizarEntradaHistorial(nombreCuenta, tipo) {
+async function _actualizarEntradaHistorial(nombreCuenta, tipo, numeroCuenta) {
   if (!window.usuarioActual || !window.usuarioActual.email) return;
   var token = getToken();
   var params = 'usuario_email=eq.' + encodeURIComponent(usuarioActual.email) + '&order=created_at.asc&limit=5000';
@@ -361,6 +391,7 @@ async function _actualizarEntradaHistorial(nombreCuenta, tipo) {
 
   var entrada = {
     nombre:  nombre,
+    numero:  numeroCuenta || _numeroDesdeNombre(nombre),
     tipo:    tipo || 'real',
     total:   trades.length,
     wins:    wins,
