@@ -106,16 +106,30 @@ function calcDias(trades) {
 
 function _set(id, val) { var el = document.getElementById(id); if (el) el.textContent = val; }
 
-function buildCuentaReal(cuenta, nombreCuenta) {
-  // Data source: window.AURUM_TRADES.todos, already filtered by usuario_email in actualizarDashboard()
-  if (!window.AURUM_TRADES || !window.AURUM_TRADES.todos) return;
-  var trades = getTrades(nombreCuenta);
-  if (!trades.length) return;
+// Busca la entrada de HISTORIAL_CUENTAS que corresponde al keyword (nombre de cuenta)
+function _histEntrada(keyword) {
+  if (!window.HISTORIAL_CUENTAS || !window.HISTORIAL_CUENTAS.length) return null;
+  var kw = keyword.toLowerCase();
+  return window.HISTORIAL_CUENTAS.find(function(c) {
+    return c.nombre && c.nombre.toLowerCase().indexOf(kw) >= 0;
+  }) || null;
+}
 
-  var m    = calcMetricas(trades);
-  var dias = calcDias(trades);
+function buildCuentaReal(cuenta, nombreCuenta) {
+  var hist   = _histEntrada(nombreCuenta);
+  var trades = getTrades(nombreCuenta);
+  if (!hist && !trades.length) return;
+
+  // Métricas principales: preferir HISTORIAL_CUENTAS (fusiona trades + historiales)
+  // esp/ptsW/ptsL siguen de AURUM_TRADES (necesitan puntos por trade)
+  var _rawM = calcMetricas(trades);
+  var m = hist
+    ? { total:hist.total, wins:hist.wins, pnl:hist.pnl, wr:hist.wr, rr:hist.rr,
+        esp:_rawM.esp, ptsW:_rawM.ptsW, ptsL:_rawM.ptsL }
+    : _rawM;
+  var dias  = calcDias(trades);
   var tipos = calcTipos(trades);
-  var rango = _rangoFechas(trades);
+  var rango = hist ? hist.periodo : _rangoFechas(trades);
 
   // Header
   var hdr = document.getElementById(cuenta + '-header-sub');
@@ -198,27 +212,46 @@ function buildCuentaReal(cuenta, nombreCuenta) {
 }
 
 function buildGlobal() {
-  // Data source: window.AURUM_TRADES.todos, already filtered by usuario_email in actualizarDashboard()
-  if (!window.AURUM_TRADES || !window.AURUM_TRADES.todos || !window.AURUM_TRADES.todos.length) return;
-
-  var todos   = getTrades('todos');
-  if (!todos.length) return;
+  var histAll = window.HISTORIAL_CUENTAS || [];
+  var histM   = _histEntrada('Cuenta Maestra');
+  var histR   = _histEntrada('Cuenta Retos');
+  var histP   = _histEntrada('Cuenta Prueba');
 
   var maestra = getTrades('Cuenta Maestra');
   var prueba  = getTrades('Cuenta Prueba');
   var retos   = getTrades('Cuenta Retos');
+  var todos   = getTrades('todos');
 
-  var mG = calcMetricas(todos);
-  var mM = calcMetricas(maestra);
-  var mR = calcMetricas(retos);
-  var mP = calcMetricas(prueba);
+  var totalHist = histAll.reduce(function(s,c){ return s+(c.total||0); }, 0);
+  if (!totalHist && !todos.length) return;
+
+  // Métricas globales: total/wins/pnl/wr desde HISTORIAL_CUENTAS; rr/esp desde AURUM_TRADES
+  var mG;
+  if (totalHist > 0) {
+    var _w   = histAll.reduce(function(s,c){ return s+(c.wins||0); }, 0);
+    var _pnl = Math.round(histAll.reduce(function(s,c){ return s+(c.pnl||0); }, 0)*100)/100;
+    var _wr  = Math.round(_w/totalHist*1000)/10;
+    var _raw = calcMetricas(todos);
+    mG = { total:totalHist, wins:_w, pnl:_pnl, wr:_wr, rr:_raw.rr, esp:_raw.esp };
+  } else {
+    mG = calcMetricas(todos);
+  }
+
+  // Métricas por cuenta: preferir HISTORIAL_CUENTAS
+  var mM = histM ? { wr:histM.wr, pnl:histM.pnl, total:histM.total, wins:histM.wins } : calcMetricas(maestra);
+  var mR = histR ? { wr:histR.wr, pnl:histR.pnl, total:histR.total, wins:histR.wins } : calcMetricas(retos);
+  var mP = histP ? { wr:histP.wr, pnl:histP.pnl, total:histP.total, wins:histP.wins } : calcMetricas(prueba);
   var diasG  = calcDias(todos);
   var tiposG = calcTipos(todos);
 
   // Stat grid global
   _set('global-stat-pnl', (mG.pnl >= 0 ? '+' : '') + mG.pnl + '$');
   var rango = _rangoFechas(todos);
-  var nomCuentas = [maestra.length&&'Maestra', retos.length&&'Retos', prueba.length&&'Prueba'].filter(Boolean);
+  var nomCuentas = [
+    (histM || maestra.length) ? 'Maestra' : false,
+    (histR || retos.length)   ? 'Retos'   : false,
+    (histP || prueba.length)  ? 'Prueba'  : false
+  ].filter(Boolean);
   _set('global-stat-pnl-sub', nomCuentas.join(' + ') + (rango ? ' · ' + rango : ''));
   _set('global-stat-wr',  mG.wr + '%');
   _set('global-stat-wr-sub', mG.wins + ' de ' + mG.total + ' trades');
@@ -262,9 +295,9 @@ function buildGlobal() {
     var worstDiaP = diasP.filter(function(d){ return d.t >= 3; }).sort(function(a,b){ return a.wr - b.wr; })[0];
 
     var cuentasWR = [
-      { n:'Maestra', wr:mM.wr, t:maestra.length },
-      { n:'Retos',   wr:mR.wr, t:retos.length },
-      { n:'Prueba',  wr:mP.wr, t:prueba.length }
+      { n:'Maestra', wr:mM.wr, t:mM.total || maestra.length },
+      { n:'Retos',   wr:mR.wr, t:mR.total || retos.length },
+      { n:'Prueba',  wr:mP.wr, t:mP.total || prueba.length }
     ].filter(function(c){ return c.t > 0; }).sort(function(a,b){ return b.wr - a.wr; });
     var bestCuenta = cuentasWR[0];
 
