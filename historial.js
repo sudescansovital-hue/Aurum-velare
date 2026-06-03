@@ -17,6 +17,20 @@ function _numeroDesdeNombre(nombre) {
   return null;
 }
 
+function _numeroDesdeFichero(raw, fileName) {
+  var nums = Object.keys(CUENTAS_AURUM);
+  for (var n = 0; n < nums.length; n++) {
+    if (fileName && fileName.includes(nums[n])) return nums[n];
+    for (var r = 0; r < Math.min((raw||[]).length, 15); r++) {
+      var fila = raw[r] || [];
+      for (var c = 0; c < fila.length; c++) {
+        if (String(fila[c]||'').includes(nums[n])) return nums[n];
+      }
+    }
+  }
+  return null;
+}
+
 // Extrae el número de cuenta de la fila "Cuenta de trading:" del Excel
 function detectarNumeroCuentaDeRaw(raw) {
   var keywords = ['cuenta de trading', 'account'];
@@ -296,7 +310,7 @@ function histSubir(file) {
     var tipoSeleccionado = document.getElementById('hist-tipo') ? document.getElementById('hist-tipo').value : 'Externa';
     var fallbackNombre = tipoSeleccionado === 'Externa' ? 'Cuenta externa' : tipoSeleccionado === 'Maestra' ? 'Cuenta Maestra' : tipoSeleccionado === 'Retos' ? 'Cuenta Retos' : tipoSeleccionado === 'Prueba' ? 'Cuenta Prueba' : 'Cuenta externa';
     if (!nombreFinal) nombreFinal = detectarNombreCuenta(raw, file.name) || nombre || fallbackNombre;
-    var numeroCuenta = detectarNumeroCuentaDeRaw(raw) || _numeroDesdeNombre(nombreFinal);
+    var numeroCuenta = detectarNumeroCuentaDeRaw(raw) || _numeroDesdeNombre(nombreFinal) || _numeroDesdeFichero(raw, file.name);
     var fps_nuevos = trades.filter(function(t) { return !HISTORIAL_ALL_FPS.has(nombreFinal + '|' + (t.fp || '')); });
     var dups = trades.length - fps_nuevos.length;
     setTimeout(function() {
