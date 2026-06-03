@@ -424,7 +424,7 @@ async function _actualizarEntradaHistorial(nombreCuenta, tipo, numeroCuenta) {
   var patchRes = await supaPatch(
     'historiales',
     'usuario_email=eq.' + encodeURIComponent(usuarioActual.email) + '&nombre=eq.' + encodeURIComponent(nombre),
-    { tipo: tipo || 'real' },
+    { tipo: tipo || 'real', numero: numeroCuenta || null },
     token
   );
   if (patchRes.error) console.error('[HISTORIAL] Error guardando tipo:', patchRes.error);
