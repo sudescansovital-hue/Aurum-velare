@@ -20,8 +20,9 @@
 // ALTER TABLE usuarios_aurum ENABLE ROW LEVEL SECURITY;
 // CREATE POLICY "service_role_all" ON usuarios_aurum USING (true) WITH CHECK (true);
 
-var adminUsuarios  = [];
-var adminEditId    = null;
+var adminUsuarios       = [];
+var adminEditId         = null;
+var adminHistorialesMap = {};
 
 var PACK_PRECIOS = { umbral:77, raiz:111, senda:222, cima:333, demo:0 };
 var PACK_LABELS  = { umbral:'Umbral', raiz:'Raíz', senda:'Senda', cima:'Cima', demo:'Demo' };
@@ -62,6 +63,20 @@ async function cargarUsuariosAdmin() {
     return;
   }
   adminUsuarios = res.data || [];
+
+  adminHistorialesMap = {};
+  var emails = adminUsuarios.map(function(u) { return u.email; }).filter(Boolean);
+  if (emails.length) {
+    var emailsQ = 'usuario_email=in.(' + emails.map(encodeURIComponent).join(',') + ')&tipo=in.(Maestra,Prueba,Retos)&select=usuario_email,tipo,nombre';
+    var resH = await supaGet('historiales', emailsQ, getToken());
+    if (!resH.error && resH.data) {
+      resH.data.forEach(function(row) {
+        if (!adminHistorialesMap[row.usuario_email]) adminHistorialesMap[row.usuario_email] = {};
+        adminHistorialesMap[row.usuario_email][row.tipo] = row.nombre;
+      });
+    }
+  }
+
   renderAdminTabla();
   renderAdminStats();
   poblarSelectCodigo();
@@ -95,9 +110,9 @@ function renderAdminTabla() {
       '<td style="' + th + 'color:var(--text-muted);">' + animalText + '</td>' +
       '<td style="' + th + 'font-size:12px;color:var(--text-muted);">' + salaAuto + salaExtra + '</td>' +
       '<td style="' + th + 'color:var(--text-muted);">Etapa ' + (u.etapa || 1) + '</td>' +
-      '<td style="' + th + 'color:var(--green);font-size:12px;">' + (u.cuenta_maestra || '—') + '</td>' +
-      '<td style="' + th + 'color:#6A9AEE;font-size:12px;">' + (u.cuenta_prueba  || '—') + '</td>' +
-      '<td style="' + th + 'color:#E8A84C;font-size:12px;">' + (u.cuenta_retos   || '—') + '</td>' +
+      '<td style="' + th + 'color:var(--green);font-size:12px;">' + ((adminHistorialesMap[u.email] && adminHistorialesMap[u.email]['Maestra']) || u.cuenta_maestra || '—') + '</td>' +
+      '<td style="' + th + 'color:#6A9AEE;font-size:12px;">'   + ((adminHistorialesMap[u.email] && adminHistorialesMap[u.email]['Prueba'])   || u.cuenta_prueba  || '—') + '</td>' +
+      '<td style="' + th + 'color:#E8A84C;font-size:12px;">'   + ((adminHistorialesMap[u.email] && adminHistorialesMap[u.email]['Retos'])    || u.cuenta_retos   || '—') + '</td>' +
       '<td style="' + th + 'font-size:12px;color:' + (expirado ? 'var(--red)' : 'var(--text-muted)') + ';">' + exp + '</td>' +
       '<td style="' + th + '">' + estadoHtml + '</td>' +
       '<td style="' + th + '">' +
