@@ -19,7 +19,7 @@ function _headers(token) {
 
 async function supaGet(tabla, params, token) {
   var url = SUPA_URL + '/rest/v1/' + tabla + (params ? '?' + params : '');
-  var r = await fetch(url, { headers: _headers(token) });
+  var r = await fetch(url, { headers: _headers(token) }).catch(function(e) { console.error('[SUPA fetch error]', e); return {ok:false, text: async function(){return e.message;}}; });
   if (!r.ok) { var e = await r.text(); return { data: null, error: e }; }
   return { data: await r.json(), error: null };
 }
