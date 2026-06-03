@@ -184,17 +184,6 @@ async function cargarHistorialDesdeSupabase() {
   }
 }
 
-async function histBorrarCuenta(cuenta) {
-  if (!confirm('¿Borrar esta cuenta y todos sus trades?')) return;
-  if (!window.usuarioActual || !window.usuarioActual.email) return;
-  var token = getToken();
-  var emailQ = 'usuario_email=eq.' + encodeURIComponent(usuarioActual.email);
-  await supaDelete('trades',     emailQ + '&cuenta=eq.' + encodeURIComponent(cuenta.nombre), token);
-  await supaDelete('historiales', emailQ + '&nombre=eq.'  + encodeURIComponent(cuenta.nombre), token);
-  if (typeof cargarHistorialDesdeSupabase === 'function') cargarHistorialDesdeSupabase();
-  if (typeof actualizarDashboard          === 'function') actualizarDashboard();
-}
-
 function histAnadirFila(cuenta, idx) {
   var lista = document.getElementById('hist-lista');
   if (!lista) return;
@@ -206,7 +195,7 @@ function histAnadirFila(cuenta, idx) {
   div.onclick = function() { histVerDetalle(idx); };
   div.onmouseover = function() { this.style.borderLeftColor = 'var(--gold)'; };
   div.onmouseout = function() { this.style.borderLeftColor = 'transparent'; };
-  div.innerHTML = '<div style="display:grid;grid-template-columns:1fr auto auto auto auto auto;gap:1rem;align-items:center;">' +
+  div.innerHTML = '<div style="display:grid;grid-template-columns:1fr auto auto auto auto;gap:1rem;align-items:center;">' +
     '<div>' +
       '<div style="font-size:14px;color:var(--text-dim);">' + cuenta.nombre + '</div>' +
       (cuenta.numero ? '<div style="font-size:11px;color:var(--text-muted);letter-spacing:.05em;">' + cuenta.numero + '</div>' : '') +
@@ -216,10 +205,7 @@ function histAnadirFila(cuenta, idx) {
     '<div style="text-align:center;"><div style="font-size:11px;color:var(--text-muted);">WR</div><div style="font-size:18px;color:' + wrColor + ';">' + cuenta.wr + '%</div></div>' +
     '<div style="text-align:center;"><div style="font-size:11px;color:var(--text-muted);">P&L</div><div style="font-size:18px;color:' + plColor + ';">' + plStr + '</div></div>' +
     '<div style="text-align:center;"><div style="font-size:11px;color:var(--text-muted);">R/R</div><div style="font-size:18px;color:var(--text);">' + cuenta.rr + '</div></div>' +
-    '<div style="text-align:center;"><button class="hist-btn-borrar" style="background:none;border:1px solid #662222;color:#cc4444;padding:.3rem .5rem;font-size:13px;cursor:pointer;border-radius:4px;line-height:1;" title="Borrar cuenta">🗑</button></div>' +
   '</div>';
-  var btnBorrar = div.querySelector('.hist-btn-borrar');
-  btnBorrar.onclick = function(e) { e.stopPropagation(); histBorrarCuenta(cuenta); };
   lista.appendChild(div);
 }
 
