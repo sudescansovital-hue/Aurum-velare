@@ -313,6 +313,7 @@ function histSubir(file) {
           return _actualizarEntradaHistorial(nombreFinal, document.getElementById('hist-tipo').value, numeroCuenta);
         }).then(function() {
           cargarHistorialDesdeSupabase();
+          if (typeof actualizarDashboard === 'function') actualizarDashboard();
         });
       }
       var aviso = dups > 0 ? ' (' + dups + ' duplicados ignorados)' : '';
