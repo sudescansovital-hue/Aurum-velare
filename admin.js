@@ -67,7 +67,7 @@ async function cargarUsuariosAdmin() {
   adminHistorialesMap = {};
   var emails = adminUsuarios.map(function(u) { return u.email; }).filter(Boolean);
   if (emails.length) {
-    var tradesQ = 'usuario_email=in.(' + emails.map(encodeURIComponent).join(',') + ')&select=usuario_email,cuenta&limit=5000';
+    var tradesQ = 'usuario_email=in.(' + emails.join(',') + ')&select=usuario_email,cuenta&limit=5000';
     var _fetchT = await fetch('https://rsrbxcvlnbwpiyhumqmt.supabase.co/rest/v1/trades?' + tradesQ, {
       headers: {
         'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzcmJ4Y3ZsbmJ3cGl5aHVtcW10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2NDYzNTAsImV4cCI6MjA5NTIyMjM1MH0.DpcY9s7DK7l4qVHmint9HQIJK6icnwnfbGvQ-XH15mY',
