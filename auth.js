@@ -21,7 +21,7 @@ async function signInWithPassword(email, password) {
 async function signOut() {
   SESSION = null;
   localStorage.removeItem(_AURUM_SK);
-  try { await _supabaseClient.auth.signOut(); } catch(e) {}
+  try { await fetch(SUPA_URL+'/auth/v1/logout',{method:'POST',headers:{apikey:SUPA_KEY,'Authorization':'Bearer '+(SESSION?SESSION.access_token:''),'Content-Type':'application/json'}}); } catch(e) {}
 }
 
 async function loadStoredSession() {
