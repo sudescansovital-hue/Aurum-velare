@@ -67,21 +67,23 @@ async function cargarUsuariosAdmin() {
   adminHistorialesMap = {};
   var emails = adminUsuarios.map(function(u) { return u.email; }).filter(Boolean);
   if (emails.length) {
-    var emailsQ = 'usuario_email=in.(' + emails.map(encodeURIComponent).join(',') + ')&tipo=in.(Maestra,Retos,Prueba,Externa)&select=usuario_email,tipo,nombre,numero';
-    var _fetchH = await fetch('https://rsrbxcvlnbwpiyhumqmt.supabase.co/rest/v1/historiales?' + emailsQ, {
+    var tradesQ = 'usuario_email=in.(' + emails.map(encodeURIComponent).join(',') + ')&select=usuario_email,cuenta&limit=5000';
+    var _fetchT = await fetch('https://rsrbxcvlnbwpiyhumqmt.supabase.co/rest/v1/trades?' + tradesQ, {
       headers: {
         'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzcmJ4Y3ZsbmJ3cGl5aHVtcW10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2NDYzNTAsImV4cCI6MjA5NTIyMjM1MH0.DpcY9s7DK7l4qVHmint9HQIJK6icnwnfbGvQ-XH15mY',
         'Authorization': 'Bearer ' + getToken()
       }
     });
-    var resH = { data: _fetchH.ok ? await _fetchH.json() : [], error: null };
-    console.log('[ADMIN] resH historiales:', JSON.stringify(resH));
-    if (!resH.error && resH.data) {
-      resH.data.forEach(function(row) {
-        if (!adminHistorialesMap[row.usuario_email]) adminHistorialesMap[row.usuario_email] = {};
-        adminHistorialesMap[row.usuario_email][row.tipo] = row.numero;
-      });
-    }
+    var tradesData = _fetchT.ok ? await _fetchT.json() : [];
+    console.log('[ADMIN] trades para adminHistorialesMap:', tradesData.length);
+    tradesData.forEach(function(t) {
+      var em = t.usuario_email; var c = (t.cuenta || '').toLowerCase();
+      if (!em || !c) return;
+      if (!adminHistorialesMap[em]) adminHistorialesMap[em] = {};
+      if (c.includes('maestra') && !adminHistorialesMap[em].Maestra) adminHistorialesMap[em].Maestra = t.cuenta;
+      if (c.includes('retos')   && !adminHistorialesMap[em].Retos)   adminHistorialesMap[em].Retos   = t.cuenta;
+      if (c.includes('prueba')  && !adminHistorialesMap[em].Prueba)  adminHistorialesMap[em].Prueba  = t.cuenta;
+    });
   }
 
   renderAdminTabla();
