@@ -293,7 +293,9 @@ function histSubir(file) {
       if (!_lr.error && _lr.data && _lr.data.length) nombreFinal = _lr.data[0].cuenta;
     }
     // 3. Fallback: detectar del archivo o usar el input del usuario
-    if (!nombreFinal) nombreFinal = detectarNombreCuenta(raw, file.name) || nombre || 'Cuenta externa';
+    var tipoSeleccionado = document.getElementById('hist-tipo') ? document.getElementById('hist-tipo').value : 'Externa';
+    var fallbackNombre = tipoSeleccionado === 'Externa' ? 'Cuenta externa' : tipoSeleccionado === 'Maestra' ? 'Cuenta Maestra' : tipoSeleccionado === 'Retos' ? 'Cuenta Retos' : tipoSeleccionado === 'Prueba' ? 'Cuenta Prueba' : 'Cuenta externa';
+    if (!nombreFinal) nombreFinal = detectarNombreCuenta(raw, file.name) || nombre || fallbackNombre;
     var numeroCuenta = detectarNumeroCuentaDeRaw(raw) || _numeroDesdeNombre(nombreFinal);
     var fps_nuevos = trades.filter(function(t) { return !HISTORIAL_ALL_FPS.has(nombreFinal + '|' + (t.fp || '')); });
     var dups = trades.length - fps_nuevos.length;
