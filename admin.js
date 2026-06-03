@@ -67,7 +67,7 @@ async function cargarUsuariosAdmin() {
   adminHistorialesMap = {};
   var emails = adminUsuarios.map(function(u) { return u.email; }).filter(Boolean);
   if (emails.length) {
-    var emailsQ = 'usuario_email=in.(' + emails.map(encodeURIComponent).join(',') + ')&tipo=in.(Maestra,Prueba,Retos)&select=usuario_email,tipo,nombre,numero';
+    var emailsQ = 'usuario_email=in.(' + emails.map(encodeURIComponent).join(',') + ')&tipo=in.(Maestra,Retos,Prueba,Externa)&select=usuario_email,tipo,nombre,numero';
     var resH = await fetch('https://rsrbxcvlnbwpiyhumqmt.supabase.co/rest/v1/historiales?' + emailsQ, {
       headers: {
         'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzcmJ4Y3ZsbmJ3cGl5aHVtcW10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2NDYzNTAsImV4cCI6MjA5NTIyMjM1MH0.DpcY9s7DK7l4qVHmint9HQIJK6icnwnfbGvQ-XH15mY',
