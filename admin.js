@@ -127,9 +127,9 @@ function renderAdminTabla() {
       '<td style="' + th + 'color:var(--text-muted);">' + animalText + '</td>' +
       '<td style="' + th + 'font-size:12px;color:var(--text-muted);">' + salaAuto + salaExtra + '</td>' +
       '<td style="' + th + 'color:var(--text-muted);">Etapa ' + (u.etapa || 1) + '</td>' +
-      '<td style="' + th + 'color:var(--green);font-size:12px;">' + ((adminHistorialesMap[u.email] && adminHistorialesMap[u.email]['Maestra']) || u.cuenta_maestra || '—') + '</td>' +
-      '<td style="' + th + 'color:#6A9AEE;font-size:12px;">'   + ((adminHistorialesMap[u.email] && adminHistorialesMap[u.email]['Prueba'])   || u.cuenta_prueba  || '—') + '</td>' +
-      '<td style="' + th + 'color:#E8A84C;font-size:12px;">'   + ((adminHistorialesMap[u.email] && adminHistorialesMap[u.email]['Retos'])    || u.cuenta_retos   || '—') + '</td>' +
+      '<td style="' + th + 'color:var(--green);font-size:12px;">' + (u.cuenta_maestra || (adminHistorialesMap[u.email] && adminHistorialesMap[u.email]['Maestra']) || '—') + '</td>' +
+      '<td style="' + th + 'color:#6A9AEE;font-size:12px;">'   + (u.cuenta_prueba  || (adminHistorialesMap[u.email] && adminHistorialesMap[u.email]['Prueba'])   || '—') + '</td>' +
+      '<td style="' + th + 'color:#E8A84C;font-size:12px;">'   + (u.cuenta_retos   || (adminHistorialesMap[u.email] && adminHistorialesMap[u.email]['Retos'])    || '—') + '</td>' +
       '<td style="' + th + 'font-size:12px;color:' + (expirado ? 'var(--red)' : 'var(--text-muted)') + ';">' + exp + '</td>' +
       '<td style="' + th + '">' + estadoHtml + '</td>' +
       '<td style="' + th + '">' +
