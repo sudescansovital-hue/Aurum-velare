@@ -113,6 +113,7 @@ async function cargarHistorialDesdeSupabase() {
   });
   console.log('[HISTORIAL] porCuenta keys tras merge:', Object.keys(porCuenta));
 
+  console.log('[GUARD]', window.usuarioActual ? window.usuarioActual.email : 'null', '!==', emailInicio, '?', window.usuarioActual && window.usuarioActual.email !== emailInicio);
   if (!window.usuarioActual || window.usuarioActual.email !== emailInicio) { console.log('[HISTORIAL] email cambió — salida sin render'); return; }
   HISTORIAL_CUENTAS = [];
   HISTORIAL_ALL_FPS = new Set();
