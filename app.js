@@ -18,7 +18,7 @@ function cerrarLogin() {
 }
 
 async function _activarSesion(email) {
-  const perfil = await supaGet('usuarios_aurum', 'email=eq.' + encodeURIComponent(email) + '&limit=1', getToken());
+  const perfil = await supaGet('usuarios_aurum', 'email=eq.' + email + '&limit=1', getToken());
   if (perfil.error || !perfil.data || !perfil.data.length) return false;
   const u = perfil.data[0];
 
@@ -186,9 +186,9 @@ async function actualizarDashboard() {
   if (!usuarioActual || !usuarioActual.email) return;
   var emailActual = usuarioActual.email;
   var token = getToken();
-  var params = 'usuario_email=eq.' + encodeURIComponent(emailActual) + '&order=created_at.asc&limit=5000';
+  var params = 'usuario_email=eq.' + emailActual + '&order=created_at.asc&limit=5000';
   console.log('[AURUM] actualizarDashboard URL:', 'https://rsrbxcvlnbwpiyhumqmt.supabase.co/rest/v1/trades?' + params);
-  console.log('[AURUM] usuario_email param:', 'eq.' + encodeURIComponent(emailActual), '| raw email:', emailActual);
+  console.log('[AURUM] usuario_email param:', 'eq.' + emailActual, '| raw email:', emailActual);
   var res = await supaGet('trades', params, token);
   if (res.error || !res.data) {
     console.error('[DASHBOARD] Error cargando trades:', res.error);
@@ -235,7 +235,7 @@ async function guardarOnboarding() {
   var btn = document.getElementById('onboarding-btn');
   if (btn) { btn.textContent = 'Guardando...'; btn.disabled = true; }
 
-  var res = await supaPatch('usuarios_aurum', 'email=eq.' + encodeURIComponent(usuarioActual.email),
+  var res = await supaPatch('usuarios_aurum', 'email=eq.' + usuarioActual.email,
     { animal: _animalElegido, nombre: nick, updated_at: new Date().toISOString() }, getToken());
 
   if (btn) { btn.textContent = 'Entrar al proceso →'; btn.disabled = false; }
