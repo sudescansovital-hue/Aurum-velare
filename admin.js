@@ -75,6 +75,7 @@ async function cargarUsuariosAdmin() {
       }
     }).then(r => r.ok ? r.json() : []).catch(() => []);
     resH = { data: resH, error: null };
+    console.log('[ADMIN] resH historiales:', JSON.stringify(resH));
     if (!resH.error && resH.data) {
       resH.data.forEach(function(row) {
         if (!adminHistorialesMap[row.usuario_email]) adminHistorialesMap[row.usuario_email] = {};
