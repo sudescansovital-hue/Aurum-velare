@@ -68,7 +68,13 @@ async function cargarUsuariosAdmin() {
   var emails = adminUsuarios.map(function(u) { return u.email; }).filter(Boolean);
   if (emails.length) {
     var emailsQ = 'usuario_email=in.(' + emails.map(encodeURIComponent).join(',') + ')&tipo=in.(Maestra,Prueba,Retos)&select=usuario_email,tipo,nombre,numero';
-    var resH = await supaGet('historiales', emailsQ, getToken());
+    var resH = await fetch('https://rsrbxcvlnbwpiyhumqmt.supabase.co/rest/v1/historiales?' + emailsQ, {
+      headers: {
+        'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzcmJ4Y3ZsbmJ3cGl5aHVtcW10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ4MTI0MDcsImV4cCI6MjA2MDM4ODQwN30.r3anoMDQAaHWHGsHiSNsQAqJGHGNYiZJhs9GEdFDCkA',
+        'Authorization': 'Bearer ' + getToken()
+      }
+    }).then(r => r.ok ? r.json() : []).catch(() => []);
+    resH = { data: resH, error: null };
     if (!resH.error && resH.data) {
       resH.data.forEach(function(row) {
         if (!adminHistorialesMap[row.usuario_email]) adminHistorialesMap[row.usuario_email] = {};
