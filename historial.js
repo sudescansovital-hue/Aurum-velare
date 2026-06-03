@@ -421,13 +421,22 @@ async function _actualizarEntradaHistorial(nombreCuenta, tipo, numeroCuenta) {
     HISTORIAL_CUENTAS.push(entrada);
   }
 
-  var patchRes = await supaPatch(
-    'historiales',
-    'usuario_email=eq.' + encodeURIComponent(usuarioActual.email) + '&nombre=eq.' + encodeURIComponent(nombre),
-    { tipo: tipo || 'real', numero: numeroCuenta || null },
-    token
-  );
-  if (patchRes.error) console.error('[HISTORIAL] Error guardando tipo:', patchRes.error);
+  var upsertRes = await fetch('https://rsrbxcvlnbwpiyhumqmt.supabase.co/rest/v1/historiales', {
+    method: 'POST',
+    headers: {
+      'apikey':        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzcmJ4Y3ZsbmJ3cGl5aHVtcW10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2NDYzNTAsImV4cCI6MjA5NTIyMjM1MH0.DpcY9s7DK7l4qVHmint9HQIJK6icnwnfbGvQ-XH15mY',
+      'Authorization': 'Bearer ' + (token || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzcmJ4Y3ZsbmJ3cGl5aHVtcW10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2NDYzNTAsImV4cCI6MjA5NTIyMjM1MH0.DpcY9s7DK7l4qVHmint9HQIJK6icnwnfbGvQ-XH15mY'),
+      'Content-Type':  'application/json',
+      'Prefer':        'resolution=merge-duplicates,return=minimal'
+    },
+    body: JSON.stringify({
+      usuario_email: usuarioActual.email,
+      nombre:        nombre,
+      tipo:          tipo || 'real',
+      numero:        numeroCuenta || null
+    })
+  });
+  if (!upsertRes.ok) { var _e = await upsertRes.text(); console.error('[HISTORIAL] Error upsert historiales:', _e); }
 
   // Re-render full list
   var lista = document.getElementById('hist-lista');
