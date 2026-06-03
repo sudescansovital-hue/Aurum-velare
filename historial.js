@@ -146,7 +146,7 @@ async function cargarHistorialDesdeSupabase() {
     HISTORIAL_CUENTAS.push({
       nombre:  nombreCuenta,
       numero:  _numeroDesdeNombre(nombreCuenta),
-      tipo:    'real',
+      tipo:    (trades.find(function(t) { return t.tipo; }) || {}).tipo || 'Externa',
       total:   trades.length,
       wins:    wins,
       pnl:     pnl,
@@ -417,6 +417,14 @@ async function _actualizarEntradaHistorial(nombreCuenta, tipo, numeroCuenta) {
   } else {
     HISTORIAL_CUENTAS.push(entrada);
   }
+
+  var patchRes = await supaPatch(
+    'historiales',
+    'usuario_email=eq.' + encodeURIComponent(usuarioActual.email) + '&nombre=eq.' + encodeURIComponent(nombre),
+    { tipo: tipo || 'real' },
+    token
+  );
+  if (patchRes.error) console.error('[HISTORIAL] Error guardando tipo:', patchRes.error);
 
   // Re-render full list
   var lista = document.getElementById('hist-lista');
