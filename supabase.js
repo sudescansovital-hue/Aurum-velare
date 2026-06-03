@@ -6,6 +6,8 @@
 const SUPA_URL = 'https://rsrbxcvlnbwpiyhumqmt.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzcmJ4Y3ZsbmJ3cGl5aHVtcW10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2NDYzNTAsImV4cCI6MjA5NTIyMjM1MH0.DpcY9s7DK7l4qVHmint9HQIJK6icnwnfbGvQ-XH15mY';
 
+var _supabaseClient = supabase.createClient(SUPA_URL, SUPA_KEY);
+
 function _headers(token) {
   var h = {
     'apikey': SUPA_KEY,

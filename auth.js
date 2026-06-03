@@ -19,10 +19,9 @@ async function signInWithPassword(email, password) {
 }
 
 async function signOut() {
-  if (!SESSION) return;
-  await supaAuthPost('/logout', {}, SESSION.access_token);
   SESSION = null;
   localStorage.removeItem(_AURUM_SK);
+  try { await _supabaseClient.auth.signOut(); } catch(e) {}
 }
 
 async function loadStoredSession() {

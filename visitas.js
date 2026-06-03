@@ -26,11 +26,20 @@ function verCuenta(cuenta) {
   window.cuentaActivaGestion = cuenta;
   window.yaBuiltGestion = {};
   Object.keys(cuentasBuilt).forEach(function(k){ delete cuentasBuilt[k]; });
-  if (typeof buildTradeRecord === 'function') buildTradeRecord();
-  if (cuenta === 'global')  buildGlobal();
-  if (cuenta === 'maestra') buildCuentaReal('maestra', 'Cuenta Maestra');
-  if (cuenta === 'retos')   buildCuentaReal('retos',   'Cuenta Retos');
-  if (cuenta === 'prueba')  buildCuentaReal('prueba',  'Cuenta Prueba');
+  var _cuentaSnap = cuenta;
+  function _doBuildVer() {
+    if (typeof buildTradeRecord === 'function') buildTradeRecord();
+    if (_cuentaSnap === 'global')  buildGlobal();
+    if (_cuentaSnap === 'maestra') buildCuentaReal('maestra', 'Cuenta Maestra');
+    if (_cuentaSnap === 'retos')   buildCuentaReal('retos',   'Cuenta Retos');
+    if (_cuentaSnap === 'prueba')  buildCuentaReal('prueba',  'Cuenta Prueba');
+  }
+  if (typeof cargarHistorialDesdeSupabase === 'function' &&
+      typeof HISTORIAL_CUENTAS !== 'undefined' && !HISTORIAL_CUENTAS.length) {
+    cargarHistorialDesdeSupabase().then(_doBuildVer);
+  } else {
+    _doBuildVer();
+  }
 }
 
 function getTrades(nombreCuenta) {

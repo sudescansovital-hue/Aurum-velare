@@ -26,6 +26,12 @@ async function _activarSesion(email) {
   if (typeof cuentasBuilt !== 'undefined') { Object.keys(cuentasBuilt).forEach(function(k){ delete cuentasBuilt[k]; }); }
   if (typeof HISTORIAL_CUENTAS !== 'undefined') HISTORIAL_CUENTAS = [];
   if (typeof HISTORIAL_ALL_FPS !== 'undefined') HISTORIAL_ALL_FPS = new Set();
+  var lista = document.getElementById('hist-lista');
+  if (lista) lista.innerHTML = '';
+  var el;
+  el = document.getElementById('hist-global-trades'); if (el) el.textContent = '0';
+  el = document.getElementById('hist-global-wr');     if (el) el.textContent = '0%';
+  el = document.getElementById('hist-global-pnl');    if (el) el.textContent = '+0$';
 
   const packMap  = { umbral:'Pack Umbral', raiz:'Pack Raíz', senda:'Pack Senda', cima:'Pack Cima', demo:'Pack Demo' };
   const animalMap = { umbral:'🐝', raiz:'🌱', senda:'🦅', cima:'🦁', demo:'🐂' };
@@ -191,13 +197,20 @@ async function actualizarDashboard() {
   if (!usuarioActual || usuarioActual.email !== emailActual) return;
   console.log('[AURUM] trades recibidos:', res.data.length, '| primer usuario_email en datos:', res.data[0] && res.data[0].usuario_email);
   window.AURUM_TRADES = { todos: res.data };
-  if (typeof buildDashboardHero       === 'function') buildDashboardHero();
-  if (typeof buildTradeRecord         === 'function') buildTradeRecord();
-  if (typeof buildCicloDots           === 'function') buildCicloDots();
-  if (typeof buildHorarios            === 'function') buildHorarios();
-  if (typeof buildEquity              === 'function') buildEquity();
-  if (typeof buildCumplimiento        === 'function') buildCumplimiento();
+  if (typeof buildDashboardHero         === 'function') buildDashboardHero();
+  if (typeof buildCicloDots             === 'function') buildCicloDots();
+  if (typeof buildHorarios              === 'function') buildHorarios();
+  if (typeof buildEquity                === 'function') buildEquity();
+  if (typeof buildCumplimiento          === 'function') buildCumplimiento();
   if (typeof buildEstadisticasAvanzadas === 'function') buildEstadisticasAvanzadas();
+  if (typeof cargarHistorialDesdeSupabase === 'function') {
+    cargarHistorialDesdeSupabase().then(function() {
+      if (!usuarioActual || usuarioActual.email !== emailActual) return;
+      if (typeof buildTradeRecord === 'function') buildTradeRecord();
+    });
+  } else if (typeof buildTradeRecord === 'function') {
+    buildTradeRecord();
+  }
 }
 
 // ── Onboarding ───────────────────────────────────────────────
@@ -245,6 +258,16 @@ async function guardarOnboarding() {
 // ── Init ─────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', async () => {
+  window.AURUM_TRADES = null;
+  if (typeof HISTORIAL_CUENTAS !== 'undefined') HISTORIAL_CUENTAS = [];
+  if (typeof HISTORIAL_ALL_FPS !== 'undefined') HISTORIAL_ALL_FPS = new Set();
+  var _hl = document.getElementById('hist-lista');
+  if (_hl) _hl.innerHTML = '';
+  var _he;
+  _he = document.getElementById('hist-global-trades'); if (_he) _he.textContent = '0';
+  _he = document.getElementById('hist-global-wr');     if (_he) _he.textContent = '0%';
+  _he = document.getElementById('hist-global-pnl');    if (_he) _he.textContent = '+0$';
+
   const p = document.getElementById('login-pass');
   const e = document.getElementById('login-email');
   if (p) p.addEventListener('keydown', ev => { if(ev.key==='Enter') hacerLogin(); });
