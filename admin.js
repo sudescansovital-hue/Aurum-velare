@@ -68,7 +68,7 @@ async function cargarUsuariosAdmin() {
   var emails = adminUsuarios.map(function(u) { return u.email; }).filter(Boolean);
   if (emails.length) {
     var emailsQ = 'usuario_email=in.(' + emails.map(encodeURIComponent).join(',') + ')&tipo=in.(Maestra,Prueba,Retos)&select=usuario_email,tipo,nombre,numero';
-    var resH = await supaGet('historiales', emailsQ);
+    var resH = await supaGet('historiales', emailsQ, getToken());
     if (!resH.error && resH.data) {
       resH.data.forEach(function(row) {
         if (!adminHistorialesMap[row.usuario_email]) adminHistorialesMap[row.usuario_email] = {};
