@@ -19,9 +19,10 @@ async function signInWithPassword(email, password) {
 }
 
 async function signOut() {
+  var token = SESSION ? SESSION.access_token : '';
   SESSION = null;
   localStorage.removeItem(_AURUM_SK);
-  try { await fetch(SUPA_URL+'/auth/v1/logout',{method:'POST',headers:{apikey:SUPA_KEY,'Authorization':'Bearer '+(SESSION?SESSION.access_token:''),'Content-Type':'application/json'}}); } catch(e) {}
+  try { await fetch(SUPA_URL+'/auth/v1/logout',{method:'POST',headers:{apikey:SUPA_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json'}}); } catch(e) {}
 }
 
 async function loadStoredSession() {
