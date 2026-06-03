@@ -70,7 +70,7 @@ async function cargarUsuariosAdmin() {
     var tradesData = [];
     for (var i = 0; i < emails.length; i++) {
       var em = emails[i];
-      var tUrl = 'https://rsrbxcvlnbwpiyhumqmt.supabase.co/rest/v1/trades?usuario_email=eq.' + encodeURIComponent(em) + '&select=usuario_email,nombre,numero&limit=500';
+      var tUrl = 'https://rsrbxcvlnbwpiyhumqmt.supabase.co/rest/v1/historiales?usuario_email=eq.' + encodeURIComponent(em) + '&select=usuario_email,nombre,numero&limit=500';
       var tRes = await fetch(tUrl, {
         headers: {
           'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzcmJ4Y3ZsbmJ3cGl5aHVtcW10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2NDYzNTAsImV4cCI6MjA5NTIyMjM1MH0.DpcY9s7DK7l4qVHmint9HQIJK6icnwnfbGvQ-XH15mY',
