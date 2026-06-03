@@ -70,7 +70,7 @@ async function cargarUsuariosAdmin() {
     var tradesData = [];
     for (var i = 0; i < emails.length; i++) {
       var em = emails[i];
-      var tUrl = 'https://rsrbxcvlnbwpiyhumqmt.supabase.co/rest/v1/trades?usuario_email=eq.' + encodeURIComponent(em) + '&select=usuario_email,cuenta&limit=500';
+      var tUrl = 'https://rsrbxcvlnbwpiyhumqmt.supabase.co/rest/v1/trades?usuario_email=eq.' + encodeURIComponent(em) + '&select=usuario_email,nombre,numero&limit=500';
       var tRes = await fetch(tUrl, {
         headers: {
           'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzcmJ4Y3ZsbmJ3cGl5aHVtcW10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2NDYzNTAsImV4cCI6MjA5NTIyMjM1MH0.DpcY9s7DK7l4qVHmint9HQIJK6icnwnfbGvQ-XH15mY',
@@ -84,12 +84,13 @@ async function cargarUsuariosAdmin() {
     }
     console.log('[ADMIN] trades para adminHistorialesMap:', tradesData.length);
     tradesData.forEach(function(t) {
-      var em = t.usuario_email; var c = (t.cuenta || '').toLowerCase();
-      if (!em || !c) return;
+      var em = t.usuario_email; var n = (t.nombre || '').toLowerCase();
+      if (!em || !n) return;
       if (!adminHistorialesMap[em]) adminHistorialesMap[em] = {};
-      if (c.includes('maestra') && !adminHistorialesMap[em].Maestra) adminHistorialesMap[em].Maestra = t.cuenta;
-      if (c.includes('retos')   && !adminHistorialesMap[em].Retos)   adminHistorialesMap[em].Retos   = t.cuenta;
-      if (c.includes('prueba')  && !adminHistorialesMap[em].Prueba)  adminHistorialesMap[em].Prueba  = t.cuenta;
+      var val = t.numero || t.nombre;
+      if (n.includes('maestra') && !adminHistorialesMap[em].Maestra) adminHistorialesMap[em].Maestra = val;
+      if (n.includes('retos')   && !adminHistorialesMap[em].Retos)   adminHistorialesMap[em].Retos   = val;
+      if (n.includes('prueba')  && !adminHistorialesMap[em].Prueba)  adminHistorialesMap[em].Prueba  = val;
     });
   }
 
