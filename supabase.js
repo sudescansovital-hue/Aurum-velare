@@ -65,7 +65,7 @@ async function supaAuthPost(path, body, token) {
     headers: Object.assign(_headers(token), { 'apikey': SUPA_KEY }),
     body: JSON.stringify(body)
   });
-  var data = await r.json();
+  var text = await r.text(); var data = text ? JSON.parse(text) : {};
   if (!r.ok) return { data: null, error: data.error_description || data.msg || JSON.stringify(data) };
   return { data, error: null };
 }
