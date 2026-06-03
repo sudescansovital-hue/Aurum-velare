@@ -75,10 +75,6 @@ async function cargarUsuariosAdmin() {
       }
     });
     var tradesData = _fetchT.ok ? await _fetchT.json() : [];
-    console.log('[ADMIN-DEBUG] fetch status:', _fetchT.status);
-    console.log('[ADMIN-DEBUG] fetch ok:', _fetchT.ok);
-    console.log('[ADMIN-DEBUG] tradesData type:', typeof tradesData, Array.isArray(tradesData));
-    console.log('[ADMIN-DEBUG] tradesData raw:', JSON.stringify(tradesData).substring(0, 300));
     console.log('[ADMIN] trades para adminHistorialesMap:', tradesData.length);
     tradesData.forEach(function(t) {
       var em = t.usuario_email; var c = (t.cuenta || '').toLowerCase();
