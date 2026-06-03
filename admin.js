@@ -67,14 +67,21 @@ async function cargarUsuariosAdmin() {
   adminHistorialesMap = {};
   var emails = adminUsuarios.map(function(u) { return u.email; }).filter(Boolean);
   if (emails.length) {
-    var tradesQ = 'usuario_email=in.(' + emails.map(function(e){ return '"' + e + '"'; }).join(',') + ')&select=usuario_email,cuenta&limit=5000';
-    var _fetchT = await fetch('https://rsrbxcvlnbwpiyhumqmt.supabase.co/rest/v1/trades?' + tradesQ, {
-      headers: {
-        'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzcmJ4Y3ZsbmJ3cGl5aHVtcW10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2NDYzNTAsImV4cCI6MjA5NTIyMjM1MH0.DpcY9s7DK7l4qVHmint9HQIJK6icnwnfbGvQ-XH15mY',
-        'Authorization': 'Bearer ' + getToken()
+    var tradesData = [];
+    for (var i = 0; i < emails.length; i++) {
+      var em = emails[i];
+      var tUrl = 'https://rsrbxcvlnbwpiyhumqmt.supabase.co/rest/v1/trades?usuario_email=eq.' + encodeURIComponent(em) + '&select=usuario_email,cuenta&limit=500';
+      var tRes = await fetch(tUrl, {
+        headers: {
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzcmJ4Y3ZsbmJ3cGl5aHVtcW10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2NDYzNTAsImV4cCI6MjA5NTIyMjM1MH0.DpcY9s7DK7l4qVHmint9HQIJK6icnwnfbGvQ-XH15mY',
+          'Authorization': 'Bearer ' + getToken()
+        }
+      });
+      if (tRes.ok) {
+        var tData = await tRes.json();
+        if (Array.isArray(tData)) tradesData = tradesData.concat(tData);
       }
-    });
-    var tradesData = _fetchT.ok ? await _fetchT.json() : [];
+    }
     console.log('[ADMIN] trades para adminHistorialesMap:', tradesData.length);
     tradesData.forEach(function(t) {
       var em = t.usuario_email; var c = (t.cuenta || '').toLowerCase();
