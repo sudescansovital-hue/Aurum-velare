@@ -119,8 +119,8 @@ async function cargarHistorialDesdeSupabase() {
 
   // Agrupar por cuenta — campo exacto usado en ambas tablas
   var porCuenta = {};
-  allData.forEach(function(t, i) {
-    var c = t.cuenta || '(sin cuenta)';
+  allData.forEach(function(t, i) 
+    var c = t.cuenta || t.nombre || null; if (!c) return;
     if (i < 3) console.log('[HISTORIAL] row[' + i + '] t.cuenta:', t.cuenta, '→ c:', c);
     if (!porCuenta[c]) porCuenta[c] = [];
     porCuenta[c].push(t);
