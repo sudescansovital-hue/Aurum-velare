@@ -1,6 +1,6 @@
 # AURUM VELARE — Arquitectura Web
 > Documento vivo. Se actualiza con el proyecto.  
-> Última actualización: 6 de junio de 2026  
+> Última actualización: 7 de junio de 2026  
 > Para uso interno — contexto de desarrollo y nuevas sesiones de trabajo.
 
 ---
@@ -29,7 +29,7 @@ Sistema web de acompañamiento para traders de XAU/USD. No es una academia ni un
 | **Carpeta de cuenta** | Cada usuario tiene exactamente 4: Maestra · Retos · Prueba · Externa |
 | **Historial Externo** | Carpeta "Externa" — agrupa todos los historiales que no son Maestra/Retos/Prueba |
 | **Ciclo 111** | Bloque de 111 trades. Unidad de medida del proceso Aurum |
-| **Etapa** | Nivel de progreso del usuario (0 a 5). Se gana con datos reales |
+| **Etapa** | Nivel de progreso del usuario (0 a 11). Se gana con datos reales |
 | **Animal** | Perfil de trader: Águila · Hormiga · León · Elefante · Oso · Toro · Lobo |
 | **OZT** | Moneda interna. Se gana en retos/ciclos/etapas o se compra. Se usa para resetear cuentas o entrar en retos especiales |
 | **Tablillas** | Sección filosófica inspirada en el Camino de Santiago |
@@ -43,7 +43,7 @@ Sistema web de acompañamiento para traders de XAU/USD. No es una academia ni un
 | Email | Usuario | Rol |
 |---|---|---|
 | roderastrader@gmail.com | Willian | Admin / Águila |
-| sudescansovital@gmail.com | Roderas | León · Etapa 3 · Proceso real |
+| sudescansovital@gmail.com | Roderas | León · Etapa 7 · Proceso real |
 | boli-al@hotmail.com | Mara | Hormiga · Pruebas |
 
 ---
@@ -83,8 +83,8 @@ Sistema web de acompañamiento para traders de XAU/USD. No es una academia ni un
 - **B1 — Hero:** "Trading XAU/USD con proceso real." + subtítulo + 2 botones CTA
 - **B2 — Qué es Aurum:** Texto filosófico + cita
 - **B3 — Los 7 animales:** Águila · Hormiga · León · Elefante · Oso · Toro · Lobo — cada uno con valores y enlace "Leer su historia"
-- **B4 — Las etapas:** 0=Silencio · 0.5=Umbral · 1=Estructura · 1.5=Fractura · 2=Claridad · 2.5=Consistencia · 3=Confianza · 4=Rentabilidad · 4.5=Vuelo · 5=✦Oro
-- **B5 — El marco:** Hasta etapa 2 lo define Aurum. A partir de etapa 2 lo construye el trader
+- **B4 — Las etapas:** 0=Descubrimiento · 1=Silencio · 2=Umbral · 3=Estructura · 4=Fractura · 5=Claridad · 6=Consistencia · 7=Confianza · 8=Paciencia · 9=Rentabilidad · 10=Vuelo · 11=✦Oro
+- **B5 — El marco:** Hasta etapa 5 lo define Aurum. A partir de etapa 5 lo construye el trader
 - **B6 — Historia de Roderas:** En proceso desde 2018. CTA reflexivo
 - **B7 — Acceso por tandas:** Modelo de acceso limitado + formulario "Apuntarme"
 
@@ -260,7 +260,7 @@ Página filosófica inspirada en el Camino de Santiago (~1 km del hogar de Roder
 Ranking de sala por OZT — siempre visible
 
 ### Etapas
-0=Silencio · 0.5=Umbral · 1=Estructura · 1.5=Fractura · 2=Claridad · 2.5=Consistencia · 3=Confianza · 4=Rentabilidad · 4.5=Vuelo · 5=✦Oro
+0=Descubrimiento · 1=Silencio · 2=Umbral · 3=Estructura · 4=Fractura · 5=Claridad · 6=Consistencia · 7=Confianza · 8=Paciencia · 9=Rentabilidad · 10=Vuelo · 11=✦Oro
 
 ### Pendiente V1
 - → Lógica de etapas: contenido diferente según etapa (usuarios en etapas bajas solo ven Trade Record e Historial Externo)
@@ -285,7 +285,7 @@ Ranking de sala por OZT — siempre visible
 |---|---|---|
 | 1 | Parser cTrader no testeado | No se puede verificar que los historiales se importen bien |
 | 2 | Al subir historial aparece Challenge/Demo en lugar de Maestra/Retos/Prueba/Externa | Los datos se asignan a la carpeta incorrecta |
-| 3 | Aparece entrada "(sin cuenta)" — el sistema no asigna la carpeta al subir | Datos huérfanos fuera de las 4 carpetas |
+| 3 | ~~Aparece entrada "(sin cuenta)" — el sistema no asigna la carpeta al subir~~ **✅ RESUELTA** | — |
 | 4 | Saldo OZT muestra 0 disponibles con 247 en histórico | El cálculo disponible = histórico - gastado está roto |
 | 5 | Sección Retos no muestra historial completo | El usuario no ve todos sus retos completados |
 | 6 | Verificar Ciclo111/Horarios/Equity/Cumplimiento contra historial externo real | Posibles datos incorrectos en el Trade Record |
@@ -305,15 +305,48 @@ Ranking de sala por OZT — siempre visible
 6. Mensaje de bloqueo correcto en Mi Proceso y Mi Gestión sin Camino
 7. Cambiar "pack" → "Camino" y "Ver los Packs" → "Ver los Caminos" en toda la web
 8. Quitar "Nueva entrada" de pestañas que no lo necesitan
+9. Actualizar lógica interna que use claves de etapa antiguas (e0,e05,e1...e5) a nuevas (e0-e11)
 
 ### ⚪ Backlog
-9. Panel admin: gestión de cuentas, numeración, asignación de etapas
-10. Lógica de etapas: contenido diferente por etapa
-11. Sala privada: acceso por código del Águila
-12. Tablillas: integración con red social
-13. Tablilla física: proceso de pedido y envío
-14. SEO · páginas legales · Stripe/desistimiento
-15. Subida de 3 historiales pendientes de Roderas
+10. Panel admin: gestión de cuentas, numeración, asignación de etapas
+11. Lógica de etapas: contenido diferente por etapa (ahora 12 etapas, 0–11)
+12. Sala privada: acceso por código del Águila
+13. Tablillas: integración con red social
+14. Tablilla física: proceso de pedido y envío
+15. SEO · páginas legales · Stripe/desistimiento
+16. Subida de 3 historiales pendientes de Roderas
+
+---
+
+## ESTADO HOY — 07/06/2026
+
+### Completado en esta sesión
+
+**Sistema de etapas — migración a integers (e0–e11)**
+- Grid de etapas rediseñado en `index.html` (ambos repos):
+  - Fila superior full-width: **0 — Descubrimiento**
+  - Dos filas de 5 columnas: e1–e5 · e6–e10
+  - Fila inferior full-width: **11 — ✦ Oro**
+  - Añadida etapa **8 — Paciencia** entre Confianza y Rentabilidad
+- `ETAPAS_DATA` actualizado en `aurum-web-base/index.html`, `aurum-web-v1/index.html` y `aurum-web-v1/js/datos.js`:
+  - Claves antiguas (e0,e05,e1,e15,e2,e25,e3,e7,e4,e45,e5) → claves nuevas (e0–e11)
+  - Nums enteros 0–11 (antes decimales 0–5)
+  - Contenido (body/cita) preservado y reasignado correctamente
+  - Cita de Oro actualizada: "cinco" → "once"
+- `select#admin-edit-etapa` actualizado a las 12 etapas enteras (0–11)
+- Bug #3 resuelto: entrada "(sin cuenta)" corregida
+
+**Estructura repos**
+- `aurum-web-v1`: módulos JS migrados desde base y organizados en `pages/` y `js/`
+- Rutas `<script src>` en `index.html` actualizadas para estructura v1
+- Ambos repos pusheados a GitHub (main)
+
+### Estado actual por repo
+
+| Repo | Branch | Último commit |
+|---|---|---|
+| sudescansovital-hue/Aurum-velare | main | feat: actualizar ETAPAS_DATA a claves e0-e11 |
+| sudescansovital-hue/aurum-web-v1 | main | feat: actualizar ETAPAS_DATA a claves e0-e11 |
 
 ---
 
