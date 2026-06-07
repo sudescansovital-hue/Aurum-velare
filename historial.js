@@ -354,7 +354,9 @@ function histSubir(file) {
       var _tipoMap = { maestra: { col: 'cuenta_maestra', label: 'Maestra' }, retos: { col: 'cuenta_retos', label: 'Retos' }, prueba: { col: 'cuenta_prueba', label: 'Prueba' } };
       console.log('[HISTORIAL] Número no en CUENTAS_AURUM — tipoSel:', JSON.stringify(_tipoSel));
       if (_tipoMap[_tipoSel]) {
-        console.log('[HISTORIAL] Mostrando modal para:', numeroCuenta);
+        console.log('[MODAL TEST] numeroCuenta:', numeroCuenta);
+        console.log('[MODAL TEST] tipoSel:', document.getElementById('hist-tipo') ? document.getElementById('hist-tipo').value : 'NO EXISTE');
+        console.log('[MODAL TEST] en CUENTAS_AURUM:', CUENTAS_AURUM[numeroCuenta]);
         var _confirmado = await _confirmarNumeroCuenta(numeroCuenta, _tipoMap[_tipoSel].label);
         if (_confirmado) {
           var _patchData = {}; _patchData[_tipoMap[_tipoSel].col] = numeroCuenta;
