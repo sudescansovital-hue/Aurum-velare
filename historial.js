@@ -365,6 +365,18 @@ function histSubir(file) {
     } else if (!nombreFinal) {
       nombreFinal = 'Cuenta Externa';
     }
+    // Safety net: si nombreFinal sigue siendo Cuenta Externa pero el desplegable tiene Maestra/Retos/Prueba, sobreescribir
+    var _tipoFinal = ((document.getElementById('hist-tipo') || {}).value || '').toLowerCase();
+    var _tipoMapFinal = { maestra: { col: 'cuenta_maestra', label: 'Maestra' }, retos: { col: 'cuenta_retos', label: 'Retos' }, prueba: { col: 'cuenta_prueba', label: 'Prueba' } };
+    if (nombreFinal === 'Cuenta Externa' && _tipoMapFinal[_tipoFinal]) {
+      nombreFinal = 'Cuenta ' + _tipoMapFinal[_tipoFinal].label;
+      if (numeroCuenta) {
+        var _pd2 = {}; _pd2[_tipoMapFinal[_tipoFinal].col] = numeroCuenta;
+        await supaPatch('usuarios_aurum', 'email=eq.' + encodeURIComponent(usuarioActual.email), _pd2, getToken());
+        CUENTAS_AURUM[numeroCuenta] = nombreFinal;
+      }
+      console.log('[HISTORIAL] Safety net — override por desplegable:', nombreFinal, '| numeroCuenta:', numeroCuenta);
+    }
     console.log('[HISTORIAL] nombreFinal final:', nombreFinal);
     var fps_nuevos = trades.filter(function(t) { return !HISTORIAL_ALL_FPS.has(nombreFinal + '|' + (t.fp || '')); });
     var dups = trades.length - fps_nuevos.length;
