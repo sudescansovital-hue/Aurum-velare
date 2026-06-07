@@ -1,6 +1,18 @@
 # AURUM VELARE — Bugs y Prioridades
 > Archivo de referencia rápida. Ver ARQUITECTURA.md para contexto completo.  
-> Última actualización: 6 de junio de 2026
+> Última actualización: 7 de junio de 2026
+
+---
+
+## ✅ Resueltos hoy — 07/06/2026
+
+| # | Dónde | Qué era | Solución aplicada |
+|---|---|---|---|
+| 2 | Mi Gestión · subida | Tipo de cuenta aparecía como Challenge/Demo | Asignación directa por desplegable `hist-tipo` sin preguntar. Safety net: desplegable gana sobre detección automática si hay conflicto |
+| 3 | Mi Gestión · subida | Aparecía entrada "(sin cuenta)" huérfana | Detección de número de cuenta desde filename → lookup en `CUENTAS_AURUM`. Si no coincide → Externa. Nunca huérfana |
+| — | Mi Gestión · subida | Duplicados al subir el mismo archivo | check-then-PATCH-or-INSERT por `user_id` + `nombre_archivo` antes de cada INSERT |
+| — | Las Salas | Visitante sin sesión podía intentar entrar a sala | `entrarSala()` bloqueada para visitantes. Guard en botón principal y en todos los `onclick` de sala |
+| — | Auth | Solo había login, sin registro | Tabs login/registro en el mismo modal. Verificación de email obligatoria al registrarse (Supabase) |
 
 ---
 
@@ -9,8 +21,6 @@
 | # | Dónde | Qué falla | Qué debe pasar |
 |---|---|---|---|
 | 1 | Mi Gestión · subida | Parser cTrader no testeado | Verificar que importa operaciones correctamente |
-| 2 | Mi Gestión · subida | Tipo de cuenta aparece como Challenge/Demo | Debe asignar: Maestra · Retos · Prueba · Externa |
-| 3 | Mi Gestión · subida | Aparece entrada "(sin cuenta)" | Si no detecta la cuenta → error, no crea entrada huérfana |
 | 4 | OZT | Saldo disponible = 0 con histórico = 247 | Disponible = histórico total - OZT gastados |
 | 5 | Retos | Historial de retos completados incompleto | Mostrar todos los retos completados del usuario |
 

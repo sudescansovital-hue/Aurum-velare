@@ -1,6 +1,6 @@
 # AURUM VELARE — Arquitectura Web
 > Documento vivo. Se actualiza con el proyecto.  
-> Última actualización: 6 de junio de 2026  
+> Última actualización: 7 de junio de 2026  
 > Para uso interno — contexto de desarrollo y nuevas sesiones de trabajo.
 
 ---
@@ -128,7 +128,8 @@ Sistema web de acompañamiento para traders de XAU/USD. No es una academia ni un
 **Estado V1:** Revisar lógica de acceso
 
 ### Lógica de acceso
-- **Sin Camino:** Ve todas las salas con estado (En vivo / Cerrada) pero NO puede entrar
+- **Visitante (sin sesión):** Ve todas las salas con estado pero `entrarSala()` está bloqueada. Si intenta entrar → redirige al login. Bloqueo aplicado tanto en el botón principal como en todos los `onclick` de sala.
+- **Sin Camino (con sesión):** Ve todas las salas con estado (En vivo / Cerrada) pero NO puede entrar
 - **Con Camino:** Entra a su sala de animal + salas abiertas + extras asignadas por el Águila
 - **Con Camino Cima:** Entra a todas las salas sin restricción
 
@@ -161,6 +162,13 @@ Sistema web de acompañamiento para traders de XAU/USD. No es una academia ni un
 **Acceso:** Público para evaluación · Privado (requiere Camino) para Trade Record  
 **Estado V1:** Bugs activos en subida de historiales
 
+### Autenticación y registro
+
+- **Login / Registro:** Tabs en la misma pantalla. Registro requiere email + contraseña.
+- **Verificación de email:** Al registrarse, Supabase envía un email de confirmación. El usuario debe verificarlo antes de poder acceder a funcionalidades privadas. Sin verificar → tratado como visitante.
+
+---
+
 ### Vista pública — Evaluación 33€
 - Mínimo 111 trades en XAU/USD
 - Análisis: win rate · R/R · esperanza · horas · lotajes · cumplimiento
@@ -169,6 +177,15 @@ Sistema web de acompañamiento para traders de XAU/USD. No es una academia ni un
 - Pago por Stripe · código por email inmediatamente
 
 ### Vista privada — Trade Record (usuarios con Camino)
+
+#### Flujo de subida de historiales — lógica actual (07/06/2026)
+
+El sistema sigue este orden de prioridad para asignar la carpeta al subir un CSV:
+
+1. **Desplegable `hist-tipo`:** Si el usuario seleccionó Maestra / Retos / Prueba → asignación directa, sin preguntar.
+2. **Safety net por desplegable:** Si la detección por filename dice "Cuenta Externa" pero el desplegable dice Maestra/Retos/Prueba → el desplegable gana y sobreescribe.
+3. **Detección por número desde filename:** Se extrae el número de cuenta del nombre del archivo CSV y se busca en `CUENTAS_AURUM` (tabla `usuarios_aurum`). Si coincide → carpeta correspondiente. Si no coincide → carpeta `Externa`.
+4. **Bloqueo de duplicados:** Antes de insertar se comprueba si ya existe un registro con el mismo `user_id` + `nombre_archivo`. Si existe → PATCH (actualiza). Si no → INSERT. Nunca dos entradas con el mismo archivo.
 
 #### Las 4 carpetas fijas por usuario
 Cada usuario tiene EXACTAMENTE estas 4 carpetas. El sistema asigna cada historial subido automáticamente:
@@ -284,11 +301,17 @@ Ranking de sala por OZT — siempre visible
 | # | Bug | Impacto |
 |---|---|---|
 | 1 | Parser cTrader no testeado | No se puede verificar que los historiales se importen bien |
-| 2 | Al subir historial aparece Challenge/Demo en lugar de Maestra/Retos/Prueba/Externa | Los datos se asignan a la carpeta incorrecta |
-| 3 | Aparece entrada "(sin cuenta)" — el sistema no asigna la carpeta al subir | Datos huérfanos fuera de las 4 carpetas |
 | 4 | Saldo OZT muestra 0 disponibles con 247 en histórico | El cálculo disponible = histórico - gastado está roto |
 | 5 | Sección Retos no muestra historial completo | El usuario no ve todos sus retos completados |
 | 6 | Verificar Ciclo111/Horarios/Equity/Cumplimiento contra historial externo real | Posibles datos incorrectos en el Trade Record |
+
+## ✅ RESUELTOS (07/06/2026)
+
+| # | Bug | Solución |
+|---|---|---|
+| 2 | Al subir historial aparece Challenge/Demo en lugar de Maestra/Retos/Prueba/Externa | Asignación directa sin modal según desplegable `hist-tipo`. Safety net: si detección da Externa pero desplegable indica otra → desplegable gana |
+| 3 | Aparece entrada "(sin cuenta)" — sistema no asigna carpeta al subir | Detección dinámica por número de cuenta desde filename + lookup en `CUENTAS_AURUM`. Sin coincidencia → Externa (nunca huérfana) |
+| — | Duplicados al subir el mismo archivo varias veces | check-then-PATCH-or-INSERT por `user_id` + `nombre_archivo` antes de cada subida |
 
 ---
 
@@ -296,9 +319,8 @@ Ranking de sala por OZT — siempre visible
 
 ### 🔴 Urgente
 1. Testear parser cTrader
-2. Corregir asignación de carpeta al subir historial (Maestra/Retos/Prueba/Externa)
-3. Corregir cálculo saldo OZT disponible
-4. Historial completo en sección Retos
+2. Corregir cálculo saldo OZT disponible
+3. Historial completo en sección Retos
 
 ### 🟡 Importante
 5. Verificar datos Trade Record contra historial real
