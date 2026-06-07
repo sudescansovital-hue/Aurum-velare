@@ -284,6 +284,27 @@ function _nombreCuentaDesdeHISTORIAL(fps) {
   return found;
 }
 
+function _confirmarNumeroCuenta(numero, label) {
+  return new Promise(function(resolve) {
+    var existing = document.getElementById('modal-confirmar-cuenta');
+    if (existing) existing.remove();
+    var modal = document.createElement('div');
+    modal.id = 'modal-confirmar-cuenta';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;z-index:9999';
+    modal.innerHTML =
+      '<div style="background:var(--bg2,#1a1a2e);border:1px solid var(--gold,#c9a84c);border-radius:12px;padding:32px;max-width:400px;width:90%;text-align:center">' +
+        '<p style="color:var(--text,#e0e0e0);margin:0 0 24px;line-height:1.6">¿Confirmas que el número <strong style="color:var(--gold,#c9a84c)">' + numero + '</strong> es tu cuenta <strong>' + label + '</strong>?</p>' +
+        '<div style="display:flex;gap:12px;justify-content:center">' +
+          '<button id="btn-cc-confirmar" style="background:var(--gold,#c9a84c);color:#000;border:none;padding:10px 28px;border-radius:8px;cursor:pointer;font-weight:bold">Confirmar</button>' +
+          '<button id="btn-cc-cancelar" style="background:transparent;color:var(--text,#e0e0e0);border:1px solid var(--border,#333);padding:10px 28px;border-radius:8px;cursor:pointer">Cancelar</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(modal);
+    document.getElementById('btn-cc-confirmar').onclick = function() { modal.remove(); resolve(true); };
+    document.getElementById('btn-cc-cancelar').onclick  = function() { modal.remove(); resolve(false); };
+  });
+}
+
 function histDrop(event) {
   var file = event.dataTransfer.files[0];
   if (file) histSubir(file);
@@ -325,9 +346,27 @@ function histSubir(file) {
     var numeroCuenta = _detDeRaw || _detDeFile;
     console.log('[HISTORIAL] numeroCuenta final:', JSON.stringify(numeroCuenta), '| CUENTAS_AURUM[numeroCuenta]:', CUENTAS_AURUM[numeroCuenta]);
     if (!nombreFinal) {
-      nombreFinal = (numeroCuenta && CUENTAS_AURUM[numeroCuenta])
-        ? CUENTAS_AURUM[numeroCuenta]
-        : 'Cuenta Externa';
+      if (numeroCuenta && CUENTAS_AURUM[numeroCuenta]) {
+        nombreFinal = CUENTAS_AURUM[numeroCuenta];
+      } else if (numeroCuenta) {
+        var _tipoSel = (document.getElementById('hist-tipo') || {}).value || '';
+        var _tipoMap = { maestra: { col: 'cuenta_maestra', label: 'Maestra' }, retos: { col: 'cuenta_retos', label: 'Retos' }, prueba: { col: 'cuenta_prueba', label: 'Prueba' } };
+        if (_tipoMap[_tipoSel]) {
+          var _confirmado = await _confirmarNumeroCuenta(numeroCuenta, _tipoMap[_tipoSel].label);
+          if (_confirmado) {
+            var _patchData = {}; _patchData[_tipoMap[_tipoSel].col] = numeroCuenta;
+            await supaPatch('usuarios_aurum', 'email=eq.' + encodeURIComponent(usuarioActual.email), _patchData, getToken());
+            CUENTAS_AURUM[numeroCuenta] = 'Cuenta ' + _tipoMap[_tipoSel].label;
+            nombreFinal = 'Cuenta ' + _tipoMap[_tipoSel].label;
+          } else {
+            nombreFinal = 'Cuenta Externa';
+          }
+        } else {
+          nombreFinal = 'Cuenta Externa';
+        }
+      } else {
+        nombreFinal = 'Cuenta Externa';
+      }
     }
     console.log('[HISTORIAL] nombreFinal asignado:', nombreFinal);
     var fps_nuevos = trades.filter(function(t) { return !HISTORIAL_ALL_FPS.has(nombreFinal + '|' + (t.fp || '')); });
