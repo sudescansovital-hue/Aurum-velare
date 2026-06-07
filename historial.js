@@ -282,42 +282,6 @@ function _nombreCuentaDesdeHISTORIAL(fps) {
   return found;
 }
 
-function _preguntarCarpeta(numeroCuenta) {
-  return new Promise(function(resolve) {
-    var modal = document.getElementById('hist-carpeta-modal');
-    if (!modal) {
-      modal = document.createElement('div');
-      modal.id = 'hist-carpeta-modal';
-      modal.style.cssText = 'position:fixed;inset:0;background:#00000099;display:flex;align-items:center;justify-content:center;z-index:500;';
-      modal.innerHTML =
-        '<div style="background:var(--bg2);border:1px solid var(--border-gold);padding:2rem;max-width:400px;width:90%;">' +
-          '<div style="font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);margin-bottom:.4rem;">Cuenta no reconocida</div>' +
-          '<div id="hist-carpeta-num" style="font-family:\'Cormorant Garamond\',serif;font-size:22px;color:var(--text);margin-bottom:.8rem;"></div>' +
-          '<p style="font-size:14px;color:var(--text-muted);margin-bottom:1.5rem;">¿A qué carpeta pertenece esta cuenta?</p>' +
-          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;">' +
-            '<button data-carpeta="Cuenta Maestra" style="background:var(--bg3);border:1px solid var(--border);color:var(--text-dim);padding:.7rem;font-size:13px;cursor:pointer;letter-spacing:.05em;">Maestra</button>' +
-            '<button data-carpeta="Cuenta Retos"   style="background:var(--bg3);border:1px solid var(--border);color:var(--text-dim);padding:.7rem;font-size:13px;cursor:pointer;letter-spacing:.05em;">Retos</button>' +
-            '<button data-carpeta="Cuenta Prueba"  style="background:var(--bg3);border:1px solid var(--border);color:var(--text-dim);padding:.7rem;font-size:13px;cursor:pointer;letter-spacing:.05em;">Prueba</button>' +
-            '<button data-carpeta="Cuenta Externa" style="background:var(--bg3);border:1px solid var(--border);color:var(--text-muted);padding:.7rem;font-size:13px;cursor:pointer;letter-spacing:.05em;">Externa</button>' +
-          '</div>' +
-        '</div>';
-      document.body.appendChild(modal);
-    }
-
-    document.getElementById('hist-carpeta-num').textContent = numeroCuenta;
-    modal.style.display = 'flex';
-
-    modal.querySelectorAll('button[data-carpeta]').forEach(function(btn) {
-      var fresh = btn.cloneNode(true);
-      btn.parentNode.replaceChild(fresh, btn);
-      fresh.addEventListener('click', function() {
-        modal.style.display = 'none';
-        resolve(fresh.dataset.carpeta);
-      });
-    });
-  });
-}
-
 function histDrop(event) {
   var file = event.dataTransfer.files[0];
   if (file) histSubir(file);
@@ -326,7 +290,6 @@ function histDrop(event) {
 function histSubir(file) {
   if (!file) return;
   var msg = document.getElementById('hist-msg');
-  var nombre = (document.getElementById('hist-nombre').value || '').trim();
   msg.textContent = '';
   document.getElementById('hist-progreso').style.display = 'block';
   document.getElementById('hist-prog-bar').style.width = '30%';
@@ -355,21 +318,9 @@ function histSubir(file) {
     // 3. Detectar número de cuenta del archivo y comparar con CUENTAS_AURUM
     var numeroCuenta = detectarNumeroCuentaDeRaw(raw) || _numeroDesdeFichero(raw, file.name);
     if (!nombreFinal) {
-      if (numeroCuenta && !CUENTAS_AURUM[numeroCuenta]) {
-        nombreFinal = await _preguntarCarpeta(numeroCuenta);
-        CUENTAS_AURUM[numeroCuenta] = nombreFinal;
-        var _colMap = { 'Cuenta Maestra': 'cuenta_maestra', 'Cuenta Retos': 'cuenta_retos', 'Cuenta Prueba': 'cuenta_prueba' };
-        var _col = _colMap[nombreFinal];
-        if (_col && window.usuarioActual) {
-          var _patch = {}; _patch[_col] = numeroCuenta;
-          await supaPatch('usuarios_aurum', 'email=eq.' + encodeURIComponent(usuarioActual.email), _patch, getToken());
-          console.log('[HISTORIAL] guardado', _col, '=', numeroCuenta, 'en usuarios_aurum');
-        }
-      } else {
-        nombreFinal = (numeroCuenta && CUENTAS_AURUM[numeroCuenta])
-          ? CUENTAS_AURUM[numeroCuenta]
-          : 'Cuenta Externa';
-      }
+      nombreFinal = (numeroCuenta && CUENTAS_AURUM[numeroCuenta])
+        ? CUENTAS_AURUM[numeroCuenta]
+        : 'Cuenta Externa';
     }
     console.log('[HISTORIAL] numeroCuenta:', numeroCuenta, '| nombreFinal:', nombreFinal);
     var fps_nuevos = trades.filter(function(t) { return !HISTORIAL_ALL_FPS.has(nombreFinal + '|' + (t.fp || '')); });
