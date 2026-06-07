@@ -49,6 +49,10 @@ var JITSI_ROOMS = {
 // ── Entrar / salir ──────────────────────────────────────────
 
 function entrarSala(tipo) {
+  if (typeof usuarioActual === 'undefined' || !usuarioActual) {
+    showToast('Esta sala es solo para miembros. Necesitas un Camino para entrar.');
+    return;
+  }
   salaActualTipo = tipo;
   document.getElementById('salas-lista').style.display   = 'none';
   document.getElementById('sala-interior').style.display = 'block';
