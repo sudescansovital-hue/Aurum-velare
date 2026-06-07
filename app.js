@@ -17,6 +17,24 @@ function cerrarLogin() {
   document.getElementById('login-err').textContent = '';
 }
 
+function mostrarFormLogin() {
+  document.getElementById('login-form').style.display    = 'block';
+  document.getElementById('registro-form').style.display = 'none';
+  var tl = document.getElementById('tab-login');
+  var tr = document.getElementById('tab-registro');
+  if (tl) { tl.style.color = 'var(--gold)'; tl.style.borderBottom = '2px solid var(--gold)'; }
+  if (tr) { tr.style.color = 'var(--text2)'; tr.style.borderBottom = '2px solid transparent'; }
+}
+
+function mostrarFormRegistro() {
+  document.getElementById('login-form').style.display    = 'none';
+  document.getElementById('registro-form').style.display = 'block';
+  var tl = document.getElementById('tab-login');
+  var tr = document.getElementById('tab-registro');
+  if (tl) { tl.style.color = 'var(--text2)'; tl.style.borderBottom = '2px solid transparent'; }
+  if (tr) { tr.style.color = 'var(--gold)'; tr.style.borderBottom = '2px solid var(--gold)'; }
+}
+
 async function _activarSesion(email) {
   const perfil = await supaGet('usuarios_aurum', 'email=eq.' + email + '&limit=1', getToken());
   if (perfil.error || !perfil.data || !perfil.data.length) return false;
@@ -60,6 +78,40 @@ async function _activarSesion(email) {
   return true;
 }
 
+async function hacerRegistro() {
+  var email  = (document.getElementById('reg-email').value  || '').trim().toLowerCase();
+  var pass   = (document.getElementById('reg-pass').value   || '').trim();
+  var nick   = (document.getElementById('reg-nick').value   || '').trim();
+  var animal = (document.getElementById('reg-animal').value || '').trim();
+  var err    = document.getElementById('registro-err');
+
+  if (!email)         { err.textContent = 'Escribe tu email.'; return; }
+  if (!pass)          { err.textContent = 'Escribe una contraseña.'; return; }
+  if (pass.length < 6){ err.textContent = 'La contraseña debe tener al menos 6 caracteres.'; return; }
+  if (!nick)          { err.textContent = 'Escribe tu nick.'; return; }
+  if (!animal)        { err.textContent = 'Elige tu animal.'; return; }
+  err.textContent = '';
+
+  var auth = await supaAuthPost('/signup', { email: email, password: pass });
+  if (auth.error) { err.textContent = auth.error; return; }
+
+  await supaPost('usuarios_aurum', {
+    email:   email,
+    nombre:  nick,
+    animal:  animal,
+    pack:    'sin_pack',
+    etapa:   0,
+    activo:  false
+  });
+
+  document.getElementById('registro-form').innerHTML =
+    '<div style="text-align:center;padding:2rem 0;">' +
+      '<div style="font-size:1.4rem;color:var(--gold);margin-bottom:1rem;">✦</div>' +
+      '<p style="color:var(--text1);margin-bottom:.5rem;">Revisa tu email para verificar tu cuenta.</p>' +
+      '<p style="color:var(--text2);font-size:.875rem;">Una vez verificada podrás iniciar sesión.</p>' +
+    '</div>';
+}
+
 async function hacerLogin() {
   const email = (document.getElementById('login-email').value||'').trim().toLowerCase();
   const pass  = (document.getElementById('login-pass').value||'').trim();
@@ -68,6 +120,12 @@ async function hacerLogin() {
 
   const auth = await signInWithPassword(email, pass);
   if (auth.error) { err.textContent = auth.error; return; }
+
+  if (auth.user && !auth.user.email_confirmed_at) {
+    await signOut();
+    err.textContent = 'Debes verificar tu email antes de entrar. Revisa tu bandeja de entrada.';
+    return;
+  }
 
   const ok = await _activarSesion(email);
   if (!ok) { err.textContent = 'Usuario no encontrado en el sistema.'; return; }
