@@ -447,22 +447,19 @@ async function _actualizarEntradaHistorial(nombreCuenta, tipo, numeroCuenta) {
     HISTORIAL_CUENTAS.push(entrada);
   }
 
-  var upsertRes = await fetch('https://rsrbxcvlnbwpiyhumqmt.supabase.co/rest/v1/historiales', {
-    method: 'POST',
-    headers: {
-      'apikey':        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzcmJ4Y3ZsbmJ3cGl5aHVtcW10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2NDYzNTAsImV4cCI6MjA5NTIyMjM1MH0.DpcY9s7DK7l4qVHmint9HQIJK6icnwnfbGvQ-XH15mY',
-      'Authorization': 'Bearer ' + (token || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzcmJ4Y3ZsbmJ3cGl5aHVtcW10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2NDYzNTAsImV4cCI6MjA5NTIyMjM1MH0.DpcY9s7DK7l4qVHmint9HQIJK6icnwnfbGvQ-XH15mY'),
-      'Content-Type':  'application/json',
-      'Prefer':        'resolution=merge-duplicates,return=minimal'
-    },
-    body: JSON.stringify({
-      usuario_email: usuarioActual.email,
-      nombre:        nombre,
-      tipo:          tipo || 'real',
-      numero:        numeroCuenta || null
-    })
-  });
-  if (!upsertRes.ok) { var _e = await upsertRes.text(); console.error('[HISTORIAL] Error upsert historiales:', _e); }
+  var _hFilter = 'usuario_email=eq.' + encodeURIComponent(usuarioActual.email) +
+                 '&nombre=eq.'        + encodeURIComponent(nombre) + '&limit=1';
+  var _hCheck = await supaGet('historiales', _hFilter, token);
+  var _hData  = { usuario_email: usuarioActual.email, nombre: nombre, tipo: tipo || 'real', numero: numeroCuenta || null };
+  var _hRes;
+  if (!_hCheck.error && _hCheck.data && _hCheck.data.length) {
+    _hRes = await supaPatch('historiales', _hFilter, _hData, token);
+    console.log('[HISTORIAL] PATCH historiales — nombre:', nombre);
+  } else {
+    _hRes = await supaPost('historiales', _hData, token);
+    console.log('[HISTORIAL] INSERT historiales — nombre:', nombre);
+  }
+  if (_hRes && _hRes.error) console.error('[HISTORIAL] Error guardando historiales:', _hRes.error);
 
   // Re-render full list
   var lista = document.getElementById('hist-lista');
