@@ -70,6 +70,7 @@ async function init_historial() {
   if (window.usuarioActual && window.usuarioActual.email) {
     var perfil = await supaGet('usuarios_aurum',
       'email=eq.' + encodeURIComponent(usuarioActual.email) + '&limit=1', getToken());
+    console.log('[HISTORIAL] supaGet usuarios_aurum resultado completo:', JSON.stringify(perfil));
     if (!perfil.error && perfil.data && perfil.data.length) {
       var u = perfil.data[0];
       if (u.cuenta_maestra) CUENTAS_AURUM[u.cuenta_maestra] = 'Cuenta Maestra';
