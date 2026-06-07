@@ -290,10 +290,10 @@ function _confirmarNumeroCuenta(numero, label) {
     if (existing) existing.remove();
     var modal = document.createElement('div');
     modal.id = 'modal-confirmar-cuenta';
-    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;z-index:9999';
+    modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.82);display:flex;align-items:center;justify-content:center;z-index:99999';
     modal.innerHTML =
-      '<div style="background:var(--bg2,#1a1a2e);border:1px solid var(--gold,#c9a84c);border-radius:12px;padding:32px;max-width:400px;width:90%;text-align:center">' +
-        '<p style="color:var(--text,#e0e0e0);margin:0 0 24px;line-height:1.6">¿Confirmas que el número <strong style="color:var(--gold,#c9a84c)">' + numero + '</strong> es tu cuenta <strong>' + label + '</strong>?</p>' +
+      '<div style="background:#0d1120;border:1px solid var(--gold,#c9a84c);border-radius:12px;padding:32px;max-width:420px;width:90%;text-align:center;position:relative;z-index:100000">' +
+        '<p style="color:#e0e0e0;margin:0 0 24px;line-height:1.6;font-size:15px">Hemos detectado el número <strong style="color:var(--gold,#c9a84c)">' + numero + '</strong>.<br>¿Es tu cuenta <strong>' + label + '</strong>?</p>' +
         '<div style="display:flex;gap:12px;justify-content:center">' +
           '<button id="btn-cc-confirmar" style="background:var(--gold,#c9a84c);color:#000;border:none;padding:10px 28px;border-radius:8px;cursor:pointer;font-weight:bold">Confirmar</button>' +
           '<button id="btn-cc-cancelar" style="background:transparent;color:var(--text,#e0e0e0);border:1px solid var(--border,#333);padding:10px 28px;border-radius:8px;cursor:pointer">Cancelar</button>' +
@@ -345,13 +345,16 @@ function histSubir(file) {
     console.log('[HISTORIAL] CUENTAS_AURUM al subir — claves:', Object.keys(CUENTAS_AURUM));
     var numeroCuenta = _detDeRaw || _detDeFile;
     console.log('[HISTORIAL] numeroCuenta final:', JSON.stringify(numeroCuenta), '| CUENTAS_AURUM[numeroCuenta]:', CUENTAS_AURUM[numeroCuenta]);
+    console.log('[HISTORIAL] nombreFinal antes de paso 3:', JSON.stringify(nombreFinal), '| numeroCuenta:', JSON.stringify(numeroCuenta));
     if (!nombreFinal) {
       if (numeroCuenta && CUENTAS_AURUM[numeroCuenta]) {
         nombreFinal = CUENTAS_AURUM[numeroCuenta];
       } else if (numeroCuenta) {
-        var _tipoSel = (document.getElementById('hist-tipo') || {}).value || '';
+        var _tipoSel = ((document.getElementById('hist-tipo') || {}).value || '').toLowerCase();
         var _tipoMap = { maestra: { col: 'cuenta_maestra', label: 'Maestra' }, retos: { col: 'cuenta_retos', label: 'Retos' }, prueba: { col: 'cuenta_prueba', label: 'Prueba' } };
+        console.log('[HISTORIAL] Número desconocido — tipoSel:', JSON.stringify(_tipoSel), '| en tipoMap:', !!_tipoMap[_tipoSel]);
         if (_tipoMap[_tipoSel]) {
+          console.log('[HISTORIAL] Mostrando modal de confirmación para número:', numeroCuenta);
           var _confirmado = await _confirmarNumeroCuenta(numeroCuenta, _tipoMap[_tipoSel].label);
           if (_confirmado) {
             var _patchData = {}; _patchData[_tipoMap[_tipoSel].col] = numeroCuenta;
