@@ -24,6 +24,8 @@ function _numeroDesdeFichero(raw, fileName) {
       }
     }
   }
+  // Fallback: extraer cualquier número de 5+ dígitos del nombre del archivo
+  if (fileName) { var _m = String(fileName).match(/\b(\d{5,})\b/); if (_m) return _m[1]; }
   return null;
 }
 
@@ -359,6 +361,20 @@ function histSubir(file) {
           await supaPatch('usuarios_aurum', 'email=eq.' + encodeURIComponent(usuarioActual.email), _patchData, getToken());
           CUENTAS_AURUM[numeroCuenta] = 'Cuenta ' + _tipoMap[_tipoSel].label;
           nombreFinal = 'Cuenta ' + _tipoMap[_tipoSel].label;
+          // Reasignar trades existentes en Supabase de "Cuenta Externa" al nombre correcto
+          await supaPatch('trades',
+            'usuario_email=eq.' + encodeURIComponent(usuarioActual.email) + '&cuenta=eq.Cuenta%20Externa',
+            { cuenta: nombreFinal }, getToken());
+          // Sincronizar cache HISTORIAL_ALL_FPS con el nuevo nombre
+          fps.forEach(function(fp) {
+            HISTORIAL_ALL_FPS.delete('Cuenta Externa|' + fp);
+            HISTORIAL_ALL_FPS.add(nombreFinal + '|' + fp);
+          });
+          document.getElementById('hist-progreso').style.display = 'none';
+          msg.style.color = 'var(--green)'; msg.textContent = 'Cuenta reasignada como ' + nombreFinal + '.';
+          cargarHistorialDesdeSupabase();
+          if (typeof actualizarDashboard === 'function') actualizarDashboard();
+          return;
         } else {
           nombreFinal = nombreFinal || 'Cuenta Externa';
         }
