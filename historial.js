@@ -75,8 +75,9 @@ async function init_historial() {
       if (u.cuenta_maestra) CUENTAS_AURUM[u.cuenta_maestra] = 'Cuenta Maestra';
       if (u.cuenta_retos)   CUENTAS_AURUM[u.cuenta_retos]   = 'Cuenta Retos';
       if (u.cuenta_prueba)  CUENTAS_AURUM[u.cuenta_prueba]  = 'Cuenta Prueba';
+      console.log('[HISTORIAL] DB raw — maestra:', JSON.stringify(u.cuenta_maestra), 'retos:', JSON.stringify(u.cuenta_retos), 'prueba:', JSON.stringify(u.cuenta_prueba));
     }
-    console.log('[HISTORIAL] CUENTAS_AURUM:', CUENTAS_AURUM);
+    console.log('[HISTORIAL] CUENTAS_AURUM construido — claves:', Object.keys(CUENTAS_AURUM), '| objeto:', CUENTAS_AURUM);
   }
 
   cargarHistorialDesdeSupabase().then(function() {
@@ -316,13 +317,18 @@ function histSubir(file) {
       if (!_lr.error && _lr.data && _lr.data.length) nombreFinal = _lr.data[0].cuenta;
     }
     // 3. Detectar número de cuenta del archivo y comparar con CUENTAS_AURUM
-    var numeroCuenta = detectarNumeroCuentaDeRaw(raw) || _numeroDesdeFichero(raw, file.name);
+    var _detDeRaw  = detectarNumeroCuentaDeRaw(raw);
+    var _detDeFile = _numeroDesdeFichero(raw, file.name);
+    console.log('[HISTORIAL] Detección — detectarNumeroCuentaDeRaw:', JSON.stringify(_detDeRaw), '| _numeroDesdeFichero:', JSON.stringify(_detDeFile));
+    console.log('[HISTORIAL] CUENTAS_AURUM al subir — claves:', Object.keys(CUENTAS_AURUM));
+    var numeroCuenta = _detDeRaw || _detDeFile;
+    console.log('[HISTORIAL] numeroCuenta final:', JSON.stringify(numeroCuenta), '| CUENTAS_AURUM[numeroCuenta]:', CUENTAS_AURUM[numeroCuenta]);
     if (!nombreFinal) {
       nombreFinal = (numeroCuenta && CUENTAS_AURUM[numeroCuenta])
         ? CUENTAS_AURUM[numeroCuenta]
         : 'Cuenta Externa';
     }
-    console.log('[HISTORIAL] numeroCuenta:', numeroCuenta, '| nombreFinal:', nombreFinal);
+    console.log('[HISTORIAL] nombreFinal asignado:', nombreFinal);
     var fps_nuevos = trades.filter(function(t) { return !HISTORIAL_ALL_FPS.has(nombreFinal + '|' + (t.fp || '')); });
     var dups = trades.length - fps_nuevos.length;
     setTimeout(function() {
