@@ -378,13 +378,12 @@ function histSubir(file) {
       console.log('[HISTORIAL] Safety net — override por desplegable:', nombreFinal, '| numeroCuenta:', numeroCuenta);
     }
     console.log('[HISTORIAL] nombreFinal final:', nombreFinal);
+    // Filtrar fps que ya existen en HISTORIAL_ALL_FPS para este usuario y cuenta
     var fps_nuevos = trades.filter(function(t) { return !HISTORIAL_ALL_FPS.has(nombreFinal + '|' + (t.fp || '')); });
-    var dups = trades.length - fps_nuevos.length;
     setTimeout(function() {
       document.getElementById('hist-progreso').style.display = 'none';
       if (fps_nuevos.length === 0) {
-        if (typeof guardarTradesIndividuales === 'function') guardarTradesIndividuales(trades, nombreFinal);
-        msg.style.color = 'var(--gold)'; msg.textContent = 'Todos los trades ya estaban registrados (' + dups + ' duplicados).'; return;
+        msg.style.color = 'var(--gold)'; msg.textContent = 'Todos los trades ya estaban registrados.'; return;
       }
       var fps_list = fps_nuevos.map(function(t){ return t.fp; }).filter(Boolean);
       fps_list.forEach(function(fp) { HISTORIAL_ALL_FPS.add(nombreFinal + '|' + fp); });
@@ -397,8 +396,7 @@ function histSubir(file) {
           if (typeof actualizarDashboard === 'function') actualizarDashboard();
         });
       }
-      var aviso = dups > 0 ? ' (' + dups + ' duplicados ignorados)' : '';
-      msg.style.color = 'var(--green)'; msg.textContent = fps_nuevos.length + ' trades únicos añadidos' + aviso + '.';
+      msg.style.color = 'var(--green)'; msg.textContent = fps_nuevos.length + ' trades únicos añadidos.';
       document.getElementById('hist-nombre').value = '';
     }, 400);
   }
