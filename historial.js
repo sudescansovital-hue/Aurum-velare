@@ -341,37 +341,34 @@ function histSubir(file) {
     // 3. Detectar número de cuenta del archivo y comparar con CUENTAS_AURUM
     var _detDeRaw  = detectarNumeroCuentaDeRaw(raw);
     var _detDeFile = _numeroDesdeFichero(raw, file.name);
-    console.log('[HISTORIAL] Detección — detectarNumeroCuentaDeRaw:', JSON.stringify(_detDeRaw), '| _numeroDesdeFichero:', JSON.stringify(_detDeFile));
-    console.log('[HISTORIAL] CUENTAS_AURUM al subir — claves:', Object.keys(CUENTAS_AURUM));
     var numeroCuenta = _detDeRaw || _detDeFile;
-    console.log('[HISTORIAL] numeroCuenta final:', JSON.stringify(numeroCuenta), '| CUENTAS_AURUM[numeroCuenta]:', CUENTAS_AURUM[numeroCuenta]);
-    console.log('[HISTORIAL] nombreFinal antes de paso 3:', JSON.stringify(nombreFinal), '| numeroCuenta:', JSON.stringify(numeroCuenta));
-    if (!nombreFinal) {
-      if (numeroCuenta && CUENTAS_AURUM[numeroCuenta]) {
-        nombreFinal = CUENTAS_AURUM[numeroCuenta];
-      } else if (numeroCuenta) {
-        var _tipoSel = ((document.getElementById('hist-tipo') || {}).value || '').toLowerCase();
-        var _tipoMap = { maestra: { col: 'cuenta_maestra', label: 'Maestra' }, retos: { col: 'cuenta_retos', label: 'Retos' }, prueba: { col: 'cuenta_prueba', label: 'Prueba' } };
-        console.log('[HISTORIAL] Número desconocido — tipoSel:', JSON.stringify(_tipoSel), '| en tipoMap:', !!_tipoMap[_tipoSel]);
-        if (_tipoMap[_tipoSel]) {
-          console.log('[HISTORIAL] Mostrando modal de confirmación para número:', numeroCuenta);
-          var _confirmado = await _confirmarNumeroCuenta(numeroCuenta, _tipoMap[_tipoSel].label);
-          if (_confirmado) {
-            var _patchData = {}; _patchData[_tipoMap[_tipoSel].col] = numeroCuenta;
-            await supaPatch('usuarios_aurum', 'email=eq.' + encodeURIComponent(usuarioActual.email), _patchData, getToken());
-            CUENTAS_AURUM[numeroCuenta] = 'Cuenta ' + _tipoMap[_tipoSel].label;
-            nombreFinal = 'Cuenta ' + _tipoMap[_tipoSel].label;
-          } else {
-            nombreFinal = 'Cuenta Externa';
-          }
+    console.log('[HISTORIAL] paso3 — numeroCuenta:', JSON.stringify(numeroCuenta), '| nombreFinal previo:', JSON.stringify(nombreFinal), '| CUENTAS_AURUM:', CUENTAS_AURUM);
+    if (numeroCuenta && CUENTAS_AURUM[numeroCuenta]) {
+      // Número ya vinculado → usar carpeta mapeada (sobreescribe cache de pasos 1-2)
+      nombreFinal = CUENTAS_AURUM[numeroCuenta];
+    } else if (numeroCuenta) {
+      // Número desconocido → modal si tipo es Maestra/Retos/Prueba
+      var _tipoSel = ((document.getElementById('hist-tipo') || {}).value || '').toLowerCase();
+      var _tipoMap = { maestra: { col: 'cuenta_maestra', label: 'Maestra' }, retos: { col: 'cuenta_retos', label: 'Retos' }, prueba: { col: 'cuenta_prueba', label: 'Prueba' } };
+      console.log('[HISTORIAL] Número no en CUENTAS_AURUM — tipoSel:', JSON.stringify(_tipoSel));
+      if (_tipoMap[_tipoSel]) {
+        console.log('[HISTORIAL] Mostrando modal para:', numeroCuenta);
+        var _confirmado = await _confirmarNumeroCuenta(numeroCuenta, _tipoMap[_tipoSel].label);
+        if (_confirmado) {
+          var _patchData = {}; _patchData[_tipoMap[_tipoSel].col] = numeroCuenta;
+          await supaPatch('usuarios_aurum', 'email=eq.' + encodeURIComponent(usuarioActual.email), _patchData, getToken());
+          CUENTAS_AURUM[numeroCuenta] = 'Cuenta ' + _tipoMap[_tipoSel].label;
+          nombreFinal = 'Cuenta ' + _tipoMap[_tipoSel].label;
         } else {
-          nombreFinal = 'Cuenta Externa';
+          nombreFinal = nombreFinal || 'Cuenta Externa';
         }
       } else {
-        nombreFinal = 'Cuenta Externa';
+        nombreFinal = nombreFinal || 'Cuenta Externa';
       }
+    } else if (!nombreFinal) {
+      nombreFinal = 'Cuenta Externa';
     }
-    console.log('[HISTORIAL] nombreFinal asignado:', nombreFinal);
+    console.log('[HISTORIAL] nombreFinal final:', nombreFinal);
     var fps_nuevos = trades.filter(function(t) { return !HISTORIAL_ALL_FPS.has(nombreFinal + '|' + (t.fp || '')); });
     var dups = trades.length - fps_nuevos.length;
     setTimeout(function() {
