@@ -294,35 +294,19 @@ async function adminGuardarUsuario() {
 async function _reasignarCuentaExterna(email, cuentas) {
   var token = getToken();
   var ep    = 'usuario_email=eq.' + encodeURIComponent(email);
+
+  // Primero revocaciones: liberan trades a Cuenta Externa
   for (var i = 0; i < cuentas.length; i++) {
     var numeroPrevio = cuentas[i].numeroPrevio || null;
     var numero       = cuentas[i].numero       || null;
     var destino      = cuentas[i].destino;
-
     console.log('[REASIGNAR] destino:', destino, '| numeroPrevio:', JSON.stringify(numeroPrevio), '| numero:', JSON.stringify(numero));
-
-    if (numero && numero !== numeroPrevio) {
-      // Número nuevo asignado: mover Cuenta Externa → destino
-      var filtroNum = '&cuenta_numero=eq.' + encodeURIComponent(numero);
-      var resT = await supaGet('trades',
-        ep + '&cuenta=eq.' + encodeURIComponent('Cuenta Externa') + filtroNum + '&limit=1',
-        token);
-      console.log('[REASIGNAR] asignación — trades Cuenta Externa con numero', numero, ':', resT.data ? resT.data.length : 'error', resT.error || '');
-      if (!resT.error && resT.data && resT.data.length) {
-        await supaPatch('trades',
-          ep + '&cuenta=eq.' + encodeURIComponent('Cuenta Externa') + filtroNum,
-          { cuenta: destino }, token);
-        await supaPatch('historiales',
-          ep + '&nombre=eq.' + encodeURIComponent('Cuenta Externa'),
-          { nombre: destino }, token);
-      }
-    } else if (!numero && numeroPrevio) {
+    if (!numero && numeroPrevio) {
       console.log('[REASIGNAR] revocación — moviendo', destino, '→ Cuenta Externa');
-      var resT2 = await supaGet('trades',
-        ep + '&cuenta=eq.' + encodeURIComponent(destino) + '&limit=1',
-        token);
-      console.log('[REASIGNAR] revocación — trades en', destino, ':', resT2.data ? resT2.data.length : 'error', resT2.error || '');
-      if (!resT2.error && resT2.data && resT2.data.length) {
+      var resRev = await supaGet('trades',
+        ep + '&cuenta=eq.' + encodeURIComponent(destino) + '&limit=1', token);
+      console.log('[REASIGNAR] revocación — trades en', destino, ':', resRev.data ? resRev.data.length : 'error', resRev.error || '');
+      if (!resRev.error && resRev.data && resRev.data.length) {
         await supaPatch('trades',
           ep + '&cuenta=eq.' + encodeURIComponent(destino),
           { cuenta: 'Cuenta Externa', cuenta_numero: null }, token);
@@ -330,8 +314,27 @@ async function _reasignarCuentaExterna(email, cuentas) {
           ep + '&nombre=eq.' + encodeURIComponent(destino),
           { nombre: 'Cuenta Externa' }, token);
       }
-    } else {
-      console.log('[REASIGNAR] sin cambio — saltando');
+    }
+  }
+
+  // Luego asignaciones: pueden encontrar trades recién liberados
+  for (var j = 0; j < cuentas.length; j++) {
+    var numeroPrevio = cuentas[j].numeroPrevio || null;
+    var numero       = cuentas[j].numero       || null;
+    var destino      = cuentas[j].destino;
+    if (numero && numero !== numeroPrevio) {
+      var filtroNum = '&cuenta_numero=eq.' + encodeURIComponent(numero);
+      var resAsig = await supaGet('trades',
+        ep + '&cuenta=eq.' + encodeURIComponent('Cuenta Externa') + filtroNum + '&limit=1', token);
+      console.log('[REASIGNAR] asignación — trades Cuenta Externa con numero', numero, ':', resAsig.data ? resAsig.data.length : 'error', resAsig.error || '');
+      if (!resAsig.error && resAsig.data && resAsig.data.length) {
+        await supaPatch('trades',
+          ep + '&cuenta=eq.' + encodeURIComponent('Cuenta Externa') + filtroNum,
+          { cuenta: destino }, token);
+        await supaPatch('historiales',
+          ep + '&nombre=eq.' + encodeURIComponent('Cuenta Externa'),
+          { nombre: destino }, token);
+      }
     }
   }
 }
