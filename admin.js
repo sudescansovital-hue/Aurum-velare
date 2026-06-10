@@ -245,6 +245,11 @@ async function adminGuardarUsuario() {
   };
   console.log('[ADMIN] datos a guardar:', JSON.stringify(datos));
 
+  // Leer valores actuales desde BD antes del PATCH para usarlos como numeroPrevio
+  var _prevRes = await supaGet('usuarios_aurum', 'id=eq.' + adminEditId + '&select=cuenta_maestra,cuenta_retos,cuenta_prueba&limit=1', getToken());
+  var _prev = (_prevRes.data && _prevRes.data[0]) || {};
+  console.log('[ADMIN] valores previos desde BD (antes del PATCH):', JSON.stringify(_prev));
+
   // Verify columns exist before attempting PATCH
   var colCheck = await supaGet('usuarios_aurum', 'limit=1', getToken());
   if (colCheck.data && colCheck.data[0]) {
@@ -274,9 +279,9 @@ async function adminGuardarUsuario() {
     var _u = adminUsuarios.find(function(u) { return u.id === adminEditId; });
     if (_u && _u.email) {
       await _reasignarCuentaExterna(_u.email, [
-        { numeroPrevio: _u.cuenta_maestra, numero: datos.cuenta_maestra, destino: 'Cuenta Maestra' },
-        { numeroPrevio: _u.cuenta_retos,   numero: datos.cuenta_retos,   destino: 'Cuenta Retos'   },
-        { numeroPrevio: _u.cuenta_prueba,  numero: datos.cuenta_prueba,  destino: 'Cuenta Prueba'  }
+        { numeroPrevio: _prev.cuenta_maestra || null, numero: datos.cuenta_maestra, destino: 'Cuenta Maestra' },
+        { numeroPrevio: _prev.cuenta_retos   || null, numero: datos.cuenta_retos,   destino: 'Cuenta Retos'   },
+        { numeroPrevio: _prev.cuenta_prueba  || null, numero: datos.cuenta_prueba,  destino: 'Cuenta Prueba'  }
       ]);
     }
 
