@@ -292,7 +292,7 @@ async function adminGuardarUsuario() {
 
 // Mueve trades de 'Cuenta Externa' al folder correcto cuando el admin
 // asigna un número que ya estaba subido sin reconocer.
-// El número se busca como subcadena del fp (posicionId que lo contiene).
+// Filtra por cuenta_numero (guardado al insertar cada trade).
 async function _reasignarCuentaExterna(email, cuentas) {
   var token = getToken();
   var ep    = 'usuario_email=eq.' + encodeURIComponent(email);
@@ -300,17 +300,17 @@ async function _reasignarCuentaExterna(email, cuentas) {
     var numero  = cuentas[i].numero;
     var destino = cuentas[i].destino;
     if (!numero) continue;
-    var filtroFp = '&fp=ilike.*' + numero + '*';
-    // Verificar que existen trades de Cuenta Externa cuyo fp contiene el número
+    var filtroNum = '&cuenta_numero=eq.' + encodeURIComponent(numero);
+    // Verificar que existen trades de Cuenta Externa con este número
     var resT = await supaGet('trades',
-      ep + '&cuenta=eq.' + encodeURIComponent('Cuenta Externa') + filtroFp + '&limit=1',
+      ep + '&cuenta=eq.' + encodeURIComponent('Cuenta Externa') + filtroNum + '&limit=1',
       token);
     if (resT.error || !resT.data || !resT.data.length) continue;
-    // Mover los trades coincidentes
+    // Mover los trades coincidentes y actualizar su cuenta_numero al destino
     await supaPatch('trades',
-      ep + '&cuenta=eq.' + encodeURIComponent('Cuenta Externa') + filtroFp,
+      ep + '&cuenta=eq.' + encodeURIComponent('Cuenta Externa') + filtroNum,
       { cuenta: destino }, token);
-    // Renombrar la entrada en historiales basándose en los trades reasignados
+    // Renombrar la entrada en historiales
     await supaPatch('historiales',
       ep + '&nombre=eq.' + encodeURIComponent('Cuenta Externa'),
       { nombre: destino }, token);

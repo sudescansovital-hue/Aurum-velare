@@ -342,7 +342,7 @@ function histSubir(file) {
       fps_nuevos.map(function(t){ return t.fp; }).filter(Boolean)
         .forEach(function(fp) { HISTORIAL_ALL_FPS.add(nombreFinal + '|' + fp); });
       if (typeof guardarTradesIndividuales === 'function') {
-        guardarTradesIndividuales(fps_nuevos, nombreFinal).then(function() {
+        guardarTradesIndividuales(fps_nuevos, nombreFinal, numeroCuenta).then(function() {
           return _actualizarEntradaHistorial(nombreFinal, tipo, numeroCuenta);
         }).then(function() {
           cargarHistorialDesdeSupabase();
@@ -475,7 +475,7 @@ async function _actualizarEntradaHistorial(nombreCuenta, tipo, numeroCuenta) {
   }
 }
 
-async function guardarTradesIndividuales(trades, nombreCuenta) {
+async function guardarTradesIndividuales(trades, nombreCuenta, numeroCuenta) {
   if (!window.usuarioActual || !window.usuarioActual.email) return;
   if (!trades || !trades.length) return;
   var token = getToken();
@@ -503,6 +503,7 @@ async function guardarTradesIndividuales(trades, nombreCuenta) {
       fp:            t.fp,
       usuario_email: usuarioActual.email,
       cuenta:        nombreCuenta || 'Externa',
+      cuenta_numero: numeroCuenta || null,
       ganadora:      !!t.ganadora,
       beneficio:     t.ben != null ? t.ben : (t.beneficio != null ? t.beneficio : 0),
       hora:          t.hora != null ? t.hora : 0,
