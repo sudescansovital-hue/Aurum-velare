@@ -270,6 +270,16 @@ async function adminGuardarUsuario() {
       showToast('Error: ' + errorMsg);
       return;
     }
+
+    var _u = adminUsuarios.find(function(u) { return u.id === adminEditId; });
+    if (_u && _u.email) {
+      await _reasignarCuentaExterna(_u.email, [
+        { numero: datos.cuenta_maestra, destino: 'Cuenta Maestra' },
+        { numero: datos.cuenta_retos,   destino: 'Cuenta Retos'   },
+        { numero: datos.cuenta_prueba,  destino: 'Cuenta Prueba'  }
+      ]);
+    }
+
     adminCerrarModal();
     showToast('Usuario actualizado');
     await cargarUsuariosAdmin();
@@ -277,6 +287,32 @@ async function adminGuardarUsuario() {
     console.error('[ADMIN] excepción en adminGuardarUsuario:', err);
     if (btn) { btn.textContent = '✦ Guardar cambios'; btn.disabled = false; }
     showToast('Error inesperado — ver consola');
+  }
+}
+
+// Mueve trades e historiales de 'Cuenta Externa' al folder correcto
+// cuando el admin asigna un número que ya estaba subido como externa.
+async function _reasignarCuentaExterna(email, cuentas) {
+  var token = getToken();
+  var ep    = 'usuario_email=eq.' + encodeURIComponent(email);
+  for (var i = 0; i < cuentas.length; i++) {
+    var numero  = cuentas[i].numero;
+    var destino = cuentas[i].destino;
+    if (!numero) continue;
+    // Verificar que este número existe en historiales como Cuenta Externa
+    var resH = await supaGet('historiales',
+      ep + '&numero=eq.' + encodeURIComponent(numero) +
+      '&nombre=eq.' + encodeURIComponent('Cuenta Externa') + '&limit=1',
+      token);
+    if (resH.error || !resH.data || !resH.data.length) continue;
+    // Mover trades
+    await supaPatch('trades',
+      ep + '&cuenta=eq.' + encodeURIComponent('Cuenta Externa'),
+      { cuenta: destino }, token);
+    // Renombrar entrada en historiales
+    await supaPatch('historiales',
+      ep + '&numero=eq.' + encodeURIComponent(numero),
+      { nombre: destino }, token);
   }
 }
 
