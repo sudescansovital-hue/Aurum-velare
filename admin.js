@@ -301,12 +301,15 @@ async function _reasignarCuentaExterna(email, cuentas) {
     var numero       = cuentas[i].numero       || null;
     var destino      = cuentas[i].destino;
 
+    console.log('[REASIGNAR] destino:', destino, '| numeroPrevio:', JSON.stringify(numeroPrevio), '| numero:', JSON.stringify(numero));
+
     if (numero && numero !== numeroPrevio) {
       // Número nuevo asignado: mover Cuenta Externa → destino
       var filtroNum = '&cuenta_numero=eq.' + encodeURIComponent(numero);
       var resT = await supaGet('trades',
         ep + '&cuenta=eq.' + encodeURIComponent('Cuenta Externa') + filtroNum + '&limit=1',
         token);
+      console.log('[REASIGNAR] asignación — trades Cuenta Externa con numero', numero, ':', resT.data ? resT.data.length : 'error', resT.error || '');
       if (!resT.error && resT.data && resT.data.length) {
         await supaPatch('trades',
           ep + '&cuenta=eq.' + encodeURIComponent('Cuenta Externa') + filtroNum,
@@ -316,10 +319,11 @@ async function _reasignarCuentaExterna(email, cuentas) {
           { nombre: destino }, token);
       }
     } else if (!numero && numeroPrevio) {
-      // Número quitado: mover destino → Cuenta Externa
+      console.log('[REASIGNAR] revocación — moviendo', destino, '→ Cuenta Externa');
       var resT2 = await supaGet('trades',
         ep + '&cuenta=eq.' + encodeURIComponent(destino) + '&limit=1',
         token);
+      console.log('[REASIGNAR] revocación — trades en', destino, ':', resT2.data ? resT2.data.length : 'error', resT2.error || '');
       if (!resT2.error && resT2.data && resT2.data.length) {
         await supaPatch('trades',
           ep + '&cuenta=eq.' + encodeURIComponent(destino),
@@ -328,6 +332,8 @@ async function _reasignarCuentaExterna(email, cuentas) {
           ep + '&nombre=eq.' + encodeURIComponent(destino),
           { nombre: 'Cuenta Externa' }, token);
       }
+    } else {
+      console.log('[REASIGNAR] sin cambio — saltando');
     }
   }
 }
