@@ -329,68 +329,21 @@ function histSubir(file) {
       msg.style.color = 'var(--red)'; msg.textContent = 'No se encontraron trades XAU/USD suficientes.';
       document.getElementById('hist-progreso').style.display = 'none'; return;
     }
-    // 1. Buscar nombre de cuenta en datos ya cargados de Supabase (HISTORIAL_ALL_FPS)
-    var fps = trades.map(function(t) { return t.fp; }).filter(Boolean);
-    var nombreFinal = _nombreCuentaDesdeHISTORIAL(fps);
-    // 2. Si no está en cache, consultar Supabase con el primer fp del archivo
-    if (!nombreFinal && fps.length && window.usuarioActual) {
-      var _lr = await supaGet('trades',
-        'usuario_email=eq.' + encodeURIComponent(usuarioActual.email) +
-        '&fp=eq.' + encodeURIComponent(fps[0]) +
-        '&cuenta=not.is.null&limit=1', getToken());
-      if (!_lr.error && _lr.data && _lr.data.length) nombreFinal = _lr.data[0].cuenta;
-    }
-    // 3. Detectar número de cuenta del archivo y comparar con CUENTAS_AURUM
-    var _detDeRaw  = detectarNumeroCuentaDeRaw(raw);
-    var _detDeFile = _numeroDesdeFichero(raw, file.name);
-    var numeroCuenta = _detDeRaw || _detDeFile;
-    console.log('[HISTORIAL] paso3 — numeroCuenta:', JSON.stringify(numeroCuenta), '| nombreFinal previo:', JSON.stringify(nombreFinal), '| CUENTAS_AURUM:', CUENTAS_AURUM);
-    if (numeroCuenta && CUENTAS_AURUM[numeroCuenta]) {
-      // Número ya vinculado → usar carpeta mapeada
-      nombreFinal = CUENTAS_AURUM[numeroCuenta];
-    } else if (numeroCuenta) {
-      // Número desconocido → asignar según el desplegable
-      var _tipoSel = ((document.getElementById('hist-tipo') || {}).value || '').toLowerCase();
-      var _tipoMap = { maestra: { col: 'cuenta_maestra', label: 'Maestra' }, retos: { col: 'cuenta_retos', label: 'Retos' }, prueba: { col: 'cuenta_prueba', label: 'Prueba' } };
-      if (_tipoMap[_tipoSel]) {
-        // Guardar número en usuarios_aurum y actualizar sesión
-        var _patchData = {}; _patchData[_tipoMap[_tipoSel].col] = numeroCuenta;
-        await supaPatch('usuarios_aurum', 'email=eq.' + encodeURIComponent(usuarioActual.email), _patchData, getToken());
-        CUENTAS_AURUM[numeroCuenta] = 'Cuenta ' + _tipoMap[_tipoSel].label;
-        nombreFinal = 'Cuenta ' + _tipoMap[_tipoSel].label;
-        console.log('[HISTORIAL] Número vinculado automáticamente:', numeroCuenta, '→', nombreFinal);
-      } else {
-        nombreFinal = nombreFinal || 'Cuenta Externa';
-      }
-    } else if (!nombreFinal) {
-      nombreFinal = 'Cuenta Externa';
-    }
-    // Safety net: si nombreFinal sigue siendo Cuenta Externa pero el desplegable tiene Maestra/Retos/Prueba, sobreescribir
-    var _tipoFinal = ((document.getElementById('hist-tipo') || {}).value || '').toLowerCase();
-    var _tipoMapFinal = { maestra: { col: 'cuenta_maestra', label: 'Maestra' }, retos: { col: 'cuenta_retos', label: 'Retos' }, prueba: { col: 'cuenta_prueba', label: 'Prueba' } };
-    if (nombreFinal === 'Cuenta Externa' && _tipoMapFinal[_tipoFinal]) {
-      nombreFinal = 'Cuenta ' + _tipoMapFinal[_tipoFinal].label;
-      if (numeroCuenta) {
-        var _pd2 = {}; _pd2[_tipoMapFinal[_tipoFinal].col] = numeroCuenta;
-        await supaPatch('usuarios_aurum', 'email=eq.' + encodeURIComponent(usuarioActual.email), _pd2, getToken());
-        CUENTAS_AURUM[numeroCuenta] = nombreFinal;
-      }
-      console.log('[HISTORIAL] Safety net — override por desplegable:', nombreFinal, '| numeroCuenta:', numeroCuenta);
-    }
-    console.log('[HISTORIAL] nombreFinal final:', nombreFinal);
-    // Filtrar fps que ya existen en HISTORIAL_ALL_FPS para este usuario y cuenta
+    var numeroCuenta = detectarNumeroCuentaDeRaw(raw) || _numeroDesdeFichero(raw, file.name);
+    var nombreFinal  = (numeroCuenta && CUENTAS_AURUM[numeroCuenta]) || 'Cuenta Externa';
+    var tipo         = nombreFinal === 'Cuenta Externa' ? 'extern' : 'real';
+
     var fps_nuevos = trades.filter(function(t) { return !HISTORIAL_ALL_FPS.has(nombreFinal + '|' + (t.fp || '')); });
     setTimeout(function() {
       document.getElementById('hist-progreso').style.display = 'none';
       if (fps_nuevos.length === 0) {
         msg.style.color = 'var(--gold)'; msg.textContent = 'Todos los trades ya estaban registrados.'; return;
       }
-      var fps_list = fps_nuevos.map(function(t){ return t.fp; }).filter(Boolean);
-      fps_list.forEach(function(fp) { HISTORIAL_ALL_FPS.add(nombreFinal + '|' + fp); });
-      // Guardar trades individuales en Supabase y luego recargar métricas completas
+      fps_nuevos.map(function(t){ return t.fp; }).filter(Boolean)
+        .forEach(function(fp) { HISTORIAL_ALL_FPS.add(nombreFinal + '|' + fp); });
       if (typeof guardarTradesIndividuales === 'function') {
         guardarTradesIndividuales(fps_nuevos, nombreFinal).then(function() {
-          return _actualizarEntradaHistorial(nombreFinal, document.getElementById('hist-tipo').value, numeroCuenta);
+          return _actualizarEntradaHistorial(nombreFinal, tipo, numeroCuenta);
         }).then(function() {
           cargarHistorialDesdeSupabase();
           if (typeof actualizarDashboard === 'function') actualizarDashboard();
