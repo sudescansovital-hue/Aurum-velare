@@ -322,7 +322,7 @@ async function _reasignarCuentaExterna(email, cuentas) {
     var numeroPrevio = cuentas[j].numeroPrevio || null;
     var numero       = cuentas[j].numero       || null;
     var destino      = cuentas[j].destino;
-    if (numero && numero !== numeroPrevio) {
+    if (numero) {
       var filtroNum = '&cuenta_numero=eq.' + encodeURIComponent(numero);
       var resAsig = await supaGet('trades',
         ep + '&cuenta=eq.' + encodeURIComponent('Cuenta Externa') + filtroNum + '&limit=1', token);
