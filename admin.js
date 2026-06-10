@@ -290,8 +290,9 @@ async function adminGuardarUsuario() {
   }
 }
 
-// Mueve trades e historiales de 'Cuenta Externa' al folder correcto
-// cuando el admin asigna un número que ya estaba subido como externa.
+// Mueve trades de 'Cuenta Externa' al folder correcto cuando el admin
+// asigna un número que ya estaba subido sin reconocer.
+// El número se busca como subcadena del fp (posicionId que lo contiene).
 async function _reasignarCuentaExterna(email, cuentas) {
   var token = getToken();
   var ep    = 'usuario_email=eq.' + encodeURIComponent(email);
@@ -299,19 +300,19 @@ async function _reasignarCuentaExterna(email, cuentas) {
     var numero  = cuentas[i].numero;
     var destino = cuentas[i].destino;
     if (!numero) continue;
-    // Verificar que este número existe en historiales como Cuenta Externa
-    var resH = await supaGet('historiales',
-      ep + '&numero=eq.' + encodeURIComponent(numero) +
-      '&nombre=eq.' + encodeURIComponent('Cuenta Externa') + '&limit=1',
+    var filtroFp = '&fp=ilike.*' + numero + '*';
+    // Verificar que existen trades de Cuenta Externa cuyo fp contiene el número
+    var resT = await supaGet('trades',
+      ep + '&cuenta=eq.' + encodeURIComponent('Cuenta Externa') + filtroFp + '&limit=1',
       token);
-    if (resH.error || !resH.data || !resH.data.length) continue;
-    // Mover trades
+    if (resT.error || !resT.data || !resT.data.length) continue;
+    // Mover los trades coincidentes
     await supaPatch('trades',
-      ep + '&cuenta=eq.' + encodeURIComponent('Cuenta Externa'),
+      ep + '&cuenta=eq.' + encodeURIComponent('Cuenta Externa') + filtroFp,
       { cuenta: destino }, token);
-    // Renombrar entrada en historiales
+    // Renombrar la entrada en historiales basándose en los trades reasignados
     await supaPatch('historiales',
-      ep + '&numero=eq.' + encodeURIComponent(numero),
+      ep + '&nombre=eq.' + encodeURIComponent('Cuenta Externa'),
       { nombre: destino }, token);
   }
 }
