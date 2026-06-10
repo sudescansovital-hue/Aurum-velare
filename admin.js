@@ -245,23 +245,16 @@ async function adminGuardarUsuario() {
   };
   console.log('[ADMIN] datos a guardar:', JSON.stringify(datos));
 
-  // Leer valores actuales desde BD antes del PATCH para usarlos como numeroPrevio
-  var _prevRes = await supaGet('usuarios_aurum', 'id=eq.' + adminEditId + '&select=cuenta_maestra,cuenta_retos,cuenta_prueba&limit=1', getToken());
-  var _prev = (_prevRes.data && _prevRes.data[0]) || {};
-  console.log('[ADMIN] valores previos desde BD (antes del PATCH):', JSON.stringify(_prev));
-
-  // Verify columns exist before attempting PATCH
-  var colCheck = await supaGet('usuarios_aurum', 'limit=1', getToken());
-  if (colCheck.data && colCheck.data[0]) {
-    var cols = Object.keys(colCheck.data[0]);
-    console.log('[ADMIN] columnas en usuarios_aurum:', cols);
-    if (cols.indexOf('animal') === -1)           console.warn('[ADMIN] ⚠ columna "animal" NO existe — el PATCH fallará');
-    if (cols.indexOf('acceso_sala_extra') === -1) console.warn('[ADMIN] ⚠ columna "acceso_sala_extra" NO existe — el PATCH fallará');
-  } else {
-    console.warn('[ADMIN] no se pudo verificar columnas:', colCheck.error);
-  }
-
   try {
+    // Leer valores actuales desde BD justo antes del PATCH
+    var _prevRes  = await supaGet('usuarios_aurum', 'id=eq.' + adminEditId + '&select=cuenta_maestra,cuenta_retos,cuenta_prueba&limit=1', getToken());
+    var _prevRow  = (_prevRes.data && _prevRes.data[0]) || {};
+    var prevMaestra = _prevRow.cuenta_maestra || null;
+    var prevRetos   = _prevRow.cuenta_retos   || null;
+    var prevPrueba  = _prevRow.cuenta_prueba  || null;
+    console.log('[ADMIN] previos  — maestra:', prevMaestra, '| retos:', prevRetos, '| prueba:', prevPrueba);
+    console.log('[ADMIN] nuevos   — maestra:', datos.cuenta_maestra, '| retos:', datos.cuenta_retos, '| prueba:', datos.cuenta_prueba);
+
     var res = await supaPatch('usuarios_aurum', 'id=eq.' + adminEditId, datos, getToken());
     console.log('[ADMIN] supaPatch res.error (raw):', res.error);
     console.log('[ADMIN] supaPatch res.data:', res.data);
@@ -279,9 +272,9 @@ async function adminGuardarUsuario() {
     var _u = adminUsuarios.find(function(u) { return u.id === adminEditId; });
     if (_u && _u.email) {
       await _reasignarCuentaExterna(_u.email, [
-        { numeroPrevio: _prev.cuenta_maestra || null, numero: datos.cuenta_maestra, destino: 'Cuenta Maestra' },
-        { numeroPrevio: _prev.cuenta_retos   || null, numero: datos.cuenta_retos,   destino: 'Cuenta Retos'   },
-        { numeroPrevio: _prev.cuenta_prueba  || null, numero: datos.cuenta_prueba,  destino: 'Cuenta Prueba'  }
+        { numeroPrevio: prevMaestra, numero: datos.cuenta_maestra, destino: 'Cuenta Maestra' },
+        { numeroPrevio: prevRetos,   numero: datos.cuenta_retos,   destino: 'Cuenta Retos'   },
+        { numeroPrevio: prevPrueba,  numero: datos.cuenta_prueba,  destino: 'Cuenta Prueba'  }
       ]);
     }
 
