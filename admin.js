@@ -274,9 +274,9 @@ async function adminGuardarUsuario() {
     var _u = adminUsuarios.find(function(u) { return u.id === adminEditId; });
     if (_u && _u.email) {
       await _reasignarCuentaExterna(_u.email, [
-        { numero: datos.cuenta_maestra, destino: 'Cuenta Maestra' },
-        { numero: datos.cuenta_retos,   destino: 'Cuenta Retos'   },
-        { numero: datos.cuenta_prueba,  destino: 'Cuenta Prueba'  }
+        { numeroPrevio: _u.cuenta_maestra, numero: datos.cuenta_maestra, destino: 'Cuenta Maestra' },
+        { numeroPrevio: _u.cuenta_retos,   numero: datos.cuenta_retos,   destino: 'Cuenta Retos'   },
+        { numeroPrevio: _u.cuenta_prueba,  numero: datos.cuenta_prueba,  destino: 'Cuenta Prueba'  }
       ]);
     }
 
@@ -290,30 +290,45 @@ async function adminGuardarUsuario() {
   }
 }
 
-// Mueve trades de 'Cuenta Externa' al folder correcto cuando el admin
-// asigna un número que ya estaba subido sin reconocer.
-// Filtra por cuenta_numero (guardado al insertar cada trade).
+// Reasigna trades entre carpetas cuando el admin cambia números de cuenta.
+// — Asignación: numeroPrevio=null → numero=X  →  Cuenta Externa → destino
+// — Revocación: numeroPrevio=X   → numero=null →  destino → Cuenta Externa
 async function _reasignarCuentaExterna(email, cuentas) {
   var token = getToken();
   var ep    = 'usuario_email=eq.' + encodeURIComponent(email);
   for (var i = 0; i < cuentas.length; i++) {
-    var numero  = cuentas[i].numero;
-    var destino = cuentas[i].destino;
-    if (!numero) continue;
-    var filtroNum = '&cuenta_numero=eq.' + encodeURIComponent(numero);
-    // Verificar que existen trades de Cuenta Externa con este número
-    var resT = await supaGet('trades',
-      ep + '&cuenta=eq.' + encodeURIComponent('Cuenta Externa') + filtroNum + '&limit=1',
-      token);
-    if (resT.error || !resT.data || !resT.data.length) continue;
-    // Mover los trades coincidentes y actualizar su cuenta_numero al destino
-    await supaPatch('trades',
-      ep + '&cuenta=eq.' + encodeURIComponent('Cuenta Externa') + filtroNum,
-      { cuenta: destino }, token);
-    // Renombrar la entrada en historiales
-    await supaPatch('historiales',
-      ep + '&nombre=eq.' + encodeURIComponent('Cuenta Externa'),
-      { nombre: destino }, token);
+    var numeroPrevio = cuentas[i].numeroPrevio || null;
+    var numero       = cuentas[i].numero       || null;
+    var destino      = cuentas[i].destino;
+
+    if (numero && numero !== numeroPrevio) {
+      // Número nuevo asignado: mover Cuenta Externa → destino
+      var filtroNum = '&cuenta_numero=eq.' + encodeURIComponent(numero);
+      var resT = await supaGet('trades',
+        ep + '&cuenta=eq.' + encodeURIComponent('Cuenta Externa') + filtroNum + '&limit=1',
+        token);
+      if (!resT.error && resT.data && resT.data.length) {
+        await supaPatch('trades',
+          ep + '&cuenta=eq.' + encodeURIComponent('Cuenta Externa') + filtroNum,
+          { cuenta: destino }, token);
+        await supaPatch('historiales',
+          ep + '&nombre=eq.' + encodeURIComponent('Cuenta Externa'),
+          { nombre: destino }, token);
+      }
+    } else if (!numero && numeroPrevio) {
+      // Número quitado: mover destino → Cuenta Externa
+      var resT2 = await supaGet('trades',
+        ep + '&cuenta=eq.' + encodeURIComponent(destino) + '&limit=1',
+        token);
+      if (!resT2.error && resT2.data && resT2.data.length) {
+        await supaPatch('trades',
+          ep + '&cuenta=eq.' + encodeURIComponent(destino),
+          { cuenta: 'Cuenta Externa', cuenta_numero: null }, token);
+        await supaPatch('historiales',
+          ep + '&nombre=eq.' + encodeURIComponent(destino),
+          { nombre: 'Cuenta Externa' }, token);
+      }
+    }
   }
 }
 
