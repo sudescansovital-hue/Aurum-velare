@@ -332,8 +332,8 @@ async function _reasignarCuentaExterna(email, cuentas) {
           ep + '&cuenta=eq.' + encodeURIComponent('Cuenta Externa') + filtroNum,
           { cuenta: destino }, token);
         await supaPatch('historiales',
-          ep + '&nombre=eq.' + encodeURIComponent('Cuenta Externa'),
-          { nombre: destino }, token);
+          ep + '&nombre=eq.' + encodeURIComponent('Cuenta Externa') + '&numero=eq.' + encodeURIComponent(numero),
+          { nombre: destino, tipo: destino === 'Cuenta Maestra' ? 'Maestra' : destino === 'Cuenta Retos' ? 'Retos' : 'Prueba' }, token);
       }
     }
   }
