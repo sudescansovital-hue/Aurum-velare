@@ -30,16 +30,42 @@ function _numeroDesdeFichero(raw, fileName) {
 }
 
 // Extrae el número de cuenta de la fila "Cuenta de trading:" del Excel
-function detectarNumeroCuentaDeRaw(raw) {
-  var keywords = ['cuenta de trading', 'account'];
-  for (var r = 0; r < Math.min(raw.length, 20); r++) {
+function detectarNumeroCuentaDeRaw(raw, fileName) {
+  var nums = Object.keys(CUENTAS_AURUM);
+  // 1. Nombre de archivo
+  if (fileName) {
+    for (var n = 0; n < nums.length; n++) {
+      if (String(fileName).indexOf(nums[n]) >= 0) return nums[n];
+    }
+  }
+  // 2. Coincidencia exacta con cuentas conocidas en cualquier celda (30 filas)
+  for (var r = 0; r < Math.min(raw.length, 30); r++) {
     var row = raw[r] || [];
     for (var c = 0; c < row.length; c++) {
-      var cell = String(row[c] || '').toLowerCase().trim();
-      if (!keywords.some(function(k) { return cell.indexOf(k) >= 0; })) continue;
-      var combined = String(row[c] || '') + ' ' + String(row[c + 1] != null ? row[c + 1] : '');
-      var m = combined.match(/\b(\d{4,})\b/);
-      if (m) return m[1];
+      var cell = String(row[c] || '');
+      for (var n = 0; n < nums.length; n++) {
+        if (cell.indexOf(nums[n]) >= 0) return nums[n];
+      }
+    }
+  }
+  // 3. Keywords clásicas — buscar en toda la fila, no solo celdas contiguas
+  var keywords = ['cuenta de trading', 'account', 'login', 'numero de cuenta', 'account number', 'account id'];
+  for (var r = 0; r < Math.min(raw.length, 30); r++) {
+    var row = raw[r] || [];
+    var filaStr = row.map(function(c){ return String(c||''); }).join(' ');
+    var filaLow = filaStr.toLowerCase();
+    if (!keywords.some(function(k) { return filaLow.indexOf(k) >= 0; })) continue;
+    // Buscar cualquier número de 4+ dígitos en toda la fila
+    var m = filaStr.match(/\b(\d{4,})\b/);
+    if (m) return m[1];
+  }
+  // 4. Fallback: numero de 5+ digitos en las primeras 10 filas
+  for (var r = 0; r < Math.min(raw.length, 10); r++) {
+    var row = raw[r] || [];
+    for (var c = 0; c < row.length; c++) {
+      var cell = String(row[c] || '').trim();
+      var m = cell.match(/^\d{5,}$/);
+      if (m) return m[0];
     }
   }
   return null;
@@ -329,13 +355,40 @@ function histSubir(file) {
       msg.style.color = 'var(--red)'; msg.textContent = 'No se encontraron trades XAU/USD suficientes.';
       document.getElementById('hist-progreso').style.display = 'none'; return;
     }
-    var numeroCuenta = detectarNumeroCuentaDeRaw(raw) || _numeroDesdeFichero(raw, file.name);
+    var numeroCuenta = detectarNumeroCuentaDeRaw(raw, file.name);
     var nombreFinal  = (numeroCuenta && CUENTAS_AURUM[numeroCuenta]) || 'Cuenta Externa';
     var tipo         = nombreFinal === 'Cuenta Externa' ? 'extern' : 'real';
 
+    // Si no se detectó número y hay cuentas asignadas, preguntar al usuario
+    async function _pedirNumeroSiNecesario() {
+      if (numeroCuenta || Object.keys(CUENTAS_AURUM).length === 0) return numeroCuenta;
+      return new Promise(function(resolve) {
+        var modal = document.createElement('div');
+        modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;z-index:99999';
+        var opciones = Object.keys(CUENTAS_AURUM).map(function(num) {
+          return '<button data-num="' + num + '" style="background:var(--gold,#c9a84c);color:#000;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-weight:bold;margin:6px">' + CUENTAS_AURUM[num] + ' (' + num + ')</button>';
+        }).join('');
+        modal.innerHTML = '<div style="background:#0d1120;border:1px solid var(--gold,#c9a84c);border-radius:12px;padding:32px;max-width:460px;width:90%;text-align:center">' +
+          '<p style="color:#e0e0e0;margin:0 0 8px;font-size:15px">No se detectó el número de cuenta automáticamente.</p>' +
+          '<p style="color:#e0e0e0;margin:0 0 24px;font-size:14px;opacity:.7">¿A qué cuenta pertenece este historial?</p>' +
+          '<div>' + opciones + '</div>' +
+          '<button id="btn-externa" style="background:transparent;color:var(--text,#e0e0e0);border:1px solid #444;padding:10px 20px;border-radius:8px;cursor:pointer;margin:12px 6px 0">Es una cuenta externa</button>' +
+        '</div>';
+        document.body.appendChild(modal);
+        modal.querySelectorAll('[data-num]').forEach(function(btn) {
+          btn.onclick = function() { modal.remove(); resolve(btn.getAttribute('data-num')); };
+        });
+        document.getElementById('btn-externa').onclick = function() { modal.remove(); resolve(null); };
+      });
+    }
+
+    document.getElementById('hist-progreso').style.display = 'none';
+    numeroCuenta = await _pedirNumeroSiNecesario();
+    nombreFinal  = (numeroCuenta && CUENTAS_AURUM[numeroCuenta]) || 'Cuenta Externa';
+    tipo         = nombreFinal === 'Cuenta Externa' ? 'extern' : 'real';
+
     var fps_nuevos = trades.filter(function(t) { return !HISTORIAL_ALL_FPS.has(nombreFinal + '|' + (t.fp || '')); });
-    setTimeout(function() {
-      document.getElementById('hist-progreso').style.display = 'none';
+    (function() {
       if (fps_nuevos.length === 0) {
         msg.style.color = 'var(--gold)'; msg.textContent = 'Todos los trades ya estaban registrados.'; return;
       }
@@ -351,7 +404,7 @@ function histSubir(file) {
       }
       msg.style.color = 'var(--green)'; msg.textContent = fps_nuevos.length + ' trades únicos añadidos.';
       document.getElementById('hist-nombre').value = '';
-    }, 400);
+    })();
   }
   if (file.name.toLowerCase().endsWith('.xlsx')) {
     reader.onload = function(e) {
