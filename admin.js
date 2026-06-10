@@ -56,7 +56,7 @@ async function cargarUsuariosAdmin() {
   var tbody = document.getElementById('admin-tabla-body');
   if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:2rem;">Cargando...</td></tr>';
 
-  var res = await supaGet('usuarios_aurum', 'order=created_at.desc');
+  var res = await supaGet('usuarios_aurum', 'order=created_at.desc', getToken());
   if (res.error) {
     console.error('Admin error:', res.error);
     if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="color:var(--red);padding:1rem;">Error: ' + res.error + '</td></tr>';
@@ -257,7 +257,7 @@ async function adminGuardarUsuario() {
   }
 
   try {
-    var res = await supaPatch('usuarios_aurum', 'id=eq.' + adminEditId, datos);
+    var res = await supaPatch('usuarios_aurum', 'id=eq.' + adminEditId, datos, getToken());
     console.log('[ADMIN] supaPatch res.error (raw):', res.error);
     console.log('[ADMIN] supaPatch res.data:', res.data);
 
@@ -291,7 +291,7 @@ async function adminCrearUsuario() {
 
   var res = await supaPost('usuarios_aurum', {
     email: email, pack: pack, etapa: 1, activo: true, cuenta_mt5: mt5, fecha_expiracion: exp
-  });
+  }, 'return=representation', getToken());
   if (res.error) {
     showToast(res.error.includes('23505') || res.error.includes('unique') ? 'Email ya registrado' : 'Error: ' + res.error);
     return;
@@ -322,7 +322,7 @@ async function adminGuardarCodigo() {
   var email  = document.getElementById('admin-codigo-email').value;
   if (!codigo || !email) { showToast('Genera un código y elige un usuario'); return; }
 
-  var res = await supaPatch('usuarios_aurum', 'email=eq.' + encodeURIComponent(email), { codigo_eval: codigo, updated_at: new Date().toISOString() });
+  var res = await supaPatch('usuarios_aurum', 'email=eq.' + encodeURIComponent(email), { codigo_eval: codigo, updated_at: new Date().toISOString() }, getToken());
   if (res.error) { showToast('Error: ' + res.error); return; }
   showToast('Código ' + codigo + ' asignado a ' + email);
   await cargarUsuariosAdmin();

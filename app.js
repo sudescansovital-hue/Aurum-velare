@@ -61,9 +61,10 @@ async function _activarSesion(email) {
     animal:     animalMap[u.pack] || '✦',
     animalSala: u.animal || null,
     pack:       packMap[u.pack] || u.pack || 'Sin pack',
-    packLevel:  u.etapa || 1,
-    etapa:      u.etapa || 1,
-    activo:     u.activo
+    packLevel:    u.etapa || 1,
+    etapa:        u.etapa || 1,
+    activo:       u.activo,
+    fecha_entrada: u.fecha_entrada || null
   };
 
   document.getElementById('nav-login-btn').style.display = 'none';
@@ -95,13 +96,10 @@ async function hacerRegistro() {
   var auth = await supaAuthPost('/signup', { email: email, password: pass });
   if (auth.error) { err.textContent = auth.error; return; }
 
-  await supaPost('usuarios_aurum', {
-    email:   email,
-    nombre:  nick,
-    animal:  animal,
-    pack:    'sin_pack',
-    etapa:   0,
-    activo:  false
+  await fetch(SUPA_URL + '/rest/v1/rpc/registrar_nuevo_usuario', {
+    method: 'POST',
+    headers: { 'apikey': SUPA_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ p_email: email, p_nombre: nick, p_animal: animal })
   });
 
   document.getElementById('registro-form').innerHTML =

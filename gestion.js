@@ -930,19 +930,9 @@ function buildDashboardHero() {
   el = document.getElementById('dash-nivel-card'); if (el) el.textContent = numStr + ' · ' + nombreActual;
   el = document.getElementById('dash-nivel-sub');  if (el) el.textContent = pctCiclo + '% hacia ' + nombreSig;
 
-  // Días en proceso desde el primer trade
-  var primerFecha = null;
-  todos.forEach(function(t) {
-    var d = null;
-    if (t.fp) {
-      var m = String(t.fp).match(/(\d{4})\.(\d{2})\.(\d{2})/);
-      if (m) d = new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]));
-    }
-    if (!d && t.created_at) d = new Date(t.created_at);
-    if (d && (!primerFecha || d < primerFecha)) primerFecha = d;
-  });
-  if (primerFecha) {
-    var dias = Math.floor((new Date() - primerFecha) / 86400000);
+  // Días en proceso desde fecha_entrada del usuario
+  if (usuarioActual && usuarioActual.fecha_entrada) {
+    var dias = Math.floor((Date.now() - new Date(usuarioActual.fecha_entrada)) / 86400000);
     el = document.getElementById('dash-dias-proceso'); if (el) el.textContent = dias;
   }
 
