@@ -1,6 +1,28 @@
 # AURUM VELARE — Bugs y Prioridades
 > Archivo de referencia rápida. Ver ARQUITECTURA.md para contexto completo.  
-> Última actualización: 7 de junio de 2026
+> Última actualización: 10 de junio de 2026
+
+---
+
+## ✅ Resueltos — 10/06/2026
+
+| # | Dónde | Qué era | Solución aplicada |
+|---|---|---|---|
+| — | Supabase | RLS no activado en ninguna tabla | RLS activado en `trades`, `historiales`, `usuarios_aurum`. Políticas por rol: admin acceso total, usuario solo sus filas |
+| — | admin.js | 4 queries sin JWT (usaban anon key silenciosamente) | Añadido `getToken()` en `cargarUsuariosAdmin`, `adminGuardarUsuario` (x2) y `adminGuardarCodigo` |
+| — | app.js | Registro de usuario fallaba con RLS activo | Reemplazado INSERT directo por RPC `registrar_nuevo_usuario` (SECURITY DEFINER) — no necesita token |
+| — | historial.js | `histSubir()` asignaba carpeta por desplegable + safety net opaco | Simplificado a 3 líneas: detectar número → `CUENTAS_AURUM[num]` o `'Cuenta Externa'`. El desplegable ya no influye |
+| — | gestion.js / app.js | Días en proceso mostraba 101 en lugar del valor correcto | Corregido: usa `fecha_entrada` de `usuarios_aurum` (añadida a `usuarioActual`). Antes derivaba la fecha del campo `fp` de los trades |
+| — | historial.js / trades | Trades sin referencia al número MT5 de origen | Añadida columna `cuenta_numero TEXT` a `trades` (SQL: `ALTER TABLE trades ADD COLUMN IF NOT EXISTS cuenta_numero TEXT`). Se guarda al insertar desde `histSubir()` |
+| — | admin.js | Reasignación desde admin — revocación | Al quitar número de cuenta, los trades de esa carpeta vuelven a `Cuenta Externa` y se actualiza `historiales`. **Funciona.** |
+
+---
+
+## 🔴 Activo — 10/06/2026
+
+| # | Dónde | Qué falla | Estado |
+|---|---|---|---|
+| 17 | admin.js · `_reasignarCuentaExterna` | Asignación (poner número nuevo): no encuentra trades si hubo una revocación previa en el mismo guardado | Fix aplicado (dos pasadas: primero todas las revocaciones, luego todas las asignaciones). **Pendiente verificar en producción** |
 
 ---
 
@@ -41,7 +63,7 @@
 
 | # | Qué |
 |---|---|
-| 10 | Panel admin: gestión de cuentas, numeración, asignación de etapas por usuario |
+| 10 | Panel admin: gestión de cuentas — reasignación asignación pendiente verificar (ver bug #17) · asignación de etapas OK |
 | 11 | Lógica de etapas: usuarios en etapas bajas ven solo Trade Record e Historial Externo |
 | 12 | Sala privada: acceso por código dado por el Águila |
 | 13 | Tablillas: botón compartir en X / Instagram |

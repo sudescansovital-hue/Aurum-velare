@@ -1,6 +1,6 @@
 # AURUM VELARE — Arquitectura Web
 > Documento vivo. Se actualiza con el proyecto.  
-> Última actualización: 7 de junio de 2026  
+> Última actualización: 10 de junio de 2026  
 > Para uso interno — contexto de desarrollo y nuevas sesiones de trabajo.
 
 ---
@@ -178,14 +178,20 @@ Sistema web de acompañamiento para traders de XAU/USD. No es una academia ni un
 
 ### Vista privada — Trade Record (usuarios con Camino)
 
-#### Flujo de subida de historiales — lógica actual (07/06/2026)
+#### Flujo de subida de historiales — lógica actual (10/06/2026)
 
-El sistema sigue este orden de prioridad para asignar la carpeta al subir un CSV:
+La asignación de carpeta en `histSubir()` es una sola regla (3 líneas):
 
-1. **Desplegable `hist-tipo`:** Si el usuario seleccionó Maestra / Retos / Prueba → asignación directa, sin preguntar.
-2. **Safety net por desplegable:** Si la detección por filename dice "Cuenta Externa" pero el desplegable dice Maestra/Retos/Prueba → el desplegable gana y sobreescribe.
-3. **Detección por número desde filename:** Se extrae el número de cuenta del nombre del archivo CSV y se busca en `CUENTAS_AURUM` (tabla `usuarios_aurum`). Si coincide → carpeta correspondiente. Si no coincide → carpeta `Externa`.
-4. **Bloqueo de duplicados:** Antes de insertar se comprueba si ya existe un registro con el mismo `user_id` + `nombre_archivo`. Si existe → PATCH (actualiza). Si no → INSERT. Nunca dos entradas con el mismo archivo.
+```js
+var numeroCuenta = detectarNumeroCuentaDeRaw(raw) || _numeroDesdeFichero(raw, file.name);
+var nombreFinal  = (numeroCuenta && CUENTAS_AURUM[numeroCuenta]) || 'Cuenta Externa';
+```
+
+- Si el número detectado en el archivo coincide con un número en `CUENTAS_AURUM` → carpeta correspondiente (Maestra / Retos / Prueba).
+- Si no coincide o no hay número → siempre `Cuenta Externa`.
+- El desplegable `hist-tipo` NO influye en la asignación. El safety net fue eliminado.
+- Los fps duplicados nunca se insertan (filtro por `HISTORIAL_ALL_FPS` antes del INSERT).
+- Cada trade insertado incluye `cuenta_numero` (el número MT5 del archivo) para permitir reasignación posterior desde el admin.
 
 #### Las 4 carpetas fijas por usuario
 Cada usuario tiene EXACTAMENTE estas 4 carpetas. El sistema asigna cada historial subido automáticamente:
@@ -304,6 +310,18 @@ Ranking de sala por OZT — siempre visible
 | 4 | Saldo OZT muestra 0 disponibles con 247 en histórico | El cálculo disponible = histórico - gastado está roto |
 | 5 | Sección Retos no muestra historial completo | El usuario no ve todos sus retos completados |
 | 6 | Verificar Ciclo111/Horarios/Equity/Cumplimiento contra historial externo real | Posibles datos incorrectos en el Trade Record |
+| 17 | Reasignación desde admin — asignación pendiente de verificar | Revocación funciona. Asignación tiene fix aplicado (dos pasadas) pero no verificada en producción |
+
+## ✅ RESUELTOS (10/06/2026)
+
+| # | Bug | Solución |
+|---|---|---|
+| — | RLS no activado en ninguna tabla | RLS activado en `trades`, `historiales`, `usuarios_aurum` con políticas por rol (ver sección Seguridad) |
+| — | Queries en admin.js sin JWT | Añadido `getToken()` en 4 llamadas de `admin.js` |
+| — | Registro fallaba con RLS activo (no hay token en signup) | Función SQL `registrar_nuevo_usuario` (SECURITY DEFINER, callable por anon) |
+| — | `histSubir()` asignaba carpeta por desplegable y safety net | Simplificado a 1 regla: `CUENTAS_AURUM[numeroCuenta] \|\| 'Cuenta Externa'` |
+| — | Días en proceso mostraba valor incorrecto | Corregido: usa `fecha_entrada` de BD en lugar de derivar del fp de los trades |
+| — | Trades sin referencia al número de cuenta MT5 | Columna `cuenta_numero TEXT` añadida a `trades`; se rellena al insertar desde `histSubir()` |
 
 ## ✅ RESUELTOS (07/06/2026)
 
@@ -343,9 +361,25 @@ Ranking de sala por OZT — siempre visible
 
 | Tabla | Qué guarda |
 |---|---|
-| trades | Operaciones individuales por usuario |
+| trades | Operaciones individuales por usuario. Columna `cuenta_numero` (TEXT) guarda el número MT5 del archivo de origen |
 | historiales | Historiales subidos agrupados por carpeta y usuario |
 | usuarios_aurum | Perfil: nombre · animal · etapa · Camino · fecha inicio · OZT |
+
+### Seguridad — RLS (activado 10/06/2026)
+
+RLS activo en las 3 tablas. Políticas:
+
+| Tabla | Política | Regla |
+|---|---|---|
+| `usuarios_aurum` | `ua_admin_todo` | Admin (`roderastrader@gmail.com`) → acceso total |
+| `usuarios_aurum` | `ua_user_select` | Usuario autenticado → solo lee su fila (`auth.email() = email`) |
+| `usuarios_aurum` | `ua_user_update` | Usuario autenticado → solo edita su fila (onboarding) |
+| `trades` | `tr_user_todo` | Usuario → CRUD sobre sus propios trades (`auth.email() = usuario_email`) |
+| `trades` | `tr_admin_select` | Admin → puede leer todos los trades |
+| `historiales` | `hi_user_todo` | Usuario → CRUD sobre sus propios historiales |
+| `historiales` | `hi_admin_select` | Admin → puede leer todos los historiales |
+
+El registro de nuevos usuarios usa la función SQL `registrar_nuevo_usuario` (SECURITY DEFINER, callable por anon) porque al registrarse con confirmación de email activada no hay access_token disponible.
 
 ### Qué se guarda y qué no
 - ✓ SÍ: trades · historiales · perfil de usuario · OZT · entradas de diario (V2)
