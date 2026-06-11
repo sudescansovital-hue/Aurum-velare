@@ -1083,6 +1083,11 @@ function buildEstadisticasAvanzadas() {
         : ruinaPct < 25
         ? 'Riesgo moderado. Pequeñas mejoras en WR o RR reducen exponencialmente la probabilidad de ruina.'
         : 'Riesgo elevado. El sistema actual no protege suficientemente el capital a largo plazo.';
+      var ruinaRec = ruinaPct < 5
+        ? 'Tu edge es sólido. Mantén el R/R por encima de 1.0 y el WR estable.'
+        : ruinaPct < 20
+        ? 'Para reducirlo: sube el R/R por encima de 1.2 o mejora el WR 5 puntos. Ambos juntos lo reducen drásticamente.'
+        : 'Prioridad: el R/R está por debajo de 1.0 — estás ganando operaciones pero perdiendo más de lo que ganas. Revisa los SL y TP. Mientras el R/R sea menor que 1.0, el sistema tiene fragilidad estructural aunque el profit sea positivo.';
       elRuina.innerHTML =
         '<div style="font-family:\'Cormorant Garamond\',serif;font-size:20px;color:var(--gold-bright);margin-bottom:1rem;">Riesgo de ruina</div>' +
         '<div style="display:grid;grid-template-columns:120px 1fr;gap:1.5rem;align-items:center;">' +
@@ -1091,7 +1096,8 @@ function buildEstadisticasAvanzadas() {
         '<div style="font-size:13px;color:'+ruinaCol+';">'+ruinaLabel+'</div></div>' +
         '<div>' +
         '<div style="font-size:13px;color:var(--text-muted);line-height:1.7;margin-bottom:.6rem;">'+ruinaMsg+'</div>' +
-        '<div style="font-size:11px;color:var(--text-muted);opacity:.7;">((1−WR)/WR)^(avgWin/avgLoss) · WR='+Math.round(wrR*1000)/10+'% · AvgWin='+Math.round(avgWinR*100)/100+'$ · AvgLoss='+Math.round(avgLossR*100)/100+'$</div>' +
+        '<div style="font-size:11px;color:var(--text-muted);opacity:.7;margin-bottom:.8rem;">((1−WR)/WR)^(avgWin/avgLoss) · WR='+Math.round(wrR*1000)/10+'% · AvgWin='+Math.round(avgWinR*100)/100+'$ · AvgLoss='+Math.round(avgLossR*100)/100+'$</div>' +
+        '<div style="font-size:12px;color:'+ruinaCol+';line-height:1.7;padding:.6rem .8rem;border-left:2px solid '+ruinaCol+'44;background:'+ruinaCol+'08;">'+ruinaRec+'</div>' +
         '</div></div>';
     }
   }
