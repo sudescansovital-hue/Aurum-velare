@@ -75,30 +75,35 @@ function buildTradeRecord() {
           '<div style="height:100%;width:'+Math.round(d.t/maxT*100)+'%;background:'+col+';border-radius:2px;"></div></div></div>';
       }).join('');
     }
-    if (verd) {
-      var dominante = tipos.reduce(function(a,b){ return b.t > a.t ? b : a; });
-      var colDom = dominante.l.includes('Swing') ? '#C9A84C' : dominante.l.includes('Multi') ? '#4ACC8A' : dominante.l.includes('Scalp') ? '#6A8AEE' : '#CC5544';
-      var tiposConDatos = tipos.filter(function(d){ return d.t >= 3; });
-      var verdHtml = '<div style="display:flex;align-items:flex-start;gap:1rem;flex-wrap:wrap;padding:.8rem 0;">' +
-        '<div style="padding:.6rem 1rem;border:1px solid '+colDom+'44;background:'+colDom+'08;">' +
-        '<div style="font-size:11px;color:var(--text-muted);margin-bottom:.2rem;letter-spacing:.1em;text-transform:uppercase;">Tipo dominante</div>' +
-        '<div style="font-size:15px;color:'+colDom+';">'+dominante.l+'</div>' +
-        '<div style="font-size:12px;color:var(--text-muted);">'+dominante.t+' trades · '+dominante.wr+'% WR</div></div>';
-      if (tiposConDatos.length >= 2) {
-        var mejorWR = tiposConDatos.reduce(function(a,b){ return b.wr > a.wr ? b : a; });
-        var peorWR  = tiposConDatos.reduce(function(a,b){ return b.wr < a.wr ? b : a; });
-        verdHtml += '<div style="padding:.6rem 1rem;border:1px solid #3AAA6A44;background:#3AAA6A08;">' +
-          '<div style="font-size:11px;color:var(--text-muted);margin-bottom:.2rem;letter-spacing:.1em;text-transform:uppercase;">Mejor WR</div>' +
-          '<div style="font-size:15px;color:var(--green);">'+mejorWR.l+'</div>' +
-          '<div style="font-size:12px;color:var(--text-muted);">'+mejorWR.wr+'% · '+mejorWR.t+' trades</div></div>' +
-          '<div style="padding:.6rem 1rem;border:1px solid #CC554422;background:#CC554408;">' +
-          '<div style="font-size:11px;color:var(--text-muted);margin-bottom:.2rem;letter-spacing:.1em;text-transform:uppercase;">Peor WR</div>' +
-          '<div style="font-size:15px;color:var(--red);">'+peorWR.l+'</div>' +
-          '<div style="font-size:12px;color:var(--text-muted);">'+peorWR.wr+'% · '+peorWR.t+' trades</div></div>';
-      }
-      verdHtml += '</div>';
-      verd.innerHTML = verdHtml;
+    var dominante = tipos.reduce(function(a,b){ return b.t > a.t ? b : a; });
+    var colDom = dominante.l.includes('Swing') ? '#C9A84C' : dominante.l.includes('Multi') ? '#4ACC8A' : dominante.l.includes('Scalp') ? '#6A8AEE' : '#CC5544';
+    var tiposConDatos = tipos.filter(function(d){ return d.t >= 3; });
+    var verdHtml = '<div style="display:flex;align-items:flex-start;gap:1rem;flex-wrap:wrap;padding:.8rem 0;">' +
+      '<div style="padding:.6rem 1rem;border:1px solid '+colDom+'44;background:'+colDom+'08;">' +
+      '<div style="font-size:11px;color:var(--text-muted);margin-bottom:.2rem;letter-spacing:.1em;text-transform:uppercase;">Tipo dominante</div>' +
+      '<div style="font-size:15px;color:'+colDom+';">'+dominante.l+'</div>' +
+      '<div style="font-size:12px;color:var(--text-muted);">'+dominante.t+' trades · '+dominante.wr+'% WR</div></div>';
+    if (tiposConDatos.length >= 2) {
+      var mejorWR = tiposConDatos.reduce(function(a,b){ return b.wr > a.wr ? b : a; });
+      var peorWR  = tiposConDatos.reduce(function(a,b){ return b.wr < a.wr ? b : a; });
+      verdHtml += '<div style="padding:.6rem 1rem;border:1px solid #3AAA6A44;background:#3AAA6A08;">' +
+        '<div style="font-size:11px;color:var(--text-muted);margin-bottom:.2rem;letter-spacing:.1em;text-transform:uppercase;">Mejor WR</div>' +
+        '<div style="font-size:15px;color:var(--green);">'+mejorWR.l+'</div>' +
+        '<div style="font-size:12px;color:var(--text-muted);">'+mejorWR.wr+'% · '+mejorWR.t+' trades</div></div>' +
+        '<div style="padding:.6rem 1rem;border:1px solid #CC554422;background:#CC554408;">' +
+        '<div style="font-size:11px;color:var(--text-muted);margin-bottom:.2rem;letter-spacing:.1em;text-transform:uppercase;">Peor WR</div>' +
+        '<div style="font-size:15px;color:var(--red);">'+peorWR.l+'</div>' +
+        '<div style="font-size:12px;color:var(--text-muted);">'+peorWR.wr+'% · '+peorWR.t+' trades</div></div>';
     }
+    verdHtml += '</div>';
+    if (verd) { verd.innerHTML = verdHtml; }
+    var cuentaActiva = window.cuentaActivaGestion || 'global';
+    var verdIdCuenta = cuentaActiva === 'maestra' ? 'gest-tipo-trader-veredicto-maestra'
+                     : cuentaActiva === 'retos'   ? 'gest-tipo-trader-veredicto-retos'
+                     : cuentaActiva === 'prueba'  ? 'gest-tipo-trader-veredicto-prueba'
+                     : null;
+    var verdCuenta = verdIdCuenta ? document.getElementById(verdIdCuenta) : null;
+    if (verdCuenta) { verdCuenta.innerHTML = verdHtml; }
   }
 
   // Populate the stats row for the active account view.
