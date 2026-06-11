@@ -50,27 +50,54 @@ function buildTradeRecord() {
   var trades = getTradesActivos();
   var tb = document.getElementById('gest-tipos-bars');
   if (tb && !trades.length) { tb.innerHTML = ''; }
-  if (tb && trades.length) {
+  if (trades.length) {
     var scalp = trades.filter(function(t){ return t.dur_min < 30; });
     var intra = trades.filter(function(t){ return t.dur_min >= 30 && t.dur_min < 240; });
     var swing = trades.filter(function(t){ return t.dur_min >= 240 && t.dur_min < 1440; });
     var multi = trades.filter(function(t){ return t.dur_min >= 1440; });
-    function _tm(arr, label) {
+    var _tm = function(arr, label) {
       var w = arr.filter(function(t){ return t.ganadora; }).length;
       var p = arr.reduce(function(s,t){ return s+(t.beneficio||0); },0);
       return { l:label, t:arr.length, wr:arr.length>0?Math.round(w/arr.length*1000)/10:0, pnl:Math.round(p*100)/100 };
-    }
+    };
     var tipos = [_tm(scalp,'Scalping <30min'), _tm(intra,'Intradía 30m–4h'), _tm(swing,'✦ Swing 4h–24h'), _tm(multi,'Multi-día >24h')];
     var maxT = Math.max.apply(null, tipos.map(function(d){ return d.t; })) || 1;
-    tb.innerHTML = tipos.map(function(d) {
-      var col = d.l.includes('Swing') ? 'linear-gradient(90deg,#C9A84C44,#E8C870)' : d.l.includes('Multi') ? '#4ACC8A' : d.l.includes('Scalp') ? '#6A8AEE55' : '#CC554455';
-      return '<div style="margin-bottom:.8rem;">' +
-        '<div style="display:flex;justify-content:space-between;margin-bottom:.3rem;">' +
-        '<span style="font-size:15px;color:'+(d.wr>=70?'var(--gold-bright)':'var(--text-dim)')+';">'+d.l+'</span>' +
-        '<span style="font-size:13px;color:var(--text-muted);">'+d.t+'t · '+d.wr+'% WR · '+(d.pnl>=0?'+':'')+d.pnl+'$</span></div>' +
-        '<div style="height:4px;background:var(--border);border-radius:2px;">' +
-        '<div style="height:100%;width:'+Math.round(d.t/maxT*100)+'%;background:'+col+';border-radius:2px;"></div></div></div>';
-    }).join('');
+    if (tb) {
+      tb.innerHTML = tipos.map(function(d) {
+        var col = d.l.includes('Swing') ? 'linear-gradient(90deg,#C9A84C44,#E8C870)' : d.l.includes('Multi') ? '#4ACC8A' : d.l.includes('Scalp') ? '#6A8AEE55' : '#CC554455';
+        return '<div style="margin-bottom:.8rem;">' +
+          '<div style="display:flex;justify-content:space-between;margin-bottom:.3rem;">' +
+          '<span style="font-size:15px;color:'+(d.wr>=70?'var(--gold-bright)':'var(--text-dim)')+';">'+d.l+'</span>' +
+          '<span style="font-size:13px;color:var(--text-muted);">'+d.t+'t · '+d.wr+'% WR · '+(d.pnl>=0?'+':'')+d.pnl+'$</span></div>' +
+          '<div style="height:4px;background:var(--border);border-radius:2px;">' +
+          '<div style="height:100%;width:'+Math.round(d.t/maxT*100)+'%;background:'+col+';border-radius:2px;"></div></div></div>';
+      }).join('');
+    }
+    var verd = document.getElementById('gest-tipo-trader-veredicto');
+    if (verd) {
+      var dominante = tipos.reduce(function(a,b){ return b.t > a.t ? b : a; });
+      var colDom = dominante.l.includes('Swing') ? '#C9A84C' : dominante.l.includes('Multi') ? '#4ACC8A' : dominante.l.includes('Scalp') ? '#6A8AEE' : '#CC5544';
+      var tiposConDatos = tipos.filter(function(d){ return d.t >= 3; });
+      var verdHtml = '<div style="display:flex;align-items:flex-start;gap:1rem;flex-wrap:wrap;padding:.8rem 0;">' +
+        '<div style="padding:.6rem 1rem;border:1px solid '+colDom+'44;background:'+colDom+'08;">' +
+        '<div style="font-size:11px;color:var(--text-muted);margin-bottom:.2rem;letter-spacing:.1em;text-transform:uppercase;">Tipo dominante</div>' +
+        '<div style="font-size:15px;color:'+colDom+';">'+dominante.l+'</div>' +
+        '<div style="font-size:12px;color:var(--text-muted);">'+dominante.t+' trades · '+dominante.wr+'% WR</div></div>';
+      if (tiposConDatos.length >= 2) {
+        var mejorWR = tiposConDatos.reduce(function(a,b){ return b.wr > a.wr ? b : a; });
+        var peorWR  = tiposConDatos.reduce(function(a,b){ return b.wr < a.wr ? b : a; });
+        verdHtml += '<div style="padding:.6rem 1rem;border:1px solid #3AAA6A44;background:#3AAA6A08;">' +
+          '<div style="font-size:11px;color:var(--text-muted);margin-bottom:.2rem;letter-spacing:.1em;text-transform:uppercase;">Mejor WR</div>' +
+          '<div style="font-size:15px;color:var(--green);">'+mejorWR.l+'</div>' +
+          '<div style="font-size:12px;color:var(--text-muted);">'+mejorWR.wr+'% · '+mejorWR.t+' trades</div></div>' +
+          '<div style="padding:.6rem 1rem;border:1px solid #CC554422;background:#CC554408;">' +
+          '<div style="font-size:11px;color:var(--text-muted);margin-bottom:.2rem;letter-spacing:.1em;text-transform:uppercase;">Peor WR</div>' +
+          '<div style="font-size:15px;color:var(--red);">'+peorWR.l+'</div>' +
+          '<div style="font-size:12px;color:var(--text-muted);">'+peorWR.wr+'% · '+peorWR.t+' trades</div></div>';
+      }
+      verdHtml += '</div>';
+      verd.innerHTML = verdHtml;
+    }
   }
 
   // Populate the stats row for the active account view.
@@ -112,17 +139,27 @@ function buildHorarios() {
   var elTitulo = document.getElementById('gest-horarios-titulo');
   if (elTitulo) elTitulo.textContent = 'Mapa horario real — ' + trades.length + ' trades';
 
-  // Ventana real (17:00–02:00 = hours 17–23 + 0–1): compute P&L inside/outside
+  // Ventana dinámica: 8 horas consecutivas con más trades
+  var bestStart = 0, bestCount = 0;
+  for (var s = 0; s < 24; s++) {
+    var cnt = 0;
+    for (var w = 0; w < 8; w++) cnt += porHora[(s + w) % 24].t;
+    if (cnt > bestCount) { bestCount = cnt; bestStart = s; }
+  }
+  var winSet = {};
+  for (var w = 0; w < 8; w++) winSet[(bestStart + w) % 24] = true;
+  var endH = (bestStart + 7) % 24;
+  var hStr = (bestStart < 10 ? '0' + bestStart : bestStart) + ':00–' + (endH < 10 ? '0' + endH : endH) + ':59';
   var pnlDentro = 0, pnlFuera = 0;
   for (var h = 0; h < 24; h++) {
-    if (h >= 17 || h <= 1) pnlDentro += porHora[h].p;
+    if (winSet[h]) pnlDentro += porHora[h].p;
     else pnlFuera += porHora[h].p;
   }
   pnlDentro = Math.round(pnlDentro);
   pnlFuera  = Math.round(pnlFuera);
   var elVentana = document.getElementById('gest-horarios-ventana');
   if (elVentana) {
-    elVentana.textContent = '▲ Tu ventana real (17:00–02:00) · Dentro: ' +
+    elVentana.textContent = '▲ Tu ventana óptima (' + hStr + ') · Dentro: ' +
       (pnlDentro >= 0 ? '+' : '') + pnlDentro + '$ · Fuera: ' +
       (pnlFuera  >= 0 ? '+' : '') + pnlFuera  + '$';
   }
@@ -265,6 +302,47 @@ function buildCicloDots() {
     cd.innerHTML = ultimos.map(function(t){
       return '<div style="width:7px;height:7px;border-radius:50%;background:'+(t.ganadora?'#3AAA6A':'#CC5544')+';flex-shrink:0;'+(t.ganadora?'box-shadow:0 0 3px #3AAA6A44':'')+'"></div>';
     }).join('');
+  }
+
+  // Ciclo vs anterior
+  var cva = document.getElementById('ciclo-vs-anterior');
+  if (cva) {
+    if (completados < 1) {
+      cva.innerHTML = '<div style="font-size:13px;color:var(--text-muted);padding:1rem 0;">Completa el primer ciclo para ver la comparativa con el anterior.</div>';
+    } else {
+      var prevEnd   = trades.length - enCurso;
+      var prevStart = Math.max(0, prevEnd - 111);
+      var prev      = prevEnd > prevStart ? trades.slice(prevStart, prevEnd) : [];
+      var prevWins  = prev.filter(function(t){ return t.ganadora; }).length;
+      var prevWR    = prev.length > 0 ? Math.round(prevWins/prev.length*1000)/10 : 0;
+      var prevPnl   = Math.round(prev.reduce(function(s,t){ return s+(t.beneficio||0); },0)*100)/100;
+      var prevPtsW  = prevWins > 0 ? prev.filter(function(t){ return t.ganadora; }).reduce(function(s,t){ return s+(t.puntos||0); },0)/prevWins : 0;
+      var prevLoss  = prev.length - prevWins;
+      var prevPtsL  = prevLoss > 0 ? prev.filter(function(t){ return !t.ganadora; }).reduce(function(s,t){ return s+(t.puntos||0); },0)/prevLoss : 0;
+      var prevRR    = prevPtsL > 0 ? Math.round(prevPtsW/prevPtsL*100)/100 : 0;
+      function _cvaTag(cur, ant, higherBetter) {
+        var d = Math.round((cur - ant)*10)/10;
+        var ok = higherBetter ? d >= 0 : d <= 0;
+        return '<span style="font-size:11px;color:'+(ok?'var(--green)':'var(--red)')+';">'+(d>=0?'+':'')+d+'</span>';
+      }
+      cva.innerHTML =
+        '<div style="padding:1rem 2rem;border-top:1px solid var(--border);background:var(--bg2);">' +
+        '<div class="tag" style="display:block;margin-bottom:.8rem;">Ciclo actual vs ciclo anterior ('+prev.length+' trades)</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);">' +
+        '<div style="background:var(--bg);padding:.8rem;text-align:center;">' +
+        '<div style="font-size:11px;color:var(--text-muted);margin-bottom:.2rem;">Win Rate</div>' +
+        '<div style="font-family:\'Cormorant Garamond\',serif;font-size:24px;color:var(--green);">'+wr+'%</div>' +
+        '<div style="font-size:12px;color:var(--text-muted);">ant: '+prevWR+'% '+_cvaTag(wr,prevWR,true)+'</div></div>' +
+        '<div style="background:var(--bg);padding:.8rem;text-align:center;">' +
+        '<div style="font-size:11px;color:var(--text-muted);margin-bottom:.2rem;">R/R</div>' +
+        '<div style="font-family:\'Cormorant Garamond\',serif;font-size:24px;color:var(--gold-bright);">'+rr+'</div>' +
+        '<div style="font-size:12px;color:var(--text-muted);">ant: '+prevRR+' '+_cvaTag(rr,prevRR,true)+'</div></div>' +
+        '<div style="background:var(--bg);padding:.8rem;text-align:center;">' +
+        '<div style="font-size:11px;color:var(--text-muted);margin-bottom:.2rem;">P&L</div>' +
+        '<div style="font-family:\'Cormorant Garamond\',serif;font-size:24px;color:'+(pnl>=0?'var(--green)':'var(--red)')+'">'+(pnl>=0?'+':'')+pnl+'$</div>' +
+        '<div style="font-size:12px;color:var(--text-muted);">ant: '+(prevPnl>=0?'+':'')+prevPnl+'$ '+_cvaTag(pnl,prevPnl,true)+'</div></div>' +
+        '</div></div>';
+    }
   }
 }
 
@@ -564,6 +642,51 @@ function buildCumplimiento() {
     var MESES_LARGO = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
     var ahora = new Date();
     elPeriodo.textContent = MESES_LARGO[ahora.getMonth()] + ' ' + ahora.getFullYear();
+  }
+
+  // Evolución mensual del cumplimiento
+  var elEvolMens = document.getElementById('cumpl-evolucion-mensual');
+  if (elEvolMens) {
+    var porMesCumpl = {}, mesOrdenCumpl = [];
+    trades.forEach(function(t) {
+      var key = null;
+      if (t.fp) {
+        var mf = String(t.fp).match(/(\d{4})\.(\d{2})\.(\d{2})/);
+        if (mf) key = mf[1] + '-' + mf[2];
+      }
+      if (!key && t.created_at) {
+        var dc = new Date(t.created_at);
+        var mc = dc.getMonth() + 1;
+        key = dc.getFullYear() + '-' + (mc < 10 ? '0' + mc : '' + mc);
+      }
+      if (!key) return;
+      if (!porMesCumpl[key]) { porMesCumpl[key] = { t:0, dentro:0 }; mesOrdenCumpl.push(key); }
+      porMesCumpl[key].t++;
+      if (t.puntos <= 11) porMesCumpl[key].dentro++;
+    });
+    var MESES_C = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+    function _mesLabel(k) { var p = k.split('-'); return MESES_C[parseInt(p[1])-1] + ' ' + p[0].slice(2); }
+    var mesesConDatosCumpl = mesOrdenCumpl.filter(function(k){ return porMesCumpl[k].t >= 3; });
+    if (mesesConDatosCumpl.length < 2) {
+      elEvolMens.innerHTML = '';
+    } else {
+      var htmlMenses = mesesConDatosCumpl.map(function(k) {
+        var m = porMesCumpl[k];
+        var pctM = Math.round(m.dentro / m.t * 100);
+        var colM = pctM >= 70 ? '#4ACC8A' : pctM >= 50 ? '#C9A84C' : '#CC5544';
+        return '<div style="display:flex;align-items:center;gap:.8rem;padding:.5rem 0;border-bottom:1px solid #0A0C14;">' +
+          '<span style="font-size:13px;color:var(--text-dim);width:60px;flex-shrink:0;">'+_mesLabel(k)+'</span>' +
+          '<div style="flex:1;height:4px;background:var(--border);border-radius:2px;">' +
+          '<div style="height:100%;width:'+pctM+'%;background:'+colM+';border-radius:2px;"></div></div>' +
+          '<span style="font-size:13px;color:'+colM+';width:42px;text-align:right;">'+pctM+'%</span>' +
+          '<span style="font-size:12px;color:var(--text-muted);width:60px;text-align:right;">'+m.t+' trades</span>' +
+          '</div>';
+      }).join('');
+      elEvolMens.innerHTML =
+        '<div style="padding:1.5rem 2rem;border-top:1px solid var(--border);">' +
+        '<div class="tag" style="display:block;margin-bottom:1rem;">Evolución mensual del cumplimiento · % trades en método (Edge 11)</div>' +
+        htmlMenses + '</div>';
+    }
   }
 }
 
@@ -881,6 +1004,90 @@ function buildEstadisticasAvanzadas() {
       '<div style="font-size:10px;letter-spacing:.3em;text-transform:uppercase;color:var(--gold);margin-bottom:.5rem;">✦ Recomendación urgente</div>' +
       '<div style="font-size:14px;color:var(--text-dim);line-height:1.8;">' + recomendacion + '</div>' +
       '</div>';
+  }
+
+  // Últimos 30 vs histórico
+  var elUlt30 = document.getElementById('eav-ultimos30');
+  if (elUlt30) {
+    if (trades.length < 10) {
+      elUlt30.innerHTML = '';
+    } else {
+      var wr_hist = trades.length > 0 ? Math.round(wins.length/trades.length*1000)/10 : 0;
+      var ptsW_h = wins.length > 0 ? wins.reduce(function(s,t){ return s+(t.puntos||0); },0)/wins.length : 0;
+      var ptsL_h = losses.length > 0 ? losses.reduce(function(s,t){ return s+(t.puntos||0); },0)/losses.length : 0;
+      var rr_hist = ptsL_h > 0 ? Math.round(ptsW_h/ptsL_h*100)/100 : 0;
+      var pnl_hist_pt = trades.length > 0 ? Math.round(totalPnl/trades.length*100)/100 : 0;
+      var ult30 = trades.slice(-30);
+      var u30w = ult30.filter(function(t){ return t.ganadora; }).length;
+      var u30l = ult30.length - u30w;
+      var u30wr = ult30.length > 0 ? Math.round(u30w/ult30.length*1000)/10 : 0;
+      var u30pnl = Math.round(ult30.reduce(function(s,t){ return s+(t.beneficio||0); },0)*100)/100;
+      var u30ptsW = u30w > 0 ? ult30.filter(function(t){ return t.ganadora; }).reduce(function(s,t){ return s+(t.puntos||0); },0)/u30w : 0;
+      var u30ptsL = u30l > 0 ? ult30.filter(function(t){ return !t.ganadora; }).reduce(function(s,t){ return s+(t.puntos||0); },0)/u30l : 0;
+      var u30rr = u30ptsL > 0 ? Math.round(u30ptsW/u30ptsL*100)/100 : 0;
+      var u30pt = ult30.length > 0 ? Math.round(u30pnl/ult30.length*100)/100 : 0;
+      var score30 = (u30wr - wr_hist > 2 ? 1 : u30wr - wr_hist < -2 ? -1 : 0) +
+                   (u30rr - rr_hist > 0.1 ? 1 : u30rr - rr_hist < -0.1 ? -1 : 0) +
+                   (u30pt - pnl_hist_pt > 0 ? 1 : u30pt - pnl_hist_pt < 0 ? -1 : 0);
+      var tendencia = score30 >= 2 ? '<span style="color:var(--green);">mejorando</span>' :
+                      score30 <= -2 ? '<span style="color:var(--red);">empeorando</span>' :
+                      '<span style="color:var(--gold-bright);">estable</span>';
+      function _u30tag(cur, base) {
+        var d = Math.round((cur - base)*10)/10;
+        return '<span style="font-size:11px;color:'+(d>=0?'var(--green)':'var(--red)')+';">'+(d>=0?'+':'')+d+'</span>';
+      }
+      elUlt30.innerHTML =
+        '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:1rem;">' +
+        '<div style="font-family:\'Cormorant Garamond\',serif;font-size:20px;color:var(--gold-bright);">Últimos 30 trades vs histórico</div>' +
+        '<div style="font-size:14px;color:var(--text-muted);">Tendencia: '+tendencia+'</div></div>' +
+        '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);">' +
+        '<div style="background:var(--bg);padding:.8rem;text-align:center;">' +
+        '<div style="font-size:11px;color:var(--text-muted);margin-bottom:.2rem;">WR últimos 30</div>' +
+        '<div style="font-family:\'Cormorant Garamond\',serif;font-size:24px;color:var(--green);">'+u30wr+'%</div>' +
+        '<div style="font-size:12px;color:var(--text-muted);">histórico: '+wr_hist+'% '+_u30tag(u30wr,wr_hist)+'</div></div>' +
+        '<div style="background:var(--bg);padding:.8rem;text-align:center;">' +
+        '<div style="font-size:11px;color:var(--text-muted);margin-bottom:.2rem;">R/R últimos 30</div>' +
+        '<div style="font-family:\'Cormorant Garamond\',serif;font-size:24px;color:var(--gold-bright);">'+u30rr+'</div>' +
+        '<div style="font-size:12px;color:var(--text-muted);">histórico: '+rr_hist+' '+_u30tag(u30rr,rr_hist)+'</div></div>' +
+        '<div style="background:var(--bg);padding:.8rem;text-align:center;">' +
+        '<div style="font-size:11px;color:var(--text-muted);margin-bottom:.2rem;">P&L / trade (ult30)</div>' +
+        '<div style="font-family:\'Cormorant Garamond\',serif;font-size:24px;color:'+(u30pt>=0?'var(--green)':'var(--red)')+'">'+(u30pt>=0?'+':'')+u30pt+'$</div>' +
+        '<div style="font-size:12px;color:var(--text-muted);">histórico: '+(pnl_hist_pt>=0?'+':'')+pnl_hist_pt+'$ '+_u30tag(u30pt,pnl_hist_pt)+'</div></div>' +
+        '</div>';
+    }
+  }
+
+  // Riesgo de ruina: ((1-wr)/wr)^(avgWin/avgLoss)
+  var elRuina = document.getElementById('eav-riesgo-ruina');
+  if (elRuina) {
+    if (trades.length < 20 || wins.length === 0 || losses.length === 0) {
+      elRuina.innerHTML = '<div style="font-size:13px;color:var(--text-muted);">Necesitas al menos 20 trades con ganadoras y perdedoras para calcular el riesgo de ruina.</div>';
+    } else {
+      var wrR = wins.length / trades.length;
+      var avgWinR  = wins.reduce(function(s,t){ return s+(t.beneficio||0); },0) / wins.length;
+      var avgLossR = Math.abs(losses.reduce(function(s,t){ return s+(t.beneficio||0); },0) / losses.length);
+      var ruina = (avgLossR > 0 && wrR > 0 && wrR < 1)
+        ? Math.min(1, Math.pow((1 - wrR) / wrR, avgWinR / avgLossR))
+        : (wrR >= 1 ? 0 : 1);
+      var ruinaPct = Math.round(ruina * 1000) / 10;
+      var ruinaCol   = ruinaPct < 5 ? '#3AAA6A' : ruinaPct < 25 ? '#C9A84C' : '#CC5544';
+      var ruinaLabel = ruinaPct < 5 ? 'Muy bajo' : ruinaPct < 25 ? 'Moderado' : 'Elevado';
+      var ruinaMsg   = ruinaPct < 5
+        ? 'Tu edge matemático protege bien el capital a largo plazo. Mantén la consistencia.'
+        : ruinaPct < 25
+        ? 'Riesgo moderado. Pequeñas mejoras en WR o RR reducen exponencialmente la probabilidad de ruina.'
+        : 'Riesgo elevado. El sistema actual no protege suficientemente el capital a largo plazo.';
+      elRuina.innerHTML =
+        '<div style="font-family:\'Cormorant Garamond\',serif;font-size:20px;color:var(--gold-bright);margin-bottom:1rem;">Riesgo de ruina</div>' +
+        '<div style="display:grid;grid-template-columns:120px 1fr;gap:1.5rem;align-items:center;">' +
+        '<div style="text-align:center;">' +
+        '<div style="font-family:\'Cormorant Garamond\',serif;font-size:52px;color:'+ruinaCol+';line-height:1;">'+ruinaPct+'%</div>' +
+        '<div style="font-size:13px;color:'+ruinaCol+';">'+ruinaLabel+'</div></div>' +
+        '<div>' +
+        '<div style="font-size:13px;color:var(--text-muted);line-height:1.7;margin-bottom:.6rem;">'+ruinaMsg+'</div>' +
+        '<div style="font-size:11px;color:var(--text-muted);opacity:.7;">((1−WR)/WR)^(avgWin/avgLoss) · WR='+Math.round(wrR*1000)/10+'% · AvgWin='+Math.round(avgWinR*100)/100+'$ · AvgLoss='+Math.round(avgLossR*100)/100+'$</div>' +
+        '</div></div>';
+    }
   }
 }
 
