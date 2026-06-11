@@ -1208,8 +1208,10 @@ function buildDashboardHero() {
 
   // Días en proceso desde fecha_entrada del usuario
   if (usuarioActual && usuarioActual.fecha_entrada) {
-    var dias = Math.floor((Date.now() - new Date(usuarioActual.fecha_entrada)) / 86400000);
+    var _fe = new Date(usuarioActual.fecha_entrada);
+    var dias = Math.floor((Date.now() - _fe) / 86400000);
     el = document.getElementById('dash-dias-proceso'); if (el) el.textContent = dias;
+    el = document.getElementById('dash-fecha-inicio'); if (el) el.textContent = _fe.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
   }
 
   // Cards por cuenta — coincidencia parcial case-insensitive
