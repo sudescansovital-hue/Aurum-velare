@@ -69,6 +69,7 @@ async function _activarSesion(email) {
     cuenta_retos:   u.cuenta_retos   || null,
     cuenta_prueba:  u.cuenta_prueba  || null
   };
+  console.log('[APP] usuarioActual cargado:', JSON.stringify(window.usuarioActual));
 
   document.getElementById('nav-login-btn').style.display = 'none';
   document.getElementById('nav-user-widget').style.display = 'flex';
