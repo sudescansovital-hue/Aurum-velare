@@ -562,6 +562,7 @@ async function guardarTradesIndividuales(trades, nombreCuenta, numeroCuenta) {
       hora:          t.hora != null ? t.hora : 0,
       dia:           t.dia != null ? t.dia : 0,
       puntos:        t.puntos != null ? t.puntos : null,
+      dur_min:       Math.round(t.durMin || t.dur_min || 60),
       sl:            t.sl || null,
       tp:            t.tp || null
     };
