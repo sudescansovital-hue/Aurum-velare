@@ -36,7 +36,9 @@ function mostrarFormRegistro() {
 }
 
 async function _activarSesion(email) {
+  console.log('[APP] query usuarios_aurum para:', email);
   const perfil = await supaGet('usuarios_aurum', 'email=eq.' + email + '&limit=1', getToken());
+  console.log('[APP] resultado query:', JSON.stringify(perfil));
   if (perfil.error || !perfil.data || !perfil.data.length) return false;
   const u = perfil.data[0];
 
