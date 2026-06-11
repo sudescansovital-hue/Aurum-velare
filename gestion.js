@@ -1099,9 +1099,9 @@ function buildEstadisticasAvanzadas() {
         : 'Riesgo crítico. El sistema actual destruirá el capital a largo plazo sin cambios estructurales urgentes.';
       var ruinaRec = ruinaPct < 15
         ? 'Tu edge es sólido. Mantén el R/R por encima de 1.0 y el WR estable.'
-        : ruinaPct < 35
-        ? 'Para reducirlo: sube el R/R por encima de 1.2 o mejora el WR 5 puntos. Ambos juntos lo reducen drásticamente.'
-        : 'Prioridad: el R/R está por debajo de 1.0 — estás ganando operaciones pero perdiendo más de lo que ganas. Revisa los SL y TP. Mientras el R/R sea menor que 1.0, el sistema tiene fragilidad estructural aunque el profit sea positivo.';
+        : avgWinR / avgLossR < 1.0
+        ? 'Prioridad: el R/R está por debajo de 1.0 — estás ganando operaciones pero perdiendo más de lo que ganas. Revisa los SL y TP. Mientras el R/R sea menor que 1.0, el sistema tiene fragilidad estructural aunque el profit sea positivo.'
+        : 'Para reducirlo: sube el R/R por encima de 1.2 o mejora el WR 5 puntos. Ambos juntos lo reducen drásticamente.';
       // Simulador: qué cambio concreto reduce más el riesgo
       var _sim = function(wrSim, avgWinSim) {
         if (avgLossR <= 0 || wrSim <= 0 || wrSim >= 1) return wrSim >= 1 ? 0 : 100;
