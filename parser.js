@@ -43,6 +43,9 @@ function _esXauusd(simbolo) {
   return s.includes('XAU') || s.includes('GOLD');
 }
 
+var _RESUMEN_RE = /^(transacciones?|transactions?|deals?|totals?|balance|total|subtotal|net|neto|summary|resumen|commis)/i;
+function _esFilaResumen(v) { return _RESUMEN_RE.test(String(v || '').trim()); }
+
 function _fechaCtrader(val) {
   if (!val) return null;
   const s = String(val).replace(/^(\d{4})\.(\d{2})\.(\d{2})/, '$1-$2-$3');
@@ -115,6 +118,10 @@ function _parsearCtraderNuevo(raw) {
     var posicionId = colPosicion >= 0 && row[colPosicion] ? String(row[colPosicion]) : '';
     var fp = (posicionId || (fAp ? fAp.getTime() : String(i))) + '_' + pe + '_' + ben;
 
+    if (_esFilaResumen(row[0])) break;
+    if (Math.abs(ben) > 50000) continue;
+    if (vol !== null && vol > 100) continue;
+    if (pe < 100 || pe > 50000) continue;
     trades.push({ fp, ben, vol, pe, pc, puntos: Math.abs(puntos), ganadora: ben > 0, hora, dia, durMin });
   }
   return trades;
@@ -129,6 +136,7 @@ function _parsearCtrader(raw) {
     var volStr = row[4] != null ? String(row[4]) : '';
     if (volStr.includes('/')) break;
     if (!row[0]) break;
+    if (_esFilaResumen(row[0])) break;
     if (!_esXauusd(row[2])) continue;
     var tipo = String(row[3]||'').toLowerCase().trim();
     var vol  = _num(volStr);
@@ -146,6 +154,9 @@ function _parsearCtrader(raw) {
     var hora = fAp ? fAp.getHours() : 0;
     var dia  = fAp ? (fAp.getDay() + 6) % 7 : 0;
     var durMin = (fAp && fCi) ? Math.round((fCi - fAp) / 60000) : 60;
+    if (Math.abs(ben) > 50000) continue;
+    if (vol !== null && vol > 100) continue;
+    if (pe < 100 || pe > 50000) continue;
     trades.push({ fp, ben, vol, pe, pc, puntos: Math.abs(puntos), ganadora: ben > 0, hora, dia, durMin, sl, tp });
   }
   return trades;
@@ -196,6 +207,10 @@ function _parsearMT5(raw) {
     var apDt=toDate(row[colAp]),ciDt=toDate(row[colCi]);
     var hora=0,dia=1,durMin=60;
     if(apDt&&!isNaN(apDt)){ hora=apDt.getHours(); dia=(apDt.getDay()+6)%7; if(ciDt&&!isNaN(ciDt)) durMin=(ciDt-apDt)/60000; }
+    if (_esFilaResumen(row[0])) break;
+    if (Math.abs(ben) > 50000) continue;
+    if (vol > 100) continue;
+    if (isNaN(pe) || pe < 100 || pe > 50000) continue;
     var fp=String(row[1]||'')+'_'+String(row[colAp]||'')+'_'+pe+'_'+vol;
     trades.push({ fp, ben, vol, pe, pc:isNaN(pc)?pe:pc, puntos:Math.abs((isNaN(pc)?pe:pc)-pe), ganadora:ben>0, hora, dia, durMin, sl:isNaN(sl)?null:sl, tp:isNaN(tp)?null:tp });
   }
