@@ -1120,6 +1120,25 @@ function buildEstadisticasAvanzadas() {
       var simHtml  = 'Si subes el WR de '+wrCurPct+'% a '+wrNewPct+'% → riesgo baja de '+ruinaPct+'% a <b>'+simWR+'%</b> (−'+impWR+'pp). ' +
         'Si subes el RR de '+rrCur+' a '+rrNew+' → riesgo baja a <b>'+simRR+'%</b> (−'+impRR+'pp). ' +
         '<b>Mayor impacto: '+(prioridad==='WR'?'subir el WR':'subir el RR')+'.</b>';
+      // Detección de outliers en pérdidas
+      var lossAmts = losses.map(function(t){ return Math.abs(t.beneficio||0); }).sort(function(a,b){ return a-b; });
+      var _midL = Math.floor(lossAmts.length/2);
+      var medLoss = lossAmts.length%2===0 ? (lossAmts[_midL-1]+lossAmts[_midL])/2 : lossAmts[_midL];
+      var lossOutliers = lossAmts.filter(function(v){ return v > 2*medLoss; });
+      var outlierHtml = '';
+      if (lossOutliers.length > 0 && medLoss > 0) {
+        var lossNoOut   = lossAmts.filter(function(v){ return v <= 2*medLoss; });
+        var avgLossNoOut = lossNoOut.length > 0 ? lossNoOut.reduce(function(s,v){ return s+v; },0)/lossNoOut.length : avgLossR;
+        var ruinaNoOut  = (avgLossNoOut > 0 && wrR > 0 && wrR < 1)
+          ? Math.round(Math.min(1, Math.pow((1-wrR)/wrR, (avgWinR/avgLossNoOut)*expAjuste))*1000)/10
+          : ruinaPct;
+        outlierHtml =
+          '<div style="border-top:1px solid var(--border);padding-top:.8rem;margin-top:.8rem;">' +
+          '<div style="font-size:12px;color:#C9A84C;line-height:1.8;padding:.6rem .8rem;border-left:2px solid #C9A84C44;background:#C9A84C08;">' +
+          '⚠ Hay '+lossOutliers.length+' trade'+(lossOutliers.length>1?'s':'')+' con pérdida atípica (más del doble de la mediana de '+Math.round(medLoss*100)/100+'$). ' +
+          'Sin ellos, tu pérdida media sería '+Math.round(avgLossNoOut*100)/100+'$ y el riesgo de ruina bajaría a '+ruinaNoOut+'%. ' +
+          'Estos trades tienen un impacto desproporcionado en tus estadísticas.</div></div>';
+      }
       elRuina.innerHTML =
         '<div style="font-family:\'Cormorant Garamond\',serif;font-size:20px;color:var(--gold-bright);margin-bottom:1rem;">Riesgo de ruina</div>' +
         '<div style="display:grid;grid-template-columns:120px 1fr;gap:1.5rem;align-items:center;margin-bottom:1rem;">' +
@@ -1135,7 +1154,8 @@ function buildEstadisticasAvanzadas() {
         '<div style="border-top:1px solid var(--border);padding-top:.8rem;">' +
         '<div style="font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.5rem;">Cómo reducirlo</div>' +
         '<div style="font-size:12px;color:var(--text-dim);line-height:1.9;">'+simHtml+'</div>' +
-        '</div>';
+        '</div>' +
+        outlierHtml;
     }
   }
 }
