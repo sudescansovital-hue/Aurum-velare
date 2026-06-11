@@ -1072,10 +1072,22 @@ function buildEstadisticasAvanzadas() {
       var wrR = wins.length / trades.length;
       var avgWinR  = wins.reduce(function(s,t){ return s+(t.beneficio||0); },0) / wins.length;
       var avgLossR = Math.abs(losses.reduce(function(s,t){ return s+(t.beneficio||0); },0) / losses.length);
+      var vols = trades.map(function(t){ return t.volumen || t.vol || 0; }).filter(function(v){ return v > 0; });
+      var cvLot = 0;
+      if (vols.length > 1) {
+        var avgVol = vols.reduce(function(s,v){ return s+v; },0) / vols.length;
+        var stdVol = Math.sqrt(vols.reduce(function(s,v){ return s+Math.pow(v-avgVol,2); },0) / vols.length);
+        cvLot = avgVol > 0 ? stdVol / avgVol : 0;
+      }
+      var lotajeVariable = cvLot > 0.3;
+      var expAjuste = lotajeVariable ? 0.7 : 1;
       var ruina = (avgLossR > 0 && wrR > 0 && wrR < 1)
-        ? Math.min(1, Math.pow((1 - wrR) / wrR, avgWinR / avgLossR))
+        ? Math.min(1, Math.pow((1 - wrR) / wrR, (avgWinR / avgLossR) * expAjuste))
         : (wrR >= 1 ? 0 : 1);
       var ruinaPct = Math.round(ruina * 1000) / 10;
+      var lotajeNote = lotajeVariable
+        ? 'Lotaje variable detectado — riesgo real probablemente menor que el calculado'
+        : 'Lotaje constante — cálculo preciso';
       var ruinaCol   = ruinaPct < 5 ? '#3AAA6A' : ruinaPct < 25 ? '#C9A84C' : '#CC5544';
       var ruinaLabel = ruinaPct < 5 ? 'Muy bajo' : ruinaPct < 25 ? 'Moderado' : 'Elevado';
       var ruinaMsg   = ruinaPct < 5
@@ -1096,7 +1108,8 @@ function buildEstadisticasAvanzadas() {
         '<div style="font-size:13px;color:'+ruinaCol+';">'+ruinaLabel+'</div></div>' +
         '<div>' +
         '<div style="font-size:13px;color:var(--text-muted);line-height:1.7;margin-bottom:.6rem;">'+ruinaMsg+'</div>' +
-        '<div style="font-size:11px;color:var(--text-muted);opacity:.7;margin-bottom:.8rem;">((1−WR)/WR)^(avgWin/avgLoss) · WR='+Math.round(wrR*1000)/10+'% · AvgWin='+Math.round(avgWinR*100)/100+'$ · AvgLoss='+Math.round(avgLossR*100)/100+'$</div>' +
+        '<div style="font-size:11px;color:var(--text-muted);opacity:.7;margin-bottom:.4rem;">((1−WR)/WR)^(avgWin/avgLoss'+(lotajeVariable?'×0.7':'')+') · WR='+Math.round(wrR*1000)/10+'% · AvgWin='+Math.round(avgWinR*100)/100+'$ · AvgLoss='+Math.round(avgLossR*100)/100+'$</div>' +
+        '<div style="font-size:11px;color:'+(lotajeVariable?'#C9A84C':'var(--text-muted)')+';opacity:.85;margin-bottom:.8rem;">'+lotajeNote+'</div>' +
         '<div style="font-size:12px;color:'+ruinaCol+';line-height:1.7;padding:.6rem .8rem;border-left:2px solid '+ruinaCol+'44;background:'+ruinaCol+'08;">'+ruinaRec+'</div>' +
         '</div></div>';
     }
