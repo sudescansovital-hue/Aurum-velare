@@ -36,9 +36,7 @@ function mostrarFormRegistro() {
 }
 
 async function _activarSesion(email) {
-  console.log('[APP] query usuarios_aurum para:', email);
   const perfil = await supaGet('usuarios_aurum', 'email=eq.' + email + '&limit=1', getToken());
-  console.log('[APP] resultado query:', JSON.stringify(perfil));
   if (perfil.error || !perfil.data || !perfil.data.length) return false;
   const u = perfil.data[0];
 
@@ -71,8 +69,6 @@ async function _activarSesion(email) {
     cuenta_retos:   u.cuenta_retos   || null,
     cuenta_prueba:  u.cuenta_prueba  || null
   };
-  console.log('[APP] usuarioActual cargado:', JSON.stringify(window.usuarioActual));
-
   document.getElementById('nav-login-btn').style.display = 'none';
   document.getElementById('nav-user-widget').style.display = 'flex';
   document.getElementById('nav-animal').textContent = usuarioActual.animal;
