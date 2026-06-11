@@ -95,19 +95,11 @@ async function init_historial() {
   lista.innerHTML = '';
 
   CUENTAS_AURUM = {};
-  if (window.usuarioActual && window.usuarioActual.email) {
-    var perfil = await supaGet('usuarios_aurum',
-      'email=eq.' + encodeURIComponent(usuarioActual.email) + '&limit=1', getToken());
-    console.log('[HISTORIAL] supaGet usuarios_aurum resultado completo:', JSON.stringify(perfil));
-    if (!perfil.error && perfil.data && perfil.data.length) {
-      var u = perfil.data[0];
-      if (u.cuenta_maestra) CUENTAS_AURUM[u.cuenta_maestra] = 'Cuenta Maestra';
-      if (u.cuenta_retos)   CUENTAS_AURUM[u.cuenta_retos]   = 'Cuenta Retos';
-      if (u.cuenta_prueba)  CUENTAS_AURUM[u.cuenta_prueba]  = 'Cuenta Prueba';
-      console.log('[HISTORIAL] DB raw — maestra:', JSON.stringify(u.cuenta_maestra), 'retos:', JSON.stringify(u.cuenta_retos), 'prueba:', JSON.stringify(u.cuenta_prueba));
-    }
-    console.log('[HISTORIAL] CUENTAS_AURUM construido — claves:', Object.keys(CUENTAS_AURUM), '| objeto:', CUENTAS_AURUM);
-  }
+  var u = window.usuarioActual;
+  if (u && u.cuenta_maestra) CUENTAS_AURUM[u.cuenta_maestra] = 'Cuenta Maestra';
+  if (u && u.cuenta_retos)   CUENTAS_AURUM[u.cuenta_retos]   = 'Cuenta Retos';
+  if (u && u.cuenta_prueba)  CUENTAS_AURUM[u.cuenta_prueba]  = 'Cuenta Prueba';
+  console.log('[HISTORIAL] CUENTAS_AURUM construido — claves:', Object.keys(CUENTAS_AURUM), '| objeto:', CUENTAS_AURUM);
 
   cargarHistorialDesdeSupabase().then(function() {
     console.log('[HISTORIAL] cargarHistorialDesdeSupabase completado — cuentas cargadas:', HISTORIAL_CUENTAS.length);
@@ -350,6 +342,12 @@ function histSubir(file) {
   async function procesarRaw(raw) {
     document.getElementById('hist-prog-bar').style.width = '70%';
     document.getElementById('hist-prog-txt').textContent = 'Calculando...';
+    if (Object.keys(CUENTAS_AURUM).length === 0) {
+      var _u = window.usuarioActual;
+      if (_u && _u.cuenta_maestra) CUENTAS_AURUM[_u.cuenta_maestra] = 'Cuenta Maestra';
+      if (_u && _u.cuenta_retos)   CUENTAS_AURUM[_u.cuenta_retos]   = 'Cuenta Retos';
+      if (_u && _u.cuenta_prueba)  CUENTAS_AURUM[_u.cuenta_prueba]  = 'Cuenta Prueba';
+    }
     var trades = parsearTrades(raw);
     if (!trades || trades.length < 5) {
       msg.style.color = 'var(--red)'; msg.textContent = 'No se encontraron trades XAU/USD suficientes.';

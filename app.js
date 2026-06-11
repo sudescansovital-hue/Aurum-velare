@@ -64,7 +64,10 @@ async function _activarSesion(email) {
     packLevel:    u.etapa || 1,
     etapa:        u.etapa || 1,
     activo:       u.activo,
-    fecha_entrada: u.fecha_entrada || null
+    fecha_entrada:  u.fecha_entrada  || null,
+    cuenta_maestra: u.cuenta_maestra || null,
+    cuenta_retos:   u.cuenta_retos   || null,
+    cuenta_prueba:  u.cuenta_prueba  || null
   };
 
   document.getElementById('nav-login-btn').style.display = 'none';
