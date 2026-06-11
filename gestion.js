@@ -48,8 +48,10 @@ function getTradesActivos() {
 
 function buildTradeRecord() {
   var trades = getTradesActivos();
-  var tb = document.getElementById('gest-tipos-bars');
-  if (tb && !trades.length) { tb.innerHTML = ''; }
+  var tb   = document.getElementById('gest-tipos-bars');
+  var verd = document.getElementById('gest-tipo-trader-veredicto');
+  if (tb   && !trades.length) { tb.innerHTML   = ''; }
+  if (verd && !trades.length) { verd.innerHTML = ''; }
   if (trades.length) {
     var scalp = trades.filter(function(t){ return t.dur_min < 30; });
     var intra = trades.filter(function(t){ return t.dur_min >= 30 && t.dur_min < 240; });
@@ -73,7 +75,6 @@ function buildTradeRecord() {
           '<div style="height:100%;width:'+Math.round(d.t/maxT*100)+'%;background:'+col+';border-radius:2px;"></div></div></div>';
       }).join('');
     }
-    var verd = document.getElementById('gest-tipo-trader-veredicto');
     if (verd) {
       var dominante = tipos.reduce(function(a,b){ return b.t > a.t ? b : a; });
       var colDom = dominante.l.includes('Swing') ? '#C9A84C' : dominante.l.includes('Multi') ? '#4ACC8A' : dominante.l.includes('Scalp') ? '#6A8AEE' : '#CC5544';
