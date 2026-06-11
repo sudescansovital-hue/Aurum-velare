@@ -115,6 +115,16 @@ function calcDias(trades) {
 
 function _set(id, val) { var el = document.getElementById(id); if (el) el.textContent = val; }
 
+function _setBadge(cuenta) {
+  var el = document.getElementById('badge-' + cuenta);
+  if (!el) return;
+  var isReal = cuenta === 'maestra';
+  var bg  = isReal ? '#3AAA6A18' : cuenta === 'retos' ? '#CC884418' : '#4A8AEE18';
+  var col = isReal ? 'var(--green)' : cuenta === 'retos' ? '#CC8844' : '#6A9AEE';
+  var bdr = isReal ? '#3AAA6A33' : cuenta === 'retos' ? '#CC884433' : '#4A8AEE33';
+  el.innerHTML = '<div style="font-size:10px;padding:.1rem .4rem;background:' + bg + ';color:' + col + ';border:1px solid ' + bdr + ';border-radius:1px;">' + (isReal ? 'Real' : 'Challenge') + '</div>';
+}
+
 // Busca la entrada de HISTORIAL_CUENTAS que corresponde al keyword (nombre de cuenta)
 function _histEntrada(keyword) {
   if (!window.HISTORIAL_CUENTAS || !window.HISTORIAL_CUENTAS.length) return null;
@@ -141,10 +151,24 @@ function buildCuentaReal(cuenta, nombreCuenta) {
   var rango = hist ? hist.periodo : _rangoFechas(trades);
 
   // Header
+  var _u = window.usuarioActual;
+  var _numero = cuenta === 'maestra' ? (_u && _u.cuenta_maestra || null)
+              : cuenta === 'retos'   ? (_u && _u.cuenta_retos   || null)
+              : (_u && _u.cuenta_prueba || null);
+  var _MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  var _fechas = trades.map(_fechaTrade).filter(Boolean).sort(function(a,b){ return a - b; });
+  var _fechaIni = _fechas.length ? _fechas[0].getDate() + ' ' + _MESES[_fechas[0].getMonth()] + ' ' + _fechas[0].getFullYear() : null;
+  var _diasActiva = _fechas.length ? Math.round((Date.now() - _fechas[0]) / 86400000) : null;
   var hdr = document.getElementById(cuenta + '-header-sub');
-  if (hdr) hdr.textContent = nombreCuenta + ' · ' + m.total + ' trades' +
-    (rango ? ' · ' + rango : '') + ' · ' +
-    (cuenta === 'maestra' ? 'Fondeada con dinero real' : 'Challenge activo');
+  if (hdr) {
+    var _parts = [nombreCuenta];
+    if (_numero) _parts.push(_numero);
+    _parts.push(m.total + ' trades');
+    if (_fechaIni) _parts.push(_fechaIni + ' – hoy');
+    if (_diasActiva !== null) _parts.push(_diasActiva + ' días activa');
+    hdr.textContent = _parts.join(' · ');
+  }
+  _setBadge(cuenta);
 
   // Stats principales
   _set(cuenta + '-stat-pnl', (m.pnl >= 0 ? '+' : '') + m.pnl + '$');
@@ -233,6 +257,7 @@ function buildGlobal() {
 
   var totalHist = histAll.reduce(function(s,c){ return s+(c.total||0); }, 0);
   if (!totalHist && !todos.length) return;
+  _setBadge('maestra'); _setBadge('retos'); _setBadge('prueba');
 
   // Métricas globales: total/wins/pnl/wr desde HISTORIAL_CUENTAS; rr/esp desde AURUM_TRADES
   var mG;
