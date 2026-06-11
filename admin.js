@@ -335,6 +335,23 @@ async function _reasignarCuentaExterna(email, cuentas) {
           ep + '&nombre=eq.' + encodeURIComponent('Cuenta Externa') + '&numero=eq.' + encodeURIComponent(numero),
           { nombre: destino, tipo: destino === 'Cuenta Maestra' ? 'Maestra' : destino === 'Cuenta Retos' ? 'Retos' : 'Prueba' }, token);
       }
+      // Segundo patch: mover trades con cuenta_numero=null si hay historial en Externa para este numero
+      var resHistConf = await supaGet('historiales',
+        ep + '&nombre=eq.' + encodeURIComponent('Cuenta Externa') +
+        '&or=(numero.eq.' + encodeURIComponent(numero) + ',numero.is.null)&limit=1', token);
+      console.log('[REASIGNAR] historial Externa con numero/null para', destino, ':', resHistConf.data ? resHistConf.data.length : 'error', resHistConf.error || '');
+      if (!resHistConf.error && resHistConf.data && resHistConf.data.length) {
+        var resNullCheck = await supaGet('trades',
+          ep + '&cuenta=eq.' + encodeURIComponent('Cuenta Externa') + '&cuenta_numero=is.null&limit=1', token);
+        if (!resNullCheck.error && resNullCheck.data && resNullCheck.data.length) {
+          await supaPatch('trades',
+            ep + '&cuenta=eq.' + encodeURIComponent('Cuenta Externa') + '&cuenta_numero=is.null',
+            { cuenta: destino }, token);
+        }
+        await supaPatch('historiales',
+          ep + '&nombre=eq.' + encodeURIComponent('Cuenta Externa') + '&numero=is.null',
+          { nombre: destino, tipo: destino === 'Cuenta Maestra' ? 'Maestra' : destino === 'Cuenta Retos' ? 'Retos' : 'Prueba' }, token);
+      }
     }
   }
 }
