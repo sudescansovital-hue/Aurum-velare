@@ -1088,30 +1088,54 @@ function buildEstadisticasAvanzadas() {
       var lotajeNote = lotajeVariable
         ? 'Lotaje variable detectado — riesgo real probablemente menor que el calculado'
         : 'Lotaje constante — cálculo preciso';
-      var ruinaCol   = ruinaPct < 5 ? '#3AAA6A' : ruinaPct < 25 ? '#C9A84C' : '#CC5544';
-      var ruinaLabel = ruinaPct < 5 ? 'Muy bajo' : ruinaPct < 25 ? 'Moderado' : 'Elevado';
-      var ruinaMsg   = ruinaPct < 5
+      var ruinaCol   = ruinaPct < 15 ? '#3AAA6A' : ruinaPct < 35 ? '#C9A84C' : ruinaPct < 60 ? '#CC5544' : '#AA2222';
+      var ruinaLabel = ruinaPct < 15 ? 'Muy bajo' : ruinaPct < 35 ? 'Moderado' : ruinaPct < 60 ? 'Elevado' : 'Crítico';
+      var ruinaMsg   = ruinaPct < 15
         ? 'Tu edge matemático protege bien el capital a largo plazo. Mantén la consistencia.'
-        : ruinaPct < 25
+        : ruinaPct < 35
         ? 'Riesgo moderado. Pequeñas mejoras en WR o RR reducen exponencialmente la probabilidad de ruina.'
-        : 'Riesgo elevado. El sistema actual no protege suficientemente el capital a largo plazo.';
-      var ruinaRec = ruinaPct < 5
+        : ruinaPct < 60
+        ? 'Riesgo elevado. El sistema actual no protege suficientemente el capital a largo plazo.'
+        : 'Riesgo crítico. El sistema actual destruirá el capital a largo plazo sin cambios estructurales urgentes.';
+      var ruinaRec = ruinaPct < 15
         ? 'Tu edge es sólido. Mantén el R/R por encima de 1.0 y el WR estable.'
-        : ruinaPct < 20
+        : ruinaPct < 35
         ? 'Para reducirlo: sube el R/R por encima de 1.2 o mejora el WR 5 puntos. Ambos juntos lo reducen drásticamente.'
         : 'Prioridad: el R/R está por debajo de 1.0 — estás ganando operaciones pero perdiendo más de lo que ganas. Revisa los SL y TP. Mientras el R/R sea menor que 1.0, el sistema tiene fragilidad estructural aunque el profit sea positivo.';
+      // Simulador: qué cambio concreto reduce más el riesgo
+      var _sim = function(wrSim, avgWinSim) {
+        if (avgLossR <= 0 || wrSim <= 0 || wrSim >= 1) return wrSim >= 1 ? 0 : 100;
+        return Math.round(Math.min(1, Math.pow((1-wrSim)/wrSim, (avgWinSim/avgLossR)*expAjuste))*1000)/10;
+      };
+      var wrCurPct = Math.round(wrR*1000)/10;
+      var wrR2     = Math.min(0.99, wrR + 0.05);
+      var wrNewPct = Math.round(wrR2*1000)/10;
+      var rrCur    = Math.round(avgWinR/avgLossR*100)/100;
+      var rrNew    = Math.round((avgWinR/avgLossR+0.2)*100)/100;
+      var simWR    = _sim(wrR2, avgWinR);
+      var simRR    = _sim(wrR, avgLossR * (avgWinR/avgLossR + 0.2));
+      var impWR    = Math.round((ruinaPct - simWR)*10)/10;
+      var impRR    = Math.round((ruinaPct - simRR)*10)/10;
+      var prioridad = impWR >= impRR ? 'WR' : 'RR';
+      var simHtml  = 'Si subes el WR de '+wrCurPct+'% a '+wrNewPct+'% → riesgo baja de '+ruinaPct+'% a <b>'+simWR+'%</b> (−'+impWR+'pp). ' +
+        'Si subes el RR de '+rrCur+' a '+rrNew+' → riesgo baja a <b>'+simRR+'%</b> (−'+impRR+'pp). ' +
+        '<b>Mayor impacto: '+(prioridad==='WR'?'subir el WR':'subir el RR')+'.</b>';
       elRuina.innerHTML =
         '<div style="font-family:\'Cormorant Garamond\',serif;font-size:20px;color:var(--gold-bright);margin-bottom:1rem;">Riesgo de ruina</div>' +
-        '<div style="display:grid;grid-template-columns:120px 1fr;gap:1.5rem;align-items:center;">' +
+        '<div style="display:grid;grid-template-columns:120px 1fr;gap:1.5rem;align-items:center;margin-bottom:1rem;">' +
         '<div style="text-align:center;">' +
         '<div style="font-family:\'Cormorant Garamond\',serif;font-size:52px;color:'+ruinaCol+';line-height:1;">'+ruinaPct+'%</div>' +
         '<div style="font-size:13px;color:'+ruinaCol+';">'+ruinaLabel+'</div></div>' +
         '<div>' +
         '<div style="font-size:13px;color:var(--text-muted);line-height:1.7;margin-bottom:.6rem;">'+ruinaMsg+'</div>' +
-        '<div style="font-size:11px;color:var(--text-muted);opacity:.7;margin-bottom:.4rem;">((1−WR)/WR)^(avgWin/avgLoss'+(lotajeVariable?'×0.7':'')+') · WR='+Math.round(wrR*1000)/10+'% · AvgWin='+Math.round(avgWinR*100)/100+'$ · AvgLoss='+Math.round(avgLossR*100)/100+'$</div>' +
+        '<div style="font-size:11px;color:var(--text-muted);opacity:.7;margin-bottom:.4rem;">((1−WR)/WR)^(avgWin/avgLoss'+(lotajeVariable?'×0.7':'')+') · WR='+wrCurPct+'% · AvgWin='+Math.round(avgWinR*100)/100+'$ · AvgLoss='+Math.round(avgLossR*100)/100+'$</div>' +
         '<div style="font-size:11px;color:'+(lotajeVariable?'#C9A84C':'var(--text-muted)')+';opacity:.85;margin-bottom:.8rem;">'+lotajeNote+'</div>' +
-        '<div style="font-size:12px;color:'+ruinaCol+';line-height:1.7;padding:.6rem .8rem;border-left:2px solid '+ruinaCol+'44;background:'+ruinaCol+'08;">'+ruinaRec+'</div>' +
-        '</div></div>';
+        '<div style="font-size:12px;color:'+ruinaCol+';line-height:1.7;padding:.6rem .8rem;border-left:2px solid '+ruinaCol+'44;background:'+ruinaCol+'08;margin-bottom:.8rem;">'+ruinaRec+'</div>' +
+        '</div></div>' +
+        '<div style="border-top:1px solid var(--border);padding-top:.8rem;">' +
+        '<div style="font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.5rem;">Cómo reducirlo</div>' +
+        '<div style="font-size:12px;color:var(--text-dim);line-height:1.9;">'+simHtml+'</div>' +
+        '</div>';
     }
   }
 }
