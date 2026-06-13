@@ -28,7 +28,7 @@ function parsearTrades(raw) {
     var rn = (raw[r] || []).map(norm);
     var tieneAp = rn.some(function(h) { return h.includes('hora de apertura') || h.includes('open time'); });
     var tieneCi = rn.some(function(h) { return h.includes('hora de cierre')   || h.includes('close time'); });
-    if (tieneAp && tieneCi) { ctHeaderRow = r; break; }
+    if (tieneAp && tieneCi && (raw[r]||[]).length < 50) { ctHeaderRow = r; break; }
   }
 
   console.log('[PARSER] ctHeaderRow:', ctHeaderRow, '| fila:', JSON.stringify((raw[ctHeaderRow]||[]).slice(0,5)));
