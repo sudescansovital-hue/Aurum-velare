@@ -2675,6 +2675,16 @@
             <input id="admin-reto-extra" placeholder="Premio extra (texto)" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.45rem .7rem;font-size:13px;font-family:inherit;outline:none;">
           </div>
           <input id="admin-reto-cierre" type="date" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.45rem .7rem;font-size:13px;font-family:inherit;outline:none;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;">
+            <select id="admin-reto-condicion-tipo" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.45rem .5rem;font-size:13px;font-family:inherit;">
+              <option value="">Sin condición</option>
+              <option value="lote_maximo">Lote máximo</option>
+              <option value="wr_minimo">WR mínimo (%)</option>
+              <option value="trades_sin_revenge">Trades sin revenge</option>
+              <option value="pnl_minimo">PNL mínimo por trade</option>
+            </select>
+            <input id="admin-reto-condicion-valor" type="number" step="any" placeholder="Valor umbral" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.45rem .7rem;font-size:13px;font-family:inherit;outline:none;">
+          </div>
           <div id="admin-reto-err" style="font-size:12px;color:#e05;min-height:1rem;"></div>
           <button onclick="adminCrearReto()" style="padding:.6rem;background:#cc664433;border:1px solid #cc664466;color:#cc9966;cursor:pointer;font-size:12px;letter-spacing:.1em;text-transform:uppercase;font-family:inherit;">Guardar reto</button>
         </div>

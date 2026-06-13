@@ -1169,6 +1169,7 @@ function buildDashboardHero() {
 
   var totalTrades = todos.length;
   window._totalTrades = totalTrades;
+  window._userTrades  = todos;
   var wins = todos.filter(function(t) { return t.ganadora; });
   var wr = totalTrades > 0 ? Math.round(wins.length / totalTrades * 1000) / 10 : 0;
   var pnl = Math.round(todos.reduce(function(s, t) { return s + (t.beneficio || 0); }, 0) * 100) / 100;
@@ -1393,6 +1394,48 @@ function pintarRetosEnCalendario(retos) {
 
 // ── Retos activos ────────────────────────────────────────────────
 
+function calcularProgreso(trades, condicion) {
+  if (!condicion || !condicion.tipo) return null;
+  var tipo       = condicion.tipo;
+  var valor      = parseFloat(condicion.valor)            || 0;
+  var requeridos = parseInt(condicion.trades_requeridos)  || 0;
+  if (!requeridos) return null;
+
+  var actual = 0;
+
+  if (tipo === 'lote_maximo') {
+    actual = trades.filter(function(t) { return (t.volumen || 0) <= valor; }).length;
+
+  } else if (tipo === 'wr_minimo') {
+    // Racha de trades en los que el WR acumulado se mantiene >= valor%
+    var racha = 0, wins = 0;
+    for (var i = 0; i < trades.length; i++) {
+      if (trades[i].ganadora) wins++;
+      var wr = Math.round(wins / (i + 1) * 1000) / 10;
+      if (wr >= valor) racha = i + 1; else racha = 0;
+    }
+    actual = racha;
+
+  } else if (tipo === 'trades_sin_revenge') {
+    // Racha de trades sin aumentar lote tras una pérdida
+    var racha = 0, prevPerdio = false, prevVol = 0;
+    for (var i = 0; i < trades.length; i++) {
+      var t   = trades[i];
+      var vol = t.volumen || 0;
+      if (prevPerdio && vol > prevVol) racha = 0;
+      else racha++;
+      prevPerdio = !t.ganadora;
+      prevVol    = vol;
+    }
+    actual = racha;
+
+  } else if (tipo === 'pnl_minimo') {
+    actual = trades.filter(function(t) { return (t.beneficio || 0) >= valor; }).length;
+  }
+
+  return { actual: Math.min(actual, requeridos), requeridos: requeridos };
+}
+
 async function cargarRetosActivos() {
   var contenedor = document.getElementById('retos-activos-lista');
   if (!contenedor) return;
@@ -1421,7 +1464,8 @@ async function cargarRetosActivos() {
   }
   window._retosCache = retos;
 
-  var yaParticipa = new Set((resPart.data || []).map(function(p) { return p.reto_id; }));
+  var participaMap = {};
+  (resPart.data || []).forEach(function(p) { participaMap[p.reto_id] = p; });
   var ahora = new Date();
 
   contenedor.innerHTML = retos.map(function(r) {
@@ -1454,11 +1498,33 @@ async function cargarRetosActivos() {
       ? '<div style="font-size:14px;color:var(--text-muted);margin-bottom:1rem;line-height:1.8;">' + r.descripcion + '</div>'
       : '';
 
-    // Botón Registrarse
+    // Botón Registrarse + barra de progreso
     var botonHTML = '';
-    if (yaParticipa.has(r.id)) {
+    var participacion = participaMap[r.id];
+    if (participacion) {
       botonHTML = '<div style="display:flex;align-items:center;gap:.4rem;font-size:12px;color:var(--green);margin-top:1rem;">' +
         '<div style="width:5px;height:5px;border-radius:50%;background:var(--green);"></div>Participando</div>';
+
+      // Barra de progreso si el reto tiene condición
+      var condicion = r.condicion;
+      if (typeof condicion === 'string') { try { condicion = JSON.parse(condicion); } catch(e) { condicion = null; } }
+      if (condicion && condicion.tipo) {
+        var todosUser   = window._userTrades || [];
+        var desdeIdx    = participacion.trades_al_inicio || 0;
+        var tradesReto  = todosUser.slice(desdeIdx);
+        var prog        = calcularProgreso(tradesReto, condicion);
+        if (prog) {
+          var pct = prog.requeridos > 0 ? Math.round(prog.actual / prog.requeridos * 100) : 0;
+          botonHTML += '<div style="margin-top:.8rem;">' +
+            '<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-bottom:.4rem;">' +
+              '<span>Progreso</span><span style="color:var(--gold);">' + prog.actual + ' / ' + prog.requeridos + ' operaciones</span>' +
+            '</div>' +
+            '<div style="height:4px;background:var(--border);border-radius:2px;">' +
+              '<div style="height:100%;width:' + pct + '%;background:linear-gradient(90deg,#C9A84C44,var(--gold-bright));border-radius:2px;transition:width .3s;"></div>' +
+            '</div>' +
+          '</div>';
+        }
+      }
     } else {
       var coste     = r.coste_ozt || 0;
       var saldoOZT  = window.AURUM_OZT || 0;
@@ -1469,6 +1535,7 @@ async function cargarRetosActivos() {
         botonHTML = '<button onclick="unirseAReto(\'' + r.id + '\',' + coste + ')" style="margin-top:1rem;padding:.5rem 1.2rem;background:transparent;border:1px solid var(--gold);color:var(--gold);font-size:12px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;font-family:inherit;">' + btnLabel + '</button>';
       }
     }
+
 
     return '<div id="reto-card-' + r.id + '" style="background:var(--bg2);border:1px solid ' + borderColor + ';padding:1.5rem;position:relative;">' +
       topBar +

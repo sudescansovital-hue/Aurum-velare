@@ -446,14 +446,23 @@ async function adminCrearReto() {
   var titulo = (document.getElementById('admin-reto-titulo').value || '').trim();
   if (!titulo) { if (errEl) errEl.textContent = 'El título es obligatorio.'; return; }
 
+  var premioOzt = parseInt(document.getElementById('admin-reto-ozt').value) || null;
+
+  var condicionTipo  = document.getElementById('admin-reto-condicion-tipo').value;
+  var condicionValor = parseFloat(document.getElementById('admin-reto-condicion-valor').value);
+  var condicion = condicionTipo
+    ? { tipo: condicionTipo, valor: isNaN(condicionValor) ? 0 : condicionValor, trades_requeridos: premioOzt || 0 }
+    : null;
+
   var datos = {
     titulo:       titulo,
     descripcion:  (document.getElementById('admin-reto-desc').value  || '').trim() || null,
     tipo:         document.getElementById('admin-reto-tipo').value,
     sala:         (document.getElementById('admin-reto-sala').value   || '').trim() || null,
-    premio_ozt:   parseInt(document.getElementById('admin-reto-ozt').value)  || null,
+    premio_ozt:   premioOzt,
     premio_extra: (document.getElementById('admin-reto-extra').value  || '').trim() || null,
     fecha_cierre: document.getElementById('admin-reto-cierre').value  || null,
+    condicion:    condicion,
     created_at:   new Date().toISOString()
   };
 
@@ -461,9 +470,10 @@ async function adminCrearReto() {
   if (res.error) { if (errEl) errEl.textContent = 'Error: ' + res.error; return; }
 
   if (errEl) errEl.textContent = '';
-  ['admin-reto-titulo','admin-reto-desc','admin-reto-sala','admin-reto-ozt','admin-reto-extra','admin-reto-cierre'].forEach(function(id) {
+  ['admin-reto-titulo','admin-reto-desc','admin-reto-sala','admin-reto-ozt','admin-reto-extra','admin-reto-cierre','admin-reto-condicion-valor'].forEach(function(id) {
     var el = document.getElementById(id); if (el) el.value = '';
   });
+  document.getElementById('admin-reto-condicion-tipo').value = '';
   showToast('Reto creado correctamente');
   adminCargarRetos();
 }
