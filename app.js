@@ -65,9 +65,11 @@ async function _activarSesion(email) {
     etapa:        u.etapa || 1,
     activo:       u.activo,
     fecha_entrada:  u.fecha_entrada  || null,
-    cuenta_maestra: u.cuenta_maestra || null,
-    cuenta_retos:   u.cuenta_retos   || null,
-    cuenta_prueba:  u.cuenta_prueba  || null
+    cuenta_maestra:  u.cuenta_maestra  || null,
+    cuenta_retos:    u.cuenta_retos    || null,
+    cuenta_prueba:   u.cuenta_prueba   || null,
+    ozt_comprados:   u.ozt_comprados   || 0,
+    ozt_gastados:    u.ozt_gastados    || 0
   };
   document.getElementById('nav-login-btn').style.display = 'none';
   document.getElementById('nav-user-widget').style.display = 'flex';
@@ -340,3 +342,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   mostrarPagina('home');
 });
+
+// -- Tabs internos del Dashboard
+function mostrarTab(tab) {
+  var paneles = ['inicio', 'calendario', 'retos', 'ozt'];
+  paneles.forEach(function(id) {
+    var el = document.getElementById('panel-' + id);
+    if (el) el.style.display = (id === tab) ? 'block' : 'none';
+  });
+  var items = document.querySelectorAll('#page-dashboard .sidebar-item[data-tab]');
+  items.forEach(function(item) {
+    if (item.dataset.tab === tab) {
+      item.classList.add('active');
+    } else {
+      item.classList.remove('active');
+    }
+  });
+}

@@ -1197,7 +1197,8 @@ function buildDashboardHero() {
   var evaluacionesCompletadas = Math.floor(totalTrades / 1111);
   var oztCiclos  = ciclosCompletados * 10;
   var oztEtapas  = (usuarioActual.etapa || 0) * 30;
-  var oztTotal   = oztCiclos + (evaluacionesCompletadas * 50) + oztEtapas;
+  var oztGanado  = oztCiclos + (evaluacionesCompletadas * 50) + oztEtapas;
+  var oztTotal   = oztGanado + (usuarioActual.ozt_comprados || 0) - (usuarioActual.ozt_gastados || 0);
   window.AURUM_OZT = oztTotal;
   el = document.getElementById('dash-ozt');        if (el) el.textContent = oztTotal;
   el = document.getElementById('ozt-saldo');       if (el) el.textContent = oztTotal;
