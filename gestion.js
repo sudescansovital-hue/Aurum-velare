@@ -1296,34 +1296,46 @@ async function cargarRetosActivos() {
   if (!contenedor) return;
   contenedor.innerHTML = '<div style="font-size:13px;color:var(--text-muted);">Cargando...</div>';
 
-  var res = await supaGet('retos', 'order=fecha_cierre.asc', getToken());
-  if (res.error || !res.data) {
+  var email = usuarioActual && usuarioActual.email;
+  var token = getToken();
+
+  var results = await Promise.all([
+    supaGet('retos', 'order=fecha_cierre.asc', token),
+    email ? supaGet('retos_participantes', 'usuario_email=eq.' + encodeURIComponent(email), token) : Promise.resolve({ data: [] })
+  ]);
+  var resRetos = results[0], resPart = results[1];
+
+  if (resRetos.error || !resRetos.data) {
     contenedor.innerHTML = '<div style="font-size:13px;color:var(--text-muted);">Error al cargar los retos.</div>';
     return;
   }
-  if (!res.data.length) {
+
+  // Filtrar cerrados client-side (funciona aunque la columna aún no exista)
+  var retos = resRetos.data.filter(function(r) { return r.estado !== 'cerrado'; });
+  if (!retos.length) {
     contenedor.innerHTML = '<div style="font-size:13px;color:var(--text-muted);">No hay retos activos en este momento.</div>';
     return;
   }
 
+  var yaParticipa = new Set((resPart.data || []).map(function(p) { return p.reto_id; }));
   var ahora = new Date();
-  contenedor.innerHTML = res.data.map(function(r) {
-    var esEquipo     = r.tipo === 'equipo';
-    var tipoLabel    = esEquipo ? 'Reto de equipo' : 'Reto individual';
-    var tipoColor    = esEquipo ? 'var(--gold)' : 'var(--text-muted)';
-    var borderColor  = esEquipo ? 'var(--border-gold)' : 'var(--border)';
-    var topBar       = esEquipo ? '<div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>' : '';
-    var salaText     = r.sala ? ' · Sala ' + r.sala : '';
+
+  contenedor.innerHTML = retos.map(function(r) {
+    var esEquipo    = r.tipo === 'equipo';
+    var tipoLabel   = esEquipo ? 'Reto de equipo' : 'Reto individual';
+    var tipoColor   = esEquipo ? 'var(--gold)' : 'var(--text-muted)';
+    var borderColor = esEquipo ? 'var(--border-gold)' : 'var(--border)';
+    var topBar      = esEquipo ? '<div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>' : '';
+    var salaText    = r.sala ? ' · Sala ' + r.sala : '';
 
     var cierreHTML = '';
     if (r.fecha_cierre) {
-      var fc = new Date(r.fecha_cierre);
+      var fc   = new Date(r.fecha_cierre);
       var dias = Math.ceil((fc - ahora) / 86400000);
       var cierreTexto = dias > 0 ? dias + (dias === 1 ? ' día' : ' días') : (dias === 0 ? 'Hoy' : 'Cerrado');
-      var cierreColor = esEquipo ? 'var(--gold-bright)' : 'var(--text)';
       cierreHTML = '<div style="text-align:right;">' +
         '<div style="font-size:11px;color:var(--text-muted);">Cierra en</div>' +
-        '<div style="font-family:\'Cormorant Garamond\',serif;font-size:26px;color:' + cierreColor + ';">' + cierreTexto + '</div>' +
+        '<div style="font-family:\'Cormorant Garamond\',serif;font-size:26px;color:' + (esEquipo ? 'var(--gold-bright)' : 'var(--text)') + ';">' + cierreTexto + '</div>' +
       '</div>';
     }
 
@@ -1331,12 +1343,34 @@ async function cargarRetosActivos() {
     if (r.premio_ozt)   premioPartes.push('◈ ' + r.premio_ozt + ' OZT');
     if (r.premio_extra) premioPartes.push(r.premio_extra);
     var premioHTML = premioPartes.length
-      ? '<div style="font-size:14px;color:var(--gold-bright);">' + premioPartes.join(' · ') + '</div>'
+      ? '<div style="font-size:14px;color:var(--gold-bright);margin-top:.8rem;">' + premioPartes.join(' · ') + '</div>'
       : '';
 
     var descHTML = r.descripcion
       ? '<div style="font-size:14px;color:var(--text-muted);margin-bottom:1rem;line-height:1.8;">' + r.descripcion + '</div>'
       : '';
+
+    // Botón Unirse: solo para retos de equipo no cerrados y dentro del primer 50% del tiempo
+    var botonHTML = '';
+    if (esEquipo && r.estado !== 'cerrado') {
+      var dentroDeVentana = false;
+      if (r.created_at && r.fecha_cierre) {
+        var inicio   = new Date(r.created_at);
+        var cierre   = new Date(r.fecha_cierre);
+        var duracion = cierre - inicio;
+        dentroDeVentana = duracion > 0 && ((ahora - inicio) / duracion) < 0.5;
+      } else if (!r.fecha_cierre) {
+        dentroDeVentana = true;
+      }
+      if (dentroDeVentana) {
+        if (yaParticipa.has(r.id)) {
+          botonHTML = '<div style="display:flex;align-items:center;gap:.4rem;font-size:12px;color:var(--green);margin-top:1rem;">' +
+            '<div style="width:5px;height:5px;border-radius:50%;background:var(--green);"></div>Participando</div>';
+        } else {
+          botonHTML = '<button onclick="unirseAReto(\'' + r.id + '\')" style="margin-top:1rem;padding:.5rem 1.2rem;background:transparent;border:1px solid var(--gold);color:var(--gold);font-size:12px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;font-family:inherit;">Unirse al reto</button>';
+        }
+      }
+    }
 
     return '<div style="background:var(--bg2);border:1px solid ' + borderColor + ';padding:1.5rem;position:relative;">' +
       topBar +
@@ -1349,8 +1383,30 @@ async function cargarRetosActivos() {
       '</div>' +
       descHTML +
       premioHTML +
+      botonHTML +
     '</div>';
   }).join('');
+}
+
+async function unirseAReto(retoId) {
+  var token = getToken();
+  var email = usuarioActual.email;
+
+  var r1 = await supaPost('retos_participantes',
+    { reto_id: retoId, usuario_email: email, created_at: new Date().toISOString() },
+    'return=representation', token);
+  if (r1.error) { showToast('Error al unirse: ' + r1.error); return; }
+
+  // Contar participantes; si llega a 11 activar el reto
+  var resCount = await supaGet('retos_participantes', 'reto_id=eq.' + retoId + '&select=id', token);
+  var total = (resCount.data || []).length;
+  if (total >= 11) {
+    await supaPatch('retos', 'id=eq.' + retoId,
+      { estado: 'activo', updated_at: new Date().toISOString() }, token);
+  }
+
+  showToast('¡Te has unido al reto!');
+  cargarRetosActivos();
 }
 
 // ── Modal Reset de cuenta ─────────────────────────────────────────
