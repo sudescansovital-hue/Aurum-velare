@@ -5,9 +5,7 @@ function parsearTrades(raw) {
   console.log('[PARSER] filas recibidas:', raw ? raw.length : 0);
   if (!raw || raw.length < 2) return [];
 
-  function norm(v) {
-    return String(v || '').normalize('NFC').toLowerCase().trim();
-  }
+  function norm(v) { return String(v||'').normalize('NFC').toLowerCase().replace(/\s+/g,' ').trim(); }
 
   // ── Detección MT5 ──────────────────────────────────────────────
   // Busca celda que diga exactamente "Posiciones" en las primeras 20 filas
@@ -33,6 +31,7 @@ function parsearTrades(raw) {
     if (tieneAp && tieneCi) { ctHeaderRow = r; break; }
   }
 
+  console.log('[PARSER] ctHeaderRow:', ctHeaderRow, '| fila:', JSON.stringify((raw[ctHeaderRow]||[]).slice(0,5)));
   console.log('[PARSER] mt5PosRow:', mt5PosRow, '| ctHeaderRow:', ctHeaderRow);
 
   if (mt5PosRow >= 0)  return _parsearMT5(raw, mt5PosRow);
@@ -195,7 +194,7 @@ function _parsearCtrader(raw, headerRow) {
   var colPe   = _colIdx(headers, ['precio de entrada', 'entry price', 'precio entrada', 'entrada']);
   var colPc   = _colIdx(headers, ['precio de cierre', 'exit price', 'close price', 'precio cierre']);
   var colVol  = _colIdx(headers, ['cantidad de cierre', 'cantidad', 'qty', 'lots', 'quantity', 'volumen']);
-  var colNeto = _colIdx(headers, ['$ neto', 'neto', 'net profit', 'profit', 'beneficio']);
+  var colNeto = _colIdx(headers, ['$ neto', 'usd neto', 'neto', 'net profit', 'profit', 'beneficio']);
   var colSl   = _colIdx(headers, ['s / l', 's/l', 'sl', 'stop loss']);
   var colTp   = _colIdx(headers, ['t / p', 't/p', 'tp', 'take profit']);
 

@@ -112,119 +112,111 @@ async function cargarHistorialDesdeSupabase() {
   HISTORIAL_CUENTAS = [];
   HISTORIAL_ALL_FPS = new Set();
   try {
-  var token = getToken();
-  var params = 'usuario_email=eq.' + encodeURIComponent(usuarioActual.email) + '&order=created_at.asc&limit=5000';
+    var token = getToken();
+    var params = 'usuario_email=eq.' + encodeURIComponent(usuarioActual.email) + '&order=created_at.asc&limit=5000';
 
-  // Borrar trades sin cuenta asignada antes de cargar (limpieza de datos corruptos)
-  await supaDelete('trades', 'usuario_email=eq.' + encodeURIComponent(usuarioActual.email) + '&cuenta=is.null', token);
+    // Borrar trades sin cuenta asignada antes de cargar
+    await supaDelete('trades', 'usuario_email=eq.' + encodeURIComponent(usuarioActual.email) + '&cuenta=is.null', token);
 
-  // Query both tables to find where the data lives
-  var resTrades     = await supaGet('trades',     params, token);
-  var resHistoriales = await supaGet('historiales', params, token);
+    var resTrades = await supaGet('trades', params, token);
+    var allData = resTrades.data || [];
 
-  console.log('[HISTORIAL] tabla trades     — error:', resTrades.error,     '| count:', resTrades.data     ? resTrades.data.length     : 0, '| primer row:', resTrades.data     && resTrades.data[0]);
-  console.log('[HISTORIAL] tabla historiales — error:', resHistoriales.error, '| count:', resHistoriales.data ? resHistoriales.data.length : 0, '| primer row:', resHistoriales.data && resHistoriales.data[0]);
+    console.log('[HISTORIAL] trades cargados:', allData.length, '| primer row:', allData[0]);
+    if (!allData.length) { console.log('[HISTORIAL] sin trades — salida'); return; }
 
-  // Merge ambas tablas deduplicando por (usuario_email, fp) — campo cuenta es la clave de agrupación
-  var allData = [];
-  var _mergedFps = new Set();
-  function _addUnique(rows) {
-    if (!rows || !rows.length) return;
-    rows.forEach(function(t) {
-      if (t.fp) {
-        var key = (t.usuario_email || '') + '|' + t.fp;
-        if (!_mergedFps.has(key)) { _mergedFps.add(key); allData.push(t); }
-      } else {
-        allData.push(t);
-      }
+    // Registrar todos los fps conocidos para deduplicación al subir
+    allData.forEach(function(t) {
+      if (t.fp) HISTORIAL_ALL_FPS.add(t.fp);
     });
-  }
-  _addUnique(resTrades.data);
-  _addUnique(resHistoriales.data);
 
-  console.log('[HISTORIAL] merge — trades:', resTrades.data ? resTrades.data.length : 0, '| historiales:', resHistoriales.data ? resHistoriales.data.length : 0, '| combinados:', allData.length);
-  if (!allData.length) { console.log('[HISTORIAL] allData vacío — salida sin render'); return; }
-
-  console.log('[HISTORIAL] primer row completo:', allData[0]);
-  console.log('[HISTORIAL] primer row .cuenta:', allData[0] && allData[0].cuenta);
-  console.log('[HISTORIAL] claves del primer row:', allData[0] && Object.keys(allData[0]));
-
-  // Agrupar por cuenta — campo exacto usado en ambas tablas
-  var porCuenta = {};
-  allData.forEach(function(t, i) {
-    var c = t.cuenta || t.nombre || null; if (!c) return;
-    if (i < 3) console.log('[HISTORIAL] row[' + i + '] t.cuenta:', t.cuenta, '→ c:', c);
-    if (!porCuenta[c]) porCuenta[c] = [];
-    porCuenta[c].push(t);
-  });
-  console.log('[HISTORIAL] porCuenta keys tras merge:', Object.keys(porCuenta));
-
-  console.log('[GUARD]', window.usuarioActual ? window.usuarioActual.email : 'null', '!==', emailInicio, '?', window.usuarioActual && window.usuarioActual.email !== emailInicio);
-  if (!window.usuarioActual || window.usuarioActual.email !== emailInicio) { console.log('[HISTORIAL] email cambió — salida sin render'); return; }
-  HISTORIAL_CUENTAS = [];
-  HISTORIAL_ALL_FPS = new Set();
-
-  var MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-  Object.keys(porCuenta).forEach(function(nombreCuenta) {
-    var trades = porCuenta[nombreCuenta];
-    trades.forEach(function(t) { if (t.fp) HISTORIAL_ALL_FPS.add(nombreCuenta + '|' + t.fp); });
-
-    var wins  = trades.filter(function(t) { return t.ganadora; }).length;
-    var pnl   = Math.round(trades.reduce(function(s, t) { return s + (t.beneficio || 0); }, 0) * 100) / 100;
-    var wr    = trades.length > 0 ? Math.round(wins / trades.length * 1000) / 10 : 0;
-    var wT    = trades.filter(function(t) { return t.ganadora; });
-    var lT    = trades.filter(function(t) { return !t.ganadora; });
-    var ptsW  = wT.length > 0 ? wT.reduce(function(s, t) { return s + (t.puntos || 0); }, 0) / wT.length : 0;
-    var ptsL  = lT.length > 0 ? lT.reduce(function(s, t) { return s + (t.puntos || 0); }, 0) / lT.length : 0;
-    var rr    = ptsL > 0 ? Math.round(ptsW / ptsL * 100) / 100 : 0;
-
-    var fechas = trades.map(function(t) {
-      if (t.fp) { var m = String(t.fp).match(/(\d{4})\.(\d{2})\.(\d{2})/); if (m) return new Date(+m[1], +m[2]-1, +m[3]); }
-      if (t.created_at) return new Date(t.created_at);
-      return null;
-    }).filter(Boolean).sort(function(a, b) { return a - b; });
-
-    var periodo = fechas.length > 0
-      ? fechas[0].getDate() + ' ' + MESES[fechas[0].getMonth()] + ' – ' +
-        fechas[fechas.length-1].getDate() + ' ' + MESES[fechas[fechas.length-1].getMonth()] + ' ' + fechas[fechas.length-1].getFullYear()
-      : new Date().toLocaleDateString('es-ES');
-
-    HISTORIAL_CUENTAS.push({
-      nombre:  nombreCuenta,
-      numero:  _numeroDesdeNombre(nombreCuenta),
-      tipo:    (trades.find(function(t) { return t.tipo; }) || {}).tipo || 'Externa',
-      total:   trades.length,
-      wins:    wins,
-      pnl:     pnl,
-      wr:      wr,
-      rr:      rr,
-      periodo: periodo,
-      dias:    [],
-      tipos:   {},
-      fps:     trades.map(function(t) { return t.fp; }).filter(Boolean)
+    // Agrupar por cuenta
+    var porCuenta = {};
+    allData.forEach(function(t) {
+      var c = (t.cuenta === 'Cuenta Externa' && t.cuenta_numero)
+        ? 'Cuenta Externa · ' + t.cuenta_numero
+        : t.cuenta;
+      if (!c) return;
+      if (!porCuenta[c]) porCuenta[c] = [];
+      porCuenta[c].push(t);
     });
-  });
+    console.log('[HISTORIAL] cuentas detectadas:', Object.keys(porCuenta));
 
-  var lista = document.getElementById('hist-lista');
-  if (lista) {
-    lista.innerHTML = '';
-    HISTORIAL_CUENTAS.forEach(function(c, idx) { histAnadirFila(c, idx); });
-  }
+    if (!window.usuarioActual || window.usuarioActual.email !== emailInicio) return;
+    HISTORIAL_CUENTAS = [];
+    HISTORIAL_ALL_FPS = new Set();
+    // Reconstruir HISTORIAL_ALL_FPS tras el guard
+    allData.forEach(function(t) {
+      if (t.fp) HISTORIAL_ALL_FPS.add(t.fp);
+    });
 
-  // Totales globales del historial
-  var totalTrades = allData.length;
-  var totalWins   = allData.filter(function(t) { return t.ganadora; }).length;
-  var totalPnl    = Math.round(allData.reduce(function(s, t) { return s + (t.beneficio || 0); }, 0) * 100) / 100;
-  var totalWr     = totalTrades > 0 ? Math.round(totalWins / totalTrades * 1000) / 10 : 0;
-  var numCuentas  = Object.keys(porCuenta).length;
-  var pnlStr      = (totalPnl >= 0 ? '+' : '') + totalPnl + '$';
+    var MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+    Object.keys(porCuenta).forEach(function(nombreCuenta) {
+      var trades = porCuenta[nombreCuenta];
+      var wins  = trades.filter(function(t) { return t.ganadora; }).length;
+      var pnl   = Math.round(trades.reduce(function(s, t) { return s + (t.beneficio || 0); }, 0) * 100) / 100;
+      var wr    = trades.length > 0 ? Math.round(wins / trades.length * 1000) / 10 : 0;
+      var wT    = trades.filter(function(t) { return t.ganadora; });
+      var lT    = trades.filter(function(t) { return !t.ganadora; });
+      var ptsW  = wT.length > 0 ? wT.reduce(function(s, t) { return s + (t.puntos || 0); }, 0) / wT.length : 0;
+      var ptsL  = lT.length > 0 ? lT.reduce(function(s, t) { return s + (t.puntos || 0); }, 0) / lT.length : 0;
+      var rr    = ptsL > 0 ? Math.round(ptsW / ptsL * 100) / 100 : 0;
 
-  var el;
-  el = document.getElementById('hist-global-trades');     if (el) el.textContent = totalTrades;
-  el = document.getElementById('hist-global-trades-sub'); if (el) el.textContent = numCuentas + ' cuenta' + (numCuentas !== 1 ? 's' : '') + ' · sin duplicados';
-  el = document.getElementById('hist-global-wr');         if (el) el.textContent = totalWr + '%';
-  el = document.getElementById('hist-global-wr-sub');     if (el) el.textContent = totalWins + ' wins de ' + totalTrades;
-  el = document.getElementById('hist-global-pnl');        if (el) el.textContent = pnlStr;
+      var fechas = trades.map(function(t) {
+        if (t.fp) { var m = String(t.fp).match(/(\d{4})\.(\d{2})\.(\d{2})/); if (m) return new Date(+m[1], +m[2]-1, +m[3]); }
+        if (t.created_at) return new Date(t.created_at);
+        return null;
+      }).filter(Boolean).sort(function(a, b) { return a - b; });
+
+      var periodo = fechas.length > 0
+        ? fechas[0].getDate() + ' ' + MESES[fechas[0].getMonth()] + ' – ' +
+          fechas[fechas.length-1].getDate() + ' ' + MESES[fechas[fechas.length-1].getMonth()] + ' ' + fechas[fechas.length-1].getFullYear()
+        : new Date().toLocaleDateString('es-ES');
+
+      HISTORIAL_CUENTAS.push({
+        nombre:  nombreCuenta,
+        numero:  _numeroDesdeNombre(nombreCuenta),
+        tipo:    (trades.find(function(t) { return t.tipo; }) || {}).tipo || 'Externa',
+        total:   trades.length,
+        wins:    wins,
+        pnl:     pnl,
+        wr:      wr,
+        rr:      rr,
+        periodo: periodo,
+        dias:    [],
+        tipos:   {},
+        fps:     trades.map(function(t) { return t.fp; }).filter(Boolean)
+      });
+    });
+
+    HISTORIAL_CUENTAS.sort(function(a, b) {
+      var orden = ['Cuenta Maestra', 'Cuenta Retos', 'Cuenta Prueba'];
+      var ia = orden.indexOf(a.nombre);
+      var ib = orden.indexOf(b.nombre);
+      if (ia >= 0 && ib >= 0) return ia - ib;
+      if (ia >= 0) return -1;
+      if (ib >= 0) return 1;
+      return 0;
+    });
+
+    var lista = document.getElementById('hist-lista');
+    if (lista) {
+      lista.innerHTML = '';
+      HISTORIAL_CUENTAS.forEach(function(c, idx) { histAnadirFila(c, idx); });
+    }
+
+    var totalTrades = allData.length;
+    var totalWins   = allData.filter(function(t) { return t.ganadora; }).length;
+    var totalPnl    = Math.round(allData.reduce(function(s, t) { return s + (t.beneficio || 0); }, 0) * 100) / 100;
+    var totalWr     = totalTrades > 0 ? Math.round(totalWins / totalTrades * 1000) / 10 : 0;
+    var numCuentas  = Object.keys(porCuenta).length;
+    var pnlStr      = (totalPnl >= 0 ? '+' : '') + totalPnl + '$';
+
+    var el;
+    el = document.getElementById('hist-global-trades');     if (el) el.textContent = totalTrades;
+    el = document.getElementById('hist-global-trades-sub'); if (el) el.textContent = numCuentas + ' cuenta' + (numCuentas !== 1 ? 's' : '') + ' · sin duplicados';
+    el = document.getElementById('hist-global-wr');         if (el) el.textContent = totalWr + '%';
+    el = document.getElementById('hist-global-wr-sub');     if (el) el.textContent = totalWins + ' wins de ' + totalTrades;
+    el = document.getElementById('hist-global-pnl');        if (el) el.textContent = pnlStr;
   } catch (err) {
     console.error('[HISTORIAL] excepción en cargarHistorialDesdeSupabase:', err);
   }
@@ -325,12 +317,22 @@ function _confirmarNumeroCuenta(numero, label) {
   });
 }
 
-function histDrop(event) {
-  var file = event.dataTransfer.files[0];
-  if (file) histSubir(file);
+function histSubirMultiple(files) {
+  if (!files || !files.length) return;
+  var arr = Array.from(files);
+  function procesarSiguiente(i) {
+    if (i >= arr.length) return;
+    histSubir(arr[i], function() { procesarSiguiente(i + 1); });
+  }
+  procesarSiguiente(0);
 }
 
-function histSubir(file) {
+function histDrop(event) {
+  var files = event.dataTransfer.files;
+  if (files && files.length) histSubirMultiple(files);
+}
+
+function histSubir(file, onDone) {
   if (!file) return;
   var msg = document.getElementById('hist-msg');
   msg.textContent = '';
@@ -339,7 +341,7 @@ function histSubir(file) {
   document.getElementById('hist-prog-txt').textContent = 'Leyendo archivo...';
 
   var reader = new FileReader();
-  async function procesarRaw(raw) {
+  async function procesarRaw(raw, numeroCuentaForzado) {
     document.getElementById('hist-prog-bar').style.width = '70%';
     document.getElementById('hist-prog-txt').textContent = 'Calculando...';
     if (Object.keys(CUENTAS_AURUM).length === 0) {
@@ -351,44 +353,59 @@ function histSubir(file) {
     var trades = parsearTrades(raw);
     if (!trades || trades.length < 5) {
       msg.style.color = 'var(--red)'; msg.textContent = 'No se encontraron trades XAU/USD suficientes.';
-      document.getElementById('hist-progreso').style.display = 'none'; return;
+      document.getElementById('hist-progreso').style.display = 'none';
+      if (typeof onDone === 'function') onDone();
+      return;
     }
-    var numeroCuenta = detectarNumeroCuentaDeRaw(raw, file.name);
+    var numeroCuenta = numeroCuentaForzado || detectarNumeroCuentaDeRaw(raw, file.name);
     var nombreFinal  = (numeroCuenta && CUENTAS_AURUM[numeroCuenta]) || 'Cuenta Externa';
     var tipo         = nombreFinal === 'Cuenta Externa' ? 'extern' : 'real';
 
-    // Si no se detectó número y hay cuentas asignadas, preguntar al usuario
     async function _pedirNumeroSiNecesario() {
-      if (numeroCuenta || Object.keys(CUENTAS_AURUM).length === 0) return numeroCuenta;
+      if (numeroCuenta) return numeroCuenta;
       return new Promise(function(resolve) {
         var modal = document.createElement('div');
         modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;z-index:99999';
-        var opciones = Object.keys(CUENTAS_AURUM).map(function(num) {
-          return '<button data-num="' + num + '" style="background:var(--gold,#c9a84c);color:#000;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-weight:bold;margin:6px">' + CUENTAS_AURUM[num] + ' (' + num + ')</button>';
-        }).join('');
-        modal.innerHTML = '<div style="background:#0d1120;border:1px solid var(--gold,#c9a84c);border-radius:12px;padding:32px;max-width:460px;width:90%;text-align:center">' +
+        modal.innerHTML = '<div style="background:#0d1120;border:1px solid var(--gold,#c9a84c);border-radius:12px;padding:32px;max-width:460px;width:90%;text-align:center;position:relative">' +
+          '<button id="btn-cerrar-x" style="position:absolute;top:12px;right:16px;background:transparent;border:none;color:#888;font-size:20px;cursor:pointer;line-height:1">✕</button>' +
           '<p style="color:#e0e0e0;margin:0 0 8px;font-size:15px">No se detectó el número de cuenta automáticamente.</p>' +
-          '<p style="color:#e0e0e0;margin:0 0 24px;font-size:14px;opacity:.7">¿A qué cuenta pertenece este historial?</p>' +
-          '<div>' + opciones + '</div>' +
-          '<button id="btn-externa" style="background:transparent;color:var(--text,#e0e0e0);border:1px solid #444;padding:10px 20px;border-radius:8px;cursor:pointer;margin:12px 6px 0">Es una cuenta externa</button>' +
+          '<p style="color:#e0e0e0;margin:0 0 24px;font-size:14px;opacity:.7">¿Es una cuenta externa o cancelar?</p>' +
+          '<div style="display:flex;gap:12px;justify-content:center">' +
+            '<button id="btn-externa" style="background:var(--gold,#c9a84c);color:#000;border:none;padding:10px 28px;border-radius:8px;cursor:pointer;font-weight:bold">Es una cuenta externa</button>' +
+            '<button id="btn-cancelar" style="background:transparent;color:var(--text,#e0e0e0);border:1px solid #444;padding:10px 28px;border-radius:8px;cursor:pointer">Cancelar</button>' +
+          '</div>' +
         '</div>';
         document.body.appendChild(modal);
-        modal.querySelectorAll('[data-num]').forEach(function(btn) {
-          btn.onclick = function() { modal.remove(); resolve(btn.getAttribute('data-num')); };
-        });
+        document.getElementById('btn-cerrar-x').onclick = function() { modal.remove(); resolve('CANCELAR'); };
         document.getElementById('btn-externa').onclick = function() { modal.remove(); resolve(null); };
+        document.getElementById('btn-cancelar').onclick = function() { modal.remove(); resolve('CANCELAR'); };
       });
     }
 
     document.getElementById('hist-progreso').style.display = 'none';
     numeroCuenta = await _pedirNumeroSiNecesario();
+    if (numeroCuenta === 'CANCELAR') {
+      msg.style.color = 'var(--gold)';
+      msg.textContent = 'Subida cancelada.';
+      if (typeof onDone === 'function') onDone();
+      return;
+    }
     nombreFinal  = (numeroCuenta && CUENTAS_AURUM[numeroCuenta]) || 'Cuenta Externa';
     tipo         = nombreFinal === 'Cuenta Externa' ? 'extern' : 'real';
 
-    var fps_nuevos = trades.filter(function(t) { return !HISTORIAL_ALL_FPS.has(nombreFinal + '|' + (t.fp || '')); });
+    var fps_nuevos = trades.filter(function(t) {
+      if (!t.fp) return true;
+      var yaExiste = false;
+      HISTORIAL_ALL_FPS.forEach(function(entry) {
+        if (entry === t.fp) yaExiste = true;
+      });
+      return !yaExiste;
+    });
     (function() {
       if (fps_nuevos.length === 0) {
-        msg.style.color = 'var(--gold)'; msg.textContent = 'Todos los trades ya estaban registrados.'; return;
+        msg.style.color = 'var(--gold)'; msg.textContent = 'Todos los trades ya estaban registrados.';
+        if (typeof onDone === 'function') onDone();
+        return;
       }
       fps_nuevos.map(function(t){ return t.fp; }).filter(Boolean)
         .forEach(function(fp) { HISTORIAL_ALL_FPS.add(nombreFinal + '|' + fp); });
@@ -402,13 +419,14 @@ function histSubir(file) {
       }
       msg.style.color = 'var(--green)'; msg.textContent = fps_nuevos.length + ' trades únicos añadidos.';
       document.getElementById('hist-nombre').value = '';
+      if (typeof onDone === 'function') onDone();
     })();
   }
   if (file.name.toLowerCase().endsWith('.xlsx')) {
     reader.onload = function(e) {
       function leerConXLSX() {
         try { var data = new Uint8Array(e.target.result); var wb = XLSX.read(data,{type:'array',cellDates:true}); var ws = wb.Sheets[wb.SheetNames[0]]; var raw = XLSX.utils.sheet_to_json(ws,{header:1,defval:''}); console.log('[XLSX] filas totales:', raw.length, '| fila0:', JSON.stringify(raw[0]), '| fila1:', JSON.stringify(raw[1]), '| fila2:', JSON.stringify(raw[2])); procesarRaw(raw); }
-        catch(err) { msg.style.color='var(--red)'; msg.textContent='Error al leer el archivo.'; document.getElementById('hist-progreso').style.display='none'; }
+        catch(err) { msg.style.color='var(--red)'; msg.textContent='Error al leer el archivo.'; document.getElementById('hist-progreso').style.display='none'; if (typeof onDone === 'function') onDone(); }
       }
       if (typeof XLSX !== 'undefined') {
         leerConXLSX();
@@ -421,9 +439,29 @@ function histSubir(file) {
     }; reader.readAsArrayBuffer(file);
   } else {
     reader.onload = function(e) {
-      try { var parser = new DOMParser(); var doc = parser.parseFromString(e.target.result,'text/html'); var raw=[]; doc.querySelectorAll('table').forEach(function(table){table.querySelectorAll('tr').forEach(function(tr){var cells=Array.from(tr.querySelectorAll('td,th')).map(function(td){return td.textContent.trim();}); if(cells.length>3)raw.push(cells);})}); procesarRaw(raw); }
-      catch(err) { msg.style.color='var(--red)'; msg.textContent='Error al leer el archivo.'; document.getElementById('hist-progreso').style.display='none'; }
-    }; reader.readAsText(file);
+      try {
+        var htmlText = e.target.result;
+        var parser2 = new DOMParser();
+        var doc2 = parser2.parseFromString(htmlText, 'text/html');
+        var titleText = (doc2.querySelector('title') || {}).textContent || '';
+        var titleMatch = titleText.match(/cT[\s_]+(\d{5,})/i);
+        var numeroCuentaTitle = titleMatch ? titleMatch[1] : null;
+        console.log('[PARSER-HTM] title:', titleText.trim(), '| cuenta:', numeroCuentaTitle);
+        var raw = [];
+        doc2.querySelectorAll('table').forEach(function(table) {
+          table.querySelectorAll('tr').forEach(function(tr) {
+            var cells = Array.from(tr.querySelectorAll('td,th')).map(function(td) { return td.textContent.trim(); });
+            if (cells.length > 3) raw.push(cells);
+          });
+        });
+        procesarRaw(raw, numeroCuentaTitle);
+      } catch(err) {
+        msg.style.color = 'var(--red)';
+        msg.textContent = 'Error al leer el archivo.';
+        document.getElementById('hist-progreso').style.display = 'none';
+        if (typeof onDone === 'function') onDone();
+      }
+    }; reader.readAsText(file, 'UTF-16');
   }
 }
 
@@ -432,27 +470,10 @@ async function _actualizarEntradaHistorial(nombreCuenta, tipo, numeroCuenta) {
   var token = getToken();
   var params = 'usuario_email=eq.' + encodeURIComponent(usuarioActual.email) + '&order=created_at.asc&limit=5000';
 
-  // Merge trades + historiales igual que cargarHistorialDesdeSupabase para ver el total real
-  var resTrades      = await supaGet('trades',     params, token);
-  var resHistoriales = await supaGet('historiales', params, token);
-  var allRows = [];
-  var _seenFps = new Set();
-  function _addRows(rows) {
-    if (!rows || !rows.length) return;
-    rows.forEach(function(t) {
-      if (t.fp) {
-        var key = (t.usuario_email || '') + '|' + t.fp;
-        if (!_seenFps.has(key)) { _seenFps.add(key); allRows.push(t); }
-      } else {
-        allRows.push(t);
-      }
-    });
-  }
-  _addRows(resTrades.data);
-  _addRows(resHistoriales.data);
+  var resTrades = await supaGet('trades', params, token);
+  var allRows = resTrades.data || [];
   if (!allRows.length) return;
 
-  // Filtrar a esta cuenta por nombre exacto del campo cuenta
   var keyword = nombreCuenta.toLowerCase();
   var trades = allRows.filter(function(t) {
     return t.cuenta && t.cuenta.toLowerCase().indexOf(keyword) >= 0;
@@ -474,14 +495,13 @@ async function _actualizarEntradaHistorial(nombreCuenta, tipo, numeroCuenta) {
     if (t.created_at) return new Date(t.created_at);
     return null;
   }).filter(Boolean).sort(function(a, b) { return a - b; });
+
   var periodo = fechas.length > 0
     ? fechas[0].getDate() + ' ' + MESES[fechas[0].getMonth()] + ' – ' +
       fechas[fechas.length-1].getDate() + ' ' + MESES[fechas[fechas.length-1].getMonth()] + ' ' + fechas[fechas.length-1].getFullYear()
     : new Date().toLocaleDateString('es-ES');
 
-  // Usar el campo cuenta tal como está guardado en Supabase como clave canónica
-  var nombre = (trades.length > 0 && trades[0].cuenta) || nombreCuenta;
-
+  var nombre = (trades[0] && trades[0].cuenta) || nombreCuenta;
   var entrada = {
     nombre:  nombre,
     numero:  numeroCuenta || _numeroDesdeNombre(nombre),
@@ -498,27 +518,8 @@ async function _actualizarEntradaHistorial(nombreCuenta, tipo, numeroCuenta) {
   };
 
   var idx = HISTORIAL_CUENTAS.findIndex(function(c) { return c.nombre === nombre; });
-  if (idx >= 0) {
-    HISTORIAL_CUENTAS[idx] = entrada;
-  } else {
-    HISTORIAL_CUENTAS.push(entrada);
-  }
+  if (idx >= 0) { HISTORIAL_CUENTAS[idx] = entrada; } else { HISTORIAL_CUENTAS.push(entrada); }
 
-  var _hFilter = 'usuario_email=eq.' + encodeURIComponent(usuarioActual.email) +
-                 '&nombre=eq.'        + encodeURIComponent(nombre) + '&limit=1';
-  var _hCheck = await supaGet('historiales', _hFilter, token);
-  var _hData  = { usuario_email: usuarioActual.email, nombre: nombre, tipo: tipo || 'real', numero: numeroCuenta || null };
-  var _hRes;
-  if (!_hCheck.error && _hCheck.data && _hCheck.data.length) {
-    _hRes = await supaPatch('historiales', _hFilter, _hData, token);
-    console.log('[HISTORIAL] PATCH historiales — nombre:', nombre);
-  } else {
-    _hRes = await supaPost('historiales', _hData, token);
-    console.log('[HISTORIAL] INSERT historiales — nombre:', nombre);
-  }
-  if (_hRes && _hRes.error) console.error('[HISTORIAL] Error guardando historiales:', _hRes.error);
-
-  // Re-render full list
   var lista = document.getElementById('hist-lista');
   if (lista) {
     lista.innerHTML = '';
