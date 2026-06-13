@@ -2661,8 +2661,11 @@
       <div style="background:var(--bg2);border:1px solid #cc664433;padding:1.5rem;">
         <div style="font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#cc9966;margin-bottom:1rem;">Crear reto</div>
         <div style="display:flex;flex-direction:column;gap:.6rem;">
-          <input id="admin-reto-titulo" placeholder="Título" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.45rem .7rem;font-size:13px;font-family:inherit;outline:none;">
-          <textarea id="admin-reto-desc" placeholder="Descripción" rows="3" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.45rem .7rem;font-size:13px;font-family:inherit;outline:none;resize:vertical;"></textarea>
+
+          <input id="admin-reto-titulo" placeholder="Título *" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.45rem .7rem;font-size:13px;font-family:inherit;outline:none;">
+
+          <textarea id="admin-reto-desc" placeholder="Descripción" rows="2" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.45rem .7rem;font-size:13px;font-family:inherit;outline:none;resize:vertical;"></textarea>
+
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;">
             <select id="admin-reto-tipo" onchange="adminRetoTipoChange()" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.45rem .5rem;font-size:13px;font-family:inherit;">
               <option value="individual">Individual</option>
@@ -2671,25 +2674,36 @@
             </select>
             <input id="admin-reto-sala" placeholder="Sala (opcional)" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.45rem .7rem;font-size:13px;font-family:inherit;outline:none;">
           </div>
-          <div id="admin-reto-equipo-nota" style="display:none;font-size:11px;color:#cc9966;background:#cc664411;border:1px solid #cc664422;padding:.5rem .7rem;line-height:1.7;">
-            Reparto del bote: 40% 1º · 17% 2º · 10% 3º · 33% reserva Aurum
-          </div>
+
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;">
-            <input id="admin-reto-ozt" type="number" placeholder="Premio OZT (fijo individual / base equipo)" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.45rem .7rem;font-size:13px;font-family:inherit;outline:none;">
-            <input id="admin-reto-extra" placeholder="Premio extra (texto)" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.45rem .7rem;font-size:13px;font-family:inherit;outline:none;">
+            <input id="admin-reto-coste" type="number" min="0" placeholder="Coste entrada OZT (0 = gratis)" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.45rem .7rem;font-size:13px;font-family:inherit;outline:none;">
+            <input id="admin-reto-ozt" type="number" placeholder="Premio OZT" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.45rem .7rem;font-size:13px;font-family:inherit;outline:none;">
           </div>
-          <input id="admin-reto-coste" type="number" min="0" placeholder="Coste de entrada OZT (0 = gratis)" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.45rem .7rem;font-size:13px;font-family:inherit;outline:none;">
-          <input id="admin-reto-cierre" type="date" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.45rem .7rem;font-size:13px;font-family:inherit;outline:none;">
+
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;">
-            <select id="admin-reto-condicion-tipo" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.45rem .5rem;font-size:13px;font-family:inherit;">
+            <input id="admin-reto-extra" placeholder="Premio extra (texto, opcional)" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.45rem .7rem;font-size:13px;font-family:inherit;outline:none;">
+            <input id="admin-reto-trades-req" type="number" min="1" placeholder="Trades requeridos *" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.45rem .7rem;font-size:13px;font-family:inherit;outline:none;">
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;">
+            <select id="admin-reto-condicion-tipo" onchange="adminRetoCondicionChange()" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.45rem .5rem;font-size:13px;font-family:inherit;">
               <option value="">Sin condición</option>
               <option value="lote_maximo">Lote máximo</option>
               <option value="wr_minimo">WR mínimo (%)</option>
               <option value="trades_sin_revenge">Trades sin revenge</option>
               <option value="pnl_minimo">PNL mínimo por trade</option>
             </select>
-            <input id="admin-reto-condicion-valor" type="number" step="any" placeholder="Valor umbral" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.45rem .7rem;font-size:13px;font-family:inherit;outline:none;">
+            <input id="admin-reto-condicion-valor" type="number" step="any" placeholder="Valor umbral" style="display:none;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.45rem .7rem;font-size:13px;font-family:inherit;outline:none;">
           </div>
+
+          <input id="admin-reto-part-min" type="number" min="1" placeholder="Participantes mínimos (default 11)" style="display:none;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.45rem .7rem;font-size:13px;font-family:inherit;outline:none;">
+
+          <input id="admin-reto-cierre" type="date" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.45rem .7rem;font-size:13px;font-family:inherit;outline:none;">
+
+          <div id="admin-reto-equipo-nota" style="display:none;font-size:11px;color:#cc9966;background:#cc664411;border:1px solid #cc664422;padding:.5rem .7rem;line-height:1.7;">
+            Reparto: 40% 1º · 17% 2º · 10% 3º · 33% reserva Aurum
+          </div>
+
           <div id="admin-reto-err" style="font-size:12px;color:#e05;min-height:1rem;"></div>
           <button onclick="adminCrearReto()" style="padding:.6rem;background:#cc664433;border:1px solid #cc664466;color:#cc9966;cursor:pointer;font-size:12px;letter-spacing:.1em;text-transform:uppercase;font-family:inherit;">Guardar reto</button>
         </div>

@@ -443,47 +443,66 @@ async function adminCargarRetos() {
 
 async function adminCrearReto() {
   var errEl = document.getElementById('admin-reto-err');
-  var titulo = (document.getElementById('admin-reto-titulo').value || '').trim();
-  if (!titulo) { if (errEl) errEl.textContent = 'El título es obligatorio.'; return; }
+  if (errEl) errEl.textContent = '';
 
-  var premioOzt = parseInt(document.getElementById('admin-reto-ozt').value) || null;
+  var titulo       = (document.getElementById('admin-reto-titulo').value    || '').trim();
+  var tradesReq    = parseInt(document.getElementById('admin-reto-trades-req').value);
+
+  if (!titulo)           { if (errEl) errEl.textContent = 'El título es obligatorio.';         return; }
+  if (!tradesReq || tradesReq < 1) { if (errEl) errEl.textContent = 'Trades requeridos debe ser > 0.'; return; }
 
   var condicionTipo  = document.getElementById('admin-reto-condicion-tipo').value;
   var condicionValor = parseFloat(document.getElementById('admin-reto-condicion-valor').value);
   var condicion = condicionTipo
-    ? { tipo: condicionTipo, valor: isNaN(condicionValor) ? 0 : condicionValor, trades_requeridos: premioOzt || 0 }
+    ? { tipo: condicionTipo, valor: isNaN(condicionValor) ? 0 : condicionValor, trades_requeridos: tradesReq }
     : null;
 
+  var partMinRaw = parseInt(document.getElementById('admin-reto-part-min').value);
+  var partMin    = (!isNaN(partMinRaw) && partMinRaw > 0) ? partMinRaw : 11;
+
   var datos = {
-    titulo:       titulo,
-    descripcion:  (document.getElementById('admin-reto-desc').value  || '').trim() || null,
-    tipo:         document.getElementById('admin-reto-tipo').value,
-    sala:         (document.getElementById('admin-reto-sala').value   || '').trim() || null,
-    premio_ozt:   premioOzt,
-    premio_extra: (document.getElementById('admin-reto-extra').value  || '').trim() || null,
-    coste_ozt:    parseInt(document.getElementById('admin-reto-coste').value) || 0,
-    fecha_cierre: document.getElementById('admin-reto-cierre').value  || null,
-    condicion:    condicion,
-    created_at:   new Date().toISOString()
+    titulo:                 titulo,
+    descripcion:            (document.getElementById('admin-reto-desc').value    || '').trim() || null,
+    tipo:                   document.getElementById('admin-reto-tipo').value,
+    sala:                   (document.getElementById('admin-reto-sala').value    || '').trim() || null,
+    coste_ozt:              parseInt(document.getElementById('admin-reto-coste').value)  || 0,
+    premio_ozt:             parseInt(document.getElementById('admin-reto-ozt').value)    || null,
+    premio_extra:           (document.getElementById('admin-reto-extra').value   || '').trim() || null,
+    trades_requeridos:      tradesReq,
+    condicion:              condicion,
+    participantes_minimos:  partMin,
+    fecha_cierre:           document.getElementById('admin-reto-cierre').value   || null,
+    created_at:             new Date().toISOString()
   };
 
   var res = await supaPost('retos', datos, 'return=representation', getToken());
   if (res.error) { if (errEl) errEl.textContent = 'Error: ' + res.error; return; }
 
-  if (errEl) errEl.textContent = '';
-  ['admin-reto-titulo','admin-reto-desc','admin-reto-sala','admin-reto-ozt','admin-reto-extra','admin-reto-coste','admin-reto-cierre','admin-reto-condicion-valor'].forEach(function(id) {
+  ['admin-reto-titulo','admin-reto-desc','admin-reto-sala','admin-reto-coste','admin-reto-ozt',
+   'admin-reto-extra','admin-reto-trades-req','admin-reto-condicion-valor',
+   'admin-reto-part-min','admin-reto-cierre'].forEach(function(id) {
     var el = document.getElementById(id); if (el) el.value = '';
   });
   document.getElementById('admin-reto-condicion-tipo').value = '';
+  document.getElementById('admin-reto-tipo').value = 'individual';
   adminRetoTipoChange();
+  adminRetoCondicionChange();
   showToast('Reto creado correctamente');
   adminCargarRetos();
 }
 
 function adminRetoTipoChange() {
-  var tipo  = document.getElementById('admin-reto-tipo');
-  var nota  = document.getElementById('admin-reto-equipo-nota');
-  if (nota) nota.style.display = (tipo && tipo.value === 'equipo') ? 'block' : 'none';
+  var esEquipo = document.getElementById('admin-reto-tipo').value === 'equipo';
+  var nota     = document.getElementById('admin-reto-equipo-nota');
+  var partMin  = document.getElementById('admin-reto-part-min');
+  if (nota)    nota.style.display    = esEquipo ? 'block' : 'none';
+  if (partMin) partMin.style.display = esEquipo ? 'block' : 'none';
+}
+
+function adminRetoCondicionChange() {
+  var tieneCond = document.getElementById('admin-reto-condicion-tipo').value !== '';
+  var valEl     = document.getElementById('admin-reto-condicion-valor');
+  if (valEl) valEl.style.display = tieneCond ? 'block' : 'none';
 }
 
 async function adminBorrarReto(id) {
