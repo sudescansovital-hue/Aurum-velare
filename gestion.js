@@ -1193,13 +1193,16 @@ function buildDashboardHero() {
   el = document.getElementById('dash-ciclo-sub'); if (el) el.textContent = enCurso + ' / 111 trades · ' + pctCiclo + '%';
   el = document.getElementById('ciclo-encurso-txt'); if (el) el.textContent = 'Ciclo ' + cicloActual + ' en curso — ' + enCurso + ' trades';
 
-  // OZT por ciclos completados (10 OZT por ciclo; etapa la controla el admin)
+  // OZT: 10 por ciclo (111 trades) + 50 bonus por evaluación superada (1111 trades)
+  var evaluacionesCompletadas = Math.floor(totalTrades / 1111);
   var oztCiclos = ciclosCompletados * 10;
-  window.AURUM_OZT = oztCiclos;
-  el = document.getElementById('dash-ozt');        if (el) el.textContent = oztCiclos;
-  el = document.getElementById('ozt-saldo');       if (el) el.textContent = oztCiclos;
-  el = document.getElementById('dash-ozt-widget'); if (el) el.textContent = oztCiclos;
-  el = document.getElementById('dash-ranking-ozt'); if (el) el.textContent = oztCiclos + ' OZT';
+  var oztTotal  = oztCiclos + (evaluacionesCompletadas * 50);
+  window.AURUM_OZT = oztTotal;
+  el = document.getElementById('dash-ozt');        if (el) el.textContent = oztTotal;
+  el = document.getElementById('ozt-saldo');       if (el) el.textContent = oztTotal;
+  el = document.getElementById('ozt-ganados-retos'); if (el) el.textContent = evaluacionesCompletadas * 50;
+  el = document.getElementById('dash-ozt-widget'); if (el) el.textContent = oztTotal;
+  el = document.getElementById('dash-ranking-ozt'); if (el) el.textContent = oztTotal + ' OZT';
 
   // Nivel/etapa
   var ETAPAS = ['Inicio', 'Disciplina', 'Despertar', 'Simulador', 'Rentable', '✦ Oro'];
