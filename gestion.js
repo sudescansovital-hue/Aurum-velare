@@ -1205,7 +1205,7 @@ function buildDashboardHero() {
   el = document.getElementById('dash-ranking-ozt'); if (el) el.textContent = oztTotal + ' OZT';
 
   // Nivel/etapa
-  var ETAPAS = ['Inicio', 'Disciplina', 'Despertar', 'Simulador', 'Rentable', '✦ Oro'];
+  var ETAPAS = ['Descubrimiento', 'Silencio', 'Umbral', 'Estructura', 'Fractura', 'Claridad', 'Consistencia', 'Confianza', 'Paciencia', 'Rentabilidad', 'Vuelo', '✦ Oro'];
   var etapa = (typeof usuarioActual !== 'undefined' && usuarioActual && usuarioActual.etapa) ? usuarioActual.etapa : 1;
   var idx = Math.min(Math.max(0, etapa), ETAPAS.length - 1);
   var nombreActual = ETAPAS[idx];
