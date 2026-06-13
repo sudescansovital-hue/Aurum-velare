@@ -1168,6 +1168,7 @@ function buildDashboardHero() {
   }, []));
 
   var totalTrades = todos.length;
+  window._totalTrades = totalTrades;
   var wins = todos.filter(function(t) { return t.ganadora; });
   var wr = totalTrades > 0 ? Math.round(wins.length / totalTrades * 1000) / 10 : 0;
   var pnl = Math.round(todos.reduce(function(s, t) { return s + (t.beneficio || 0); }, 0) * 100) / 100;
@@ -1453,25 +1454,19 @@ async function cargarRetosActivos() {
       ? '<div style="font-size:14px;color:var(--text-muted);margin-bottom:1rem;line-height:1.8;">' + r.descripcion + '</div>'
       : '';
 
-    // Botón Unirse: solo para retos de equipo no cerrados y dentro del primer 50% del tiempo
+    // Botón Registrarse
     var botonHTML = '';
-    if (esEquipo && r.estado !== 'cerrado') {
-      var dentroDeVentana = false;
-      if (r.created_at && r.fecha_cierre) {
-        var inicio   = new Date(r.created_at);
-        var cierre   = new Date(r.fecha_cierre);
-        var duracion = cierre - inicio;
-        dentroDeVentana = duracion > 0 && ((ahora - inicio) / duracion) < 0.5;
-      } else if (!r.fecha_cierre) {
-        dentroDeVentana = true;
-      }
-      if (dentroDeVentana) {
-        if (yaParticipa.has(r.id)) {
-          botonHTML = '<div style="display:flex;align-items:center;gap:.4rem;font-size:12px;color:var(--green);margin-top:1rem;">' +
-            '<div style="width:5px;height:5px;border-radius:50%;background:var(--green);"></div>Participando</div>';
-        } else {
-          botonHTML = '<button onclick="unirseAReto(\'' + r.id + '\')" style="margin-top:1rem;padding:.5rem 1.2rem;background:transparent;border:1px solid var(--gold);color:var(--gold);font-size:12px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;font-family:inherit;">Unirse al reto</button>';
-        }
+    if (yaParticipa.has(r.id)) {
+      botonHTML = '<div style="display:flex;align-items:center;gap:.4rem;font-size:12px;color:var(--green);margin-top:1rem;">' +
+        '<div style="width:5px;height:5px;border-radius:50%;background:var(--green);"></div>Participando</div>';
+    } else {
+      var coste     = r.coste_ozt || 0;
+      var saldoOZT  = window.AURUM_OZT || 0;
+      var btnLabel  = coste > 0 ? 'Registrarse · ' + coste + ' OZT' : 'Registrarse';
+      if (coste > 0 && saldoOZT < coste) {
+        botonHTML = '<button disabled style="margin-top:1rem;padding:.5rem 1.2rem;background:transparent;border:1px solid var(--border);color:var(--text-muted);font-size:12px;letter-spacing:.1em;text-transform:uppercase;font-family:inherit;cursor:not-allowed;opacity:.5;">OZT insuficientes</button>';
+      } else {
+        botonHTML = '<button onclick="unirseAReto(\'' + r.id + '\',' + coste + ')" style="margin-top:1rem;padding:.5rem 1.2rem;background:transparent;border:1px solid var(--gold);color:var(--gold);font-size:12px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;font-family:inherit;">' + btnLabel + '</button>';
       }
     }
 
@@ -1493,24 +1488,46 @@ async function cargarRetosActivos() {
   pintarRetosEnCalendario(retos);
 }
 
-async function unirseAReto(retoId) {
+async function unirseAReto(retoId, costeOzt) {
   var token = getToken();
   var email = usuarioActual.email;
+  costeOzt  = costeOzt || 0;
 
-  var r1 = await supaPost('retos_participantes',
-    { reto_id: retoId, usuario_email: email, created_at: new Date().toISOString() },
-    'return=representation', token);
-  if (r1.error) { showToast('Error al unirse: ' + r1.error); return; }
+  // Verificar saldo antes de proceder
+  if (costeOzt > 0 && (window.AURUM_OZT || 0) < costeOzt) {
+    showToast('OZT insuficientes para registrarse en este reto.');
+    return;
+  }
 
-  // Contar participantes; si llega a 11 activar el reto
+  var r1 = await supaPost('retos_participantes', {
+    reto_id:          retoId,
+    usuario_email:    email,
+    trades_al_inicio: window._totalTrades || 0,
+    created_at:       new Date().toISOString()
+  }, 'return=representation', token);
+  if (r1.error) { showToast('Error al registrarse: ' + r1.error); return; }
+
+  // Descontar OZT si el reto tiene coste
+  if (costeOzt > 0) {
+    var nuevosGastados = (usuarioActual.ozt_gastados || 0) + costeOzt;
+    var rOzt = await supaPatch('usuarios_aurum', 'email=eq.' + encodeURIComponent(email),
+      { ozt_gastados: nuevosGastados, updated_at: new Date().toISOString() }, token);
+    if (!rOzt.error) {
+      usuarioActual.ozt_gastados = nuevosGastados;
+      window.usuarioActual       = usuarioActual;
+      if (typeof buildDashboardHero === 'function') buildDashboardHero();
+    }
+  }
+
+  // Si reto de equipo llega a 11 participantes → activar
   var resCount = await supaGet('retos_participantes', 'reto_id=eq.' + retoId + '&select=id', token);
-  var total = (resCount.data || []).length;
+  var total    = (resCount.data || []).length;
   if (total >= 11) {
     await supaPatch('retos', 'id=eq.' + retoId,
       { estado: 'activo', updated_at: new Date().toISOString() }, token);
   }
 
-  showToast('¡Te has unido al reto!');
+  showToast('¡Registrado en el reto!');
   cargarRetosActivos();
 }
 
