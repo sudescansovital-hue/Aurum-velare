@@ -1200,12 +1200,14 @@ function buildDashboardHero() {
   var oztCiclos  = ciclosCompletados * 10;
   var oztEtapas  = (usuarioActual.etapa || 0) * 30;
   var oztGanado  = oztCiclos + (evaluacionesCompletadas * 50) + oztEtapas;
-  var oztTotal   = oztGanado + (usuarioActual.ozt_comprados || 0) - (usuarioActual.ozt_gastados || 0);
+  var oztTotal   = oztGanado + (usuarioActual.ozt_ganados_retos || 0) + (usuarioActual.ozt_comprados || 0) - (usuarioActual.ozt_gastados || 0);
   window.AURUM_OZT = oztTotal;
-  el = document.getElementById('dash-ozt');        if (el) el.textContent = oztTotal;
-  el = document.getElementById('ozt-saldo');       if (el) el.textContent = oztTotal;
-  el = document.getElementById('dash-ozt-widget'); if (el) el.textContent = oztTotal;
-  el = document.getElementById('dash-ranking-ozt'); if (el) el.textContent = oztTotal + ' OZT';
+  el = document.getElementById('dash-ozt');          if (el) el.textContent = oztTotal;
+  el = document.getElementById('ozt-saldo');         if (el) el.textContent = oztTotal;
+  el = document.getElementById('dash-ozt-widget');   if (el) el.textContent = oztTotal;
+  el = document.getElementById('dash-ranking-ozt');  if (el) el.textContent = oztTotal + ' OZT';
+  el = document.getElementById('ozt-ganados-retos'); if (el) el.textContent = usuarioActual.ozt_ganados_retos || 0;
+  el = document.getElementById('ozt-canjeados');     if (el) el.textContent = usuarioActual.ozt_gastados      || 0;
 
   // Nivel/etapa
   var ETAPAS = ['Descubrimiento', 'Silencio', 'Umbral', 'Estructura', 'Fractura', 'Claridad', 'Consistencia', 'Confianza', 'Paciencia', 'Rentabilidad', 'Vuelo', '✦ Oro'];

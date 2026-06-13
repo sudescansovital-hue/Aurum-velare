@@ -68,8 +68,9 @@ async function _activarSesion(email) {
     cuenta_maestra:  u.cuenta_maestra  || null,
     cuenta_retos:    u.cuenta_retos    || null,
     cuenta_prueba:   u.cuenta_prueba   || null,
-    ozt_comprados:   u.ozt_comprados   || 0,
-    ozt_gastados:    u.ozt_gastados    || 0
+    ozt_comprados:     u.ozt_comprados     || 0,
+    ozt_gastados:      u.ozt_gastados      || 0,
+    ozt_ganados_retos: u.ozt_ganados_retos || 0
   };
   document.getElementById('nav-login-btn').style.display = 'none';
   document.getElementById('nav-user-widget').style.display = 'flex';
