@@ -18,6 +18,8 @@ function mostrarTab(tab) {
   if (tabMap[tab] !== undefined && items[tabMap[tab]]) {
     items[tabMap[tab]].classList.add('active');
   }
+
+  if (tab === 'retos' && typeof cargarRetosActivos === 'function') cargarRetosActivos();
 }
 
 function init_dashboard() {

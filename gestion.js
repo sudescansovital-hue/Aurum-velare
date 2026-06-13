@@ -1289,6 +1289,70 @@ function guardarEntradaDiario() {
   setTimeout(function(){ msg.textContent = ''; }, 3000);
 }
 
+// ── Retos activos ────────────────────────────────────────────────
+
+async function cargarRetosActivos() {
+  var contenedor = document.getElementById('retos-activos-lista');
+  if (!contenedor) return;
+  contenedor.innerHTML = '<div style="font-size:13px;color:var(--text-muted);">Cargando...</div>';
+
+  var res = await supaGet('retos', 'order=fecha_cierre.asc', getToken());
+  if (res.error || !res.data) {
+    contenedor.innerHTML = '<div style="font-size:13px;color:var(--text-muted);">Error al cargar los retos.</div>';
+    return;
+  }
+  if (!res.data.length) {
+    contenedor.innerHTML = '<div style="font-size:13px;color:var(--text-muted);">No hay retos activos en este momento.</div>';
+    return;
+  }
+
+  var ahora = new Date();
+  contenedor.innerHTML = res.data.map(function(r) {
+    var esEquipo     = r.tipo === 'equipo';
+    var tipoLabel    = esEquipo ? 'Reto de equipo' : 'Reto individual';
+    var tipoColor    = esEquipo ? 'var(--gold)' : 'var(--text-muted)';
+    var borderColor  = esEquipo ? 'var(--border-gold)' : 'var(--border)';
+    var topBar       = esEquipo ? '<div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>' : '';
+    var salaText     = r.sala ? ' · Sala ' + r.sala : '';
+
+    var cierreHTML = '';
+    if (r.fecha_cierre) {
+      var fc = new Date(r.fecha_cierre);
+      var dias = Math.ceil((fc - ahora) / 86400000);
+      var cierreTexto = dias > 0 ? dias + (dias === 1 ? ' día' : ' días') : (dias === 0 ? 'Hoy' : 'Cerrado');
+      var cierreColor = esEquipo ? 'var(--gold-bright)' : 'var(--text)';
+      cierreHTML = '<div style="text-align:right;">' +
+        '<div style="font-size:11px;color:var(--text-muted);">Cierra en</div>' +
+        '<div style="font-family:\'Cormorant Garamond\',serif;font-size:26px;color:' + cierreColor + ';">' + cierreTexto + '</div>' +
+      '</div>';
+    }
+
+    var premioPartes = [];
+    if (r.premio_ozt)   premioPartes.push('◈ ' + r.premio_ozt + ' OZT');
+    if (r.premio_extra) premioPartes.push(r.premio_extra);
+    var premioHTML = premioPartes.length
+      ? '<div style="font-size:14px;color:var(--gold-bright);">' + premioPartes.join(' · ') + '</div>'
+      : '';
+
+    var descHTML = r.descripcion
+      ? '<div style="font-size:14px;color:var(--text-muted);margin-bottom:1rem;line-height:1.8;">' + r.descripcion + '</div>'
+      : '';
+
+    return '<div style="background:var(--bg2);border:1px solid ' + borderColor + ';padding:1.5rem;position:relative;">' +
+      topBar +
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem;">' +
+        '<div>' +
+          '<div style="font-size:11px;letter-spacing:.25em;text-transform:uppercase;color:' + tipoColor + ';margin-bottom:.3rem;">' + tipoLabel + salaText + '</div>' +
+          '<div style="font-family:\'Cormorant Garamond\',serif;font-size:22px;color:var(--text);">' + (r.titulo || '') + '</div>' +
+        '</div>' +
+        cierreHTML +
+      '</div>' +
+      descHTML +
+      premioHTML +
+    '</div>';
+  }).join('');
+}
+
 // ── Modal Reset de cuenta ─────────────────────────────────────────
 
 function abrirModalReset() {

@@ -409,3 +409,69 @@ function adminCopiarCodigo() {
   if (!codigo) return;
   navigator.clipboard.writeText(codigo).then(function() { showToast('Código copiado'); });
 }
+
+// ── Gestión de Retos ──────────────────────────────────────────────
+
+async function adminCargarRetos() {
+  var contenedor = document.getElementById('admin-retos-lista');
+  if (!contenedor) return;
+  contenedor.innerHTML = '<div style="font-size:12px;color:var(--text-muted);">Cargando...</div>';
+
+  var res = await supaGet('retos', 'order=fecha_cierre.asc', getToken());
+  if (res.error || !res.data) {
+    contenedor.innerHTML = '<div style="font-size:12px;color:#e05;">Error: ' + (res.error || 'sin datos') + '</div>';
+    return;
+  }
+  if (!res.data.length) {
+    contenedor.innerHTML = '<div style="font-size:12px;color:var(--text-muted);">Sin retos creados.</div>';
+    return;
+  }
+
+  var th = 'padding:.5rem .7rem;font-size:11px;color:var(--text-muted);';
+  contenedor.innerHTML = res.data.map(function(r) {
+    var cierre = r.fecha_cierre ? r.fecha_cierre.slice(0, 10) : '—';
+    var premio = (r.premio_ozt ? r.premio_ozt + ' OZT' : '') + (r.premio_extra ? (r.premio_ozt ? ' · ' : '') + r.premio_extra : '');
+    return '<div style="background:var(--bg2);border:1px solid var(--border);padding:.6rem .8rem;display:flex;justify-content:space-between;align-items:center;gap:.5rem;">' +
+      '<div style="flex:1;min-width:0;">' +
+        '<div style="font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (r.titulo || '—') + '</div>' +
+        '<div style="font-size:11px;color:var(--text-muted);">' + (r.tipo || '') + (r.sala ? ' · ' + r.sala : '') + ' · cierre: ' + cierre + (premio ? ' · ' + premio : '') + '</div>' +
+      '</div>' +
+      '<button onclick="adminBorrarReto(\'' + r.id + '\')" style="flex-shrink:0;background:transparent;border:1px solid #66222244;color:#e05;padding:.25rem .5rem;font-size:11px;cursor:pointer;">✕</button>' +
+    '</div>';
+  }).join('');
+}
+
+async function adminCrearReto() {
+  var errEl = document.getElementById('admin-reto-err');
+  var titulo = (document.getElementById('admin-reto-titulo').value || '').trim();
+  if (!titulo) { if (errEl) errEl.textContent = 'El título es obligatorio.'; return; }
+
+  var datos = {
+    titulo:       titulo,
+    descripcion:  (document.getElementById('admin-reto-desc').value  || '').trim() || null,
+    tipo:         document.getElementById('admin-reto-tipo').value,
+    sala:         (document.getElementById('admin-reto-sala').value   || '').trim() || null,
+    premio_ozt:   parseInt(document.getElementById('admin-reto-ozt').value)  || null,
+    premio_extra: (document.getElementById('admin-reto-extra').value  || '').trim() || null,
+    fecha_cierre: document.getElementById('admin-reto-cierre').value  || null,
+    created_at:   new Date().toISOString()
+  };
+
+  var res = await supaPost('retos', datos, 'return=representation', getToken());
+  if (res.error) { if (errEl) errEl.textContent = 'Error: ' + res.error; return; }
+
+  if (errEl) errEl.textContent = '';
+  ['admin-reto-titulo','admin-reto-desc','admin-reto-sala','admin-reto-ozt','admin-reto-extra','admin-reto-cierre'].forEach(function(id) {
+    var el = document.getElementById(id); if (el) el.value = '';
+  });
+  showToast('Reto creado correctamente');
+  adminCargarRetos();
+}
+
+async function adminBorrarReto(id) {
+  if (!confirm('¿Borrar este reto?')) return;
+  var res = await supaDelete('retos', 'id=eq.' + id, getToken());
+  if (res.error) { showToast('Error al borrar: ' + res.error); return; }
+  showToast('Reto eliminado');
+  adminCargarRetos();
+}
