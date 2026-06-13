@@ -1,4 +1,4 @@
-// Parser MT5 + cTrader — Aurum Velare
+// Parser MT5 + cTrader — Aurum Velare v2
 // Detección por contenido, nunca por número de fila
 
 function parsearTrades(raw) {
