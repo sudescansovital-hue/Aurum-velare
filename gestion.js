@@ -1363,8 +1363,8 @@ function calNavegar(dir) {
 
 function pintarRetosEnCalendario(retos) {
   (retos || []).forEach(function(r) {
-    if (!r.fecha_cierre) return;
-    var dateStr = r.fecha_cierre.slice(0, 10);
+    if (!r.created_at) return;
+    var dateStr = r.created_at.slice(0, 10);
     var celda   = document.getElementById('cal-day-' + dateStr);
     if (!celda) return;
 
