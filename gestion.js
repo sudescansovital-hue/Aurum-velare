@@ -1195,8 +1195,9 @@ function buildDashboardHero() {
 
   // OZT: 10 por ciclo (111 trades) + 50 bonus por evaluación superada (1111 trades)
   var evaluacionesCompletadas = Math.floor(totalTrades / 1111);
-  var oztCiclos = ciclosCompletados * 10;
-  var oztTotal  = oztCiclos + (evaluacionesCompletadas * 50);
+  var oztCiclos  = ciclosCompletados * 10;
+  var oztEtapas  = (usuarioActual.etapa || 0) * 30;
+  var oztTotal   = oztCiclos + (evaluacionesCompletadas * 50) + oztEtapas;
   window.AURUM_OZT = oztTotal;
   el = document.getElementById('dash-ozt');        if (el) el.textContent = oztTotal;
   el = document.getElementById('ozt-saldo');       if (el) el.textContent = oztTotal;
