@@ -461,6 +461,7 @@ async function adminCrearReto() {
     sala:         (document.getElementById('admin-reto-sala').value   || '').trim() || null,
     premio_ozt:   premioOzt,
     premio_extra: (document.getElementById('admin-reto-extra').value  || '').trim() || null,
+    coste_ozt:    parseInt(document.getElementById('admin-reto-coste').value) || 0,
     fecha_cierre: document.getElementById('admin-reto-cierre').value  || null,
     condicion:    condicion,
     created_at:   new Date().toISOString()
@@ -470,12 +471,19 @@ async function adminCrearReto() {
   if (res.error) { if (errEl) errEl.textContent = 'Error: ' + res.error; return; }
 
   if (errEl) errEl.textContent = '';
-  ['admin-reto-titulo','admin-reto-desc','admin-reto-sala','admin-reto-ozt','admin-reto-extra','admin-reto-cierre','admin-reto-condicion-valor'].forEach(function(id) {
+  ['admin-reto-titulo','admin-reto-desc','admin-reto-sala','admin-reto-ozt','admin-reto-extra','admin-reto-coste','admin-reto-cierre','admin-reto-condicion-valor'].forEach(function(id) {
     var el = document.getElementById(id); if (el) el.value = '';
   });
   document.getElementById('admin-reto-condicion-tipo').value = '';
+  adminRetoTipoChange();
   showToast('Reto creado correctamente');
   adminCargarRetos();
+}
+
+function adminRetoTipoChange() {
+  var tipo  = document.getElementById('admin-reto-tipo');
+  var nota  = document.getElementById('admin-reto-equipo-nota');
+  if (nota) nota.style.display = (tipo && tipo.value === 'equipo') ? 'block' : 'none';
 }
 
 async function adminBorrarReto(id) {
