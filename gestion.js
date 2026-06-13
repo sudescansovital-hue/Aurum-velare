@@ -1288,3 +1288,104 @@ function guardarEntradaDiario() {
   msg.textContent = '✓ Entrada guardada.';
   setTimeout(function(){ msg.textContent = ''; }, 3000);
 }
+
+// ── Modal Reset de cuenta ─────────────────────────────────────────
+
+function abrirModalReset() {
+  var saldo = window.AURUM_OZT || 0;
+  var cuentas = [
+    { tipo: 'cuenta_maestra', label: 'Maestra', numero: usuarioActual.cuenta_maestra },
+    { tipo: 'cuenta_retos',   label: 'Retos',   numero: usuarioActual.cuenta_retos   },
+    { tipo: 'cuenta_prueba',  label: 'Prueba',  numero: usuarioActual.cuenta_prueba  }
+  ];
+
+  var cuentasHTML = cuentas.map(function(c) {
+    var vacia = !c.numero;
+    return '<label style="display:flex;align-items:center;gap:.8rem;padding:.8rem 1rem;border:1px solid var(--border);margin-bottom:.5rem;' +
+      (vacia ? 'opacity:.4;cursor:not-allowed;' : 'cursor:pointer;') + '">' +
+      '<input type="radio" name="reset-cuenta" value="' + c.tipo + '"' + (vacia ? ' disabled' : '') + ' style="accent-color:var(--gold);">' +
+      '<div>' +
+        '<div style="font-size:13px;color:var(--text);">Cuenta ' + c.label + '</div>' +
+        '<div style="font-size:12px;color:var(--text-muted);">' + (c.numero || 'Sin cuenta asignada') + '</div>' +
+      '</div>' +
+    '</label>';
+  }).join('');
+
+  var overlay = document.createElement('div');
+  overlay.id = 'modal-reset-cuenta';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.8);display:flex;align-items:center;justify-content:center;z-index:9999;padding:1rem;';
+  overlay.innerHTML =
+    '<div style="background:var(--bg2);border:1px solid var(--border-gold);padding:2rem;max-width:420px;width:100%;">' +
+      '<div style="font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);margin-bottom:.5rem;">↺ Reset de cuenta</div>' +
+      '<div style="font-family:\'Cormorant Garamond\',serif;font-size:20px;color:var(--text);margin-bottom:1.5rem;">Elige la cuenta a resetear</div>' +
+      cuentasHTML +
+      '<div style="border-top:1px solid var(--border);margin-top:1rem;padding-top:1rem;">' +
+        '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:.4rem;">' +
+          '<span style="color:var(--text-muted);">Tu saldo OZT</span>' +
+          '<span style="color:var(--gold-bright);">' + saldo + ' OZT</span>' +
+        '</div>' +
+        '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:1rem;">' +
+          '<span style="color:var(--text-muted);">Coste</span>' +
+          '<span style="color:var(--gold-bright);">777 OZT</span>' +
+        '</div>' +
+      '</div>' +
+      '<div id="reset-error" style="font-size:13px;color:#e05;margin-bottom:.8rem;display:none;"></div>' +
+      '<div style="display:flex;gap:.8rem;">' +
+        '<button onclick="confirmarReset()" style="flex:1;background:var(--gold);color:#0A0C14;border:none;padding:.7rem;font-size:12px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;font-family:inherit;">Confirmar reset</button>' +
+        '<button onclick="cerrarModalReset()" style="flex:1;background:transparent;color:var(--text-muted);border:1px solid var(--border);padding:.7rem;font-size:12px;cursor:pointer;font-family:inherit;">Cancelar</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+}
+
+function cerrarModalReset() {
+  var m = document.getElementById('modal-reset-cuenta');
+  if (m) m.remove();
+}
+
+async function confirmarReset() {
+  var radio = document.querySelector('#modal-reset-cuenta input[name="reset-cuenta"]:checked');
+  var errEl = document.getElementById('reset-error');
+  if (!radio) {
+    if (errEl) { errEl.textContent = 'Elige una cuenta.'; errEl.style.display = 'block'; }
+    return;
+  }
+  await resetCuenta(radio.value);
+}
+
+async function resetCuenta(tipoCuenta) {
+  var errEl = document.getElementById('reset-error');
+  var saldo = window.AURUM_OZT || 0;
+
+  if (saldo < 777) {
+    if (errEl) { errEl.textContent = 'Saldo insuficiente. Necesitas 777 OZT (tienes ' + saldo + ').'; errEl.style.display = 'block'; }
+    return;
+  }
+
+  var token    = getToken();
+  var email    = usuarioActual.email;
+  var nuevosGastados = (usuarioActual.ozt_gastados || 0) + 777;
+
+  var r1 = await supaPatch('usuarios_aurum', 'email=eq.' + encodeURIComponent(email),
+    { ozt_gastados: nuevosGastados, updated_at: new Date().toISOString() }, token);
+  if (r1.error) {
+    if (errEl) { errEl.textContent = 'Error al registrar el gasto: ' + r1.error; errEl.style.display = 'block'; }
+    return;
+  }
+
+  var campoReset = {};
+  campoReset[tipoCuenta] = null;
+  campoReset.updated_at  = new Date().toISOString();
+  var r2 = await supaPatch('usuarios_aurum', 'email=eq.' + encodeURIComponent(email), campoReset, token);
+  if (r2.error) {
+    if (errEl) { errEl.textContent = 'Error al resetear la cuenta: ' + r2.error; errEl.style.display = 'block'; }
+    return;
+  }
+
+  usuarioActual.ozt_gastados  = nuevosGastados;
+  usuarioActual[tipoCuenta]   = null;
+  window.usuarioActual        = usuarioActual;
+
+  cerrarModalReset();
+  if (typeof actualizarDashboard === 'function') actualizarDashboard();
+}
