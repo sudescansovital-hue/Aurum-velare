@@ -1289,6 +1289,107 @@ function guardarEntradaDiario() {
   setTimeout(function(){ msg.textContent = ''; }, 3000);
 }
 
+// ── Calendario ───────────────────────────────────────────────────
+
+var _calYear  = new Date().getFullYear();
+var _calMonth = new Date().getMonth(); // 0-indexed
+
+var _CAL_MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+var _CAL_DIAS  = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+
+function renderCalendario(year, month) {
+  _calYear  = year;
+  _calMonth = month;
+
+  var label = document.getElementById('cal-mes-label');
+  if (label) label.textContent = _CAL_MESES[month] + ' ' + year;
+
+  var grid = document.getElementById('cal-grid');
+  if (!grid) return;
+
+  var hoy    = new Date();
+  var hoyStr = hoy.getFullYear() + '-' + String(hoy.getMonth()+1).padStart(2,'0') + '-' + String(hoy.getDate()).padStart(2,'0');
+
+  var html = _CAL_DIAS.map(function(d) {
+    return '<div style="background:var(--bg2);padding:.6rem;text-align:center;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--text-muted);">' + d + '</div>';
+  }).join('');
+
+  var primerDow = new Date(year, month, 1).getDay(); // 0=Dom
+  var offset    = (primerDow + 6) % 7;               // 0=Lun
+  var diasEnMes = new Date(year, month + 1, 0).getDate();
+
+  for (var i = 0; i < offset; i++) {
+    html += '<div style="background:var(--bg2);"></div>';
+  }
+
+  for (var d = 1; d <= diasEnMes; d++) {
+    var mm      = String(month + 1).padStart(2, '0');
+    var dd      = String(d).padStart(2, '0');
+    var dateStr = year + '-' + mm + '-' + dd;
+    var dow     = (offset + d - 1) % 7; // 0=Lun…4=Vie, 5=Sáb, 6=Dom
+    var esFin   = dow >= 5;
+    var esHoy   = dateStr === hoyStr;
+
+    var bg     = esFin ? 'var(--bg3)' : 'var(--bg2)';
+    var border = esHoy ? 'border:1px solid var(--border-gold);' : '';
+    var topBar = esHoy ? '<div style="position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>' : '';
+    var numCol = esHoy ? 'var(--gold-bright)' : 'var(--text-muted)';
+    var numTxt = esHoy ? d + ' · Hoy' : d;
+
+    html += '<div id="cal-day-' + dateStr + '" style="background:' + bg + ';padding:.6rem;min-height:70px;position:relative;' + border + '">' +
+      topBar +
+      '<div style="font-size:13px;color:' + numCol + ';margin-bottom:.3rem;">' + numTxt + '</div>' +
+    '</div>';
+  }
+
+  var resto = (offset + diasEnMes) % 7;
+  if (resto > 0) {
+    for (var i = 0; i < 7 - resto; i++) {
+      html += '<div style="background:var(--bg3);"></div>';
+    }
+  }
+
+  grid.innerHTML = html;
+  if (window._retosCache) pintarRetosEnCalendario(window._retosCache);
+}
+
+function calNavegar(dir) {
+  var m = _calMonth + dir;
+  var y = _calYear;
+  if (m > 11) { m = 0; y++; }
+  if (m < 0)  { m = 11; y--; }
+  renderCalendario(y, m);
+}
+
+function pintarRetosEnCalendario(retos) {
+  (retos || []).forEach(function(r) {
+    if (!r.fecha_cierre) return;
+    var dateStr = r.fecha_cierre.slice(0, 10);
+    var celda   = document.getElementById('cal-day-' + dateStr);
+    if (!celda) return;
+
+    var esEquipo  = r.tipo === 'equipo';
+    var bgColor   = esEquipo ? 'var(--gold-glow)'  : '#4A7AAA22';
+    var textColor = esEquipo ? 'var(--gold-dim)'   : '#6A9AEE';
+    var bdrColor  = esEquipo ? 'var(--border-gold)': '#4A7AAA33';
+
+    var chip = document.createElement('div');
+    chip.style.cssText = 'font-size:10px;background:' + bgColor + ';color:' + textColor + ';border:1px solid ' + bdrColor + ';padding:1px 4px;border-radius:1px;margin-top:2px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+    chip.title       = r.titulo;
+    chip.textContent = r.titulo;
+    chip.onclick = (function(id) {
+      return function() {
+        if (typeof mostrarTab === 'function') mostrarTab('retos');
+        setTimeout(function() {
+          var card = document.getElementById('reto-card-' + id);
+          if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 200);
+      };
+    })(r.id);
+    celda.appendChild(chip);
+  });
+}
+
 // ── Retos activos ────────────────────────────────────────────────
 
 async function cargarRetosActivos() {
@@ -1314,8 +1415,10 @@ async function cargarRetosActivos() {
   var retos = resRetos.data.filter(function(r) { return r.estado !== 'cerrado'; });
   if (!retos.length) {
     contenedor.innerHTML = '<div style="font-size:13px;color:var(--text-muted);">No hay retos activos en este momento.</div>';
+    window._retosCache = [];
     return;
   }
+  window._retosCache = retos;
 
   var yaParticipa = new Set((resPart.data || []).map(function(p) { return p.reto_id; }));
   var ahora = new Date();
@@ -1372,7 +1475,7 @@ async function cargarRetosActivos() {
       }
     }
 
-    return '<div style="background:var(--bg2);border:1px solid ' + borderColor + ';padding:1.5rem;position:relative;">' +
+    return '<div id="reto-card-' + r.id + '" style="background:var(--bg2);border:1px solid ' + borderColor + ';padding:1.5rem;position:relative;">' +
       topBar +
       '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem;">' +
         '<div>' +
@@ -1386,6 +1489,8 @@ async function cargarRetosActivos() {
       botonHTML +
     '</div>';
   }).join('');
+
+  pintarRetosEnCalendario(retos);
 }
 
 async function unirseAReto(retoId) {

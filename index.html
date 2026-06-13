@@ -1410,140 +1410,20 @@
 
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;">
         <div>
-          <div style="font-family:'Cormorant Garamond',serif;font-size:28px;color:var(--gold-bright);">Mayo 2026</div>
+          <div style="font-family:'Cormorant Garamond',serif;font-size:28px;color:var(--gold-bright);" id="cal-mes-label">—</div>
           <div style="font-size:13px;color:var(--text-muted);margin-top:.2rem;">
             <span style="display:inline-block;width:10px;height:10px;background:var(--gold);border-radius:2px;margin-right:.4rem;vertical-align:middle;"></span>Eventos Aurum
             <span style="display:inline-block;width:10px;height:10px;background:#4A7AAA;border-radius:2px;margin-left:1rem;margin-right:.4rem;vertical-align:middle;"></span>Tus notas
           </div>
         </div>
         <div style="display:flex;gap:.5rem;">
-          <div class="ctrl-btn">← Anterior</div>
-          <div class="ctrl-btn">Siguiente →</div>
+          <div class="ctrl-btn" onclick="calNavegar(-1)">← Anterior</div>
+          <div class="ctrl-btn" onclick="calNavegar(1)">Siguiente →</div>
         </div>
       </div>
 
-      <!-- Grid calendario -->
-      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--border);margin-bottom:1rem;">
-        <!-- Cabecera días -->
-        <div style="background:var(--bg2);padding:.6rem;text-align:center;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--text-muted);">Lun</div>
-        <div style="background:var(--bg2);padding:.6rem;text-align:center;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--text-muted);">Mar</div>
-        <div style="background:var(--bg2);padding:.6rem;text-align:center;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--text-muted);">Mié</div>
-        <div style="background:var(--bg2);padding:.6rem;text-align:center;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--text-muted);">Jue</div>
-        <div style="background:var(--bg2);padding:.6rem;text-align:center;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--text-muted);">Vie</div>
-        <div style="background:var(--bg2);padding:.6rem;text-align:center;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--text-muted);">Sáb</div>
-        <div style="background:var(--bg2);padding:.6rem;text-align:center;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--text-muted);">Dom</div>
-
-        <!-- Semana 1 -->
-        <div style="background:var(--bg2);"></div>
-        <div style="background:var(--bg2);"></div>
-        <div style="background:var(--bg2);"></div>
-        <div style="background:var(--bg2);padding:.6rem;min-height:70px;">
-          <div style="font-size:13px;color:var(--text-muted);margin-bottom:.3rem;">1</div>
-        </div>
-        <div style="background:var(--bg2);padding:.6rem;min-height:70px;">
-          <div style="font-size:13px;color:var(--text-muted);margin-bottom:.3rem;">2</div>
-        </div>
-        <div style="background:var(--bg3);padding:.6rem;min-height:70px;">
-          <div style="font-size:13px;color:var(--text-muted);margin-bottom:.3rem;">3</div>
-        </div>
-        <div style="background:var(--bg3);padding:.6rem;min-height:70px;">
-          <div style="font-size:13px;color:var(--text-muted);margin-bottom:.3rem;">4</div>
-        </div>
-
-        <!-- Semana 2 -->
-        <div style="background:var(--bg2);padding:.6rem;min-height:70px;">
-          <div style="font-size:13px;color:var(--text-muted);margin-bottom:.3rem;">5</div>
-        </div>
-        <div style="background:var(--bg2);padding:.6rem;min-height:70px;">
-          <div style="font-size:13px;color:var(--text-muted);margin-bottom:.3rem;">6</div>
-          <div style="font-size:10px;background:#4A7AAA22;color:#6A9AEE;border:1px solid #4A7AAA33;padding:1px 4px;border-radius:1px;margin-top:2px;">Nota personal</div>
-        </div>
-        <div style="background:var(--bg2);padding:.6rem;min-height:70px;">
-          <div style="font-size:13px;color:var(--text-muted);margin-bottom:.3rem;">7</div>
-        </div>
-        <div style="background:var(--bg2);padding:.6rem;min-height:70px;">
-          <div style="font-size:13px;color:var(--text-muted);margin-bottom:.3rem;">8</div>
-          <div style="font-size:10px;background:var(--gold-glow);color:var(--gold-dim);border:1px solid var(--border-gold);padding:1px 4px;border-radius:1px;margin-top:2px;">Reto cierra</div>
-        </div>
-        <div style="background:var(--bg2);padding:.6rem;min-height:70px;">
-          <div style="font-size:13px;color:var(--text-muted);margin-bottom:.3rem;">9</div>
-        </div>
-        <div style="background:var(--bg3);padding:.6rem;min-height:70px;">
-          <div style="font-size:13px;color:var(--text-muted);margin-bottom:.3rem;">10</div>
-        </div>
-        <div style="background:var(--bg3);padding:.6rem;min-height:70px;">
-          <div style="font-size:13px;color:var(--text-muted);margin-bottom:.3rem;">11</div>
-        </div>
-
-        <!-- Semana 3 — hoy -->
-        <div style="background:var(--bg2);padding:.6rem;min-height:70px;">
-          <div style="font-size:13px;color:var(--text-muted);margin-bottom:.3rem;">12</div>
-          <div style="font-size:10px;background:var(--gold-glow);color:var(--gold-dim);border:1px solid var(--border-gold);padding:1px 4px;border-radius:1px;margin-top:2px;">Sala Evento 19h</div>
-        </div>
-        <div style="background:var(--bg2);padding:.6rem;min-height:70px;border:1px solid var(--border-gold);position:relative;">
-          <div style="position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>
-          <div style="font-size:13px;color:var(--gold-bright);margin-bottom:.3rem;">13 · Hoy</div>
-        </div>
-        <div style="background:var(--bg2);padding:.6rem;min-height:70px;">
-          <div style="font-size:13px;color:var(--text-muted);margin-bottom:.3rem;">14</div>
-        </div>
-        <div style="background:var(--bg2);padding:.6rem;min-height:70px;">
-          <div style="font-size:13px;color:var(--text-muted);margin-bottom:.3rem;">15</div>
-        </div>
-        <div style="background:var(--bg2);padding:.6rem;min-height:70px;">
-          <div style="font-size:13px;color:var(--text-muted);margin-bottom:.3rem;">16</div>
-        </div>
-        <div style="background:var(--bg3);padding:.6rem;min-height:70px;">
-          <div style="font-size:13px;color:var(--text-muted);margin-bottom:.3rem;">17</div>
-        </div>
-        <div style="background:var(--bg3);padding:.6rem;min-height:70px;">
-          <div style="font-size:13px;color:var(--text-muted);margin-bottom:.3rem;">18</div>
-        </div>
-
-        <!-- Semana 4 -->
-        <div style="background:var(--bg2);padding:.6rem;min-height:70px;">
-          <div style="font-size:13px;color:var(--text-muted);margin-bottom:.3rem;">19</div>
-        </div>
-        <div style="background:var(--bg2);padding:.6rem;min-height:70px;">
-          <div style="font-size:13px;color:var(--text-muted);margin-bottom:.3rem;">20</div>
-        </div>
-        <div style="background:var(--bg2);padding:.6rem;min-height:70px;">
-          <div style="font-size:13px;color:var(--text-muted);margin-bottom:.3rem;">21</div>
-        </div>
-        <div style="background:var(--bg2);padding:.6rem;min-height:70px;">
-          <div style="font-size:13px;color:var(--text-muted);margin-bottom:.3rem;">22</div>
-        </div>
-        <div style="background:var(--bg2);padding:.6rem;min-height:70px;">
-          <div style="font-size:13px;color:var(--text-muted);margin-bottom:.3rem;">23</div>
-        </div>
-        <div style="background:var(--bg3);padding:.6rem;min-height:70px;">
-          <div style="font-size:13px;color:var(--text-muted);margin-bottom:.3rem;">24</div>
-        </div>
-        <div style="background:var(--bg3);padding:.6rem;min-height:70px;">
-          <div style="font-size:13px;color:var(--text-muted);margin-bottom:.3rem;">25</div>
-        </div>
-
-        <!-- Semana 5 -->
-        <div style="background:var(--bg2);padding:.6rem;min-height:70px;">
-          <div style="font-size:13px;color:var(--text-muted);margin-bottom:.3rem;">26</div>
-        </div>
-        <div style="background:var(--bg2);padding:.6rem;min-height:70px;">
-          <div style="font-size:13px;color:var(--text-muted);margin-bottom:.3rem;">27</div>
-        </div>
-        <div style="background:var(--bg2);padding:.6rem;min-height:70px;">
-          <div style="font-size:13px;color:var(--text-muted);margin-bottom:.3rem;">28</div>
-        </div>
-        <div style="background:var(--bg2);padding:.6rem;min-height:70px;">
-          <div style="font-size:13px;color:var(--text-muted);margin-bottom:.3rem;">29</div>
-        </div>
-        <div style="background:var(--bg2);padding:.6rem;min-height:70px;">
-          <div style="font-size:13px;color:var(--text-muted);margin-bottom:.3rem;">30</div>
-        </div>
-        <div style="background:var(--bg3);padding:.6rem;min-height:70px;">
-          <div style="font-size:13px;color:var(--text-muted);margin-bottom:.3rem;">31</div>
-        </div>
-        <div style="background:var(--bg3);padding:.6rem;min-height:70px;"></div>
-      </div>
+      <!-- Grid calendario (generado por renderCalendario en gestion.js) -->
+      <div id="cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--border);margin-bottom:1rem;"></div>
 
       <!-- Agendar disponibilidad -->
       <div style="border:1px solid var(--border);background:var(--bg2);padding:1.2rem 1.5rem;">

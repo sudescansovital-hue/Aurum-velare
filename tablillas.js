@@ -19,7 +19,8 @@ function mostrarTab(tab) {
     items[tabMap[tab]].classList.add('active');
   }
 
-  if (tab === 'retos' && typeof cargarRetosActivos === 'function') cargarRetosActivos();
+  if (tab === 'retos'      && typeof cargarRetosActivos === 'function') cargarRetosActivos();
+  if (tab === 'calendario' && typeof renderCalendario  === 'function') renderCalendario(_calYear, _calMonth);
 }
 
 function init_dashboard() {
@@ -36,7 +37,8 @@ function init_dashboard() {
   if (rankNick) rankNick.textContent = nick + ' (Tú)';
 
   // Stats del dashboard con datos reales si ya están disponibles
-  if (typeof buildDashboardHero === 'function') buildDashboardHero();
+  if (typeof buildDashboardHero  === 'function') buildDashboardHero();
+  if (typeof renderCalendario    === 'function') renderCalendario(_calYear, _calMonth);
 
   // Historial etapas
   const etapasEl = document.getElementById('dash-etapas-historial');
