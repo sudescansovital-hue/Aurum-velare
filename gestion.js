@@ -1200,7 +1200,6 @@ function buildDashboardHero() {
   window.AURUM_OZT = oztTotal;
   el = document.getElementById('dash-ozt');        if (el) el.textContent = oztTotal;
   el = document.getElementById('ozt-saldo');       if (el) el.textContent = oztTotal;
-  el = document.getElementById('ozt-ganados-retos'); if (el) el.textContent = evaluacionesCompletadas * 50;
   el = document.getElementById('dash-ozt-widget'); if (el) el.textContent = oztTotal;
   el = document.getElementById('dash-ranking-ozt'); if (el) el.textContent = oztTotal + ' OZT';
 
