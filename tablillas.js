@@ -29,18 +29,9 @@ function init_dashboard() {
   const el = document.getElementById('dash-saludo-nick');
   if (el) el.textContent = nick + '.';
 
-  // Cards
-  const oztEls = ['dash-ozt','dash-ozt-widget','ozt-saldo'];
-  oztEls.forEach(id => {
-    const e = document.getElementById(id);
-    if (e) e.textContent = usuarioActual.ozt || 0;
-  });
-
   // Ranking
   const rankNick = document.getElementById('dash-ranking-nick');
   if (rankNick) rankNick.textContent = nick + ' (Tú)';
-  const rankOzt = document.getElementById('dash-ranking-ozt');
-  if (rankOzt) rankOzt.textContent = (usuarioActual.ozt || 0) + ' OZT';
 
   // Stats del dashboard con datos reales si ya están disponibles
   if (typeof buildDashboardHero === 'function') buildDashboardHero();

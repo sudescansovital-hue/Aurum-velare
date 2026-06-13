@@ -1185,12 +1185,21 @@ function buildDashboardHero() {
   el = document.getElementById('card-global-sub');    if (el) el.textContent = totalTrades + ' trades · WR ' + wr + '%';
 
   // Ciclo actual
-  var cicloActual = Math.floor(totalTrades / 111) + 1;
+  var ciclosCompletados = Math.floor(totalTrades / 111);
+  var cicloActual = ciclosCompletados + 1;
   var enCurso = totalTrades % 111 || 111;
   var pctCiclo = Math.round(enCurso / 111 * 100);
   el = document.getElementById('dash-ciclo');     if (el) el.textContent = 'Ciclo ' + cicloActual;
   el = document.getElementById('dash-ciclo-sub'); if (el) el.textContent = enCurso + ' / 111 trades · ' + pctCiclo + '%';
   el = document.getElementById('ciclo-encurso-txt'); if (el) el.textContent = 'Ciclo ' + cicloActual + ' en curso — ' + enCurso + ' trades';
+
+  // OZT por ciclos completados (10 OZT por ciclo; etapa la controla el admin)
+  var oztCiclos = ciclosCompletados * 10;
+  window.AURUM_OZT = oztCiclos;
+  el = document.getElementById('dash-ozt');        if (el) el.textContent = oztCiclos;
+  el = document.getElementById('ozt-saldo');       if (el) el.textContent = oztCiclos;
+  el = document.getElementById('dash-ozt-widget'); if (el) el.textContent = oztCiclos;
+  el = document.getElementById('dash-ranking-ozt'); if (el) el.textContent = oztCiclos + ' OZT';
 
   // Nivel/etapa
   var ETAPAS = ['Inicio', 'Disciplina', 'Despertar', 'Simulador', 'Rentable', '✦ Oro'];
