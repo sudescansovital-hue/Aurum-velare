@@ -5,7 +5,7 @@ function parsearTrades(raw) {
   console.log('[PARSER] filas recibidas:', raw ? raw.length : 0);
   if (!raw || raw.length < 2) return [];
 
-  function norm(v) { return String(v||'').normalize('NFC').toLowerCase().replace(/\s+/g,' ').trim(); }
+  function norm(v) { return String(v||'').normalize('NFC').replace(/[\r\n\t]+/g,' ').toLowerCase().trim(); }
 
   // ── Detección MT5 ──────────────────────────────────────────────
   // Busca celda que diga exactamente "Posiciones" en las primeras 20 filas
