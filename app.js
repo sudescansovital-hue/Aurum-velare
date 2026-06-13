@@ -173,6 +173,9 @@ function irA(pagina) {
   if ((pagina === 'gestion' || pagina === 'dashboard' || pagina === 'admin') && typeof actualizarDashboard === 'function') {
     setTimeout(actualizarDashboard, 300);
   }
+  if (pagina === 'admin' && typeof adminCargarRetos === 'function') {
+    setTimeout(adminCargarRetos, 400);
+  }
 }
 
 function mostrarPagina(pagina) {
