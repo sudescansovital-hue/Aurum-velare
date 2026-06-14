@@ -125,6 +125,9 @@ function salirDeSala() {
   document.getElementById('sala-interior').style.display  = 'none';
   document.getElementById('salas-lista').style.display    = 'block';
   salaActualTipo = null;
+  salaTvCargado = false;
+  var tvContainer = document.getElementById('sala-tv-container');
+  if (tvContainer) tvContainer.innerHTML = '';
   if (document.fullscreenElement) document.exitFullscreen && document.exitFullscreen();
   window.scrollTo(0, 0);
 }
@@ -554,7 +557,7 @@ function _salaFullscreenChange() {
   if (fsBtn) fsBtn.textContent = isFs ? '⤡ Salir pantalla completa' : '⤢ Pantalla completa';
 
   var overlay = document.getElementById('sala-video-overlay');
-  if (isFs && document.fullscreenElement === overlay) {
+  if (isFs) {
     _lkBrandCreate(overlay);
   } else {
     _lkBrandDestroy(overlay);
@@ -565,38 +568,23 @@ function _lkBrandCreate(overlay) {
   _lkBrandDestroy(overlay);
   var brand = document.createElement('div');
   brand.id = 'lk-brand-overlay';
-  brand.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:50px;background:rgba(0,0,0,0.9);display:flex;align-items:center;justify-content:center;z-index:2147483647;transition:opacity .35s ease;pointer-events:none;';
+  brand.style.cssText = 'position:absolute;inset:0;pointer-events:none;z-index:30;transition:opacity .35s ease;';
 
-  var title = document.createElement('span');
-  title.textContent = '✦ AURUM VELARE';
-  title.style.cssText = 'font-family:\'Cormorant Garamond\',serif;font-size:28px;font-weight:300;letter-spacing:.55em;text-transform:uppercase;color:#C9A84C;line-height:1;';
+  var left = document.createElement('span');
+  left.textContent = '✦ AURUM VELARE';
+  left.style.cssText = 'position:absolute;top:1rem;left:1rem;color:#C9A84C;font-size:11px;letter-spacing:.15em;text-transform:uppercase;opacity:.8;font-weight:600;';
 
-  brand.appendChild(title);
+  var right = document.createElement('span');
+  right.textContent = _lkCurrentLabel || '';
+  right.style.cssText = 'position:absolute;top:1rem;right:1rem;color:#C9A84C;font-size:11px;letter-spacing:.1em;opacity:.8;font-weight:500;';
+
+  brand.appendChild(left);
+  brand.appendChild(right);
   overlay.appendChild(brand);
-
-  _lkBrandShow();
-  if (_lkBrandHandler) overlay.removeEventListener('mousemove', _lkBrandHandler);
-  _lkBrandHandler = function() { _lkBrandShow(); };
-  overlay.addEventListener('mousemove', _lkBrandHandler);
-}
-
-function _lkBrandShow() {
-  var brand = document.getElementById('lk-brand-overlay');
-  if (brand) brand.style.opacity = '1';
-  clearTimeout(_lkBrandTimer);
-  _lkBrandTimer = setTimeout(function() {
-    var b = document.getElementById('lk-brand-overlay');
-    if (b) b.style.opacity = '0';
-  }, 3000);
+  brand.style.opacity = '1';
 }
 
 function _lkBrandDestroy(overlay) {
   var existing = document.getElementById('lk-brand-overlay');
   if (existing) existing.remove();
-  clearTimeout(_lkBrandTimer);
-  _lkBrandTimer = null;
-  if (overlay && _lkBrandHandler) {
-    overlay.removeEventListener('mousemove', _lkBrandHandler);
-    _lkBrandHandler = null;
-  }
 }
