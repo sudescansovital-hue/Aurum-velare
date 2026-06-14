@@ -569,11 +569,11 @@ function _lkBrandCreate(overlay) {
 
   var left = document.createElement('span');
   left.textContent = '✦ AURUM VELARE';
-  left.style.cssText = 'position:absolute;top:1rem;left:1rem;color:#C9A84C;font-size:11px;letter-spacing:.15em;text-transform:uppercase;opacity:.8;font-weight:600;';
+  left.style.cssText = 'position:absolute;top:.8rem;left:1.2rem;font-family:\'Cormorant Garamond\',serif;font-size:28px;font-weight:300;letter-spacing:.55em;text-transform:uppercase;color:#C9A84C;opacity:.9;line-height:1;';
 
   var right = document.createElement('span');
   right.textContent = _lkCurrentLabel || '';
-  right.style.cssText = 'position:absolute;top:1rem;right:1rem;color:#C9A84C;font-size:11px;letter-spacing:.1em;opacity:.8;font-weight:500;';
+  right.style.cssText = 'position:absolute;top:1.1rem;right:1.2rem;font-family:\'Cormorant Garamond\',serif;font-size:13px;font-weight:300;letter-spacing:.25em;text-transform:uppercase;color:#C9A84C;opacity:.8;';
 
   brand.appendChild(left);
   brand.appendChild(right);
