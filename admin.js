@@ -390,11 +390,11 @@ function adminGenerarCodigo() {
   };
   var codigo = parte() + '-' + parte();
   var el = document.getElementById('admin-codigo-result');
-  if (el) { el.textContent = codigo; el.style.display = 'block'; }
+  if (el) { document.getElementById('admin-codigo-text').textContent = codigo; el.style.display = 'block'; }
 }
 
 async function adminGuardarCodigo() {
-  var codigo = (document.getElementById('admin-codigo-result').textContent || '').trim();
+  var codigo = (document.getElementById('admin-codigo-text').textContent || '').trim();
   var email  = document.getElementById('admin-codigo-email').value;
   if (!codigo || !email) { showToast('Genera un código y elige un usuario'); return; }
 
@@ -405,7 +405,7 @@ async function adminGuardarCodigo() {
 }
 
 function adminCopiarCodigo() {
-  var codigo = (document.getElementById('admin-codigo-result').textContent || '').trim();
+  var codigo = (document.getElementById('admin-codigo-text').textContent || '').trim();
   if (!codigo) return;
   navigator.clipboard.writeText(codigo).then(function() { showToast('Código copiado'); });
 }
@@ -430,13 +430,17 @@ async function adminCargarRetos() {
   var th = 'padding:.5rem .7rem;font-size:11px;color:var(--text-muted);';
   contenedor.innerHTML = res.data.map(function(r) {
     var cierre = r.fecha_cierre ? r.fecha_cierre.slice(0, 10) : '—';
+    var costeTexto = r.coste_ozt > 0 ? r.coste_ozt + ' OZT entrada' : 'Gratuito';
     var premio = (r.premio_ozt ? r.premio_ozt + ' OZT' : '') + (r.premio_extra ? (r.premio_ozt ? ' · ' : '') + r.premio_extra : '');
-    return '<div style="background:var(--bg2);border:1px solid var(--border);padding:.6rem .8rem;display:flex;justify-content:space-between;align-items:center;gap:.5rem;">' +
+    return '<div id="reto-admin-row-' + r.id + '" style="background:var(--bg2);border:1px solid var(--border);padding:.6rem .8rem;display:flex;justify-content:space-between;align-items:center;gap:.5rem;">' +
       '<div style="flex:1;min-width:0;">' +
         '<div style="font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (r.titulo || '—') + '</div>' +
-        '<div style="font-size:11px;color:var(--text-muted);">' + (r.tipo || '') + (r.sala ? ' · ' + r.sala : '') + ' · cierre: ' + cierre + (premio ? ' · ' + premio : '') + '</div>' +
+        '<div style="font-size:11px;color:var(--text-muted);">' + (r.tipo || '') + (r.sala ? ' · ' + r.sala : '') + ' · cierre: ' + cierre + ' · <span style="color:' + (r.coste_ozt > 0 ? 'var(--gold)' : 'var(--text-muted)') + ';">' + costeTexto + '</span>' + (premio ? ' · ' + premio : '') + '</div>' +
       '</div>' +
-      '<button onclick="adminBorrarReto(\'' + r.id + '\')" style="flex-shrink:0;background:transparent;border:1px solid #66222244;color:#e05;padding:.25rem .5rem;font-size:11px;cursor:pointer;">✕</button>' +
+      '<div style="display:flex;gap:.4rem;flex-shrink:0;">' +
+        '<button onclick="adminEditarReto(\'' + r.id + '\',' + (r.coste_ozt || 0) + ',' + (r.premio_ozt || 0) + ')" style="background:transparent;border:1px solid var(--border);color:var(--text-muted);padding:.25rem .5rem;font-size:11px;cursor:pointer;font-family:inherit;">Editar</button>' +
+        '<button onclick="adminBorrarReto(\'' + r.id + '\')" style="background:transparent;border:1px solid #66222244;color:#e05;padding:.25rem .5rem;font-size:11px;cursor:pointer;">✕</button>' +
+      '</div>' +
     '</div>';
   }).join('');
 }
@@ -460,12 +464,21 @@ async function adminCrearReto() {
   var partMinRaw = parseInt(document.getElementById('admin-reto-part-min').value);
   var partMin    = (!isNaN(partMinRaw) && partMinRaw > 0) ? partMinRaw : 11;
 
+  var costeRaw = (document.getElementById('admin-reto-coste').value || '').trim();
+  if (costeRaw === '') {
+    if (!confirm('¿Este reto es gratuito (0 OZT de entrada)?')) {
+      document.getElementById('admin-reto-coste').focus();
+      return;
+    }
+  }
+  var costeOzt = parseInt(costeRaw) || 0;
+
   var datos = {
     titulo:                 titulo,
     descripcion:            (document.getElementById('admin-reto-desc').value    || '').trim() || null,
     tipo:                   document.getElementById('admin-reto-tipo').value,
     sala:                   (document.getElementById('admin-reto-sala').value    || '').trim() || null,
-    coste_ozt:              parseInt(document.getElementById('admin-reto-coste').value)  || 0,
+    coste_ozt:              costeOzt,
     premio_ozt:             parseInt(document.getElementById('admin-reto-ozt').value)    || null,
     premio_extra:           (document.getElementById('admin-reto-extra').value   || '').trim() || null,
     trades_requeridos:      tradesReq,
@@ -510,5 +523,45 @@ async function adminBorrarReto(id) {
   var res = await supaDelete('retos', 'id=eq.' + id, getToken());
   if (res.error) { showToast('Error al borrar: ' + res.error); return; }
   showToast('Reto eliminado');
+  adminCargarRetos();
+}
+
+function adminEditarReto(id, costeActual, premioActual) {
+  var existing = document.getElementById('modal-editar-reto');
+  if (existing) existing.remove();
+
+  var overlay = document.createElement('div');
+  overlay.id = 'modal-editar-reto';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.8);display:flex;align-items:center;justify-content:center;z-index:9999;padding:1rem;';
+  overlay.innerHTML =
+    '<div style="background:var(--bg2);border:1px solid var(--border-gold);padding:2rem;max-width:340px;width:100%;">' +
+      '<div style="font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);margin-bottom:1.2rem;">Editar reto</div>' +
+      '<div style="margin-bottom:.8rem;">' +
+        '<label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:.3rem;">Coste de entrada (OZT)</label>' +
+        '<input id="modal-reto-coste" type="number" min="0" value="' + costeActual + '" style="width:100%;box-sizing:border-box;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.45rem .7rem;font-size:13px;font-family:inherit;outline:none;">' +
+      '</div>' +
+      '<div style="margin-bottom:1.4rem;">' +
+        '<label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:.3rem;">Premio (OZT)</label>' +
+        '<input id="modal-reto-premio" type="number" min="0" value="' + (premioActual || '') + '" style="width:100%;box-sizing:border-box;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.45rem .7rem;font-size:13px;font-family:inherit;outline:none;">' +
+      '</div>' +
+      '<div style="display:flex;gap:.8rem;">' +
+        '<button onclick="adminGuardarEdicionReto(\'' + id + '\')" style="flex:1;background:var(--gold);color:#0A0C14;border:none;padding:.7rem;font-size:12px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;font-family:inherit;">Guardar</button>' +
+        '<button onclick="document.getElementById(\'modal-editar-reto\').remove()" style="flex:1;background:transparent;color:var(--text-muted);border:1px solid var(--border);padding:.7rem;font-size:12px;cursor:pointer;font-family:inherit;">Cancelar</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+}
+
+async function adminGuardarEdicionReto(id) {
+  var coste  = parseInt(document.getElementById('modal-reto-coste').value)  || 0;
+  var premioRaw = document.getElementById('modal-reto-premio').value.trim();
+  var premio = premioRaw !== '' ? (parseInt(premioRaw) || null) : null;
+
+  var res = await supaPatch('retos', 'id=eq.' + id,
+    { coste_ozt: coste, premio_ozt: premio }, getToken());
+  if (res.error) { showToast('Error al guardar: ' + res.error); return; }
+
+  document.getElementById('modal-editar-reto').remove();
+  showToast('Reto actualizado');
   adminCargarRetos();
 }
