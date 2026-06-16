@@ -161,6 +161,10 @@ async function hacerLogout() {
 }
 
 function irA(pagina) {
+  if (['legal','privacidad','condiciones'].includes(pagina)) {
+    mostrarPagina(pagina);
+    return;
+  }
   if (PAGINAS_PRIVADAS.includes(pagina) && !usuarioActual) {
     mostrarPagina('packs');
     const msg = document.getElementById('access-msg');
@@ -250,17 +254,27 @@ async function actualizarDashboard() {
   if (!usuarioActual || !usuarioActual.email) return;
   var emailActual = usuarioActual.email;
   var token = getToken();
-  var params = 'usuario_email=eq.' + emailActual + '&order=created_at.asc&limit=5000';
+  var params = 'usuario_email=eq.' + emailActual + '&order=created_at.asc';
   console.log('[AURUM] actualizarDashboard URL:', 'https://rsrbxcvlnbwpiyhumqmt.supabase.co/rest/v1/trades?' + params);
   console.log('[AURUM] usuario_email param:', 'eq.' + emailActual, '| raw email:', emailActual);
-  var res = await supaGet('trades', params, token);
-  if (res.error || !res.data) {
-    console.error('[DASHBOARD] Error cargando trades:', res.error);
-    return;
+  var allData = [];
+  var from = 0;
+  var pageSize = 1000;
+  while (true) {
+    var pageParams = params + '&offset=' + from + '&limit=' + pageSize;
+    var res = await supaGet('trades', pageParams, token);
+    if (res.error || !res.data) {
+      console.error('[DASHBOARD] Error cargando trades:', res.error);
+      return;
+    }
+    var page = res.data || [];
+    allData = allData.concat(page);
+    if (page.length < pageSize) break;
+    from += pageSize;
   }
   if (!usuarioActual || usuarioActual.email !== emailActual) return;
-  console.log('[AURUM] trades recibidos:', res.data.length, '| primer usuario_email en datos:', res.data[0] && res.data[0].usuario_email);
-  window.AURUM_TRADES = { todos: res.data };
+  console.log('[AURUM] trades recibidos:', allData.length, '| primer usuario_email en datos:', allData[0] && allData[0].usuario_email);
+  window.AURUM_TRADES = { todos: allData };
   if (typeof buildDashboardHero         === 'function') buildDashboardHero();
   if (typeof buildCicloDots             === 'function') buildCicloDots();
   if (typeof buildHorarios              === 'function') buildHorarios();

@@ -118,8 +118,17 @@ async function cargarHistorialDesdeSupabase() {
     // Borrar trades sin cuenta asignada antes de cargar
     await supaDelete('trades', 'usuario_email=eq.' + encodeURIComponent(usuarioActual.email) + '&cuenta=is.null', token);
 
-    var resTrades = await supaGet('trades', params, token);
-    var allData = resTrades.data || [];
+    var allData = [];
+    var from = 0;
+    var pageSize = 1000;
+    while (true) {
+      var pageParams = params + '&offset=' + from + '&limit=' + pageSize;
+      var res = await supaGet('trades', pageParams, token);
+      var page = res.data || [];
+      allData = allData.concat(page);
+      if (page.length < pageSize) break;
+      from += pageSize;
+    }
 
     console.log('[HISTORIAL] trades cargados:', allData.length, '| primer row:', allData[0]);
     if (!allData.length) { console.log('[HISTORIAL] sin trades — salida'); return; }

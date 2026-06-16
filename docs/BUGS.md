@@ -73,6 +73,15 @@
 
 ---
 
+## Pendientes urgentes post-sesión 13 Jun 2026
+- Cabecera Trade Record muestra P&L incorrecto en Retos (+336$ en cabecera vs -1430$ en detalle) — dos cálculos distintos desincronizados
+- Fechas "13 Jun – 13 Jun" en todas las cuentas de Roderas — trades con fp sin fecha (cTrader format)
+- Badge Challenge/Real incorrecto en Retos y Prueba
+- Admin: mover trades a Externa automáticamente al cambiar número de cuenta — bug conocido, requiere lógica en el save del admin
+- Nivel sidebar muestra etapa 03 cuando Mi Proceso puede mostrar diferente
+
+---
+
 ## Cuentas del sistema para pruebas
 
 | Email | Usuario | Rol |

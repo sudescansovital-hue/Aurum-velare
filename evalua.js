@@ -16,27 +16,20 @@ const cuentasEvaluadas = new Map();
 
 // Simular pago (en producción: redirigir a Stripe)
 function simularPago() {
-  const modal = document.createElement('div');
-  modal.style.cssText = 'position:fixed;inset:0;background:#080A12EE;display:flex;align-items:center;justify-content:center;z-index:1000;';
-  modal.innerHTML = `
-    <div style="border:1px solid var(--border-gold);background:var(--bg2);padding:2.5rem;max-width:420px;width:90%;text-align:center;position:relative;">
-      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>
-      <div style="font-size:32px;margin-bottom:1rem;">🔒</div>
-      <div style="font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--gold-bright);margin-bottom:.5rem;">Pago seguro con Stripe</div>
-      <div style="font-size:15px;color:var(--text-muted);margin-bottom:1.5rem;line-height:1.8;">En producción aquí se abriría el formulario de pago de Stripe. Una vez confirmado el pago recibirías tu código por email.</div>
-      <div style="font-size:14px;color:var(--text-dim);padding:.8rem;background:var(--bg3);border:1px solid var(--border);margin-bottom:1.5rem;">
-        Código demo:<br>
-        <span style="font-family:monospace;font-size:15px;color:var(--gold-bright);letter-spacing:.1em;">AURUM-EVAL-DEMO-2026</span>
-      </div>
-      <div onclick="this.closest('[style]').remove();mostrarFormularioCodigo();" style="padding:.8rem 2rem;border:1px solid var(--border-gold);background:var(--gold-glow);font-size:14px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);cursor:pointer;display:inline-block;">
-        Usar código demo →
-      </div>
-    </div>
-  `;
-  document.body.appendChild(modal);
+  if (!window.usuarioActual) {
+    if (typeof abrirLogin === 'function') abrirLogin();
+    if (typeof showToast === 'function') showToast('Regístrate o entra antes de continuar con el pago.');
+    return;
+  }
+  window.open('https://buy.stripe.com/00wcN74NZ5BJ4lAdOy3ZK00', '_blank');
 }
 
 function mostrarFormularioCodigo() {
+  if (!window.usuarioActual) {
+    if (typeof abrirLogin === 'function') abrirLogin();
+    if (typeof showToast === 'function') showToast('Regístrate o entra antes de continuar.');
+    return;
+  }
   document.getElementById('evalua-paso-pago').style.display = 'none';
   document.getElementById('evalua-paso-codigo').style.display = 'block';
   setTimeout(() => document.getElementById('evalua-codigo-input').focus(), 100);
@@ -47,15 +40,32 @@ function volverAlPago() {
   document.getElementById('evalua-paso-pago').style.display = 'block';
 }
 
-function validarCodigoEvalua() {
-  const input = document.getElementById('evalua-codigo-input').value.trim().toUpperCase();
-  const err   = document.getElementById('evalua-codigo-err');
-
+async function validarCodigoEvalua() {
+  if (!window.usuarioActual) {
+    if (typeof abrirLogin === 'function') abrirLogin();
+    if (typeof showToast === 'function') showToast('Regístrate o entra antes de validar el código.');
+    return;
+  }
+  var input = (document.getElementById('evalua-codigo-input').value || '').trim().toUpperCase();
+  var err = document.getElementById('evalua-codigo-err');
   if (!input) { err.textContent = 'Introduce tu código.'; return; }
-  if (!CODIGOS_VALIDOS[input]) { err.textContent = 'Código no reconocido. Verifica el email que recibiste tras el pago.'; return; }
-  if (CODIGOS_VALIDOS[input].usado) { err.textContent = 'Este código ya fue utilizado. Cada código es válido para una sola evaluación.'; return; }
 
-  CODIGOS_VALIDOS[input].usado = true;
+  // Primero comprobar código demo hardcodeado
+  if (input === 'AURUM-EVAL-DEMO-2026') {
+    err.textContent = '';
+    document.getElementById('evalua-paso-codigo').style.display = 'none';
+    document.getElementById('evalua-zona-subida').style.display = 'block';
+    return;
+  }
+
+  // Validar contra Supabase
+  err.textContent = 'Validando...';
+  var res = await supaGet('usuarios_aurum', 'codigo_eval=eq.' + input + '&select=id,codigo_eval', null);
+  if (res.error || !res.data || res.data.length === 0) {
+    err.textContent = 'Código no reconocido. Verifica el email que recibiste tras el pago.';
+    return;
+  }
+
   err.textContent = '';
   document.getElementById('evalua-paso-codigo').style.display = 'none';
   document.getElementById('evalua-zona-subida').style.display = 'block';
@@ -173,10 +183,10 @@ function calcularMetricas(trades) {
 }
 
 function mostrarResultados(trades, m, nombreArchivo) {
-  if (window.usuarioActual && window.usuarioActual.email && typeof guardarTradesIndividuales === 'function') {
+  /* if (window.usuarioActual && window.usuarioActual.email && typeof guardarTradesIndividuales === 'function') {
     var cuentaEval = typeof detectarNombreCuenta === 'function' ? detectarNombreCuenta([], nombreArchivo) : null;
     guardarTradesIndividuales(trades, cuentaEval || 'Evaluación');
-  }
+  } */
   const res = document.getElementById('evalua-resultados');
   res.style.display = 'block';
 

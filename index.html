@@ -13,6 +13,10 @@
 </head>
 <body>
 
+<div style="background:var(--gold);color:var(--bg);text-align:center;padding:.5rem 1rem;font-size:13px;letter-spacing:.15em;text-transform:uppercase;font-family:'Outfit',sans-serif;">
+  ✦ 70% de descuento · Plazas limitadas · Código: AURUM11
+</div>
+
 <!-- ============================================================
      LOGIN MODAL
      Se abre al clicar "Entrar" o al intentar acceder a páginas privadas
@@ -22,7 +26,7 @@
     <div class="login-close" onclick="cerrarLogin()">✕</div>
     <div class="login-head">
       <div class="login-title">Aurum Velare</div>
-      <div class="login-subtitle">Acceso al proceso · Pack requerido</div>
+      <div class="login-subtitle">Acceso al proceso · Camino requerido</div>
     </div>
 
     <!-- Tabs -->
@@ -40,7 +44,7 @@
       <div class="login-err" id="login-err"></div>
       <button class="login-btn" onclick="hacerLogin()">✦ Entrar al proceso</button>
       <div class="login-hint">
-        ¿Sin pack? <span onclick="cerrarLogin();irA('packs')" style="color:var(--gold-dim);cursor:pointer;text-decoration:underline;">Ver los packs →</span>
+        ¿Sin Camino? <span onclick="cerrarLogin();irA('packs')" style="color:var(--gold-dim);cursor:pointer;text-decoration:underline;">Ver los Caminos →</span>
       </div>
     </div>
 
@@ -129,147 +133,128 @@
 <div id="page-home" class="page-content" style="display:block;">
 <!-- HERO -->
 <section class="hero">
-  <span class="hero-tag">XAU / USD · El único activo</span>
-
-  <h1 class="hero-title">
-    Trading XAU/USD con proceso real.
-  </h1>
-
-  <p class="hero-sub" style="margin-bottom:1.2rem;">
-    Operar oro en solitario es la norma. Aurum es el entorno donde eso cambia — proceso estructurado, datos reales, gente que entiende lo que significa estar en el mismo camino.
-  </p>
-
-  <p style="font-size:16px;color:var(--text-muted);max-width:580px;margin:0 auto;line-height:2;">
-    Un espacio donde compartir el proceso real — los avances, los errores, los ciclos —
-    con otros que entienden lo que significa operar XAU/USD con criterio y sin atajos.
-  </p>
-
-  <div style="display:flex;gap:1rem;justify-content:center;margin-top:2.5rem;flex-wrap:wrap;">
+  <span class="hero-tag">XAU / USD · EL ÚNICO ACTIVO</span>
+  <h1 class="hero-title">Trading XAU/USD basado en datos.</h1>
+  <p class="hero-sub">Aurum Velare es una plataforma de análisis y seguimiento para traders de XAU/USD que convierte operaciones, estadísticas y patrones en un proceso observable.</p>
+  <p style="font-size:16px;color:var(--text-muted);max-width:580px;margin:0 auto 2.5rem;line-height:2;">Sube tu historial. Descubre tu edge real. Mejora trade a trade.</p>
+  <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;">
     <div class="btn-outline" onclick="irA('evalua')">✦ Evalúame — 33€</div>
-    <div class="btn-gold" onclick="irA('packs');setTimeout(function(){var el=document.getElementById('seccion-packs');if(el)el.scrollIntoView({behavior:'smooth'});},100);">Ver los packs →</div>
+    <div class="btn-gold" onclick="irA('packs')">Acceder al proceso →</div>
   </div>
 </section>
-
 
 <!-- QUÉ ES AURUM -->
 <section style="padding:4rem 3rem;text-align:center;border-bottom:1px solid var(--border);">
   <div style="max-width:680px;margin:0 auto;">
-    <span class="tag" style="display:block;margin-bottom:1.5rem;">XAU / USD</span>
     <h2 style="font-family:'Cormorant Garamond',serif;font-size:42px;color:var(--gold-bright);text-shadow:0 0 30px var(--gold-glow);margin-bottom:1.5rem;">Trading de oro con proceso. Sin gurús, sin señales.</h2>
-    <p style="font-size:16px;color:var(--text-dim);line-height:2;">
-      Aurum Velare es un proceso de análisis, disciplina y evolución continua centrado exclusivamente en XAU/USD.
-      No por simplificar, sino porque la profundidad real requiere foco absoluto.
-    </p>
+    <p style="font-size:16px;color:var(--text-dim);line-height:2;">Aurum no te dice cómo operar. Te muestra cómo estás operando. Win rate, R/R, esperanza, horarios, lotajes — todo lo que tu historial esconde y que ningún gurú te va a contar. Porque los datos no mienten.</p>
     <div style="width:40px;height:1px;background:var(--gold);margin:2rem auto;opacity:.4;"></div>
-    <p style="font-size:15px;color:var(--text-muted);font-style:italic;line-height:2;">
-      "El mercado no miente. Tú tampoco deberías."
-    </p>
+    <p style="font-size:15px;color:var(--text-muted);font-style:italic;line-height:2;">"El mercado no miente. Tú tampoco deberías."</p>
   </div>
 </section>
 
-
-<!-- 7 ANIMALES -->
+<!-- 3 BLOQUES -->
 <section style="padding:4rem 3rem;border-bottom:1px solid var(--border);">
-  <div style="text-align:center;margin-bottom:4rem;">
-    <span class="tag" style="display:block;margin-bottom:1rem;">La estructura</span>
-    <h2 style="font-family:'Cormorant Garamond',serif;font-size:42px;color:var(--text);">7 animales. Un solo camino.</h2>
-    <p style="font-size:15px;color:var(--text-muted);margin-top:.8rem;max-width:500px;margin-left:auto;margin-right:auto;line-height:1.9;">
-      No existe un único perfil de trader. Existen formas distintas de ver, esperar y actuar.<br>Aquí cada una tiene nombre.
-    </p>
-  </div>
-
-  <div style="max-width:980px;margin:0 auto;">
-
-    <!-- ÁGUILA -->
-    <div style="display:flex;justify-content:center;margin-bottom:2rem;">
-      <div onclick="abrirAnimal('aguila')" style="width:300px;background:var(--bg2);border:1px solid var(--border-gold);padding:2rem 1.5rem;text-align:center;position:relative;cursor:pointer;transition:border-color .2s;" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border-gold)'">
-        <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>
-        <div style="width:1px;height:28px;background:linear-gradient(to bottom,transparent,var(--gold));margin:0 auto 1.2rem;"></div>
-        <div style="font-size:13px;letter-spacing:.45em;text-transform:uppercase;color:var(--gold-bright);margin-bottom:.4rem;">Águila</div>
-        <div style="font-size:10px;letter-spacing:.25em;text-transform:uppercase;color:var(--text-muted);margin-bottom:1.2rem;">Visión · Silencio</div>
-        <p style="font-size:15px;color:var(--text-muted);line-height:1.9;">No opera. Observa. Creó Aurum para que cada animal encuentre su propio camino.</p>
-        <div style="font-size:10px;color:var(--gold-dim);margin-top:.8rem;letter-spacing:.05em;">Leer su historia →</div>
-      </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:2rem;max-width:980px;margin:0 auto;">
+    <div style="background:var(--bg2);border:1px solid var(--border);padding:2rem 1.5rem;">
+      <div style="font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--gold);margin-bottom:1rem;">El análisis</div>
+      <p style="font-size:15px;color:var(--text-muted);line-height:1.9;">Sube tu historial MT5 o cTrader. Aurum lo lee y te devuelve tu win rate, R/R, esperanza, horarios y patrones reales. Sin interpretación, solo datos.</p>
     </div>
-
-    <div style="display:flex;justify-content:center;margin-bottom:1rem;">
-      <div style="width:1px;height:20px;background:linear-gradient(to bottom,var(--border-gold),var(--border));"></div>
+    <div style="background:var(--bg2);border:1px solid var(--border-gold);padding:2rem 1.5rem;position:relative;">
+      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>
+      <div style="font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--gold);margin-bottom:1rem;">Tu perfil</div>
+      <p style="font-size:15px;color:var(--text-muted);line-height:1.9;">7 perfiles de trader. Cada uno con su forma de ver el mercado. Al registrarte descubres cuál eres y empiezas a operar desde ahí.</p>
     </div>
-
-    <!-- FILA 2 -->
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem;">
-
-      <div onclick="abrirAnimal('hormiga')" style="background:var(--bg2);border:1px solid var(--border);padding:1.8rem 1.5rem;text-align:center;cursor:pointer;transition:border-color .2s;" onmouseover="this.style.borderColor='var(--gold-dim)'" onmouseout="this.style.borderColor='var(--border)'">
-        <div style="font-size:13px;letter-spacing:.45em;text-transform:uppercase;color:var(--gold);margin-bottom:.4rem;">Hormiga</div>
-        <div style="font-size:10px;letter-spacing:.25em;text-transform:uppercase;color:var(--text-muted);margin-bottom:1.2rem;">Disciplina · Repetición</div>
-        <p style="font-size:15px;color:var(--text-muted);line-height:1.9;">Construye trade tras trade, sin prisa, sin necesidad de destacar.</p>
-        <div style="font-size:10px;color:var(--gold-dim);margin-top:.8rem;">Leer su historia →</div>
-      </div>
-
-      <div onclick="abrirAnimal('leon')" style="background:var(--bg2);border:1px solid var(--border-gold);padding:1.8rem 1.5rem;text-align:center;position:relative;cursor:pointer;transition:border-color .2s;" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border-gold)'">
-        <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>
-        <div style="font-size:13px;letter-spacing:.45em;text-transform:uppercase;color:var(--gold-bright);margin-bottom:.4rem;">León</div>
-        <div style="font-size:10px;letter-spacing:.25em;text-transform:uppercase;color:var(--text-muted);margin-bottom:1.2rem;">Presencia · Convicción</div>
-        <p style="font-size:15px;color:var(--text-muted);line-height:1.9;">Observa, espera y cuando el momento aparece — actúa sin dudar.</p>
-        <div style="font-size:10px;color:var(--gold-dim);margin-top:.8rem;">Leer su historia →</div>
-      </div>
-
-      <div onclick="abrirAnimal('elefante')" style="background:var(--bg2);border:1px solid var(--border);padding:1.8rem 1.5rem;text-align:center;cursor:pointer;transition:border-color .2s;" onmouseover="this.style.borderColor='var(--gold-dim)'" onmouseout="this.style.borderColor='var(--border)'">
-        <div style="font-size:13px;letter-spacing:.45em;text-transform:uppercase;color:var(--gold);margin-bottom:.4rem;">Elefante</div>
-        <div style="font-size:10px;letter-spacing:.25em;text-transform:uppercase;color:var(--text-muted);margin-bottom:1.2rem;">Memoria · Control emocional</div>
-        <p style="font-size:15px;color:var(--text-muted);line-height:1.9;">Recuerda cada error y no lo repite. La mala racha es información.</p>
-        <div style="font-size:10px;color:var(--gold-dim);margin-top:.8rem;">Leer su historia →</div>
-      </div>
-
+    <div style="background:var(--bg2);border:1px solid var(--border);padding:2rem 1.5rem;">
+      <div style="font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--gold);margin-bottom:1rem;">Las salas</div>
+      <p style="font-size:15px;color:var(--text-muted);line-height:1.9;">Cada animal tiene su sala. Un espacio donde traders con el mismo estilo comparten proceso, no señales. Observar a otros es parte del aprendizaje.</p>
     </div>
-
-    <!-- FILA 3 -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;max-width:660px;margin:0 auto 1rem;">
-
-      <div onclick="abrirAnimal('oso')" style="background:var(--bg2);border:1px solid var(--border);padding:1.8rem 1.5rem;text-align:center;cursor:pointer;transition:border-color .2s;" onmouseover="this.style.borderColor='var(--gold-dim)'" onmouseout="this.style.borderColor='var(--border)'">
-        <div style="font-size:13px;letter-spacing:.45em;text-transform:uppercase;color:var(--gold);margin-bottom:.4rem;">Oso</div>
-        <div style="font-size:10px;letter-spacing:.25em;text-transform:uppercase;color:var(--text-muted);margin-bottom:1.2rem;">Paciencia · Protección</div>
-        <p style="font-size:15px;color:var(--text-muted);line-height:1.9;">No operar también es una posición. Proteger el capital es una decisión.</p>
-        <div style="font-size:10px;color:var(--gold-dim);margin-top:.8rem;">Leer su historia →</div>
-      </div>
-
-      <div onclick="abrirAnimal('toro')" style="background:var(--bg2);border:1px solid var(--border);padding:1.8rem 1.5rem;text-align:center;cursor:pointer;transition:border-color .2s;" onmouseover="this.style.borderColor='var(--gold-dim)'" onmouseout="this.style.borderColor='var(--border)'">
-        <div style="font-size:13px;letter-spacing:.45em;text-transform:uppercase;color:var(--gold);margin-bottom:.4rem;">Toro</div>
-        <div style="font-size:10px;letter-spacing:.25em;text-transform:uppercase;color:var(--text-muted);margin-bottom:1.2rem;">Expansión · Momentum</div>
-        <p style="font-size:15px;color:var(--text-muted);line-height:1.9;">No persigue el movimiento. Avanza cuando la estructura acompaña.</p>
-        <div style="font-size:10px;color:var(--gold-dim);margin-top:.8rem;">Leer su historia →</div>
-      </div>
-
-    </div>
-
-    <!-- FILA 4: Lobo -->
-    <div style="display:flex;justify-content:center;">
-      <div onclick="abrirAnimal('lobo')" style="width:300px;background:var(--bg2);border:1px solid var(--border);padding:1.8rem 1.5rem;text-align:center;cursor:pointer;transition:border-color .2s;" onmouseover="this.style.borderColor='var(--gold-dim)'" onmouseout="this.style.borderColor='var(--border)'">
-        <div style="font-size:13px;letter-spacing:.45em;text-transform:uppercase;color:var(--gold);margin-bottom:.4rem;">Lobo</div>
-        <div style="font-size:10px;letter-spacing:.25em;text-transform:uppercase;color:var(--text-muted);margin-bottom:1.2rem;">Instinto · Adaptación</div>
-        <p style="font-size:15px;color:var(--text-muted);line-height:1.9;">No sigue a la manada. Construye su proceso en silencio.</p>
-        <div style="font-size:10px;color:var(--gold-dim);margin-top:.8rem;">Leer su historia →</div>
-      </div>
-    </div>
-
   </div>
 </section>
 
-<!-- MODAL ANIMALES -->
-<div id="modal-animal" style="display:none;position:fixed;inset:0;background:#080A12EE;z-index:500;display:none;align-items:center;justify-content:center;overflow-y:auto;padding:2rem;">
-  <div style="background:var(--bg2);border:1px solid var(--border-gold);max-width:580px;width:100%;padding:3rem 2.5rem;position:relative;margin:auto;">
-    <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>
-    <div onclick="cerrarAnimal()" style="position:absolute;top:1rem;right:1rem;cursor:pointer;color:var(--text-muted);font-size:18px;opacity:.5;line-height:1;">✕</div>
-    <div id="animal-nombre" style="font-family:'Cormorant Garamond',serif;font-size:28px;color:var(--gold-bright);text-align:center;letter-spacing:.35em;text-transform:uppercase;margin-bottom:.4rem;"></div>
-    <div id="animal-nick" style="font-size:11px;color:var(--gold);letter-spacing:.2em;text-transform:uppercase;text-align:center;margin-bottom:.3rem;"></div>
-    <div id="animal-tag" style="font-size:10px;color:var(--text-muted);letter-spacing:.2em;text-transform:uppercase;text-align:center;margin-bottom:2rem;"></div>
-    <div style="width:30px;height:1px;background:var(--border-gold);margin:0 auto 2rem;"></div>
-    <div id="animal-body" style="font-size:15px;color:var(--text-muted);line-height:2;margin-bottom:2rem;"></div>
-    <div id="animal-cita" style="border-left:2px solid var(--border-gold);padding-left:1.2rem;font-family:'Cormorant Garamond',serif;font-size:18px;color:var(--gold-dim);font-style:italic;line-height:1.8;"></div>
-    <div onclick="cerrarAnimal()" style="margin-top:2rem;font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--text-muted);cursor:pointer;text-align:center;">← Volver</div>
+<!-- EL MARCO -->
+<section style="padding:4rem 3rem;border-bottom:1px solid var(--border);max-width:900px;margin:0 auto;">
+  <div style="text-align:center;margin-bottom:3rem;">
+    <span class="tag" style="display:block;margin-bottom:1rem;">Los límites</span>
+    <h2 style="font-family:'Cormorant Garamond',serif;font-size:42px;color:var(--text);">El marco</h2>
   </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;">
+
+    <div style="padding:2rem;border:1px solid var(--border);background:var(--bg2);border-left:2px solid var(--border);">
+      <div style="font-size:13px;letter-spacing:.3em;text-transform:uppercase;color:var(--text-muted);margin-bottom:1rem;">Hasta la etapa 2</div>
+      <p style="font-size:15px;color:var(--text-dim);line-height:1.9;">
+        Aurum define el marco. No como imposición, sino como punto de partida para quien aún no tiene datos suficientes para definir el suyo.
+      </p>
+    </div>
+
+    <div style="padding:2rem;border:1px solid var(--border-gold);background:var(--bg2);border-left:2px solid var(--gold);position:relative;">
+      <div style="position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--gold-glow),transparent);"></div>
+      <div style="font-size:13px;letter-spacing:.3em;text-transform:uppercase;color:var(--gold);margin-bottom:1rem;">A partir de la etapa 2</div>
+      <p style="font-size:15px;color:var(--text-dim);line-height:1.9;">
+        Tú construyes el tuyo. Con coherencia, con datos propios y con la conciencia de lo que ya has demostrado que funciona.
+      </p>
+    </div>
+
+  </div>
+
+  <div style="text-align:center;margin-top:2rem;padding:1.5rem;border:1px solid var(--border);background:var(--bg2);">
+    <p style="font-size:16px;color:var(--text-muted);font-style:italic;line-height:1.9;">
+      "En Aurum no hay reglas impuestas. Hay un camino que cada trader termina trazando con sus propios datos."
+    </p>
+  </div>
+</section>
+
+
+<!-- RODERAS -->
+<section style="padding:4rem 3rem;border-bottom:1px solid var(--border);">
+  <div style="max-width:700px;margin:0 auto;">
+    <div style="width:1px;height:40px;background:linear-gradient(to bottom,transparent,var(--border-gold));margin:0 auto 3rem;"></div>
+
+    <div style="font-family:'Cormorant Garamond',serif;font-size:36px;color:var(--gold-bright);text-shadow:0 0 20px var(--gold-glow);line-height:1.2;margin-bottom:2rem;text-align:center;">
+      Roderas no es el que llegó.<br>
+      <em>Es el que nunca abandonó.</em>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:1.2rem;">
+      <p style="font-size:15px;color:var(--text-muted);line-height:2;">
+        Aurum no nació de la rentabilidad. Nació de años de proceso real — errores registrados, patrones descubiertos lentamente, ciclos completados sin atajos.
+      </p>
+      <p style="font-size:15px;color:var(--text-muted);line-height:2;">
+        Roderas lleva desde 2018 en el camino. No como alumno. Como constructor. Desarrollando las herramientas, el análisis y la comunidad que él mismo hubiera necesitado al principio.
+      </p>
+      <p style="font-size:15px;color:var(--text-dim);line-height:2;">
+        Cada persona tiene su tiempo. El tuyo no será el suyo. Pero sí tendrás algo que él no tuvo — un proceso estructurado, datos reales y gente que entiende lo que significa estar en el mismo camino.
+      </p>
+    </div>
+
+    <div style="width:1px;height:40px;background:linear-gradient(to bottom,var(--border-gold),transparent);margin:3rem auto 0;"></div>
+  </div>
+</section>
+
+
+<!-- CTA FINAL -->
+<section style="padding:5rem 3rem;text-align:center;position:relative;">
+  <div style="text-align:center;max-width:600px;margin:0 auto;">
+    <p style="font-size:16px;color:var(--text-dim);line-height:2;margin-bottom:.5rem;">Operar en solitario es la norma. Aurum nace para cambiar eso.</p>
+    <p style="font-family:'Cormorant Garamond',serif;font-size:24px;color:var(--gold-dim);font-style:italic;margin-bottom:2.5rem;">¿Por qué no compartir el camino?</p>
+    <h2 style="font-family:'Cormorant Garamond',serif;font-size:36px;color:var(--text);margin-bottom:1rem;">¿Cuántos trades llevas en XAU/USD?</h2>
+    <p style="font-size:18px;color:var(--gold-dim);font-style:italic;margin-bottom:.8rem;">¿Sabes en qué horas ganas, en cuáles pierdes, y por qué?</p>
+    <p style="font-size:18px;color:var(--gold-dim);font-style:italic;margin-bottom:1.5rem;">¿Operas con estrategia o improvisas?</p>
+    <p style="font-size:15px;color:var(--text-muted);line-height:1.9;margin-bottom:2rem;">Aurum lee tu historial y te lo muestra. Sin interpretación — solo tus datos.</p>
+    <div class="btn-outline" onclick="irA('evalua')">✦ Evalúame — 33€</div>
+  </div>
+</section>
+
 </div>
 
+<!-- PÁGINA: EL PROCESO (PACKS) -->
+<div id="page-packs" class="page-content" style="display:none;">
+<!-- ACCESS MSG -->
+<div id="access-msg" style="display:none;background:#C9A84C0A;border:1px solid var(--border-gold);border-left:3px solid var(--gold);padding:1rem 1.5rem;margin:2rem 3rem 0;">
+  <div style="font-size:13px;letter-spacing:.3em;text-transform:uppercase;color:var(--gold);margin-bottom:.3rem;">✦ Acceso exclusivo</div>
+  <div style="font-size:16px;color:var(--text-dim);line-height:1.7;">Mi proceso y Mi gestión son exclusivos para usuarios con Camino activo. Elige el tuyo y únete al proceso.</div>
+</div>
 
 <!-- ETAPAS -->
 <section style="padding:4rem 3rem;border-bottom:1px solid var(--border);">
@@ -399,119 +384,125 @@
 </div>
 
 
-<!-- EL MARCO -->
-<section style="padding:4rem 3rem;border-bottom:1px solid var(--border);max-width:900px;margin:0 auto;">
-  <div style="text-align:center;margin-bottom:3rem;">
-    <span class="tag" style="display:block;margin-bottom:1rem;">Los límites</span>
-    <h2 style="font-family:'Cormorant Garamond',serif;font-size:42px;color:var(--text);">El marco</h2>
-  </div>
-
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;">
-
-    <div style="padding:2rem;border:1px solid var(--border);background:var(--bg2);border-left:2px solid var(--border);">
-      <div style="font-size:13px;letter-spacing:.3em;text-transform:uppercase;color:var(--text-muted);margin-bottom:1rem;">Hasta la etapa 2</div>
-      <p style="font-size:15px;color:var(--text-dim);line-height:1.9;">
-        Aurum define el marco. No como imposición, sino como punto de partida para quien aún no tiene datos suficientes para definir el suyo.
-      </p>
-    </div>
-
-    <div style="padding:2rem;border:1px solid var(--border-gold);background:var(--bg2);border-left:2px solid var(--gold);position:relative;">
-      <div style="position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--gold-glow),transparent);"></div>
-      <div style="font-size:13px;letter-spacing:.3em;text-transform:uppercase;color:var(--gold);margin-bottom:1rem;">A partir de la etapa 2</div>
-      <p style="font-size:15px;color:var(--text-dim);line-height:1.9;">
-        Tú construyes el tuyo. Con coherencia, con datos propios y con la conciencia de lo que ya has demostrado que funciona.
-      </p>
-    </div>
-
-  </div>
-
-  <div style="text-align:center;margin-top:2rem;padding:1.5rem;border:1px solid var(--border);background:var(--bg2);">
-    <p style="font-size:16px;color:var(--text-muted);font-style:italic;line-height:1.9;">
-      "En Aurum no hay reglas impuestas. Hay un camino que cada trader termina trazando con sus propios datos."
+<!-- QUÉ ES AURUM -->
+<section style="padding:4rem 3rem;text-align:center;border-bottom:1px solid var(--border);">
+  <div style="max-width:680px;margin:0 auto;">
+    <span class="tag" style="display:block;margin-bottom:1.5rem;">XAU / USD</span>
+    <h2 style="font-family:'Cormorant Garamond',serif;font-size:42px;color:var(--gold-bright);text-shadow:0 0 30px var(--gold-glow);margin-bottom:1.5rem;">Trading de oro con proceso. Sin gurús, sin señales.</h2>
+    <p style="font-size:16px;color:var(--text-dim);line-height:2;">
+      Aurum Velare es un proceso de análisis, disciplina y evolución continua centrado exclusivamente en XAU/USD.
+      No por simplificar, sino porque la profundidad real requiere foco absoluto.
+    </p>
+    <div style="width:40px;height:1px;background:var(--gold);margin:2rem auto;opacity:.4;"></div>
+    <p style="font-size:15px;color:var(--text-muted);font-style:italic;line-height:2;">
+      "El mercado no miente. Tú tampoco deberías."
     </p>
   </div>
 </section>
 
 
-<!-- RODERAS -->
+<!-- 7 ANIMALES -->
 <section style="padding:4rem 3rem;border-bottom:1px solid var(--border);">
-  <div style="max-width:700px;margin:0 auto;">
-    <div style="width:1px;height:40px;background:linear-gradient(to bottom,transparent,var(--border-gold));margin:0 auto 3rem;"></div>
-
-    <div style="font-family:'Cormorant Garamond',serif;font-size:36px;color:var(--gold-bright);text-shadow:0 0 20px var(--gold-glow);line-height:1.2;margin-bottom:2rem;text-align:center;">
-      Roderas no es el que llegó.<br>
-      <em>Es el que nunca abandonó.</em>
-    </div>
-
-    <div style="display:flex;flex-direction:column;gap:1.2rem;">
-      <p style="font-size:15px;color:var(--text-muted);line-height:2;">
-        Aurum no nació de la rentabilidad. Nació de años de proceso real — errores registrados, patrones descubiertos lentamente, ciclos completados sin atajos.
-      </p>
-      <p style="font-size:15px;color:var(--text-muted);line-height:2;">
-        Roderas lleva desde 2018 en el camino. No como alumno. Como constructor. Desarrollando las herramientas, el análisis y la comunidad que él mismo hubiera necesitado al principio.
-      </p>
-      <p style="font-size:15px;color:var(--text-dim);line-height:2;">
-        Cada persona tiene su tiempo. El tuyo no será el suyo. Pero sí tendrás algo que él no tuvo — un proceso estructurado, datos reales y gente que entiende lo que significa estar en el mismo camino.
-      </p>
-    </div>
-
-    <div style="width:1px;height:40px;background:linear-gradient(to bottom,var(--border-gold),transparent);margin:3rem auto 0;"></div>
-  </div>
-</section>
-
-
-<!-- CTA FINAL -->
-<section style="padding:5rem 3rem;text-align:center;position:relative;">
-
-  <h2 style="font-family:'Cormorant Garamond',serif;font-size:52px;font-weight:300;color:#F0E8D4;margin-bottom:1rem;">
-    ¿Cuánto tiempo llevas operando XAU/USD sin un proceso real?
-  </h2>
-
-  <p style="font-size:16px;color:var(--text-dim);max-width:480px;margin:0 auto 1.5rem;line-height:2;">
-    El acceso es limitado. No por exclusividad — porque acompañar bien a alguien requiere espacio real.
-  </p>
-
-  <!-- Exclusividad -->
-  <div style="display:inline-flex;align-items:center;gap:.8rem;padding:.6rem 1.5rem;border:1px solid var(--border-gold);background:var(--gold-glow);margin-bottom:2.5rem;">
-    <div style="width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:pulse 2s infinite;"></div>
-    <span style="font-size:13px;letter-spacing:.25em;text-transform:uppercase;color:var(--gold-dim);">Acceso por tandas · Seguimiento real</span>
-  </div>
-
-  <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;margin-bottom:3rem;">
-    <div class="btn-gold" onclick="irA('packs')">Ver los packs</div>
-    <div class="btn-outline" onclick="irA('evalua')">✦ Evalúame — 33€</div>
-  </div>
-
-  <!-- Lista de espera -->
-  <div style="max-width:460px;margin:0 auto;padding:2rem;border:1px solid var(--border-gold);background:var(--bg2);position:relative;">
-    <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>
-    <div style="font-family:'Cormorant Garamond',serif;font-size:26px;color:var(--gold-bright);line-height:1.2;margin-bottom:1rem;">Aurum crece despacio.<br><em>Para que el seguimiento sea real.</em></div>
-    <p style="font-size:16px;color:var(--text-muted);margin-bottom:1.5rem;line-height:1.9;">
-      No abrimos plazas de forma masiva. Cuando hay espacio para acompañar bien a alguien, lo anunciamos. Solicita la tuya y te avisamos.
+  <div style="text-align:center;margin-bottom:4rem;">
+    <span class="tag" style="display:block;margin-bottom:1rem;">La estructura</span>
+    <h2 style="font-family:'Cormorant Garamond',serif;font-size:42px;color:var(--text);">7 animales. Un solo camino.</h2>
+    <p style="font-size:15px;color:var(--text-muted);margin-top:.8rem;max-width:500px;margin-left:auto;margin-right:auto;line-height:1.9;">
+      No existe un único perfil de trader. Existen formas distintas de ver, esperar y actuar.<br>Aquí cada una tiene nombre.
     </p>
-    <div style="display:flex;gap:.5rem;">
-      <input
-        type="email"
-        placeholder="tu@email.com"
-        style="flex:1;background:#060810;border:1px solid var(--border);padding:.7rem 1rem;font-size:15px;color:var(--text);font-family:'Outfit',sans-serif;outline:none;transition:border-color .3s;"
-        onfocus="this.style.borderColor='var(--gold)'"
-        onblur="this.style.borderColor='var(--border)'"
-        id="waitlist-email"
-        onkeydown="if(event.key==='Enter')unirseListaEspera()"
-      >
-      <div onclick="unirseListaEspera()" style="padding:.7rem 1.2rem;border:1px solid var(--border-gold);background:var(--gold-glow);font-size:13px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold-bright);cursor:pointer;white-space:nowrap;transition:all .3s;" onmouseover="this.style.background='#C9A84C18'" onmouseout="this.style.background='var(--gold-glow)'">
-        Apuntarme →
+  </div>
+
+  <div style="max-width:980px;margin:0 auto;">
+
+    <!-- ÁGUILA -->
+    <div style="display:flex;justify-content:center;margin-bottom:2rem;">
+      <div onclick="abrirAnimal('aguila')" style="width:300px;background:var(--bg2);border:1px solid var(--border-gold);padding:2rem 1.5rem;text-align:center;position:relative;cursor:pointer;transition:border-color .2s;" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border-gold)'">
+        <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>
+        <div style="width:1px;height:28px;background:linear-gradient(to bottom,transparent,var(--gold));margin:0 auto 1.2rem;"></div>
+        <div style="font-size:13px;letter-spacing:.45em;text-transform:uppercase;color:var(--gold-bright);margin-bottom:.4rem;">Águila</div>
+        <div style="font-size:10px;letter-spacing:.25em;text-transform:uppercase;color:var(--text-muted);margin-bottom:1.2rem;">Visión · Silencio</div>
+        <p style="font-size:15px;color:var(--text-muted);line-height:1.9;">No opera. Observa. Creó Aurum para que cada animal encuentre su propio camino.</p>
+        <div style="font-size:10px;color:var(--gold-dim);margin-top:.8rem;letter-spacing:.05em;">Leer su historia →</div>
       </div>
     </div>
-    <div id="waitlist-msg" style="font-size:14px;margin-top:.8rem;min-height:18px;text-align:center;"></div>
-  </div>
 
+    <div style="display:flex;justify-content:center;margin-bottom:1rem;">
+      <div style="width:1px;height:20px;background:linear-gradient(to bottom,var(--border-gold),var(--border));"></div>
+    </div>
+
+    <!-- FILA 2 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem;">
+
+      <div onclick="abrirAnimal('hormiga')" style="background:var(--bg2);border:1px solid var(--border);padding:1.8rem 1.5rem;text-align:center;cursor:pointer;transition:border-color .2s;" onmouseover="this.style.borderColor='var(--gold-dim)'" onmouseout="this.style.borderColor='var(--border)'">
+        <div style="font-size:13px;letter-spacing:.45em;text-transform:uppercase;color:var(--gold);margin-bottom:.4rem;">Hormiga</div>
+        <div style="font-size:10px;letter-spacing:.25em;text-transform:uppercase;color:var(--text-muted);margin-bottom:1.2rem;">Disciplina · Repetición</div>
+        <p style="font-size:15px;color:var(--text-muted);line-height:1.9;">Construye trade tras trade, sin prisa, sin necesidad de destacar.</p>
+        <div style="font-size:10px;color:var(--gold-dim);margin-top:.8rem;">Leer su historia →</div>
+      </div>
+
+      <div onclick="abrirAnimal('leon')" style="background:var(--bg2);border:1px solid var(--border-gold);padding:1.8rem 1.5rem;text-align:center;position:relative;cursor:pointer;transition:border-color .2s;" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border-gold)'">
+        <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>
+        <div style="font-size:13px;letter-spacing:.45em;text-transform:uppercase;color:var(--gold-bright);margin-bottom:.4rem;">León</div>
+        <div style="font-size:10px;letter-spacing:.25em;text-transform:uppercase;color:var(--text-muted);margin-bottom:1.2rem;">Presencia · Convicción</div>
+        <p style="font-size:15px;color:var(--text-muted);line-height:1.9;">Observa, espera y cuando el momento aparece — actúa sin dudar.</p>
+        <div style="font-size:10px;color:var(--gold-dim);margin-top:.8rem;">Leer su historia →</div>
+      </div>
+
+      <div onclick="abrirAnimal('elefante')" style="background:var(--bg2);border:1px solid var(--border);padding:1.8rem 1.5rem;text-align:center;cursor:pointer;transition:border-color .2s;" onmouseover="this.style.borderColor='var(--gold-dim)'" onmouseout="this.style.borderColor='var(--border)'">
+        <div style="font-size:13px;letter-spacing:.45em;text-transform:uppercase;color:var(--gold);margin-bottom:.4rem;">Elefante</div>
+        <div style="font-size:10px;letter-spacing:.25em;text-transform:uppercase;color:var(--text-muted);margin-bottom:1.2rem;">Memoria · Control emocional</div>
+        <p style="font-size:15px;color:var(--text-muted);line-height:1.9;">Recuerda cada error y no lo repite. La mala racha es información.</p>
+        <div style="font-size:10px;color:var(--gold-dim);margin-top:.8rem;">Leer su historia →</div>
+      </div>
+
+    </div>
+
+    <!-- FILA 3 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;max-width:660px;margin:0 auto 1rem;">
+
+      <div onclick="abrirAnimal('oso')" style="background:var(--bg2);border:1px solid var(--border);padding:1.8rem 1.5rem;text-align:center;cursor:pointer;transition:border-color .2s;" onmouseover="this.style.borderColor='var(--gold-dim)'" onmouseout="this.style.borderColor='var(--border)'">
+        <div style="font-size:13px;letter-spacing:.45em;text-transform:uppercase;color:var(--gold);margin-bottom:.4rem;">Oso</div>
+        <div style="font-size:10px;letter-spacing:.25em;text-transform:uppercase;color:var(--text-muted);margin-bottom:1.2rem;">Paciencia · Protección</div>
+        <p style="font-size:15px;color:var(--text-muted);line-height:1.9;">No operar también es una posición. Proteger el capital es una decisión.</p>
+        <div style="font-size:10px;color:var(--gold-dim);margin-top:.8rem;">Leer su historia →</div>
+      </div>
+
+      <div onclick="abrirAnimal('toro')" style="background:var(--bg2);border:1px solid var(--border);padding:1.8rem 1.5rem;text-align:center;cursor:pointer;transition:border-color .2s;" onmouseover="this.style.borderColor='var(--gold-dim)'" onmouseout="this.style.borderColor='var(--border)'">
+        <div style="font-size:13px;letter-spacing:.45em;text-transform:uppercase;color:var(--gold);margin-bottom:.4rem;">Toro</div>
+        <div style="font-size:10px;letter-spacing:.25em;text-transform:uppercase;color:var(--text-muted);margin-bottom:1.2rem;">Expansión · Momentum</div>
+        <p style="font-size:15px;color:var(--text-muted);line-height:1.9;">No persigue el movimiento. Avanza cuando la estructura acompaña.</p>
+        <div style="font-size:10px;color:var(--gold-dim);margin-top:.8rem;">Leer su historia →</div>
+      </div>
+
+    </div>
+
+    <!-- FILA 4: Lobo -->
+    <div style="display:flex;justify-content:center;">
+      <div onclick="abrirAnimal('lobo')" style="width:300px;background:var(--bg2);border:1px solid var(--border);padding:1.8rem 1.5rem;text-align:center;cursor:pointer;transition:border-color .2s;" onmouseover="this.style.borderColor='var(--gold-dim)'" onmouseout="this.style.borderColor='var(--border)'">
+        <div style="font-size:13px;letter-spacing:.45em;text-transform:uppercase;color:var(--gold);margin-bottom:.4rem;">Lobo</div>
+        <div style="font-size:10px;letter-spacing:.25em;text-transform:uppercase;color:var(--text-muted);margin-bottom:1.2rem;">Instinto · Adaptación</div>
+        <p style="font-size:15px;color:var(--text-muted);line-height:1.9;">No sigue a la manada. Construye su proceso en silencio.</p>
+        <div style="font-size:10px;color:var(--gold-dim);margin-top:.8rem;">Leer su historia →</div>
+      </div>
+    </div>
+
+  </div>
 </section>
 
+<!-- MODAL ANIMALES -->
+<div id="modal-animal" style="display:none;position:fixed;inset:0;background:#080A12EE;z-index:500;display:none;align-items:center;justify-content:center;overflow-y:auto;padding:2rem;">
+  <div style="background:var(--bg2);border:1px solid var(--border-gold);max-width:580px;width:100%;padding:3rem 2.5rem;position:relative;margin:auto;">
+    <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>
+    <div onclick="cerrarAnimal()" style="position:absolute;top:1rem;right:1rem;cursor:pointer;color:var(--text-muted);font-size:18px;opacity:.5;line-height:1;">✕</div>
+    <div id="animal-nombre" style="font-family:'Cormorant Garamond',serif;font-size:28px;color:var(--gold-bright);text-align:center;letter-spacing:.35em;text-transform:uppercase;margin-bottom:.4rem;"></div>
+    <div id="animal-nick" style="font-size:11px;color:var(--gold);letter-spacing:.2em;text-transform:uppercase;text-align:center;margin-bottom:.3rem;"></div>
+    <div id="animal-tag" style="font-size:10px;color:var(--text-muted);letter-spacing:.2em;text-transform:uppercase;text-align:center;margin-bottom:2rem;"></div>
+    <div style="width:30px;height:1px;background:var(--border-gold);margin:0 auto 2rem;"></div>
+    <div id="animal-body" style="font-size:15px;color:var(--text-muted);line-height:2;margin-bottom:2rem;"></div>
+    <div id="animal-cita" style="border-left:2px solid var(--border-gold);padding-left:1.2rem;font-family:'Cormorant Garamond',serif;font-size:18px;color:var(--gold-dim);font-style:italic;line-height:1.8;"></div>
+    <div onclick="cerrarAnimal()" style="margin-top:2rem;font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--text-muted);cursor:pointer;text-align:center;">← Volver</div>
+  </div>
 </div>
 
-<!-- PÁGINA: EL PROCESO (PACKS) -->
-<div id="page-packs" class="page-content" style="display:none;">
 <!-- CÓMO FUNCIONA -->
 <section style="padding:5rem 3rem 4rem;border-bottom:1px solid var(--border);">
   <div style="text-align:center;margin-bottom:4rem;">
@@ -558,12 +549,6 @@
 </section>
 
 
-<!-- ACCESS MSG -->
-<div id="access-msg" style="display:none;background:#C9A84C0A;border:1px solid var(--border-gold);border-left:3px solid var(--gold);padding:1rem 1.5rem;margin:2rem 3rem 0;">
-  <div style="font-size:13px;letter-spacing:.3em;text-transform:uppercase;color:var(--gold);margin-bottom:.3rem;">✦ Acceso exclusivo</div>
-  <div style="font-size:16px;color:var(--text-dim);line-height:1.7;">Mi proceso y Mi gestión son exclusivos para usuarios con pack activo. Elige tu camino y únete al proceso.</div>
-</div>
-
 
 <!-- LOS 4 PACKS -->
 <section id="seccion-packs" style="padding:4rem 3rem;border-bottom:1px solid var(--border);">
@@ -583,17 +568,16 @@
       <div style="font-size:13px;color:var(--text-muted);margin-bottom:1.5rem;padding-bottom:1.5rem;border-bottom:1px solid var(--border);">22 días para vivir el proceso desde dentro antes de decidir.</div>
 
       <div style="display:flex;flex-direction:column;gap:.7rem;flex:1;margin-bottom:1.5rem;">
-        <div style="display:flex;align-items:flex-start;gap:.7rem;font-size:15px;color:var(--text-muted);"><span style="color:var(--gold);flex-shrink:0;margin-top:2px;">✦</span>3 cuentas MT5 activas</div>
-        <div style="display:flex;align-items:flex-start;gap:.7rem;font-size:15px;color:var(--text-muted);"><span style="color:var(--gold);flex-shrink:0;margin-top:2px;">✦</span>Mi proceso y Mi gestión</div>
-        <div style="display:flex;align-items:flex-start;gap:.7rem;font-size:15px;color:var(--text-muted);"><span style="color:var(--gold);flex-shrink:0;margin-top:2px;">✦</span>Sala de tu animal</div>
-        <div style="display:flex;align-items:flex-start;gap:.7rem;font-size:15px;color:var(--text-muted);"><span style="color:var(--gold);flex-shrink:0;margin-top:2px;">✦</span>Retos con OZT</div>
+        <div style="display:flex;align-items:flex-start;gap:.7rem;font-size:15px;color:var(--text-muted);"><span style="color:var(--gold);flex-shrink:0;margin-top:2px;">✦</span>0 a 1.000 trades — fase de descubrimiento</div>
+        <div style="display:flex;align-items:flex-start;gap:.7rem;font-size:15px;color:var(--text-muted);"><span style="color:var(--gold);flex-shrink:0;margin-top:2px;">✦</span>Mi proceso y Mi gestión — historiales externos</div>
+        <div style="display:flex;align-items:flex-start;gap:.7rem;font-size:15px;color:var(--text-muted);"><span style="color:var(--gold);flex-shrink:0;margin-top:2px;">✦</span>Sala abierta — acceso sin sala de animal</div>
       </div>
 
       <div style="padding:.7rem;border:1px solid var(--border);background:var(--bg3);font-size:14px;color:var(--text-muted);line-height:1.7;margin-bottom:1.5rem;">
         Al vencer los 22 días tienes <strong style="color:var(--gold-dim);">24 horas</strong> para entrar en cualquier pack con un <strong style="color:var(--gold-dim);">10% de descuento.</strong>
       </div>
 
-      <div onclick="solicitarPack('umbral')" class="btn-outline" style="display:block;text-align:center;margin-top:auto;">Comenzar Umbral →</div>
+      <div onclick="solicitarPack('umbral')" class="btn-outline" style="display:block;text-align:center;margin-top:auto;">Umbral →</div>
     </div>
 
     <!-- RAÍZ -->
@@ -604,24 +588,22 @@
       <div style="font-size:13px;color:var(--text-muted);margin-bottom:1.5rem;padding-bottom:1.5rem;border-bottom:1px solid var(--border);">El comienzo real del proceso. Todo lo que necesitas para construir tu base.</div>
 
       <div style="display:flex;flex-direction:column;gap:.7rem;flex:1;margin-bottom:1.5rem;">
-        <div style="display:flex;align-items:flex-start;gap:.7rem;font-size:15px;color:var(--text-muted);"><span style="color:var(--gold);flex-shrink:0;margin-top:2px;">✦</span>3 cuentas MT5 activas</div>
-        <div style="display:flex;align-items:flex-start;gap:.7rem;font-size:15px;color:var(--text-muted);"><span style="color:var(--gold);flex-shrink:0;margin-top:2px;">✦</span>Mi proceso y Mi gestión</div>
-        <div style="display:flex;align-items:flex-start;gap:.7rem;font-size:15px;color:var(--text-muted);"><span style="color:var(--gold);flex-shrink:0;margin-top:2px;">✦</span>Sala de tu animal</div>
+        <div style="display:flex;align-items:flex-start;gap:.7rem;font-size:15px;color:var(--text-muted);"><span style="color:var(--gold);flex-shrink:0;margin-top:2px;">✦</span>1.000 a 3.333 trades — construcción del proceso</div>
+        <div style="display:flex;align-items:flex-start;gap:.7rem;font-size:15px;color:var(--text-muted);"><span style="color:var(--gold);flex-shrink:0;margin-top:2px;">✦</span>Mi proceso y Mi gestión — 3 cuentas personales Aurum</div>
+        <div style="display:flex;align-items:flex-start;gap:.7rem;font-size:15px;color:var(--text-muted);"><span style="color:var(--gold);flex-shrink:0;margin-top:2px;">✦</span>Sala de tu animal y sala abierta</div>
         <div style="display:flex;align-items:flex-start;gap:.7rem;font-size:15px;color:var(--text-muted);"><span style="color:var(--gold);flex-shrink:0;margin-top:2px;">✦</span>Retos con OZT</div>
-        <div style="display:flex;align-items:flex-start;gap:.7rem;font-size:15px;color:var(--text-muted);"><span style="color:var(--gold);flex-shrink:0;margin-top:2px;">✦</span>Acceso vitalicio al proceso</div>
       </div>
 
-      <div onclick="solicitarPack('raiz')" class="btn-outline" style="display:block;text-align:center;margin-top:auto;">Entrar en Raíz →</div>
+      <div onclick="solicitarPack('raiz')" class="btn-outline" style="display:block;text-align:center;margin-top:auto;">Raíz →</div>
     </div>
 
     <!-- SENDA (destacado) -->
     <div style="background:var(--bg2);border:1px solid var(--border-gold);padding:2rem 1.5rem;position:relative;display:flex;flex-direction:column;">
       <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>
-      <div style="position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--gold);color:var(--bg);font-size:10px;padding:.2rem 1rem;letter-spacing:.2em;text-transform:uppercase;white-space:nowrap;">Más elegido</div>
 
       <div style="font-size:10px;letter-spacing:.4em;text-transform:uppercase;color:var(--gold);margin-bottom:.5rem;">Proceso · Pago único</div>
       <div style="font-family:'Cormorant Garamond',serif;font-size:32px;color:var(--gold-bright);margin-bottom:.3rem;">Senda</div>
-      <div style="font-family:'Cormorant Garamond',serif;font-size:52px;color:var(--gold-bright);text-shadow:0 0 20px var(--gold-glow);line-height:1;margin-bottom:.3rem;">222€</div>
+      <div style="font-family:'Cormorant Garamond',serif;font-size:52px;color:var(--gold-bright);text-shadow:0 0 20px var(--gold-glow);line-height:1;margin-bottom:.3rem;">333€</div>
       <div style="font-size:13px;color:var(--text-muted);margin-bottom:1.5rem;padding-bottom:1.5rem;border-bottom:1px solid var(--border-gold);">Ya estás dentro y avanzas. El análisis mensual revela lo que los números solos no dicen.</div>
 
       <div style="display:flex;flex-direction:column;gap:.7rem;flex:1;margin-bottom:1.5rem;">
@@ -630,14 +612,14 @@
         <div style="display:flex;align-items:flex-start;gap:.7rem;font-size:15px;color:var(--text-dim);"><span style="color:var(--gold-bright);flex-shrink:0;margin-top:2px;">✦</span><span>Unamos y venzamos — trabajo colectivo del equipo en sala</span></div>
       </div>
 
-      <div onclick="solicitarPack('senda')" class="btn-gold" style="display:block;text-align:center;margin-top:auto;">Entrar en Senda →</div>
+      <div onclick="solicitarPack('senda')" class="btn-outline" style="display:block;text-align:center;margin-top:auto;">Senda →</div>
     </div>
 
     <!-- CIMA -->
     <div style="background:var(--bg2);border:1px solid var(--border);padding:2rem 1.5rem;position:relative;display:flex;flex-direction:column;">
       <div style="font-size:10px;letter-spacing:.4em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.5rem;">Completo · Pago único</div>
       <div style="font-family:'Cormorant Garamond',serif;font-size:32px;color:var(--text);margin-bottom:.3rem;">Cima</div>
-      <div style="font-family:'Cormorant Garamond',serif;font-size:52px;color:var(--gold);line-height:1;margin-bottom:.3rem;">333€</div>
+      <div style="font-family:'Cormorant Garamond',serif;font-size:52px;color:var(--gold);line-height:1;margin-bottom:.3rem;">555€</div>
       <div style="font-size:13px;color:var(--text-muted);margin-bottom:1.5rem;padding-bottom:1.5rem;border-bottom:1px solid var(--border);">Acceso total al proceso. Sin límites de sala, sin barreras.</div>
 
       <div style="display:flex;flex-direction:column;gap:.7rem;flex:1;margin-bottom:1.5rem;">
@@ -646,9 +628,22 @@
         <div style="display:flex;align-items:flex-start;gap:.7rem;font-size:15px;color:var(--text-dim);"><span style="color:var(--gold-bright);flex-shrink:0;margin-top:2px;">✦</span><span>Historial completo de reflexiones y análisis del equipo</span></div>
       </div>
 
-      <div onclick="solicitarPack('cima')" class="btn-outline" style="display:block;text-align:center;margin-top:auto;">Entrar en Cima →</div>
+      <div onclick="solicitarPack('cima')" class="btn-outline" style="display:block;text-align:center;margin-top:auto;">Cima →</div>
     </div>
 
+  </div>
+
+  <div style="background:var(--bg2);border:1px solid var(--border-gold);padding:2rem 1.5rem;position:relative;display:flex;flex-direction:column;margin-top:1rem;max-width:1200px;margin-left:auto;margin-right:auto;">
+    <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;">
+      <div>
+        <div style="font-size:10px;letter-spacing:.4em;text-transform:uppercase;color:var(--gold);margin-bottom:.5rem;">Exclusivo · Pago único</div>
+        <div style="font-family:'Cormorant Garamond',serif;font-size:40px;color:var(--gold-bright);text-shadow:0 0 20px var(--gold-glow);">✦ VIP</div>
+        <div style="font-family:'Cormorant Garamond',serif;font-size:52px;color:var(--gold-bright);line-height:1;">777€</div>
+        <div style="font-size:13px;color:var(--text-muted);margin-top:.5rem;max-width:500px;line-height:1.8;">Acceso completo al proceso más acompañamiento directo del Águila. Para quien quiere el proceso con seguimiento personal.</div>
+      </div>
+      <div onclick="solicitarPack('vip')" class="btn-gold" style="white-space:nowrap;padding:1rem 2rem;font-size:15px;">Próximamente →</div>
+    </div>
   </div>
 
   <!-- Nota entorno simulado -->
@@ -3065,6 +3060,138 @@ document.addEventListener('DOMContentLoaded', function() {
 
   </div>
 </div>
+
+<!-- PÁGINAS LEGALES AURUM VELARE -->
+<!-- Añadir al final de index.html, antes de los scripts -->
+
+<!-- PÁGINA: AVISO LEGAL -->
+<div id="page-legal" class="page-content" style="display:none;">
+  <div style="max-width:800px;margin:0 auto;padding:5rem 2rem 4rem;">
+    <div onclick="history.back()" style="font-size:13px;color:var(--text-muted);cursor:pointer;margin-bottom:2rem;">← Volver</div>
+    <h1 style="font-family:'Cormorant Garamond',serif;font-size:36px;color:var(--gold-bright);margin-bottom:.5rem;">Aviso Legal</h1>
+    <p style="font-size:11px;color:var(--text-muted);margin-bottom:3rem;">Última actualización: junio 2026</p>
+
+    <div style="font-size:13px;color:var(--text-muted);line-height:2;">
+
+      <p style="font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold-dim);margin-bottom:.8rem;">Identificación del titular</p>
+      <p>Titular: Alberto Fernández Hidalgo<br>
+      NIF: 71433750M<br>
+      Domicilio: C/ Las Huertas 5, CP 24288, Villarejo de Órbigo, León<br>
+      Email: roderastrader@gmail.com<br>
+      Sitio web: aurumvelare.com</p>
+
+      <div style="width:100%;height:1px;background:var(--border);margin:2rem 0;"></div>
+
+      <p style="font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold-dim);margin-bottom:.8rem;">Objeto del sitio web</p>
+      <p>Aurum Velare es una plataforma digital destinada al análisis, observación, organización y seguimiento de datos operativos registrados por los usuarios dentro de entornos simulados y herramientas de evaluación. La plataforma tiene una finalidad tecnológica, analítica y comunitaria. Aurum Velare no constituye un servicio de inversión, una entidad financiera, un broker, una plataforma de intermediación financiera ni un servicio de gestión de capital.</p>
+
+      <div style="width:100%;height:1px;background:var(--border);margin:2rem 0;"></div>
+
+      <p style="font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold-dim);margin-bottom:.8rem;">Propiedad intelectual</p>
+      <p>Todos los contenidos presentes en Aurum Velare, incluyendo textos, diseños, interfaces, gráficos, logotipos, marcas, iconos, software, bases de datos y elementos visuales son propiedad del titular o se utilizan bajo autorización legítima. Queda prohibida la reproducción, distribución, modificación o explotación de dichos contenidos sin autorización expresa.</p>
+
+      <div style="width:100%;height:1px;background:var(--border);margin:2rem 0;"></div>
+
+      <p style="font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold-dim);margin-bottom:.8rem;">Responsabilidad</p>
+      <p>Aurum Velare realiza esfuerzos razonables para mantener la información actualizada y el servicio disponible. Sin embargo, no garantiza la ausencia de errores técnicos, interrupciones temporales o incidencias derivadas de terceros proveedores. El titular no será responsable de los daños derivados del uso indebido de la plataforma por parte de los usuarios.</p>
+
+      <div style="width:100%;height:1px;background:var(--border);margin:2rem 0;"></div>
+
+      <p style="font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold-dim);margin-bottom:.8rem;">Legislación aplicable</p>
+      <p>Las presentes condiciones se regirán por la legislación española. Cualquier controversia será sometida a los juzgados y tribunales que correspondan conforme a la normativa aplicable.</p>
+
+    </div>
+  </div>
+</div>
+
+<!-- PÁGINA: PRIVACIDAD -->
+<div id="page-privacidad" class="page-content" style="display:none;">
+  <div style="max-width:800px;margin:0 auto;padding:5rem 2rem 4rem;">
+    <div onclick="history.back()" style="font-size:13px;color:var(--text-muted);cursor:pointer;margin-bottom:2rem;">← Volver</div>
+    <h1 style="font-family:'Cormorant Garamond',serif;font-size:36px;color:var(--gold-bright);margin-bottom:.5rem;">Política de Privacidad y Cookies</h1>
+    <p style="font-size:11px;color:var(--text-muted);margin-bottom:3rem;">Última actualización: junio 2026</p>
+
+    <div style="font-size:13px;color:var(--text-muted);line-height:2;">
+
+      <p style="font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold-dim);margin-bottom:.8rem;">Responsable del tratamiento</p>
+      <p>Alberto Fernández Hidalgo · roderastrader@gmail.com</p>
+
+      <div style="width:100%;height:1px;background:var(--border);margin:2rem 0;"></div>
+
+      <p style="font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold-dim);margin-bottom:.8rem;">Datos que se recopilan</p>
+      <p>Nombre o alias de usuario, dirección de correo electrónico, datos de autenticación y acceso, información introducida voluntariamente, estadísticas generadas dentro de la plataforma, datos técnicos de navegación y direcciones IP.</p>
+
+      <div style="width:100%;height:1px;background:var(--border);margin:2rem 0;"></div>
+
+      <p style="font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold-dim);margin-bottom:.8rem;">Finalidad</p>
+      <p>Gestionar cuentas de usuario, permitir el acceso a funcionalidades, mantener la seguridad del sistema, prevenir abusos, atender solicitudes de soporte, mejorar la experiencia de uso y cumplir obligaciones legales.</p>
+
+      <div style="width:100%;height:1px;background:var(--border);margin:2rem 0;"></div>
+
+      <p style="font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold-dim);margin-bottom:.8rem;">Proveedores tecnológicos</p>
+      <p>Supabase (infraestructura y autenticación), Vercel (alojamiento), Stripe (procesamiento de pagos) y Google (servicios analíticos). Estos proveedores acceden únicamente a la información necesaria para sus servicios.</p>
+
+      <div style="width:100%;height:1px;background:var(--border);margin:2rem 0;"></div>
+
+      <p style="font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold-dim);margin-bottom:.8rem;">Derechos del usuario</p>
+      <p>Acceso, rectificación, supresión, oposición, limitación y portabilidad. Solicitudes a: roderastrader@gmail.com</p>
+
+      <div style="width:100%;height:1px;background:var(--border);margin:2rem 0;"></div>
+
+      <p style="font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold-dim);margin-bottom:.8rem;">Cookies</p>
+      <p>Aurum Velare utiliza cookies técnicas necesarias para autenticación y sesión, cookies analíticas para estadísticas agregadas, y cookies de pago gestionadas por Stripe. El usuario puede gestionar las cookies desde la configuración de su navegador.</p>
+
+    </div>
+  </div>
+</div>
+
+<!-- PÁGINA: CONDICIONES -->
+<div id="page-condiciones" class="page-content" style="display:none;">
+  <div style="max-width:800px;margin:0 auto;padding:5rem 2rem 4rem;">
+    <div onclick="history.back()" style="font-size:13px;color:var(--text-muted);cursor:pointer;margin-bottom:2rem;">← Volver</div>
+    <h1 style="font-family:'Cormorant Garamond',serif;font-size:36px;color:var(--gold-bright);margin-bottom:.5rem;">Condiciones de Uso</h1>
+    <p style="font-size:11px;color:var(--text-muted);margin-bottom:3rem;">Última actualización: junio 2026</p>
+
+    <div style="font-size:13px;color:var(--text-muted);line-height:2;">
+
+      <p style="font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold-dim);margin-bottom:.8rem;">Naturaleza de Aurum Velare</p>
+      <p>Aurum Velare es una herramienta digital de análisis, observación y seguimiento de información operativa. La plataforma permite registrar datos, visualizar métricas, estudiar patrones y participar en un entorno colaborativo basado en la interpretación de información.</p>
+
+      <div style="width:100%;height:1px;background:var(--border);margin:2rem 0;"></div>
+
+      <p style="font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold-dim);margin-bottom:.8rem;">Ausencia de servicios financieros</p>
+      <p>Aurum Velare no es un broker, no presta servicios de inversión, no gestiona capital de terceros, no ejecuta operaciones financieras, no realiza intermediación financiera, no ofrece asesoramiento financiero personalizado y no garantiza rentabilidades.</p>
+
+      <div style="width:100%;height:1px;background:var(--border);margin:2rem 0;"></div>
+
+      <p style="font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold-dim);margin-bottom:.8rem;">Responsabilidad del usuario</p>
+      <p>Cada usuario es plenamente responsable de las decisiones personales, económicas o financieras que adopte fuera de la plataforma. Aurum Velare no asume responsabilidad por pérdidas, ganancias o resultados derivados de decisiones tomadas por los usuarios.</p>
+
+      <div style="width:100%;height:1px;background:var(--border);margin:2rem 0;"></div>
+
+      <p style="font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold-dim);margin-bottom:.8rem;">Conducta en la comunidad</p>
+      <p>No se permitirá acoso, suplantación de identidad, manipulación fraudulenta de datos, publicación de contenido ilegal ni actividades destinadas a perjudicar a otros usuarios o a la plataforma.</p>
+
+      <div style="width:100%;height:1px;background:var(--border);margin:2rem 0;"></div>
+
+      <p style="font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold-dim);margin-bottom:.8rem;">Aceptación</p>
+      <p>El uso continuado de Aurum Velare implica la aceptación íntegra de las presentes condiciones.</p>
+
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER CON ENLACES LEGALES -->
+<!-- Añadir al final de cada page-content pública, o como footer global -->
+<footer style="border-top:1px solid var(--border);padding:2rem 3rem;text-align:center;margin-top:4rem;">
+  <div style="font-size:11px;color:var(--text-muted);letter-spacing:.1em;">
+    <span onclick="irA('legal')" style="cursor:pointer;text-decoration:underline;margin:0 1rem;">Aviso legal</span>
+    <span onclick="irA('privacidad')" style="cursor:pointer;text-decoration:underline;margin:0 1rem;">Privacidad y cookies</span>
+    <span onclick="irA('condiciones')" style="cursor:pointer;text-decoration:underline;margin:0 1rem;">Condiciones de uso</span>
+  </div>
+  <div style="font-size:10px;color:var(--text-muted);margin-top:.8rem;font-style:italic;opacity:.6;text-align:center;">Aurum Velare es una herramienta de análisis y simulación operativa. No gestiona capital ni ejecuta operaciones reales.</div>
+  <div style="font-size:10px;color:var(--text-muted);margin-top:.8rem;opacity:.5;">© 2026 Aurum Velare · Alberto Fernández Hidalgo</div>
+</footer>
 
 </body>
 </html>

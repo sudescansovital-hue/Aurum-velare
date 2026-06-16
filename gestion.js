@@ -1534,7 +1534,7 @@ async function cargarRetosActivos() {
       if (coste > 0 && saldoOZT < coste) {
         botonHTML = '<button disabled style="margin-top:1rem;padding:.5rem 1.2rem;background:transparent;border:1px solid var(--border);color:var(--text-muted);font-size:12px;letter-spacing:.1em;text-transform:uppercase;font-family:inherit;cursor:not-allowed;opacity:.5;">OZT insuficientes</button>';
       } else {
-        botonHTML = '<button onclick="unirseAReto(\'' + r.id + '\',' + coste + ')" style="margin-top:1rem;padding:.5rem 1.2rem;background:transparent;border:1px solid var(--gold);color:var(--gold);font-size:12px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;font-family:inherit;">' + btnLabel + '</button>';
+        botonHTML = '<button onclick="unirseAReto(\'' + r.id + '\')" style="margin-top:1rem;padding:.5rem 1.2rem;background:transparent;border:1px solid var(--gold);color:var(--gold);font-size:12px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;font-family:inherit;">' + btnLabel + '</button>';
       }
     }
 
@@ -1557,10 +1557,17 @@ async function cargarRetosActivos() {
   pintarRetosEnCalendario(retos);
 }
 
-async function unirseAReto(retoId, costeOzt) {
+async function unirseAReto(retoId) {
   var token = getToken();
   var email = usuarioActual.email;
-  costeOzt  = costeOzt || 0;
+
+  // Leer coste_ozt desde la BD para evitar depender del valor del HTML
+  var rReto = await supaGet('retos', 'id=eq.' + retoId + '&select=coste_ozt&limit=1', token);
+  if (rReto.error || !rReto.data || !rReto.data.length) {
+    showToast('Error al obtener datos del reto.');
+    return;
+  }
+  var costeOzt = Number(rReto.data[0].coste_ozt) || 0;
 
   // Verificar saldo antes de proceder
   if (costeOzt > 0 && (window.AURUM_OZT || 0) < costeOzt) {
@@ -1584,7 +1591,10 @@ async function unirseAReto(retoId, costeOzt) {
     if (!rOzt.error) {
       usuarioActual.ozt_gastados = nuevosGastados;
       window.usuarioActual       = usuarioActual;
+      window.AURUM_OZT           = (window.AURUM_OZT || 0) - costeOzt;
       if (typeof buildDashboardHero === 'function') buildDashboardHero();
+    } else {
+      showToast('Error al descontar OZT: ' + rOzt.error);
     }
   }
 

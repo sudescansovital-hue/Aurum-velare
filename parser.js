@@ -119,6 +119,8 @@ function _parsearMT5(raw, posicionesRow) {
   var colAp   = fechaIdxs[0] !== undefined ? fechaIdxs[0] : -1;
   var colCi   = fechaIdxs[1] !== undefined ? fechaIdxs[1] : -1;
   var colBen  = _colIdx(headers, ['beneficio', 'profit']);
+  var colCom  = _colIdx(headers, ['comisión', 'comision', 'commission']);
+  var colSwap = _colIdx(headers, ['swap']);
 
   for (var i = headerRow + 1; i < raw.length; i++) {
     var row = raw[i] || [];
@@ -135,11 +137,12 @@ function _parsearMT5(raw, posicionesRow) {
     var tipo = String(row[colTipo] || '').toLowerCase().trim();
     if (tipo && tipo !== 'buy' && tipo !== 'sell' && tipo !== 'compra' && tipo !== 'venta') continue;
 
-    var ben = _num(row[colBen]);
+    var ben = (_num(row[colBen]) || 0) + (_num(row[colCom]) || 0) + (_num(row[colSwap]) || 0);
     var vol = _num(row[colVol]);
     var pe  = _num(row[colPe]);
     var pc  = _num(row[colPc]);
 
+    if (pe === null || pc === null) continue;
     if (ben === null || vol === null || vol === 0) continue;
     if (pe === null || pe < 100 || pe > 50000) continue;
     if (Math.abs(ben) > 50000) continue;
@@ -155,7 +158,8 @@ function _parsearMT5(raw, posicionesRow) {
 
     // fp = ID de posición (único por trade en MT5)
     var posId = colPos >= 0 && row[colPos] ? String(row[colPos]) : '';
-    var fp = posId || (String(row[colAp] || '') + '_' + pe + '_' + vol);
+    var fechaStr = fAp ? (fAp.getFullYear() + '.' + String(fAp.getMonth()+1).padStart(2,'0') + '.' + String(fAp.getDate()).padStart(2,'0')) : '';
+    var fp = fechaStr + '_' + (posId || (pe + '_' + vol));
 
     var pcFinal = pc !== null ? pc : pe;
     var puntos  = tipo === 'sell' ? +(pe - pcFinal).toFixed(2) : +(pcFinal - pe).toFixed(2);

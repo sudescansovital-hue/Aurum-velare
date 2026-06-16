@@ -1,7 +1,31 @@
 # AURUM VELARE — Arquitectura Web
 > Documento vivo. Se actualiza con el proyecto.  
-> Última actualización: 10 de junio de 2026  
+> Última actualización: 13 de junio de 2026  
 > Para uso interno — contexto de desarrollo y nuevas sesiones de trabajo.
+
+---
+
+## Estado sesión 13 Jun 2026
+
+### Fixes aplicados hoy
+- Parser MT5: filtra filas de "orden" (precio = market) con guard pe===null || pc===null
+- Parser MT5: fp ahora incluye fecha real (2026.06.12_posicionId)
+- Parser MT5: beneficio suma comisiones y swaps si existen columnas
+- Historial y Dashboard: paginación de 1000 en 1000 para superar límite Supabase
+
+### Estado de datos Roderas (sudescansovital@gmail.com)
+- Cuenta Maestra 7747760: 124 trades, +1540$, WR 51.6%
+- Cuenta Retos 4011477: 698 trades, -1430$, WR 51.9%
+- Cuenta Prueba 7751904: 6 trades, -1239$, WR 0%
+- Cuentas Externas: 135146 (107t), 7741924 (131t), 7746279 (75t)
+
+### Pendientes próxima sesión (por orden de prioridad)
+1. Cabecera Trade Record P&L incorrecto en Retos — dos cálculos desincronizados
+2. Fechas "13 Jun – 13 Jun" en cuentas de Roderas — fp de cTrader sin fecha
+3. Badge Challenge/Real incorrecto
+4. Admin: mover trades a Externa automáticamente al cambiar número de cuenta
+5. OZT: descuento no se aplica al registrarse en reto
+6. Nivel sidebar no coincide con Mi Proceso
 
 ---
 
@@ -128,8 +152,7 @@ Sistema web de acompañamiento para traders de XAU/USD. No es una academia ni un
 **Estado V1:** Revisar lógica de acceso
 
 ### Lógica de acceso
-- **Visitante (sin sesión):** Ve todas las salas con estado pero `entrarSala()` está bloqueada. Si intenta entrar → redirige al login. Bloqueo aplicado tanto en el botón principal como en todos los `onclick` de sala.
-- **Sin Camino (con sesión):** Ve todas las salas con estado (En vivo / Cerrada) pero NO puede entrar
+- **Sin Camino:** Ve todas las salas con estado (En vivo / Cerrada) pero NO puede entrar
 - **Con Camino:** Entra a su sala de animal + salas abiertas + extras asignadas por el Águila
 - **Con Camino Cima:** Entra a todas las salas sin restricción
 
@@ -162,13 +185,6 @@ Sistema web de acompañamiento para traders de XAU/USD. No es una academia ni un
 **Acceso:** Público para evaluación · Privado (requiere Camino) para Trade Record  
 **Estado V1:** Bugs activos en subida de historiales
 
-### Autenticación y registro
-
-- **Login / Registro:** Tabs en la misma pantalla. Registro requiere email + contraseña.
-- **Verificación de email:** Al registrarse, Supabase envía un email de confirmación. El usuario debe verificarlo antes de poder acceder a funcionalidades privadas. Sin verificar → tratado como visitante.
-
----
-
 ### Vista pública — Evaluación 33€
 - Mínimo 111 trades en XAU/USD
 - Análisis: win rate · R/R · esperanza · horas · lotajes · cumplimiento
@@ -177,21 +193,6 @@ Sistema web de acompañamiento para traders de XAU/USD. No es una academia ni un
 - Pago por Stripe · código por email inmediatamente
 
 ### Vista privada — Trade Record (usuarios con Camino)
-
-#### Flujo de subida de historiales — lógica actual (10/06/2026)
-
-La asignación de carpeta en `histSubir()` es una sola regla (3 líneas):
-
-```js
-var numeroCuenta = detectarNumeroCuentaDeRaw(raw) || _numeroDesdeFichero(raw, file.name);
-var nombreFinal  = (numeroCuenta && CUENTAS_AURUM[numeroCuenta]) || 'Cuenta Externa';
-```
-
-- Si el número detectado en el archivo coincide con un número en `CUENTAS_AURUM` → carpeta correspondiente (Maestra / Retos / Prueba).
-- Si no coincide o no hay número → siempre `Cuenta Externa`.
-- El desplegable `hist-tipo` NO influye en la asignación. El safety net fue eliminado.
-- Los fps duplicados nunca se insertan (filtro por `HISTORIAL_ALL_FPS` antes del INSERT).
-- Cada trade insertado incluye `cuenta_numero` (el número MT5 del archivo) para permitir reasignación posterior desde el admin.
 
 #### Las 4 carpetas fijas por usuario
 Cada usuario tiene EXACTAMENTE estas 4 carpetas. El sistema asigna cada historial subido automáticamente:
@@ -307,29 +308,11 @@ Ranking de sala por OZT — siempre visible
 | # | Bug | Impacto |
 |---|---|---|
 | 1 | Parser cTrader no testeado | No se puede verificar que los historiales se importen bien |
+| 2 | Al subir historial aparece Challenge/Demo en lugar de Maestra/Retos/Prueba/Externa | Los datos se asignan a la carpeta incorrecta |
+| 3 | Aparece entrada "(sin cuenta)" — el sistema no asigna la carpeta al subir | Datos huérfanos fuera de las 4 carpetas |
 | 4 | Saldo OZT muestra 0 disponibles con 247 en histórico | El cálculo disponible = histórico - gastado está roto |
 | 5 | Sección Retos no muestra historial completo | El usuario no ve todos sus retos completados |
 | 6 | Verificar Ciclo111/Horarios/Equity/Cumplimiento contra historial externo real | Posibles datos incorrectos en el Trade Record |
-| 17 | Reasignación desde admin — asignación pendiente de verificar | Revocación funciona. Asignación tiene fix aplicado (dos pasadas) pero no verificada en producción |
-
-## ✅ RESUELTOS (10/06/2026)
-
-| # | Bug | Solución |
-|---|---|---|
-| — | RLS no activado en ninguna tabla | RLS activado en `trades`, `historiales`, `usuarios_aurum` con políticas por rol (ver sección Seguridad) |
-| — | Queries en admin.js sin JWT | Añadido `getToken()` en 4 llamadas de `admin.js` |
-| — | Registro fallaba con RLS activo (no hay token en signup) | Función SQL `registrar_nuevo_usuario` (SECURITY DEFINER, callable por anon) |
-| — | `histSubir()` asignaba carpeta por desplegable y safety net | Simplificado a 1 regla: `CUENTAS_AURUM[numeroCuenta] \|\| 'Cuenta Externa'` |
-| — | Días en proceso mostraba valor incorrecto | Corregido: usa `fecha_entrada` de BD en lugar de derivar del fp de los trades |
-| — | Trades sin referencia al número de cuenta MT5 | Columna `cuenta_numero TEXT` añadida a `trades`; se rellena al insertar desde `histSubir()` |
-
-## ✅ RESUELTOS (07/06/2026)
-
-| # | Bug | Solución |
-|---|---|---|
-| 2 | Al subir historial aparece Challenge/Demo en lugar de Maestra/Retos/Prueba/Externa | Asignación directa sin modal según desplegable `hist-tipo`. Safety net: si detección da Externa pero desplegable indica otra → desplegable gana |
-| 3 | Aparece entrada "(sin cuenta)" — sistema no asigna carpeta al subir | Detección dinámica por número de cuenta desde filename + lookup en `CUENTAS_AURUM`. Sin coincidencia → Externa (nunca huérfana) |
-| — | Duplicados al subir el mismo archivo varias veces | check-then-PATCH-or-INSERT por `user_id` + `nombre_archivo` antes de cada subida |
 
 ---
 
@@ -337,8 +320,9 @@ Ranking de sala por OZT — siempre visible
 
 ### 🔴 Urgente
 1. Testear parser cTrader
-2. Corregir cálculo saldo OZT disponible
-3. Historial completo en sección Retos
+2. Corregir asignación de carpeta al subir historial (Maestra/Retos/Prueba/Externa)
+3. Corregir cálculo saldo OZT disponible
+4. Historial completo en sección Retos
 
 ### 🟡 Importante
 5. Verificar datos Trade Record contra historial real
@@ -361,25 +345,9 @@ Ranking de sala por OZT — siempre visible
 
 | Tabla | Qué guarda |
 |---|---|
-| trades | Operaciones individuales por usuario. Columna `cuenta_numero` (TEXT) guarda el número MT5 del archivo de origen |
+| trades | Operaciones individuales por usuario |
 | historiales | Historiales subidos agrupados por carpeta y usuario |
 | usuarios_aurum | Perfil: nombre · animal · etapa · Camino · fecha inicio · OZT |
-
-### Seguridad — RLS (activado 10/06/2026)
-
-RLS activo en las 3 tablas. Políticas:
-
-| Tabla | Política | Regla |
-|---|---|---|
-| `usuarios_aurum` | `ua_admin_todo` | Admin (`roderastrader@gmail.com`) → acceso total |
-| `usuarios_aurum` | `ua_user_select` | Usuario autenticado → solo lee su fila (`auth.email() = email`) |
-| `usuarios_aurum` | `ua_user_update` | Usuario autenticado → solo edita su fila (onboarding) |
-| `trades` | `tr_user_todo` | Usuario → CRUD sobre sus propios trades (`auth.email() = usuario_email`) |
-| `trades` | `tr_admin_select` | Admin → puede leer todos los trades |
-| `historiales` | `hi_user_todo` | Usuario → CRUD sobre sus propios historiales |
-| `historiales` | `hi_admin_select` | Admin → puede leer todos los historiales |
-
-El registro de nuevos usuarios usa la función SQL `registrar_nuevo_usuario` (SECURITY DEFINER, callable por anon) porque al registrarse con confirmación de email activada no hay access_token disponible.
 
 ### Qué se guarda y qué no
 - ✓ SÍ: trades · historiales · perfil de usuario · OZT · entradas de diario (V2)
