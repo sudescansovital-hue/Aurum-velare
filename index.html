@@ -907,6 +907,10 @@
         <div id="sala-tv-container" style="width:100%;height:100%;"></div>
 
         <div id="sala-video-overlay" style="display:none;position:absolute;inset:0;z-index:20;background:#000;flex-direction:column;">
+          <!-- Barra Aurum — tapa número de cuenta en fullscreen -->
+          <div id="sala-aurum-bar" style="position:absolute;top:0;left:0;right:0;height:32px;background:#000;z-index:50;display:flex;align-items:center;justify-content:center;pointer-events:none;">
+            <span style="font-family:'Cormorant Garamond',serif;font-size:13px;letter-spacing:.35em;color:var(--gold);text-transform:uppercase;">✦ Aurum Velare</span>
+          </div>
           <div id="sala-video-container" style="position:relative;flex:1;overflow:hidden;"></div>
           <div id="sala-video-hud" style="position:absolute;bottom:0;left:0;right:0;padding:.5rem 1rem;background:#00000088;display:flex;align-items:center;justify-content:space-between;opacity:0;transition:opacity .3s;">
             <span id="sala-video-room-info" style="font-size:13px;color:var(--gold);letter-spacing:.1em;"></span>
@@ -917,7 +921,7 @@
         </div>
 
         <!-- Botón pantalla completa -->
-        <button onclick="salaFullscreen()" style="position:absolute;bottom:.8rem;right:.8rem;background:#08091899;border:1px solid var(--border-gold);color:var(--gold);padding:.35rem .75rem;font-size:12px;cursor:pointer;letter-spacing:.07em;display:flex;align-items:center;gap:.4rem;z-index:10;backdrop-filter:blur(4px);font-family:inherit;" title="Pantalla completa">
+        <button onclick="salaFullscreen()" style="position:absolute;bottom:3.5rem;right:.8rem;background:#08091899;border:1px solid var(--border-gold);color:var(--gold);padding:.35rem .75rem;font-size:12px;cursor:pointer;letter-spacing:.07em;display:flex;align-items:center;gap:.4rem;z-index:10;backdrop-filter:blur(4px);font-family:inherit;" title="Pantalla completa">
           <span id="sala-fullscreen-icon">⤢</span><span id="sala-fullscreen-label">Pantalla completa</span>
         </button>
       </div>
@@ -999,12 +1003,15 @@
     </div>
 
     <!-- CHAT -->
-    <div style="display:flex;flex-direction:column;border-left:1px solid var(--border);background:var(--bg2);width:300px;flex-shrink:0;">
+    <div id="sala-chat-panel" style="display:flex;flex-direction:column;border-left:1px solid var(--border);background:var(--bg2);width:300px;flex-shrink:0;transition:width .25s;">
       <div style="padding:.8rem 1rem;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
         <div style="font-size:14px;letter-spacing:.15em;color:var(--gold-dim);" id="sala-chat-title">Sala León · Chat</div>
-        <div style="display:flex;align-items:center;gap:.4rem;font-size:13px;color:var(--green);">
-          <div style="width:4px;height:4px;border-radius:50%;background:var(--green);animation:pulse 2s infinite;"></div>
-          <span id="sala-chat-conectados">5 conectados</span>
+        <div style="display:flex;align-items:center;gap:.7rem;">
+          <div style="display:flex;align-items:center;gap:.4rem;font-size:13px;color:var(--green);">
+            <div style="width:4px;height:4px;border-radius:50%;background:var(--green);animation:pulse 2s infinite;"></div>
+            <span id="sala-chat-conectados">5 conectados</span>
+          </div>
+          <div onclick="toggleSalaChat()" title="Minimizar chat" style="cursor:pointer;font-size:16px;color:var(--text-muted);padding:.1rem .3rem;transition:color .2s;" onmouseover="this.style.color='var(--gold)'" onmouseout="this.style.color='var(--text-muted)'" id="sala-chat-toggle-btn">◀</div>
         </div>
       </div>
       <div style="flex:1;padding:.8rem 1rem;overflow-y:auto;display:flex;flex-direction:column;gap:.7rem;min-height:0;" id="sala-chat-msgs">

@@ -120,6 +120,28 @@ function entrarSala(tipo) {
   setTimeout(function() { _conectarLiveKit(tipo); }, 200);
 }
 
+var _salaChatVisible = true;
+
+function toggleSalaChat() {
+  var panel = document.getElementById('sala-chat-panel');
+  var btn   = document.getElementById('sala-chat-toggle-btn');
+  if (!panel) return;
+  _salaChatVisible = !_salaChatVisible;
+  if (_salaChatVisible) {
+    panel.style.width   = '300px';
+    panel.style.overflow = '';
+    // mostrar contenido interior
+    Array.from(panel.children).forEach(function(c, i) { if (i > 0) c.style.display = ''; });
+    if (btn) btn.textContent = '◀';
+  } else {
+    panel.style.width    = '36px';
+    panel.style.overflow = 'hidden';
+    // ocultar todo menos la cabecera
+    Array.from(panel.children).forEach(function(c, i) { if (i > 0) c.style.display = 'none'; });
+    if (btn) btn.textContent = '▶';
+  }
+}
+
 function salirDeSala() {
   _desconectarLiveKit();
   document.getElementById('sala-interior').style.display  = 'none';
