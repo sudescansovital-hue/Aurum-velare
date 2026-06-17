@@ -590,20 +590,18 @@ function _lkBrandCreate(overlay) {
   _lkBrandDestroy(overlay);
   var brand = document.createElement('div');
   brand.id = 'lk-brand-overlay';
-  brand.style.cssText = 'position:absolute;inset:0;pointer-events:none;z-index:30;transition:opacity .35s ease;';
+  brand.style.cssText = 'position:absolute;inset:0;pointer-events:none;z-index:30;';
 
-  var left = document.createElement('span');
-  left.textContent = '✦ AURUM VELARE';
-  left.style.cssText = 'position:absolute;top:1rem;left:1rem;color:#C9A84C;font-size:11px;letter-spacing:.15em;text-transform:uppercase;opacity:.8;font-weight:600;';
+  var barra = document.createElement('div');
+  barra.style.cssText = 'position:absolute;top:0;left:0;right:0;height:38px;background:#000;display:flex;align-items:center;justify-content:center;';
 
-  var right = document.createElement('span');
-  right.textContent = _lkCurrentLabel || '';
-  right.style.cssText = 'position:absolute;top:1rem;right:1rem;color:#C9A84C;font-size:11px;letter-spacing:.1em;opacity:.8;font-weight:500;';
+  var titulo = document.createElement('span');
+  titulo.textContent = '✦ AURUM VELARE';
+  titulo.style.cssText = 'font-family:"Cormorant Garamond",serif;font-size:15px;letter-spacing:.45em;color:#C9A84C;text-transform:uppercase;font-weight:400;';
 
-  brand.appendChild(left);
-  brand.appendChild(right);
+  barra.appendChild(titulo);
+  brand.appendChild(barra);
   overlay.appendChild(brand);
-  brand.style.opacity = '1';
 }
 
 function _lkBrandDestroy(overlay) {
