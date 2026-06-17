@@ -123,22 +123,30 @@ function entrarSala(tipo) {
 var _salaChatVisible = true;
 
 function toggleSalaChat() {
-  var panel = document.getElementById('sala-chat-panel');
-  var btn   = document.getElementById('sala-chat-toggle-btn');
+  var panel    = document.getElementById('sala-chat-panel');
+  var btn      = document.getElementById('sala-chat-toggle-btn');
+  var tabBtn   = document.getElementById('sala-chat-tab-btn');
   if (!panel) return;
   _salaChatVisible = !_salaChatVisible;
   if (_salaChatVisible) {
-    panel.style.width   = '300px';
-    panel.style.overflow = '';
-    // mostrar contenido interior
-    Array.from(panel.children).forEach(function(c, i) { if (i > 0) c.style.display = ''; });
+    panel.style.display = 'flex';
+    if (tabBtn) tabBtn.style.display = 'none';
     if (btn) btn.textContent = '◀';
   } else {
-    panel.style.width    = '36px';
-    panel.style.overflow = 'hidden';
-    // ocultar todo menos la cabecera
-    Array.from(panel.children).forEach(function(c, i) { if (i > 0) c.style.display = 'none'; });
-    if (btn) btn.textContent = '▶';
+    panel.style.display = 'none';
+    // Mostrar pestaña lateral para reabrir
+    if (!tabBtn) {
+      var tab = document.createElement('div');
+      tab.id = 'sala-chat-tab-btn';
+      tab.onclick = toggleSalaChat;
+      tab.title = 'Abrir chat';
+      tab.style.cssText = 'position:absolute;right:0;top:50%;transform:translateY(-50%);background:var(--bg2);border:1px solid var(--border-gold);border-right:none;color:var(--gold);font-size:13px;padding:.6rem .35rem;cursor:pointer;z-index:20;writing-mode:vertical-rl;letter-spacing:.1em;';
+      tab.textContent = '▶ Chat';
+      var layout = document.getElementById('sala-main-layout');
+      if (layout) { layout.style.position = 'relative'; layout.appendChild(tab); }
+    } else {
+      tabBtn.style.display = '';
+    }
   }
 }
 
@@ -593,7 +601,7 @@ function _lkBrandCreate(overlay) {
   brand.style.cssText = 'position:absolute;inset:0;pointer-events:none;z-index:30;';
 
   var barra = document.createElement('div');
-  barra.style.cssText = 'position:absolute;top:0;left:0;right:0;height:38px;background:#000;display:flex;align-items:center;justify-content:center;';
+  barra.style.cssText = 'position:absolute;top:0;left:0;right:0;height:52px;background:#000;display:flex;align-items:center;justify-content:center;';
 
   var titulo = document.createElement('span');
   titulo.textContent = '✦ AURUM VELARE';
