@@ -107,6 +107,13 @@ async function hacerRegistro() {
     body: JSON.stringify({ p_email: email, p_nombre: nick, p_animal: animal })
   });
 
+  // Notificación email al admin
+  fetch('/api/notify-registro', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: email, nick: nick, animal: animal })
+  }).catch(function() {});
+
   document.getElementById('registro-form').innerHTML =
     '<div style="text-align:center;padding:2rem 0;">' +
       '<div style="font-size:1.4rem;color:var(--gold);margin-bottom:1rem;">✦</div>' +
