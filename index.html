@@ -892,7 +892,7 @@
     <!-- Indicador de quién habla -->
     <div id="sala-hablando-banner" style="display:flex;align-items:center;gap:.5rem;padding:.2rem .8rem;background:#3AAA6A0E;border:1px solid #3AAA6A33;font-size:12px;color:var(--green);">
       <div style="width:5px;height:5px;border-radius:50%;background:var(--green);animation:pulse 1.2s infinite;flex-shrink:0;"></div>
-      🎙 <span id="sala-hablando-nick">Toro_01</span> está hablando
+      🎙 <span id="sala-hablando-nick"></span> está hablando
     </div>
     <div style="margin-left:auto;font-size:12px;color:var(--text-muted);font-style:italic;">Solo audio</div>
   </div>
@@ -944,42 +944,6 @@
             <div class="sala-mic-dot sala-mic-on" id="sala-mic-dot-yo"></div>
           </div>
 
-          <!-- Toro_01 — hablando -->
-          <div class="sala-part sala-hablando">
-            <div class="sala-avatar"><span class="sala-avatar-letra">T</span></div>
-            <div class="sala-part-nick">Toro_01</div>
-            <div class="sala-mic-dot sala-mic-on"></div>
-          </div>
-
-          <!-- Oso_01 -->
-          <div class="sala-part">
-            <div class="sala-avatar"><span class="sala-avatar-letra">O</span></div>
-            <div class="sala-part-nick">Oso_01</div>
-            <div class="sala-mic-dot sala-mic-on"></div>
-          </div>
-
-          <!-- Toro_02 — silenciado -->
-          <div class="sala-part sala-silenciado">
-            <div class="sala-avatar" style="position:relative;">
-              <span class="sala-avatar-letra" style="color:#2A3050;">T</span>
-              <div style="position:absolute;bottom:-1px;right:-1px;width:14px;height:14px;background:#CC4433;border-radius:50%;font-size:8px;display:flex;align-items:center;justify-content:center;line-height:1;">🔇</div>
-            </div>
-            <div class="sala-part-nick">Toro_02</div>
-            <div class="sala-mic-dot sala-mic-off"></div>
-          </div>
-
-          <!-- Elef_01 -->
-          <div class="sala-part">
-            <div class="sala-avatar"><span class="sala-avatar-letra">E</span></div>
-            <div class="sala-part-nick">Elef_01</div>
-            <div class="sala-mic-dot sala-mic-on"></div>
-          </div>
-
-          <!-- Plazas vacías -->
-          <div class="sala-part-vacio"></div>
-          <div class="sala-part-vacio"></div>
-          <div class="sala-part-vacio"></div>
-          <div class="sala-part-vacio"></div>
 
         </div>
       </div>
@@ -1011,30 +975,6 @@
         </div>
       </div>
       <div style="flex:1;padding:.8rem 1rem;overflow-y:auto;display:flex;flex-direction:column;gap:.7rem;min-height:0;" id="sala-chat-msgs">
-        <div style="border-left:2px solid var(--border-gold);padding-left:.6rem;">
-          <div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.2rem;">
-            <div style="font-size:15px;">—</div>
-            <div style="font-size:13px;color:var(--gold-dim);">Águila</div>
-            <div style="font-size:10px;color:var(--text-muted);margin-left:auto;">18:15</div>
-          </div>
-          <div style="font-size:15px;color:var(--text-dim);line-height:1.6;">Nivel H4 respetado tres semanas. Paciencia.</div>
-        </div>
-        <div>
-          <div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.2rem;">
-            <div style="font-size:15px;">—</div>
-            <div style="font-size:13px;color:var(--text-muted);">Toro_01</div>
-            <div style="font-size:10px;color:var(--text-muted);margin-left:auto;">18:17</div>
-          </div>
-          <div style="font-size:15px;color:var(--text-dim);line-height:1.6;">Lo veo clarísimo desde el martes.</div>
-        </div>
-        <div style="border-left:2px solid var(--gold);padding-left:.6rem;">
-          <div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.2rem;">
-            <div style="font-size:15px;">—</div>
-            <div style="font-size:13px;color:var(--gold-bright);" id="sala-tu-msg-name">Roderas (Tú)</div>
-            <div style="font-size:10px;color:var(--text-muted);margin-left:auto;">18:30</div>
-          </div>
-          <div style="font-size:15px;color:var(--text-dim);line-height:1.6;">Sin novedad. Esperando.</div>
-        </div>
       </div>
       <div style="padding:.6rem .8rem;background:#060810;border-top:1px solid var(--border);">
         <div style="display:flex;gap:.4rem;margin-bottom:.5rem;">
@@ -1374,15 +1314,7 @@
             <div style="font-size:18px;opacity:.15;">🎙</div>
             <div style="font-size:13px;color:var(--text-muted);">Sala activa</div>
           </div>
-          <div style="display:flex;flex-direction:column;gap:.4rem;min-width:150px;">
-            <div style="display:flex;align-items:center;gap:.5rem;padding:.35rem .6rem;border:1px solid var(--border-gold);background:var(--gold-glow);">
-              <div style="width:6px;height:6px;border-radius:50%;background:var(--green);"></div>
-              <span style="font-size:12px;color:var(--gold-dim);">Toro_01</span>
-            </div>
-            <div style="display:flex;align-items:center;gap:.5rem;padding:.35rem .6rem;border:1px solid var(--border);">
-              <div style="width:6px;height:6px;border-radius:50%;background:var(--green);"></div>
-              <span style="font-size:12px;color:var(--text-muted);">Oso_01</span>
-            </div>
+          <div style="display:flex;flex-direction:column;gap:.4rem;min-width:150px;" id="dash-sala-preview-users">
           </div>
         </div>
         <div onclick="irA('salas')" class="btn-outline" style="display:block;text-align:center;margin:0 1.5rem 1.2rem;padding:.7rem;font-size:13px;">
@@ -1554,20 +1486,10 @@
     <!-- Ranking -->
     <span class="tag" style="display:block;margin-bottom:.8rem;">Ranking · Sala León</span>
     <div style="display:flex;flex-direction:column;gap:.2rem;margin-bottom:1.5rem;">
-      <div style="display:flex;align-items:center;gap:.7rem;padding:.5rem 0;border-bottom:1px solid #0A0C14;">
-        <div style="font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--gold-bright);text-shadow:0 0 10px var(--gold-glow);width:20px;">1</div>
-        <div style="font-size:14px;">—</div>
-        <div style="font-size:13px;color:var(--text-dim);flex:1;">Toro_03</div>
-        <div style="font-size:12px;color:var(--gold-dim);">312 OZT</div>
-      </div>
-      <div style="display:flex;align-items:center;gap:.7rem;padding:.5rem 0;border-bottom:1px solid #0A0C14;">
-        <div style="font-family:'Cormorant Garamond',serif;font-size:20px;color:#808070;width:20px;">2</div>
-        <div style="font-size:14px;">—</div>
-        <div style="font-size:13px;color:var(--text-dim);flex:1;">Toro_01</div>
-        <div style="font-size:12px;color:var(--gold-dim);">289 OZT</div>
-      </div>
+
+
       <div style="display:flex;align-items:center;gap:.7rem;padding:.5rem 0;">
-        <div style="font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--text-muted);width:20px;">3</div>
+        <div style="font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--text-muted);width:20px;" id="dash-ranking-pos">—</div>
         <div style="font-size:14px;">—</div>
         <div style="font-size:13px;color:var(--gold);flex:1;" id="dash-ranking-nick">Roderas (Tú)</div>
         <div style="font-size:12px;color:var(--gold);" id="dash-ranking-ozt">247 OZT</div>
@@ -2307,33 +2229,6 @@
       <!-- Entradas anteriores -->
       <div style="font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--text-muted);margin-bottom:1rem;">Entradas anteriores</div>
       <div style="display:flex;flex-direction:column;gap:1px;background:var(--border);" id="diario-entradas">
-
-        <div style="background:var(--bg2);padding:1.5rem 2rem;position:relative;">
-          <div style="position:absolute;top:0;left:0;bottom:0;width:2px;background:linear-gradient(to bottom,transparent,#4A7AAA,transparent);"></div>
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem;">
-            <div style="font-size:12px;color:#6A9AEE;">10 mayo 2026</div>
-            <div style="font-size:11px;color:var(--text-muted);">Día 99 del proceso</div>
-          </div>
-          <div style="font-size:15px;color:var(--text-dim);line-height:1.8;">Hoy identifiqué que en las horas 17-18 entro por inercia, no por estructura. Lo veo clarísimo cuando lo analizo después pero en el momento no lo percibo. La próxima semana voy a marcar esa hora como zona prohibida y ver qué pasa.</div>
-        </div>
-
-        <div style="background:var(--bg2);padding:1.5rem 2rem;position:relative;">
-          <div style="position:absolute;top:0;left:0;bottom:0;width:2px;background:linear-gradient(to bottom,transparent,#4A7AAA,transparent);"></div>
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem;">
-            <div style="font-size:12px;color:#6A9AEE;">2 mayo 2026</div>
-            <div style="font-size:11px;color:var(--text-muted);">Día 91 del proceso</div>
-          </div>
-          <div style="font-size:15px;color:var(--text-dim);line-height:1.8;">Completé el Ciclo 1. 76 puntos. El Águila dijo que el edge existe pero que el cumplimiento es el trabajo del Ciclo 2. Tiene razón. Los números son buenos cuando respeto el marco.</div>
-        </div>
-
-        <div style="background:var(--bg2);padding:1.5rem 2rem;position:relative;">
-          <div style="position:absolute;top:0;left:0;bottom:0;width:2px;background:linear-gradient(to bottom,transparent,#4A7AAA,transparent);"></div>
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem;">
-            <div style="font-size:12px;color:#6A9AEE;">15 marzo 2026</div>
-            <div style="font-size:11px;color:var(--text-muted);">Día 43 del proceso</div>
-          </div>
-          <div style="font-size:15px;color:var(--text-dim);line-height:1.8;">Semana difícil. Tres pérdidas seguidas y la cabeza me pedía recuperar. No lo hice. Cerré el ordenador. Mañana es otro día y el proceso sigue.</div>
-        </div>
 
       </div>
     </div>
