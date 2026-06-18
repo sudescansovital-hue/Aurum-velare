@@ -1223,13 +1223,31 @@ function buildDashboardHero() {
   el = document.getElementById('dash-nivel-card'); if (el) el.textContent = numStr + ' · ' + nombreActual;
   el = document.getElementById('dash-nivel-sub');  if (el) el.textContent = pctCiclo + '% hacia ' + nombreSig;
 
-  // Días en proceso desde fecha_entrada del usuario
-  if (usuarioActual && usuarioActual.fecha_entrada) {
-    var _fe = new Date(usuarioActual.fecha_entrada);
-    var dias = Math.floor((Date.now() - _fe) / 86400000);
-    el = document.getElementById('dash-dias-proceso'); if (el) el.textContent = dias;
+  // Días en proceso general — desde registro en Aurum (created_at)
+  var _fechaRegistro = usuarioActual && (usuarioActual.fecha_entrada || usuarioActual.created_at);
+  if (_fechaRegistro) {
+    var _fe = new Date(_fechaRegistro);
+    var diasProceso = Math.floor((Date.now() - _fe) / 86400000);
+    el = document.getElementById('dash-dias-proceso'); if (el) el.textContent = diasProceso;
     el = document.getElementById('dash-fecha-inicio'); if (el) el.textContent = _fe.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
   }
+
+  // Días por cuenta — desde primer trade hasta último trade de cada cuenta
+  function diasCuenta(keyword) {
+    var sub = todos.filter(function(t) { return t.cuenta && t.cuenta.toLowerCase().indexOf(keyword) >= 0; });
+    if (sub.length === 0) return '—';
+    var fechas = sub.map(function(t) {
+      var f = t.fecha_apertura || t.fecha_cierre || t.created_at;
+      return f ? new Date(f) : null;
+    }).filter(Boolean);
+    if (fechas.length === 0) return '—';
+    var minF = new Date(Math.min.apply(null, fechas));
+    var maxF = new Date(Math.max.apply(null, fechas));
+    return Math.floor((maxF - minF) / 86400000) + ' días';
+  }
+  el = document.getElementById('card-maestra-dias'); if (el) el.textContent = diasCuenta('maestra');
+  el = document.getElementById('card-retos-dias');   if (el) el.textContent = diasCuenta('retos');
+  el = document.getElementById('card-prueba-dias');  if (el) el.textContent = diasCuenta('prueba');
 
   // Cards por cuenta — coincidencia parcial case-insensitive
   function statsCuenta(keyword) {
