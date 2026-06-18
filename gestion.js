@@ -1224,7 +1224,7 @@ function buildDashboardHero() {
   el = document.getElementById('dash-nivel-sub');  if (el) el.textContent = pctCiclo + '% hacia ' + nombreSig;
 
   // Días en proceso general — desde registro en Aurum (created_at)
-  var _fechaRegistro = usuarioActual && (usuarioActual.fecha_entrada || usuarioActual.created_at);
+  var _fechaRegistro = usuarioActual && (usuarioActual.fecha_entrada || usuarioActual.created_at); // created_at = fecha real de registro en Aurum
   if (_fechaRegistro) {
     var _fe = new Date(_fechaRegistro);
     var diasProceso = Math.floor((Date.now() - _fe) / 86400000);
@@ -1232,18 +1232,21 @@ function buildDashboardHero() {
     el = document.getElementById('dash-fecha-inicio'); if (el) el.textContent = _fe.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
   }
 
-  // Días por cuenta — desde primer trade hasta último trade de cada cuenta
+  // Días por cuenta — desde primer trade hasta último trade usando fp (fecha real MT5)
+  function _fechaT(t) {
+    if (t.fp) { var m = t.fp.match(/(\d{4})\.(\d{2})\.(\d{2})/); if (m) return new Date(parseInt(m[1]), parseInt(m[2])-1, parseInt(m[3])); }
+    if (t.created_at) return new Date(t.created_at);
+    return null;
+  }
   function diasCuenta(keyword) {
     var sub = todos.filter(function(t) { return t.cuenta && t.cuenta.toLowerCase().indexOf(keyword) >= 0; });
     if (sub.length === 0) return '—';
-    var fechas = sub.map(function(t) {
-      var f = t.fecha_apertura || t.fecha_cierre || t.created_at;
-      return f ? new Date(f) : null;
-    }).filter(Boolean);
+    var fechas = sub.map(_fechaT).filter(Boolean);
     if (fechas.length === 0) return '—';
     var minF = new Date(Math.min.apply(null, fechas));
     var maxF = new Date(Math.max.apply(null, fechas));
-    return Math.floor((maxF - minF) / 86400000) + ' días';
+    var d = Math.floor((maxF - minF) / 86400000);
+    return d === 0 ? '1 día' : d + ' días';
   }
   el = document.getElementById('card-maestra-dias'); if (el) el.textContent = diasCuenta('maestra');
   el = document.getElementById('card-retos-dias');   if (el) el.textContent = diasCuenta('retos');
