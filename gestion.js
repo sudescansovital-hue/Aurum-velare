@@ -1232,21 +1232,31 @@ function buildDashboardHero() {
     el = document.getElementById('dash-fecha-inicio'); if (el) el.textContent = _fe.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
   }
 
-  // Días por cuenta — desde primer trade hasta último trade usando fp (fecha real MT5)
-  function _fechaT(t) {
-    if (t.fp) { var m = t.fp.match(/(\d{4})\.(\d{2})\.(\d{2})/); if (m) return new Date(parseInt(m[1]), parseInt(m[2])-1, parseInt(m[3])); }
+  // Días por cuenta — desde primer trade hasta último trade
+  // Usa la misma lógica de fecha que el resto del sistema (fp primero, luego created_at)
+  function _parseFecha(t) {
+    if (t.fp) {
+      var s = String(t.fp);
+      // MT5: YYYY.MM.DD
+      var m1 = s.match(/(\d{4})\.(\d{2})\.(\d{2})/);
+      if (m1) return new Date(parseInt(m1[1]), parseInt(m1[2])-1, parseInt(m1[3]));
+      // cTrader: DD/MM/YYYY
+      var m2 = s.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+      if (m2) return new Date(parseInt(m2[3]), parseInt(m2[2])-1, parseInt(m2[1]));
+    }
     if (t.created_at) return new Date(t.created_at);
     return null;
   }
   function diasCuenta(keyword) {
     var sub = todos.filter(function(t) { return t.cuenta && t.cuenta.toLowerCase().indexOf(keyword) >= 0; });
     if (sub.length === 0) return '—';
-    var fechas = sub.map(_fechaT).filter(Boolean);
+    var fechas = sub.map(_parseFecha).filter(Boolean);
     if (fechas.length === 0) return '—';
-    var minF = new Date(Math.min.apply(null, fechas));
-    var maxF = new Date(Math.max.apply(null, fechas));
+    var timestamps = fechas.map(function(f) { return f.getTime(); });
+    var minF = new Date(Math.min.apply(null, timestamps));
+    var maxF = new Date(Math.max.apply(null, timestamps));
     var d = Math.floor((maxF - minF) / 86400000);
-    return d === 0 ? '1 día' : d + ' días';
+    return d === 0 ? 'mismo día' : d + ' días';
   }
   el = document.getElementById('card-maestra-dias'); if (el) el.textContent = diasCuenta('maestra');
   el = document.getElementById('card-retos-dias');   if (el) el.textContent = diasCuenta('retos');
