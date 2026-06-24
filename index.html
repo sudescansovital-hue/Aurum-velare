@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -105,6 +105,7 @@
     <div class="nav-links" id="nav-principal">
       <a class="nav-link active" onclick="irA('home')">Inicio</a>
       <a class="nav-link" onclick="irA('packs')">El proceso</a>
+      
       <a class="nav-link" onclick="irA('salas')">Las salas</a>
       <a class="nav-link" onclick="irA('evalua')" style="color:var(--gold);">✦ Evalúame</a>
       <a class="nav-link" onclick="irA('preguntas')">Tablillas</a>
@@ -1546,13 +1547,13 @@
     <!-- Nivel widget -->
     <div class="nivel-widget">
       <div class="tag" style="margin-bottom:.3rem;">Tu nivel</div>
-      <div style="font-family:'Cormorant Garamond',serif;font-size:48px;color:var(--gold-bright);text-shadow:0 0 25px var(--gold-glow);line-height:1;">03</div>
-      <div style="font-size:12px;letter-spacing:.25em;text-transform:uppercase;color:var(--gold-dim);margin-bottom:.6rem;"></div>
+      <div style="font-family:'Cormorant Garamond',serif;font-size:48px;color:var(--gold-bright);text-shadow:0 0 25px var(--gold-glow);line-height:1;" id="sidebar-nivel-num">&#8212;</div>
+      <div style="font-size:12px;letter-spacing:.25em;text-transform:uppercase;color:var(--gold-dim);margin-bottom:.6rem;" id="sidebar-nivel-name"></div>
       <div class="nivel-barra" style="margin-bottom:.4rem;">
-        <div class="nivel-fill" style="width:60%;"></div>
+        <div class="nivel-fill" id="sidebar-nivel-fill" style="width:0%;"></div>
       </div>
       <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);">
-        <span>60%</span><span>→ Confianza</span>
+        <span id="sidebar-nivel-pct">0%</span><span id="sidebar-nivel-next">&#8594; &#8212;</span>
       </div>
     </div>
   </div>
