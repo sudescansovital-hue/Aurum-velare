@@ -723,15 +723,11 @@ async function buildCumplimientoParciales() {
 
   contenedor.innerHTML = '<div style="padding:1rem 2rem;color:var(--text-muted);font-size:13px;">Cargando parciales…</div>';
 
-  var token  = getToken();
-  var supaUrl = window.SUPABASE_URL || '';
-  var supaKey = window.SUPABASE_KEY || '';
-
-  var ua2 = window.usuarioActual;
+  var token = getToken();
   var cuentasActivas = [];
-  if (ua2.cuenta_maestra) cuentasActivas.push(String(ua2.cuenta_maestra));
-  if (ua2.cuenta_retos)   cuentasActivas.push(String(ua2.cuenta_retos));
-  if (ua2.cuenta_prueba)  cuentasActivas.push(String(ua2.cuenta_prueba));
+  if (ua.cuenta_maestra) cuentasActivas.push(String(ua.cuenta_maestra));
+  if (ua.cuenta_retos)   cuentasActivas.push(String(ua.cuenta_retos));
+  if (ua.cuenta_prueba)  cuentasActivas.push(String(ua.cuenta_prueba));
 
   if (!cuentasActivas.length) {
     contenedor.innerHTML = '<div style="padding:1rem 2rem;color:var(--text-muted);font-size:13px;">Sin cuentas activas.</div>';
@@ -739,23 +735,13 @@ async function buildCumplimientoParciales() {
   }
 
   var inFilter = cuentasActivas.map(function(c){ return '"' + c + '"'; }).join(',');
-  var urlParciales = supaUrl + '/rest/v1/trade_parciales?select=*&cuenta_numero=in.(' + inFilter + ')&order=hora.asc';
-
-  var resp;
-  try {
-    resp = await fetch(urlParciales, {
-      headers: {
-        'apikey': supaKey,
-        'Authorization': 'Bearer ' + token,
-        'Content-Type': 'application/json'
-      }
-    });
-  } catch(e) {
-    contenedor.innerHTML = '<div style="padding:1rem 2rem;color:var(--red);font-size:13px;">Error de red al cargar parciales.</div>';
+  var result = await supaGet('trade_parciales', 'cuenta_numero=in.(' + inFilter + ')&order=hora.asc', token);
+  if (result.error) {
+    contenedor.innerHTML = '<div style="padding:1rem 2rem;color:var(--red);font-size:13px;">Error al cargar parciales: ' + result.error + '</div>';
     return;
   }
 
-  var parciales = await resp.json();
+  var parciales = result.data || [];
   if (!Array.isArray(parciales) || parciales.length === 0) {
     contenedor.innerHTML =
       '<div style="padding:1.5rem 2rem;border-top:1px solid var(--border);">' +
