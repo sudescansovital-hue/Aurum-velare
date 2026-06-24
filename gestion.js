@@ -750,20 +750,19 @@ async function buildCumplimientoParciales() {
     return;
   }
 
-  // Agrupar por position_id
+  // Agrupar por fp_trade
   var porTrade = {};
   parciales.forEach(function(p) {
-    var pid = String(p.position_id);
-    if (!porTrade[pid]) porTrade[pid] = [];
-    porTrade[pid].push(p);
+    var key = String(p.fp_trade);
+    if (!porTrade[key]) porTrade[key] = [];
+    porTrade[key].push(p);
   });
 
-  // Cruzar trades activos para obtener precio_entrada
+  // Cruzar trades activos por fp
   var trades = getTradesActivos ? getTradesActivos() : [];
-  var tradeByPid = {};
+  var tradeByFp = {};
   trades.forEach(function(t) {
-    var m = t.fp && String(t.fp).match(/_(\d+)$/);
-    if (m) tradeByPid[m[1]] = t;
+    if (t.fp) tradeByFp[String(t.fp)] = t;
   });
 
   // Zonas TP
@@ -780,11 +779,8 @@ async function buildCumplimientoParciales() {
     var grupo = porTrade[pid];
     grupo.sort(function(a, b) { return String(a.hora || '').localeCompare(String(b.hora || '')); });
 
-    var trade = tradeByPid[pid];
+    var trade = tradeByFp[pid];
     var pe = trade ? (parseFloat(trade.precio_entrada) || null) : null;
-    if (pe === null && grupo[0] && grupo[0].precio_entrada_trade != null) {
-      pe = parseFloat(grupo[0].precio_entrada_trade);
-    }
 
     totalConParciales++;
 
@@ -793,7 +789,7 @@ async function buildCumplimientoParciales() {
       totalParciales++;
       if (pe === null) return;
 
-      var puntos = Math.abs(pe - parseFloat(p.precio_parcial || 0));
+      var puntos = Math.abs(pe - parseFloat(p.precio || 0));
       puntos = Math.round(puntos * 100) / 100;
 
       var idxZona = Math.min(idx, 2);
@@ -809,12 +805,11 @@ async function buildCumplimientoParciales() {
   });
 
   // Trades sin parciales
-  var pidsConParciales = Object.keys(porTrade);
+  var fpsConParciales = Object.keys(porTrade);
   var totalSinParciales = 0;
   trades.forEach(function(t) {
-    var m = t.fp && String(t.fp).match(/_(\d+)$/);
-    if (!m) return;
-    if (pidsConParciales.indexOf(m[1]) === -1) totalSinParciales++;
+    if (!t.fp) return;
+    if (fpsConParciales.indexOf(String(t.fp)) === -1) totalSinParciales++;
   });
 
   var totalTrades = totalConParciales + totalSinParciales;
@@ -855,7 +850,7 @@ async function buildCumplimientoParciales() {
         z.fuera.slice(0, 5).forEach(function(f) {
           var zonaReal = f.puntos <= tp1 ? 'TP1 (≤' + tp1 + 'pts)' : f.puntos <= tp2 ? 'TP2 (≤' + tp2 + 'pts)' : 'TP3 (≤' + tp3 + 'pts)';
           html += '<div style="font-size:11px;color:#cc7755;padding:.2rem 0;border-bottom:1px solid #cc443311;">';
-          html += '⚠ #' + f.pid + ' — ' + f.puntos + ' pts · cae en zona ' + zonaReal;
+          var pidLabel = String(f.pid).split('_')[1] || f.pid; html += '⚠ #' + pidLabel + ' — ' + f.puntos + ' pts · cae en zona ' + zonaReal;
           html += '</div>';
         });
         if (z.fuera.length > 5) {
