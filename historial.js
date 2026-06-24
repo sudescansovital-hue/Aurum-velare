@@ -359,7 +359,9 @@ function histSubir(file, onDone) {
       if (_u && _u.cuenta_retos)   CUENTAS_AURUM[_u.cuenta_retos]   = 'Cuenta Retos';
       if (_u && _u.cuenta_prueba)  CUENTAS_AURUM[_u.cuenta_prueba]  = 'Cuenta Prueba';
     }
-    var trades = parsearTrades(raw);
+    var _parsed = parsearTrades(raw);
+    var trades   = Array.isArray(_parsed) ? _parsed : (_parsed.trades || []);
+    var parciales = Array.isArray(_parsed) ? [] : (_parsed.parciales || []);
     if (!trades || trades.length < 5) {
       msg.style.color = 'var(--red)'; msg.textContent = 'No se encontraron trades XAU/USD suficientes.';
       document.getElementById('hist-progreso').style.display = 'none';
@@ -406,7 +408,7 @@ function histSubir(file, onDone) {
       trades.map(function(t){ return t.fp; }).filter(Boolean)
         .forEach(function(fp) { HISTORIAL_ALL_FPS.add(nombreFinal + '|' + fp); });
       if (typeof guardarTradesIndividuales === 'function') {
-        guardarTradesIndividuales(trades, nombreFinal, numeroCuenta).then(function() {
+        guardarTradesIndividuales(trades, nombreFinal, numeroCuenta, parciales).then(function() {
           return _actualizarEntradaHistorial(nombreFinal, tipo, numeroCuenta);
         }).then(function() {
           cargarHistorialDesdeSupabase();
@@ -523,7 +525,7 @@ async function _actualizarEntradaHistorial(nombreCuenta, tipo, numeroCuenta) {
   }
 }
 
-async function guardarTradesIndividuales(trades, nombreCuenta, numeroCuenta) {
+async function guardarTradesIndividuales(trades, nombreCuenta, numeroCuenta, parciales) {
   if (!window.usuarioActual || !window.usuarioActual.email) return;
   if (!trades || !trades.length) return;
   var token = getToken();
@@ -599,4 +601,40 @@ async function guardarTradesIndividuales(trades, nombreCuenta, numeroCuenta) {
   // 3. DELETE: eliminar todos los trades sin cuenta de este usuario (datos corruptos)
   var delRes = await supaDelete('trades', emailParam + '&cuenta=is.null', token);
   if (delRes.error) console.error('[HISTORIAL] Error eliminando trades sin cuenta:', delRes.error);
+
+  // 4. INSERT parciales (solo si el parser MT5 detectó salidas múltiples)
+  parciales = parciales || [];
+  if (parciales.length > 0) {
+    var fpsTrades = trades.map(function(t) { return t.fp; }).filter(Boolean);
+    if (fpsTrades.length) {
+      var fpListP = fpsTrades.map(function(fp) { return '%22' + encodeURIComponent(fp) + '%22'; }).join(',');
+      await supaDelete('trade_parciales', emailParam + '&fp_trade=in.(' + fpListP + ')', token);
+    }
+    var rowsP = parciales.map(function(p) {
+      return {
+        fp_trade:      p.fp_trade,
+        usuario_email: usuarioActual.email,
+        cuenta:        nombreCuenta || 'Externa',
+        cuenta_numero: numeroCuenta || null,
+        orden_id:      p.orden_id  || null,
+        fecha:         p.fecha     || null,
+        hora:          p.hora      != null ? p.hora : 0,
+        precio:        p.precio    || null,
+        volumen:       p.volumen   || null,
+        beneficio:     p.beneficio != null ? p.beneficio : 0,
+        es_sl:         !!p.es_sl
+      };
+    });
+    try {
+      var respP = await fetch(SUPA_URL + '/rest/v1/trade_parciales', {
+        method:  'POST',
+        headers: Object.assign(_headers(token), { 'Prefer': 'resolution=merge-duplicates,return=minimal' }),
+        body:    JSON.stringify(rowsP)
+      });
+      if (respP.ok) console.log('[PARCIALES] INSERT OK —', rowsP.length, 'parciales guardados');
+      else console.error('[PARCIALES] INSERT FALLO —', respP.status, await respP.text());
+    } catch (err) {
+      console.error('[PARCIALES] excepcion en fetch:', err);
+    }
+  }
 }
