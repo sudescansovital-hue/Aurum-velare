@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // LÓGICA DE MI GESTIÓN — datos reales de Supabase
 // ============================================================
 
@@ -276,7 +276,10 @@ function buildCicloDots() {
   var ptsL = losses > 0 ? ultimos.filter(function(t){ return !t.ganadora; }).reduce(function(s,t){ return s+(t.puntos||0); },0)/losses : 0;
   var rr   = ptsL > 0 ? Math.round(ptsW/ptsL*100)/100 : 0;
   var esp  = Math.round(((wr/100*ptsW) - ((1-wr/100)*ptsL))*100)/100;
-  var dentro = ultimos.filter(function(t){ return t.puntos <= 11; });
+  var limEdge   = (window.usuarioActual && window.usuarioActual.sl_edge)   || 11;
+  var limAire   = (window.usuarioActual && window.usuarioActual.sl_aire)   || 25;
+  var limLimite = (window.usuarioActual && window.usuarioActual.sl_limite) || 50;
+  var dentro = ultimos.filter(function(t){ return t.puntos <= limAire; });
   var cumpl = ultimos.length > 0 ? Math.round(dentro.length/ultimos.length*1000)/10 : 0;
 
   // Score
@@ -531,6 +534,7 @@ function buildEquity() {
 }
 
 function buildCumplimiento() {
+  renderSlConfig();
   var trades = getTradesActivos();
   if (trades.length < 5) {
     ['cumpl-dentro-num','cumpl-dentro-pct','cumpl-fuera-num','cumpl-fuera-pct',
@@ -544,12 +548,15 @@ function buildCumplimiento() {
   }
 
   var n      = trades.length;
-  var edge   = trades.filter(function(t){ return t.puntos <= 11; });
-  var aire   = trades.filter(function(t){ return t.puntos > 11 && t.puntos <= 25; });
-  var limite = trades.filter(function(t){ return t.puntos > 25 && t.puntos <= 50; });
-  var afuera = trades.filter(function(t){ return t.puntos > 50; });
-  var dentro = edge;
-  var fuera  = trades.filter(function(t){ return t.puntos > 11; });
+  var limEdge   = (window.usuarioActual && window.usuarioActual.sl_edge)   || 11;
+  var limAire   = (window.usuarioActual && window.usuarioActual.sl_aire)   || 25;
+  var limLimite = (window.usuarioActual && window.usuarioActual.sl_limite) || 50;
+  var edge   = trades.filter(function(t){ return t.puntos <= limEdge; });
+  var aire   = trades.filter(function(t){ return t.puntos > limEdge && t.puntos <= limAire; });
+  var limite = trades.filter(function(t){ return t.puntos > limAire && t.puntos <= limLimite; });
+  var afuera = trades.filter(function(t){ return t.puntos > limLimite; });
+  var dentro = trades.filter(function(t){ return t.puntos <= limAire; });
+  var fuera  = trades.filter(function(t){ return t.puntos > limAire; });
 
   function wr(arr)  { return arr.length > 0 ? Math.round(arr.filter(function(t){ return t.ganadora; }).length/arr.length*1000)/10 : 0; }
   function pnlSum(arr) { return Math.round(arr.reduce(function(s,t){ return s+(t.beneficio||0); },0)*100)/100; }
@@ -578,10 +585,10 @@ function buildCumplimiento() {
   var elSlDist = document.getElementById('cumpl-sl-dist');
   if (elSlDist) {
     var zonas = [
-      { label:'✦ Edge', desc:'≤ 11 puntos — SL perfecto',       arr:edge,   bg:'#c9a84c18', col:'#e8c870', border:'#c9a84c44', grad:'#c9a84c44,#e8c870' },
-      { label:'Aire',   desc:'12–25 puntos — tolerable',         arr:aire,   bg:'#aaa03a18', col:'#c8b040', border:'#aaa03a33', grad:'#aaa03a44,#c8b040' },
-      { label:'Límite', desc:'26–50 puntos — zona peligrosa',    arr:limite, bg:'#cc884418', col:'#cc8844', border:'#cc884433', grad:'#cc884444,#cc8844' },
-      { label:'Fuera',  desc:'&gt;50 puntos — fuera del método', arr:afuera, bg:'#cc443318', col:'#cc5544', border:'#cc443333', grad:'#cc443344,#cc5544' }
+      { label:'✦ Edge', desc:'≤ ' + limEdge + ' puntos — SL perfecto',                       arr:edge,   bg:'#c9a84c18', col:'#e8c870', border:'#c9a84c44', grad:'#c9a84c44,#e8c870' },
+      { label:'Aire',   desc:(limEdge + 1) + '–' + limAire + ' puntos — tolerable',          arr:aire,   bg:'#aaa03a18', col:'#c8b040', border:'#aaa03a33', grad:'#aaa03a44,#c8b040' },
+      { label:'Límite', desc:(limAire + 1) + '–' + limLimite + ' puntos — zona peligrosa',   arr:limite, bg:'#cc884418', col:'#cc8844', border:'#cc884433', grad:'#cc884444,#cc8844' },
+      { label:'Fuera',  desc:'&gt;' + limLimite + ' puntos — fuera del método',              arr:afuera, bg:'#cc443318', col:'#cc5544', border:'#cc443333', grad:'#cc443344,#cc5544' }
     ];
     var maxZ = Math.max.apply(null, zonas.map(function(z){ return z.arr.length; })) || 1;
     var tagHtml = '<div class="tag" style="display:block;margin-bottom:1rem;">Distribución de SL · Dónde cerraste cada operación</div>';
@@ -604,9 +611,13 @@ function buildCumplimiento() {
   // Alertas: top-3 trades with highest puntos (worst outliers)
   var elAlertas = document.getElementById('cumpl-alertas');
   if (elAlertas) {
-    var outliers = trades.filter(function(t){ return t.puntos > 25; })
+    var conSlExcesivo = trades.filter(function(t){ return t.sl != null && t.puntos > limAire; })
       .sort(function(a, b){ return b.puntos - a.puntos; })
       .slice(0, 3);
+    var sinSl = trades.filter(function(t){ return t.sl == null; })
+      .sort(function(a, b){ return Math.abs(b.beneficio) - Math.abs(a.beneficio); })
+      .slice(0, 2);
+    var outliers = conSlExcesivo.concat(sinSl).slice(0, 5);
 
     var alertasHtml = '';
     if (outliers.length) {
@@ -614,9 +625,9 @@ function buildCumplimiento() {
         var pts  = Math.round(t.puntos * 10) / 10;
         var vol  = t.volumen && t.volumen > 0 ? t.volumen.toFixed(2) + ' lotes · ' : '';
         var ben  = (t.beneficio >= 0 ? '+' : '') + Math.round(t.beneficio * 100) / 100 + '$';
-        var desc = t.beneficio > 0
-          ? 'Ganó ' + ben + ' pero con ' + pts + ' puntos de SL. Fuera del método aunque ganara.'
-          : 'Perdió ' + ben + '. SL excesivo de ' + pts + ' puntos.';
+        var desc = t.sl == null
+          ? (t.beneficio > 0 ? 'Ganó ' + ben + ' sin SL registrado. Opera siempre con stop.' : 'Perdió ' + ben + ' sin SL registrado. Opera siempre con stop.')
+          : (t.beneficio > 0 ? 'Ganó ' + ben + ' pero con ' + pts + ' puntos de SL. Fuera del método aunque ganara.' : 'Perdió ' + ben + '. SL excesivo de ' + pts + ' puntos.');
         return '<div style="padding:.8rem 1rem;border:1px solid #cc443322;background:#cc443308;border-left:2px solid #cc4433;margin-bottom:.6rem;">' +
           '<div style="font-size:12px;letter-spacing:.1em;color:#cc7755;margin-bottom:.3rem;">⚠ ' + vol + pts + ' puntos</div>' +
           '<div style="font-size:13px;color:#7a4a38;line-height:1.6;">' + desc + '</div>' +
@@ -631,8 +642,8 @@ function buildCumplimiento() {
 
     var pctEdge = pct(edge);
     var lectura = pctEdge >= 70
-      ? '"El ' + pctEdge + '% de tus trades respetan el Edge 11. Tu win rate dentro del método es ' + wrDentro + '%. El proceso está en marcha."'
-      : '"El ' + pctEdge + '% de tus trades respetan el Edge 11. Cuando lo respetas, tu win rate sube al ' + wrDentro + '%. El método funciona — el reto es aplicarlo siempre."';
+      ? '"El ' + pctEdge + '% de tus trades respetan el Edge ' + limEdge + '. Tu win rate dentro del método es ' + wrDentro + '%. El proceso está en marcha."'
+      : '"El ' + pctEdge + '% de tus trades respetan el Edge ' + limEdge + '. Cuando lo respetas, tu win rate sube al ' + wrDentro + '%. El método funciona — el reto es aplicarlo siempre."';
 
     var tagHtml2 = '<div class="tag" style="display:block;margin-bottom:1rem;">Operaciones fuera del método · Las más críticas</div>';
     var lecturaHtml = '<div style="padding:1rem;border:1px solid #c9a84c22;background:linear-gradient(135deg,#161208,#1a1608);border-left:2px solid #c9a84c;">' +
@@ -668,7 +679,7 @@ function buildCumplimiento() {
       if (!key) return;
       if (!porMesCumpl[key]) { porMesCumpl[key] = { t:0, dentro:0 }; mesOrdenCumpl.push(key); }
       porMesCumpl[key].t++;
-      if (t.puntos <= 11) porMesCumpl[key].dentro++;
+      if (t.puntos <= limAire) porMesCumpl[key].dentro++;
     });
     var MESES_C = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
     function _mesLabel(k) { var p = k.split('-'); return MESES_C[parseInt(p[1])-1] + ' ' + p[0].slice(2); }
@@ -690,7 +701,7 @@ function buildCumplimiento() {
       }).join('');
       elEvolMens.innerHTML =
         '<div style="padding:1.5rem 2rem;border-top:1px solid var(--border);">' +
-        '<div class="tag" style="display:block;margin-bottom:1rem;">Evolución mensual del cumplimiento · % trades en método (Edge 11)</div>' +
+        '<div class="tag" style="display:block;margin-bottom:1rem;">Evolución mensual del cumplimiento · % trades en método (Edge ' + limEdge + ')</div>' +
         htmlMenses + '</div>';
     }
   }
@@ -1160,6 +1171,82 @@ function buildEstadisticasAvanzadas() {
   }
 }
 
+// ── Configuración de umbrales SL ─────────────────────────────────
+
+function renderSlConfig() {
+  var panelId = 'sl-config-bloque';
+  if (document.getElementById(panelId)) {
+    var ua = window.usuarioActual;
+    var inpE = document.getElementById('sl-inp-edge');
+    var inpA = document.getElementById('sl-inp-aire');
+    var inpL = document.getElementById('sl-inp-limite');
+    if (inpE) inpE.value = (ua && ua.sl_edge)   || 11;
+    if (inpA) inpA.value = (ua && ua.sl_aire)   || 25;
+    if (inpL) inpL.value = (ua && ua.sl_limite) || 50;
+    return;
+  }
+  var panel = document.getElementById('gpanel-cumplimiento');
+  if (!panel) return;
+  var ua    = window.usuarioActual;
+  var vEdge = (ua && ua.sl_edge)   || 11;
+  var vAire = (ua && ua.sl_aire)   || 25;
+  var vLim  = (ua && ua.sl_limite) || 50;
+  var div   = document.createElement('div');
+  div.id    = panelId;
+  div.style.cssText = 'padding:.8rem 2rem;border-bottom:1px solid var(--border);background:var(--bg2);display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;';
+  div.innerHTML =
+    '<span style="font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--text-muted);">Umbrales SL</span>' +
+    _slInput('Edge',   'sl-inp-edge',   vEdge) +
+    _slInput('Aire',   'sl-inp-aire',   vAire) +
+    _slInput('Límite', 'sl-inp-limite', vLim)  +
+    '<span id="sl-config-msg" style="font-size:12px;color:var(--green);min-width:80px;"></span>';
+  panel.insertBefore(div, panel.firstChild);
+  ['sl-inp-edge', 'sl-inp-aire', 'sl-inp-limite'].forEach(function(id) {
+    var inp = document.getElementById(id);
+    if (inp) inp.addEventListener('change', guardarConfigSl);
+  });
+}
+
+function _slInput(label, id, val) {
+  return '<label style="display:flex;align-items:center;gap:.4rem;">' +
+    '<span style="font-size:12px;color:var(--text-muted);">' + label + '</span>' +
+    '<input id="' + id + '" type="number" value="' + val + '" min="1" max="999" ' +
+    'style="width:55px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.25rem .4rem;font-size:13px;font-family:inherit;text-align:center;outline:none;" ' +
+    'onfocus="this.style.borderColor=\'var(--gold)\'" onblur="this.style.borderColor=\'var(--border)\'">' +
+    '</label>';
+}
+
+async function guardarConfigSl() {
+  var inpE = document.getElementById('sl-inp-edge');
+  var inpA = document.getElementById('sl-inp-aire');
+  var inpL = document.getElementById('sl-inp-limite');
+  if (!inpE || !inpA || !inpL) return;
+  var edge   = parseFloat(inpE.value) || 11;
+  var aire   = parseFloat(inpA.value) || 25;
+  var limite = parseFloat(inpL.value) || 50;
+  var msg    = document.getElementById('sl-config-msg');
+  if (edge >= aire || aire >= limite) {
+    if (msg) { msg.style.color = 'var(--red)'; msg.textContent = 'Edge < Aire < Límite'; }
+    return;
+  }
+  var token = getToken();
+  var email = usuarioActual && usuarioActual.email;
+  if (!token || !email) return;
+  var res = await supaPatch('usuarios_aurum', 'email=eq.' + encodeURIComponent(email),
+    { sl_edge: edge, sl_aire: aire, sl_limite: limite, updated_at: new Date().toISOString() }, token);
+  if (res.error) {
+    if (msg) { msg.style.color = 'var(--red)'; msg.textContent = '✗ Error al guardar'; }
+    return;
+  }
+  usuarioActual.sl_edge   = edge;
+  usuarioActual.sl_aire   = aire;
+  usuarioActual.sl_limite = limite;
+  window.usuarioActual    = usuarioActual;
+  if (msg) { msg.style.color = 'var(--green)'; msg.textContent = '✓ Guardado'; }
+  setTimeout(function() { if (msg) msg.textContent = ''; }, 2000);
+  buildCumplimiento();
+}
+
 function buildDashboardHero() {
   var todos = window.AURUM_TRADES ? (window.AURUM_TRADES.todos || []) : [];
 
@@ -1222,6 +1309,11 @@ function buildDashboardHero() {
   el = document.getElementById('dash-nivel-pct');  if (el) el.textContent = pctCiclo + '%';
   el = document.getElementById('dash-nivel-card'); if (el) el.textContent = numStr + ' · ' + nombreActual;
   el = document.getElementById('dash-nivel-sub');  if (el) el.textContent = pctCiclo + '% hacia ' + nombreSig;
+  el = document.getElementById('sidebar-nivel-num');  if (el) el.textContent = numStr;
+  el = document.getElementById('sidebar-nivel-name'); if (el) el.textContent = nombreActual;
+  el = document.getElementById('sidebar-nivel-fill'); if (el) el.style.width = pctCiclo + '%';
+  el = document.getElementById('sidebar-nivel-pct');  if (el) el.textContent = pctCiclo + '%';
+  el = document.getElementById('sidebar-nivel-next'); if (el) el.textContent = '→ ' + nombreSig;
 
   // Días en proceso general — desde registro en Aurum (created_at)
   var _fechaRegistro = usuarioActual && (usuarioActual.fecha_entrada || usuarioActual.created_at); // created_at = fecha real de registro en Aurum
@@ -1235,9 +1327,10 @@ function buildDashboardHero() {
   // Días por cuenta — desde primer trade hasta último trade
   // Usa la misma lógica de fecha que el resto del sistema (fp primero, luego created_at)
   function _parseFecha(t) {
-    if (t.fp) {
-      var s = String(t.fp);
-      // MT5: YYYY.MM.DD
+    var campos = [t.fp, t.fecha_cierre, t.fecha].filter(Boolean);
+    for (var ci = 0; ci < campos.length; ci++) {
+      var s = String(campos[ci]);
+      // MT5: YYYY.MM.DD (con o sin hora)
       var m1 = s.match(/(\d{4})\.(\d{2})\.(\d{2})/);
       if (m1) return new Date(parseInt(m1[1]), parseInt(m1[2])-1, parseInt(m1[3]));
       // cTrader: DD/MM/YYYY
@@ -1261,6 +1354,14 @@ function buildDashboardHero() {
   el = document.getElementById('card-maestra-dias'); if (el) el.textContent = diasCuenta('maestra');
   el = document.getElementById('card-retos-dias');   if (el) el.textContent = diasCuenta('retos');
   el = document.getElementById('card-prueba-dias');  if (el) el.textContent = diasCuenta('prueba');
+
+  var bM = document.getElementById('badge-maestra');
+  var bR = document.getElementById('badge-retos');
+  var bP = document.getElementById('badge-prueba');
+  var badgeStyle = 'font-size:10px;letter-spacing:.15em;padding:2px 8px;border-radius:3px;font-family:sans-serif;';
+  if (bM) bM.innerHTML = '<span style="' + badgeStyle + 'background:rgba(100,200,100,.15);color:#6ec97b;border:1px solid #6ec97b44;">Real</span>';
+  if (bR) bR.innerHTML = '<span style="' + badgeStyle + 'background:rgba(201,168,76,.1);color:var(--gold);border:1px solid var(--gold-dim);">Challenge</span>';
+  if (bP) bP.innerHTML = '<span style="' + badgeStyle + 'background:rgba(201,168,76,.1);color:var(--gold);border:1px solid var(--gold-dim);">Challenge</span>';
 
   // Cards por cuenta — coincidencia parcial case-insensitive
   function statsCuenta(keyword) {
