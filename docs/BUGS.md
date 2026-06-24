@@ -1,6 +1,6 @@
 # AURUM VELARE — Bugs y Prioridades
 > Archivo de referencia rápida. Ver ARQUITECTURA.md para contexto completo.  
-> Última actualización: 10 de junio de 2026
+> Última actualización: 24 de junio de 2026
 
 ---
 
@@ -79,6 +79,16 @@
 - Badge Challenge/Real incorrecto en Retos y Prueba
 - Admin: mover trades a Externa automáticamente al cambiar número de cuenta — bug conocido, requiere lógica en el save del admin
 - Nivel sidebar muestra etapa 03 cuando Mi Proceso puede mostrar diferente
+
+---
+
+## Bugs conocidos — datos y parseo (24 Jun 2026)
+
+| # | Dónde | Qué falla | Impacto |
+|---|---|---|---|
+| 18 | Parser MT5 / Supabase | El SL guardado en `trades.sl` es el SL de **cierre**, no el de apertura. MT5 exporta el SL del estado final. Si el trader movió el SL durante el trade, `puntos` refleja el SL modificado, no el riesgo inicial asumido | Distorsiona el cumplimiento en trades con SL ajustado — puede clasificar como "dentro" trades que abrieron fuera del método |
+| 19 | Parser MT5 | El parser para en la sección "Órdenes" sin leerla. No captura modificaciones de SL ni parciales individuales — solo lee la posición final cerrada | No es posible reconstruir el SL de apertura ni el historial de modificaciones desde el archivo MT5 actual |
+| 20 | Supabase / Cumplimiento | La tabla `trade_parciales` está pendiente de crear. Sin ella no es posible registrar salidas parciales individualmente para el análisis de cumplimiento de salidas | La pestaña de cumplimiento solo ve la posición agregada — no puede analizar parciales |
 
 ---
 

@@ -1,23 +1,17 @@
 # AURUM VELARE — Arquitectura Web
 > Documento vivo. Se actualiza con el proyecto.  
-> Última actualización: 13 de junio de 2026  
+> Última actualización: 24 de junio de 2026  
 > Para uso interno — contexto de desarrollo y nuevas sesiones de trabajo.
 
 ---
 
-## Estado sesión 13 Jun 2026
+## Estado sesión 24 Jun 2026
 
-### Fixes aplicados hoy
-- Parser MT5: filtra filas de "orden" (precio = market) con guard pe===null || pc===null
-- Parser MT5: fp ahora incluye fecha real (2026.06.12_posicionId)
-- Parser MT5: beneficio suma comisiones y swaps si existen columnas
-- Historial y Dashboard: paginación de 1000 en 1000 para superar límite Supabase
-
-### Estado de datos Roderas (sudescansovital@gmail.com)
-- Cuenta Maestra 7747760: 124 trades, +1540$, WR 51.6%
-- Cuenta Retos 4011477: 698 trades, -1430$, WR 51.9%
-- Cuenta Prueba 7751904: 6 trades, -1239$, WR 0%
-- Cuentas Externas: 135146 (107t), 7741924 (131t), 7746279 (75t)
+### Implementado hoy
+- **Umbrales SL personalizables por usuario:** columnas `sl_edge`, `sl_aire`, `sl_limite` añadidas a `usuarios_aurum`. Configurables desde Mi Gestión → Cumplimiento. Defaults: 11 / 25 / 50
+- **Fix criterio "dentro del método":** `dentro` ahora = `puntos <= limAire` (antes era `puntos <= 11` por error). Todas las categorías usan variables leídas de `window.usuarioActual`
+- **Nuevos campos en `trades`:** `precio_entrada` y `precio_cierre` ahora se guardan al importar historial
+- **Estrategia DELETE+INSERT en reimport:** al subir un archivo, se borran todos los trades de esa cuenta (usuario + cuenta + cuenta_numero) y se reinsertan desde el archivo. Garantiza que BD refleja exactamente el archivo subido
 
 ### Pendientes próxima sesión (por orden de prioridad)
 1. Cabecera Trade Record P&L incorrecto en Retos — dos cálculos desincronizados
@@ -26,6 +20,22 @@
 4. Admin: mover trades a Externa automáticamente al cambiar número de cuenta
 5. OZT: descuento no se aplica al registrarse en reto
 6. Nivel sidebar no coincide con Mi Proceso
+
+---
+
+## Estado sesión 13 Jun 2026
+
+### Fixes aplicados
+- Parser MT5: filtra filas de "orden" (precio = market) con guard pe===null || pc===null
+- Parser MT5: fp ahora incluye fecha real (2026.06.12_posicionId)
+- Parser MT5: beneficio suma comisiones y swaps si existen columnas
+- Historial y Dashboard: paginación de 1000 en 1000 para superar límite Supabase
+
+### Estado de datos Roderas (sudescansovital@gmail.com) a 13 Jun
+- Cuenta Maestra 7747760: 124 trades, +1540$, WR 51.6%
+- Cuenta Retos 4011477: 698 trades, -1430$, WR 51.9%
+- Cuenta Prueba 7751904: 6 trades, -1239$, WR 0%
+- Cuentas Externas: 135146 (107t), 7741924 (131t), 7746279 (75t)
 
 ---
 
@@ -347,7 +357,33 @@ Ranking de sala por OZT — siempre visible
 |---|---|
 | trades | Operaciones individuales por usuario |
 | historiales | Historiales subidos agrupados por carpeta y usuario |
-| usuarios_aurum | Perfil: nombre · animal · etapa · Camino · fecha inicio · OZT |
+| usuarios_aurum | Perfil: nombre · animal · etapa · Camino · fecha inicio · OZT · umbrales SL |
+
+### Columnas relevantes — trades
+| Campo | Tipo | Descripción |
+|---|---|---|
+| fp | TEXT PK | Fingerprint único del trade (`YYYY.MM.DD_positionId` en MT5) |
+| usuario_email | TEXT | Email del usuario propietario |
+| cuenta | TEXT | Nombre de la carpeta: Cuenta Maestra / Retos / Prueba / Externa |
+| cuenta_numero | TEXT | Número MT5/cTrader de la cuenta (ej: `7747760`) |
+| fecha | TEXT | Fecha de apertura `YYYY.MM.DD` |
+| ganadora | BOOLEAN | `true` si beneficio > 0 |
+| beneficio | NUMERIC | P&L neto (incluye comisiones y swap) |
+| puntos | NUMERIC | SL risk en puntos: `abs(pe - sl)` si SL existe, si no `abs(pe - pc)` |
+| precio_entrada | NUMERIC | Precio de entrada del trade |
+| precio_cierre | NUMERIC | Precio de cierre del trade |
+| sl | NUMERIC | Stop Loss de cierre (el que aparece en el historial MT5 al cerrar) |
+| tp | NUMERIC | Take Profit |
+| hora | INT | Hora de apertura (0–23) |
+| dia | INT | Día de semana (0=Lun … 6=Dom) |
+| dur_min | INT | Duración en minutos |
+
+### Columnas relevantes — usuarios_aurum
+| Campo | Tipo | Descripción |
+|---|---|---|
+| sl_edge | INT | Umbral SL zona Edge (default 11 puntos) |
+| sl_aire | INT | Umbral SL zona Aire (default 25 puntos) |
+| sl_limite | INT | Umbral SL zona Límite (default 50 puntos) |
 
 ### Qué se guarda y qué no
 - ✓ SÍ: trades · historiales · perfil de usuario · OZT · entradas de diario (V2)
