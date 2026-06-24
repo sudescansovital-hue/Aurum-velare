@@ -70,7 +70,10 @@ async function _activarSesion(email) {
     cuenta_prueba:   u.cuenta_prueba   || null,
     ozt_comprados:     u.ozt_comprados     || 0,
     ozt_gastados:      u.ozt_gastados      || 0,
-    ozt_ganados_retos: u.ozt_ganados_retos || 0
+    ozt_ganados_retos: u.ozt_ganados_retos || 0,
+    sl_edge:   u.sl_edge   || 11,
+    sl_aire:   u.sl_aire   || 25,
+    sl_limite: u.sl_limite || 50
   };
   document.getElementById('nav-login-btn').style.display = 'none';
   document.getElementById('nav-user-widget').style.display = 'flex';
