@@ -705,6 +705,235 @@ function buildCumplimiento() {
         htmlMenses + '</div>';
     }
   }
+  // Parciales
+  buildCumplimientoParciales();
+}
+
+async function buildCumplimientoParciales() {
+  var contenedor = document.getElementById('cumpl-parciales-bloque');
+  if (!contenedor) return;
+
+  var ua = window.usuarioActual;
+  var email = ua && ua.email;
+  if (!email) { contenedor.innerHTML = ''; return; }
+
+  var tp1 = (ua && ua.tp_parcial1) || 18;
+  var tp2 = (ua && ua.tp_parcial2) || 33;
+  var tp3 = (ua && ua.tp_parcial3) || 50;
+
+  contenedor.innerHTML = '<div style="padding:1rem 2rem;color:var(--text-muted);font-size:13px;">Cargando parciales…</div>';
+
+  var token  = getToken();
+  var supaUrl = window.SUPABASE_URL || '';
+  var supaKey = window.SUPABASE_KEY || '';
+
+  var ua2 = window.usuarioActual;
+  var cuentasActivas = [];
+  if (ua2.cuenta_maestra) cuentasActivas.push(String(ua2.cuenta_maestra));
+  if (ua2.cuenta_retos)   cuentasActivas.push(String(ua2.cuenta_retos));
+  if (ua2.cuenta_prueba)  cuentasActivas.push(String(ua2.cuenta_prueba));
+
+  if (!cuentasActivas.length) {
+    contenedor.innerHTML = '<div style="padding:1rem 2rem;color:var(--text-muted);font-size:13px;">Sin cuentas activas.</div>';
+    return;
+  }
+
+  var inFilter = cuentasActivas.map(function(c){ return '"' + c + '"'; }).join(',');
+  var urlParciales = supaUrl + '/rest/v1/trade_parciales?select=*&cuenta_numero=in.(' + inFilter + ')&order=hora.asc';
+
+  var resp;
+  try {
+    resp = await fetch(urlParciales, {
+      headers: {
+        'apikey': supaKey,
+        'Authorization': 'Bearer ' + token,
+        'Content-Type': 'application/json'
+      }
+    });
+  } catch(e) {
+    contenedor.innerHTML = '<div style="padding:1rem 2rem;color:var(--red);font-size:13px;">Error de red al cargar parciales.</div>';
+    return;
+  }
+
+  var parciales = await resp.json();
+  if (!Array.isArray(parciales) || parciales.length === 0) {
+    contenedor.innerHTML =
+      '<div style="padding:1.5rem 2rem;border-top:1px solid var(--border);">' +
+      '<div class="tag" style="display:block;margin-bottom:.5rem;">Gestión activa · Parciales</div>' +
+      '<div style="font-size:13px;color:var(--text-muted);">Sin parciales registrados en las cuentas activas.</div></div>';
+    return;
+  }
+
+  // Agrupar por position_id
+  var porTrade = {};
+  parciales.forEach(function(p) {
+    var pid = String(p.position_id);
+    if (!porTrade[pid]) porTrade[pid] = [];
+    porTrade[pid].push(p);
+  });
+
+  // Cruzar trades activos para obtener precio_entrada
+  var trades = getTradesActivos ? getTradesActivos() : [];
+  var tradeByPid = {};
+  trades.forEach(function(t) {
+    var m = t.fp && String(t.fp).match(/_(\d+)$/);
+    if (m) tradeByPid[m[1]] = t;
+  });
+
+  // Zonas TP
+  var zonas = [
+    { label: 'TP1', rango: '1 – ' + tp1 + ' pts',            count: 0, fuera: [], limMin: 1,      limMax: tp1 },
+    { label: 'TP2', rango: (tp1+1) + ' – ' + tp2 + ' pts',  count: 0, fuera: [], limMin: tp1+1,   limMax: tp2 },
+    { label: 'TP3', rango: (tp2+1) + ' – ' + tp3 + ' pts',  count: 0, fuera: [], limMin: tp2+1,   limMax: tp3 }
+  ];
+  var totalConParciales = 0;
+  var totalParciales = 0;
+  var parcialesOk = 0;
+
+  Object.keys(porTrade).forEach(function(pid) {
+    var grupo = porTrade[pid];
+    grupo.sort(function(a, b) { return (a.hora || '').localeCompare(b.hora || ''); });
+
+    var trade = tradeByPid[pid];
+    var pe = trade ? (parseFloat(trade.precio_entrada) || null) : null;
+    if (pe === null && grupo[0] && grupo[0].precio_entrada_trade != null) {
+      pe = parseFloat(grupo[0].precio_entrada_trade);
+    }
+
+    totalConParciales++;
+
+    grupo.forEach(function(p, idx) {
+      if (p.es_sl) return; // salida controlada por SL — no evaluar zona TP
+      totalParciales++;
+      if (pe === null) return;
+
+      var puntos = Math.abs(pe - parseFloat(p.precio_parcial || 0));
+      puntos = Math.round(puntos * 100) / 100;
+
+      var idxZona = Math.min(idx, 2);
+      var zona = zonas[idxZona];
+
+      if (puntos >= zona.limMin && puntos <= zona.limMax) {
+        zona.count++;
+        parcialesOk++;
+      } else {
+        zona.fuera.push({ pid: pid, puntos: puntos });
+      }
+    });
+  });
+
+  // Trades sin parciales
+  var pidsConParciales = Object.keys(porTrade);
+  var totalSinParciales = 0;
+  trades.forEach(function(t) {
+    var m = t.fp && String(t.fp).match(/_(\d+)$/);
+    if (!m) return;
+    if (pidsConParciales.indexOf(m[1]) === -1) totalSinParciales++;
+  });
+
+  var totalTrades = totalConParciales + totalSinParciales;
+  var pctGestion = totalTrades > 0 ? Math.round(totalConParciales / totalTrades * 1000) / 10 : 0;
+  var pctSinGestion = Math.round((100 - pctGestion) * 10) / 10;
+
+  var colZona = ['#c9a84c', '#aaa03a', '#4ACC8A'];
+
+  var html = '<div style="padding:1.5rem 2rem;border-top:1px solid var(--border);">';
+  html += '<div class="tag" style="display:block;margin-bottom:1.2rem;">Gestión activa · Parciales</div>';
+
+  // Cards ratio gestion activa vs salida unica
+  html += '<div style="display:flex;gap:1.5rem;margin-bottom:1.5rem;flex-wrap:wrap;">';
+  html += _parcialesStatCard('Con gestión activa', totalConParciales, pctGestion + '%', '#c9a84c', 'Trades con al menos 1 parcial registrado');
+  html += _parcialesStatCard('Salida única', totalSinParciales, pctSinGestion + '%', '#7a6a4a', 'Trades cerrados de golpe sin parciales');
+  html += '</div>';
+
+  if (totalParciales > 0) {
+    var pctOk = Math.round(parcialesOk / totalParciales * 1000) / 10;
+    html += '<div style="margin-bottom:1.5rem;">';
+    html += '<div style="font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.8rem;">Distribución por zona TP</div>';
+
+    zonas.forEach(function(z, i) {
+      var total_z = z.count + z.fuera.length;
+      var pctZ = total_z > 0 ? Math.round(z.count / total_z * 1000) / 10 : 0;
+      var col = colZona[i];
+      html += '<div style="display:flex;align-items:flex-start;gap:1rem;padding:.8rem 1rem;border:1px solid var(--border);background:#0e0c08;margin-bottom:.5rem;">';
+      html += '<div style="font-size:11px;padding:.2rem .7rem;letter-spacing:.15em;text-transform:uppercase;width:48px;text-align:center;flex-shrink:0;background:' + col + '18;color:' + col + ';border:1px solid ' + col + '44;">' + z.label + '</div>';
+      html += '<div style="flex:1;">';
+      html += '<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-bottom:.3rem;">';
+      html += '<span>' + z.rango + '</span>';
+      html += '<span style="color:' + col + ';">' + pctZ + '% dentro &middot; ' + z.count + ' / ' + total_z + '</span></div>';
+      html += '<div style="height:4px;background:var(--border);border-radius:2px;margin-bottom:.5rem;">';
+      html += '<div style="height:100%;width:' + Math.min(100, pctZ) + '%;background:' + col + ';border-radius:2px;"></div></div>';
+
+      if (z.fuera.length > 0) {
+        html += '<div style="margin-top:.4rem;">';
+        z.fuera.slice(0, 5).forEach(function(f) {
+          var zonaReal = f.puntos <= tp1 ? 'TP1 (≤' + tp1 + 'pts)' : f.puntos <= tp2 ? 'TP2 (≤' + tp2 + 'pts)' : 'TP3 (≤' + tp3 + 'pts)';
+          html += '<div style="font-size:11px;color:#cc7755;padding:.2rem 0;border-bottom:1px solid #cc443311;">';
+          html += '⚠ #' + f.pid + ' — ' + f.puntos + ' pts · cae en zona ' + zonaReal;
+          html += '</div>';
+        });
+        if (z.fuera.length > 5) {
+          html += '<div style="font-size:11px;color:var(--text-muted);padding:.3rem 0;">… y ' + (z.fuera.length - 5) + ' más fuera de zona</div>';
+        }
+        html += '</div>';
+      }
+
+      html += '</div>';
+      html += '<div style="font-family:\"Cormorant Garamond\",serif;font-size:20px;color:' + col + ';width:40px;text-align:right;">' + total_z + '</div>';
+      html += '</div>';
+    });
+
+    var lectura = pctOk >= 70
+      ? '"El ' + pctOk + '% de tus parciales se ejecutan en su zona. La gestión activa está integrada en tu proceso."'
+      : '"El ' + pctOk + '% de tus parciales respetan su zona TP. Cuando las respetas, el proceso fluye. El reto es la consistencia."';
+    html += '<div style="padding:1rem;border:1px solid #c9a84c22;background:linear-gradient(135deg,#161208,#1a1608);border-left:2px solid #c9a84c;margin-top:1rem;">';
+    html += '<div style="font-size:10px;letter-spacing:.3em;text-transform:uppercase;color:#c9a84c;margin-bottom:.5rem;">❖ Lectura Aurum</div>';
+    html += '<div style="font-size:13px;color:#8a7840;line-height:1.8;font-style:italic;">' + lectura + '</div>';
+    html += '</div>';
+    html += '</div>';
+  }
+
+  html += '</div>';
+  contenedor.innerHTML = html;
+}
+
+function _parcialesStatCard(titulo, num, pct, col, desc) {
+  return '<div style="flex:1;min-width:160px;padding:1rem;border:1px solid var(--border);background:#0e0c08;">' +
+    '<div style="font-size:28px;font-family:\"Cormorant Garamond\",serif;color:' + col + ';">' + num + '</div>' +
+    '<div style="font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:' + col + ';margin:.2rem 0;">' + pct + ' · ' + titulo + '</div>' +
+    '<div style="font-size:12px;color:var(--text-muted);">' + desc + '</div>' +
+    '</div>';
+}
+
+async function guardarConfigTpParciales() {
+  var inp1 = document.getElementById('tp-inp-p1');
+  var inp2 = document.getElementById('tp-inp-p2');
+  var inp3 = document.getElementById('tp-inp-p3');
+  if (!inp1 || !inp2 || !inp3) return;
+  var tp1 = parseInt(inp1.value) || 18;
+  var tp2 = parseInt(inp2.value) || 33;
+  var tp3 = parseInt(inp3.value) || 50;
+  var msg = document.getElementById('sl-config-msg');
+  if (tp1 >= tp2 || tp2 >= tp3) {
+    if (msg) { msg.style.color = 'var(--red)'; msg.textContent = 'TP1 < TP2 < TP3'; }
+    return;
+  }
+  var token = getToken();
+  var email = usuarioActual && usuarioActual.email;
+  if (!token || !email) return;
+  var res = await supaPatch('usuarios_aurum', 'email=eq.' + encodeURIComponent(email),
+    { tp_parcial1: tp1, tp_parcial2: tp2, tp_parcial3: tp3, updated_at: new Date().toISOString() }, token);
+  if (res.error) {
+    if (msg) { msg.style.color = 'var(--red)'; msg.textContent = '✗ Error al guardar'; }
+    return;
+  }
+  usuarioActual.tp_parcial1 = tp1;
+  usuarioActual.tp_parcial2 = tp2;
+  usuarioActual.tp_parcial3 = tp3;
+  window.usuarioActual = usuarioActual;
+  if (msg) { msg.style.color = 'var(--green)'; msg.textContent = '✓ Guardado'; }
+  setTimeout(function() { if (msg) msg.textContent = ''; }, 2000);
+  buildCumplimiento();
 }
 
 function _eavBarra(label, pct, col) {
@@ -1183,6 +1412,12 @@ function renderSlConfig() {
     if (inpE) inpE.value = (ua && ua.sl_edge)   || 11;
     if (inpA) inpA.value = (ua && ua.sl_aire)   || 25;
     if (inpL) inpL.value = (ua && ua.sl_limite) || 50;
+    var inp1 = document.getElementById('tp-inp-p1');
+    var inp2 = document.getElementById('tp-inp-p2');
+    var inp3 = document.getElementById('tp-inp-p3');
+    if (inp1) inp1.value = (ua && ua.tp_parcial1) || 18;
+    if (inp2) inp2.value = (ua && ua.tp_parcial2) || 33;
+    if (inp3) inp3.value = (ua && ua.tp_parcial3) || 50;
     return;
   }
   var panel = document.getElementById('gpanel-cumplimiento');
@@ -1194,16 +1429,27 @@ function renderSlConfig() {
   var div   = document.createElement('div');
   div.id    = panelId;
   div.style.cssText = 'padding:.8rem 2rem;border-bottom:1px solid var(--border);background:var(--bg2);display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;';
+  var vTp1 = (ua && ua.tp_parcial1) || 18;
+  var vTp2 = (ua && ua.tp_parcial2) || 33;
+  var vTp3 = (ua && ua.tp_parcial3) || 50;
   div.innerHTML =
     '<span style="font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--text-muted);">Umbrales SL</span>' +
     _slInput('Edge',   'sl-inp-edge',   vEdge) +
     _slInput('Aire',   'sl-inp-aire',   vAire) +
     _slInput('Límite', 'sl-inp-limite', vLim)  +
+    '<span style="font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--text-muted);margin-left:1.5rem;">Umbrales TP Parciales</span>' +
+    _slInput('TP1', 'tp-inp-p1', vTp1) +
+    _slInput('TP2', 'tp-inp-p2', vTp2) +
+    _slInput('TP3', 'tp-inp-p3', vTp3) +
     '<span id="sl-config-msg" style="font-size:12px;color:var(--green);min-width:80px;"></span>';
   panel.insertBefore(div, panel.firstChild);
   ['sl-inp-edge', 'sl-inp-aire', 'sl-inp-limite'].forEach(function(id) {
     var inp = document.getElementById(id);
     if (inp) inp.addEventListener('change', guardarConfigSl);
+  });
+  ['tp-inp-p1', 'tp-inp-p2', 'tp-inp-p3'].forEach(function(id) {
+    var inp = document.getElementById(id);
+    if (inp) inp.addEventListener('change', guardarConfigTpParciales);
   });
 }
 
