@@ -12,6 +12,8 @@
 - **Fix criterio "dentro del método":** `dentro` ahora = `puntos <= limAire` (antes era `puntos <= 11` por error). Todas las categorías usan variables leídas de `window.usuarioActual`
 - **Nuevos campos en `trades`:** `precio_entrada` y `precio_cierre` ahora se guardan al importar historial
 - **Estrategia DELETE+INSERT en reimport:** al subir un archivo, se borran todos los trades de esa cuenta (usuario + cuenta + cuenta_numero) y se reinsertan desde el archivo. Garantiza que BD refleja exactamente el archivo subido
+- **Cumplimiento de parciales:** bloque "Gestión activa · Parciales" en pestaña Cumplimiento de Mi Gestión. Consulta `trade_parciales` via `supaGet`, agrupa por `fp_trade`, cruza con trades activos por `t.fp`. Muestra ratio trades con gestión activa vs salida única, distribución por zona TP1/TP2/TP3 con % dentro/fuera y detalle de parciales fuera de zona
+- **Umbrales TP parciales personalizables:** columnas `tp_parcial1 INT DEFAULT 18`, `tp_parcial2 INT DEFAULT 33`, `tp_parcial3 INT DEFAULT 50` añadidas a `usuarios_aurum`. Configurables desde panel Umbrales en Cumplimiento (misma fila que SL). Guardado via `supaPatch`. Función `guardarConfigTpParciales` en gestion.js
 
 ### Pendientes próxima sesión (por orden de prioridad)
 1. Cabecera Trade Record P&L incorrecto en Retos — dos cálculos desincronizados
