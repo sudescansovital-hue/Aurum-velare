@@ -402,31 +402,18 @@ function histSubir(file, onDone) {
     nombreFinal  = (numeroCuenta && CUENTAS_AURUM[numeroCuenta]) || 'Cuenta Externa';
     tipo         = nombreFinal === 'Cuenta Externa' ? 'extern' : 'real';
 
-    var fps_nuevos = trades.filter(function(t) {
-      if (!t.fp) return true;
-      var yaExiste = false;
-      HISTORIAL_ALL_FPS.forEach(function(entry) {
-        if (entry === t.fp) yaExiste = true;
-      });
-      return !yaExiste;
-    });
     (function() {
-      if (fps_nuevos.length === 0) {
-        msg.style.color = 'var(--gold)'; msg.textContent = 'Todos los trades ya estaban registrados.';
-        if (typeof onDone === 'function') onDone();
-        return;
-      }
-      fps_nuevos.map(function(t){ return t.fp; }).filter(Boolean)
+      trades.map(function(t){ return t.fp; }).filter(Boolean)
         .forEach(function(fp) { HISTORIAL_ALL_FPS.add(nombreFinal + '|' + fp); });
       if (typeof guardarTradesIndividuales === 'function') {
-        guardarTradesIndividuales(fps_nuevos, nombreFinal, numeroCuenta).then(function() {
+        guardarTradesIndividuales(trades, nombreFinal, numeroCuenta).then(function() {
           return _actualizarEntradaHistorial(nombreFinal, tipo, numeroCuenta);
         }).then(function() {
           cargarHistorialDesdeSupabase();
           if (typeof actualizarDashboard === 'function') actualizarDashboard();
         });
       }
-      msg.style.color = 'var(--green)'; msg.textContent = fps_nuevos.length + ' trades únicos añadidos.';
+      msg.style.color = 'var(--green)'; msg.textContent = trades.length + ' trades reimportados.';
       document.getElementById('hist-nombre').value = '';
       if (typeof onDone === 'function') onDone();
     })();
@@ -558,7 +545,14 @@ async function guardarTradesIndividuales(trades, nombreCuenta, numeroCuenta) {
     if (patchRes.error) console.error('[HISTORIAL] Error reparando cuenta nula:', patchRes.error);
   }
 
-  // 2. INSERT / UPDATE del resto de trades del archivo — fetch raw para ver respuesta completa
+  // 1.5. DELETE previo: borrar todos los trades de esta cuenta para reimportar limpio
+  var deleteParams = emailParam + '&cuenta=eq.' + encodeURIComponent(nombreCuenta);
+  if (numeroCuenta) deleteParams += '&cuenta_numero=eq.' + encodeURIComponent(numeroCuenta);
+  var delCuentaRes = await supaDelete('trades', deleteParams, token);
+  if (delCuentaRes.error) console.error('[HISTORIAL] Error en DELETE previo al reimport:', delCuentaRes.error);
+  else console.log('[HISTORIAL] DELETE completado — cuenta:', nombreCuenta, '| numero:', numeroCuenta, '| trades a reinsertar:', trades.length);
+
+  // 2. INSERT de todos los trades del archivo
   var rows = trades.map(function(t) {
     return {
       fp:            t.fp,
