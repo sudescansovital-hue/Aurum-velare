@@ -99,3 +99,11 @@
 | roderastrader@gmail.com | Willian | Admin / Águila |
 | sudescansovital@gmail.com | Roderas | León · Etapa 3 · proceso real |
 | boli-al@hotmail.com | Mara | Hormiga · pruebas |
+
+## Resueltos — 24 Jun 2026
+
+| # | Dónde | Qué era | Solución aplicada |
+|---|---|---|---|
+| 19 | Parser MT5 | Parser paraba al llegar a sección Órdenes sin leerla | Parser ahora continúa y lee sección Transacciones completa |
+| 20 | Supabase | Tabla `trade_parciales` no existía | Tabla creada con RLS. Parser extrae parciales de Transacciones y los guarda al importar |
+| 18 | Parser MT5 / Cumplimiento | SL guardado es el del cierre, no el de apertura | Limitación confirmada de MT5 — no exporta SL original. Trades con break-even aparecen como "sin SL". Solución futura: EA de MT5 (V2) |
