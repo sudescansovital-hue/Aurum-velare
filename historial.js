@@ -562,6 +562,7 @@ async function guardarTradesIndividuales(trades, nombreCuenta, numeroCuenta) {
   var rows = trades.map(function(t) {
     return {
       fp:            t.fp,
+      fecha:         t.fecha || '',
       usuario_email: usuarioActual.email,
       cuenta:        nombreCuenta || 'Externa',
       cuenta_numero: numeroCuenta || null,
@@ -570,6 +571,8 @@ async function guardarTradesIndividuales(trades, nombreCuenta, numeroCuenta) {
       hora:          t.hora != null ? t.hora : 0,
       dia:           t.dia != null ? t.dia : 0,
       puntos:        t.puntos != null ? t.puntos : null,
+      precio_entrada: t.pe   || null,
+      precio_cierre:  t.pc   || null,
       dur_min:       Math.round(t.durMin || t.dur_min || 60),
       sl:            t.sl || null,
       tp:            t.tp || null
