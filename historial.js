@@ -571,7 +571,8 @@ async function guardarTradesIndividuales(trades, nombreCuenta, numeroCuenta, par
       precio_cierre:  t.pc   || null,
       dur_min:       Math.round(t.durMin || t.dur_min || 60),
       sl:            t.sl || null,
-      tp:            t.tp || null
+      tp:            t.tp || null,
+      volumen:       t.vol != null ? t.vol : (t.volumen != null ? t.volumen : null)
     };
   });
   console.log('[INSERT] enviando', rows.length, 'rows | cuenta:', nombreCuenta, '| primer fp:', rows[0] && rows[0].fp);
