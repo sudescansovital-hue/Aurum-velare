@@ -1818,6 +1818,13 @@
 
       <div id="ciclo-vs-anterior"></div>
 
+      <!-- Lotajes del ciclo -->
+      <div style="margin-top:2rem;padding:1.5rem;border:1px solid var(--border);background:var(--bg2);">
+        <div class="tag" style="display:block;margin-bottom:.4rem;">Lotajes en este ciclo</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:1rem;">Mínimo, máximo y más usado en los últimos trades</div>
+        <div id="ciclo-lotajes"></div>
+      </div>
+
     </div>
 
 
@@ -1863,6 +1870,13 @@
             <div style="display:flex;gap:8px;padding:.6rem;border:1px solid var(--border);background:#0E1020;"><div style="width:5px;height:5px;border-radius:50%;background:#6A9AEE;margin-top:5px;flex-shrink:0;"></div><div><div style="font-size:14px;color:#C8BDA0;margin-bottom:1px;">23:xx — hora oculta</div><div style="font-size:13px;color:var(--text-muted);">80% WR en 10 trades. Explorar.</div></div></div>
           </div>
         </div>
+      </div>
+
+      <!-- Ventanas 15 min -->
+      <div style="margin-top:2rem;padding:1.5rem;border:1px solid var(--border);background:var(--bg2);">
+        <div class="tag" style="display:block;margin-bottom:.4rem;">Ventanas de 15 minutos</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:1rem;">Franjas de 15 min con mínimo 3 trades · mejor WR y mejor R/R destacados</div>
+        <div id="gest-ventanas-15min"></div>
       </div>
 
     </div>
@@ -2092,6 +2106,13 @@
           <div class="stat-sub" style="margin-bottom:.8rem;">Coeficiente de variación del sizing</div>
           <div id="eav-lote-consistencia"></div>
         </div>
+      </div>
+
+      <!-- Fila 3b: Mejor lotaje (fila completa) -->
+      <div style="padding:1.5rem;border:1px solid var(--border);background:var(--bg2);margin-bottom:1px;">
+        <div class="tag" style="display:block;margin-bottom:.4rem;">Mejor lotaje</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:1rem;">Con qué tamaño de posición tienes mejor WR, mejor R/R y más consistencia · mín. 5 trades por lotaje</div>
+        <div id="eav-mejor-lotaje"></div>
       </div>
 
       <!-- Fila 4: Franja horaria · Peor día · Duración media -->

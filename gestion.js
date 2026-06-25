@@ -236,6 +236,99 @@ function buildHorarios() {
       }).join('');
     }
   }
+
+  // Ventanas de 15 minutos (usando campo fp del trade)
+  var elV15 = document.getElementById('gest-ventanas-15min');
+  if (elV15) {
+    var porSlot = {};
+    trades.forEach(function(t) {
+      var hh = -1, mm = -1;
+      if (t.fp) {
+        var m = t.fp.match(/(\d{2}):(\d{2}):\d{2}/);
+        if (m) { hh = parseInt(m[1]); mm = parseInt(m[2]); }
+      }
+      if (hh < 0 && t.hora !== undefined) {
+        hh = Math.floor(t.hora);
+        mm = Math.round((t.hora - hh) * 60);
+      }
+      if (hh < 0) return;
+      var slotMin = Math.floor(mm / 15) * 15;
+      var key = (hh < 10 ? '0' + hh : hh) + ':' + (slotMin === 0 ? '00' : slotMin);
+      if (!porSlot[key]) porSlot[key] = { t: 0, w: 0, p: 0, rr_w: 0, rr_l: 0, n_w: 0, n_l: 0 };
+      porSlot[key].t++;
+      if (t.ganadora) {
+        porSlot[key].w++;
+        porSlot[key].rr_w += (t.puntos || 0);
+        porSlot[key].n_w++;
+      } else {
+        porSlot[key].rr_l += (t.puntos || 0);
+        porSlot[key].n_l++;
+      }
+      porSlot[key].p += (t.beneficio || 0);
+    });
+
+    var slotList = Object.keys(porSlot)
+      .filter(function(k) { return porSlot[k].t >= 3; })
+      .map(function(k) {
+        var s = porSlot[k];
+        var wr = Math.round(s.w / s.t * 1000) / 10;
+        var avgW = s.n_w > 0 ? s.rr_w / s.n_w : 0;
+        var avgL = s.n_l > 0 ? s.rr_l / s.n_l : 0;
+        var rr  = avgL > 0 ? Math.round(avgW / avgL * 100) / 100 : 0;
+        var parts = k.split(':');
+        var hh2 = parseInt(parts[0]);
+        var mm2 = parseInt(parts[1]) + 15;
+        var hh3 = hh2 + Math.floor(mm2 / 60);
+        var mm3 = mm2 % 60;
+        var fin = (hh3 < 10 ? '0' + hh3 : hh3) + ':' + (mm3 === 0 ? '00' : mm3);
+        return { key: k, fin: fin, t: s.t, w: s.w, wr: wr, rr: rr, p: Math.round(s.p) };
+      })
+      .sort(function(a, b) { return a.key.localeCompare(b.key); });
+
+    if (slotList.length < 2) {
+      elV15.innerHTML = '<div style="font-size:13px;color:var(--text-muted);">Se necesitan al menos 3 trades en una franja de 15 min para mostrar datos. Aseg\u00farate de que el historial tenga hora exacta en el campo fp.</div>';
+    } else {
+      var mejorWR = slotList.reduce(function(a, b) { return b.wr > a.wr ? b : a; });
+      var mejorRR = slotList.filter(function(s) { return s.rr > 0; });
+      mejorRR = mejorRR.length > 0 ? mejorRR.reduce(function(a, b) { return b.rr > a.rr ? b : a; }) : null;
+      var maxT = Math.max.apply(null, slotList.map(function(s) { return s.t; })) || 1;
+
+      var html = '<div style="margin-bottom:1rem;">';
+      html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-bottom:1rem;">';
+      html += '<div style="padding:.7rem;border:1px solid #3AAA6A44;background:#3AAA6A08;">' +
+        '<div style="font-size:10px;letter-spacing:.2em;color:var(--green);margin-bottom:.3rem;">\u2746 MEJOR WR</div>' +
+        '<div style="font-family:\'Cormorant Garamond\',serif;font-size:22px;color:var(--green);">' + mejorWR.key + '\u2013' + mejorWR.fin + '</div>' +
+        '<div style="font-size:12px;color:var(--text-muted);">' + mejorWR.wr + '% WR \u00b7 ' + mejorWR.t + ' trades \u00b7 ' + (mejorWR.p >= 0 ? '+' : '') + mejorWR.p + '$</div>' +
+        '</div>';
+      if (mejorRR) {
+        html += '<div style="padding:.7rem;border:1px solid #C9A84C44;background:#C9A84C08;">' +
+          '<div style="font-size:10px;letter-spacing:.2em;color:var(--gold);margin-bottom:.3rem;">\u2746 MEJOR R/R</div>' +
+          '<div style="font-family:\'Cormorant Garamond\',serif;font-size:22px;color:var(--gold-bright);">' + mejorRR.key + '\u2013' + mejorRR.fin + '</div>' +
+          '<div style="font-size:12px;color:var(--text-muted);">R/R ' + mejorRR.rr + ' \u00b7 ' + mejorRR.t + ' trades \u00b7 ' + (mejorRR.p >= 0 ? '+' : '') + mejorRR.p + '$</div>' +
+          '</div>';
+      }
+      html += '</div>';
+      html += '<div style="font-size:11px;color:var(--text-muted);margin-bottom:.5rem;letter-spacing:.1em;">TODAS LAS FRANJAS (m\u00edn. 3 trades)</div>';
+      slotList.forEach(function(s) {
+        var wr = s.wr;
+        var barW = Math.max(2, Math.round(s.t / maxT * 100));
+        var bg = wr >= 60 ? '#3AAA6A' : wr >= 50 ? '#C9A84C' : '#CC5544';
+        var isMejWR = s.key === mejorWR.key;
+        var isMejRR = mejorRR && s.key === mejorRR.key;
+        html += '<div style="display:flex;align-items:center;gap:.6rem;padding:.35rem 0;border-bottom:1px solid #0A0C14;">' +
+          '<span style="font-size:12px;color:var(--text-dim);width:100px;flex-shrink:0;">' +
+          (isMejWR ? '\u2746 ' : isMejRR ? '\u25c8 ' : '') + s.key + '\u2013' + s.fin + '</span>' +
+          '<div style="flex:1;height:3px;background:var(--border);border-radius:2px;">' +
+          '<div style="height:100%;width:' + barW + '%;background:' + bg + ';border-radius:2px;"></div></div>' +
+          '<span style="font-size:12px;color:' + bg + ';width:50px;text-align:right;">' + wr + '%</span>' +
+          '<span style="font-size:11px;color:var(--text-muted);width:55px;text-align:right;">R/R ' + (s.rr > 0 ? s.rr : '\u2014') + '</span>' +
+          '<span style="font-size:11px;color:var(--text-muted);width:40px;text-align:right;">' + s.t + 't</span>' +
+          '</div>';
+      });
+      html += '</div>';
+      elV15.innerHTML = html;
+    }
+  }
 }
 
 function buildCicloDots() {
@@ -351,6 +444,42 @@ function buildCicloDots() {
         '<div style="font-family:\'Cormorant Garamond\',serif;font-size:24px;color:'+(pnl>=0?'var(--green)':'var(--red)')+'">'+(pnl>=0?'+':'')+pnl+'$</div>' +
         '<div style="font-size:12px;color:var(--text-muted);">ant: '+(prevPnl>=0?'+':'')+prevPnl+'$ '+_cvaTag(pnl,prevPnl,true)+'</div></div>' +
         '</div></div>';
+    }
+  }
+
+  // Lotajes del ciclo actual
+  var elLotCiclo = document.getElementById('ciclo-lotajes');
+  if (elLotCiclo) {
+    var vols = ultimos.map(function(t) { return t.volumen || 0; }).filter(function(v) { return v > 0; });
+    if (vols.length < 3) {
+      elLotCiclo.innerHTML = '<div style="font-size:13px;color:var(--text-muted);">Sin datos de lotaje en este ciclo.</div>';
+    } else {
+      var minVol = Math.min.apply(null, vols);
+      var maxVol = Math.max.apply(null, vols);
+      var freq = {};
+      vols.forEach(function(v) {
+        var k = (Math.round(v * 100) / 100).toFixed(2);
+        freq[k] = (freq[k] || 0) + 1;
+      });
+      var masFreqKey = Object.keys(freq).reduce(function(a, b) { return freq[b] > freq[a] ? b : a; });
+      var masFreqCnt = freq[masFreqKey];
+      var masFreqPct = Math.round(masFreqCnt / vols.length * 100);
+
+      elLotCiclo.innerHTML =
+        '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);">' +
+        '<div style="background:var(--bg);padding:.7rem;text-align:center;">' +
+        '<div style="font-size:10px;color:var(--text-muted);margin-bottom:.2rem;">MÍN</div>' +
+        '<div style="font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--text-dim);">' + minVol.toFixed(2) + '</div>' +
+        '<div style="font-size:11px;color:var(--text-muted);">lots</div></div>' +
+        '<div style="background:var(--bg);padding:.7rem;text-align:center;border-left:1px solid var(--border-gold);border-right:1px solid var(--border-gold);">' +
+        '<div style="font-size:10px;color:var(--gold);margin-bottom:.2rem;">MÁS USADO</div>' +
+        '<div style="font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--gold-bright);">' + masFreqKey + '</div>' +
+        '<div style="font-size:11px;color:var(--text-muted);">' + masFreqCnt + ' trades · ' + masFreqPct + '%</div></div>' +
+        '<div style="background:var(--bg);padding:.7rem;text-align:center;">' +
+        '<div style="font-size:10px;color:var(--text-muted);margin-bottom:.2rem;">MÁX</div>' +
+        '<div style="font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--text-dim);">' + maxVol.toFixed(2) + '</div>' +
+        '<div style="font-size:11px;color:var(--text-muted);">lots</div></div>' +
+        '</div>';
     }
   }
 }
@@ -796,10 +925,17 @@ async function buildCumplimientoParciales() {
       var zona = zonas[idxZona];
 
       if (puntos >= zona.limMin && puntos <= zona.limMax) {
+        // Dentro de zona — correcto
         zona.count++;
         parcialesOk++;
+      } else if (puntos < zona.limMin) {
+        // Cerró ANTES de la zona — demasiado pronto — fallo real
+        zona.fuera.push({ pid: pid, puntos: puntos, tipo: 'pronto' });
       } else {
-        zona.fuera.push({ pid: pid, puntos: puntos });
+        // Cerró MÁS ALLÁ de la zona — llegó más lejos — contar como ok
+        zona.count++;
+        parcialesOk++;
+        zona.masLejos = (zona.masLejos || 0) + 1;
       }
     });
   });
@@ -841,7 +977,7 @@ async function buildCumplimientoParciales() {
       html += '<div style="flex:1;">';
       html += '<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-bottom:.3rem;">';
       html += '<span>' + z.rango + '</span>';
-      html += '<span style="color:' + col + ';">' + pctZ + '% dentro &middot; ' + z.count + ' / ' + total_z + '</span></div>';
+      html += '<span style="color:' + col + ';">' + pctZ + '% dentro &middot; ' + z.count + ' / ' + total_z + (z.masLejos ? ' <span style="font-size:10px;color:var(--text-muted);">(' + z.masLejos + ' pasaron zona)</span>' : '') + '</span></div>';
       html += '<div style="height:4px;background:var(--border);border-radius:2px;margin-bottom:.5rem;">';
       html += '<div style="height:100%;width:' + Math.min(100, pctZ) + '%;background:' + col + ';border-radius:2px;"></div></div>';
 
@@ -850,7 +986,7 @@ async function buildCumplimientoParciales() {
         z.fuera.slice(0, 5).forEach(function(f) {
           var zonaReal = f.puntos <= tp1 ? 'TP1 (≤' + tp1 + 'pts)' : f.puntos <= tp2 ? 'TP2 (≤' + tp2 + 'pts)' : 'TP3 (≤' + tp3 + 'pts)';
           html += '<div style="font-size:11px;color:#cc7755;padding:.2rem 0;border-bottom:1px solid #cc443311;">';
-          var pidLabel = String(f.pid).split('_')[1] || f.pid; html += '⚠ #' + pidLabel + ' — ' + f.puntos + ' pts · cae en zona ' + zonaReal;
+          var pidLabel = String(f.pid).split('_')[1] || f.pid; html += '⚠ #' + pidLabel + ' — ' + f.puntos + ' pts · cerró antes de zona ' + zonaReal + ' (demasiado pronto)';
           html += '</div>';
         });
         if (z.fuera.length > 5) {
@@ -1090,6 +1226,115 @@ function buildEstadisticasAvanzadas() {
         '<div style="font-size:14px;color:' + cvCol + ';margin:.3rem 0;">' + cvLabel + '</div>' +
         '<div style="font-size:12px;color:var(--text-muted);">CV lotaje · media ' + (Math.round(meanV * 100) / 100) + ' lots</div>' +
         '</div><div style="padding:.6rem;border:1px solid ' + cvCol + '44;border-left:2px solid ' + cvCol + ';background:' + cvCol + '08;font-size:12px;color:var(--text-muted);">' + cvMsg + '</div>';
+    }
+  }
+
+  // 7b. Mejor lotaje por rendimiento
+  var elMejorLot = document.getElementById('eav-mejor-lotaje');
+  if (elMejorLot) {
+    function _lotCategoria(v) {
+      if (v < 0.05)  return 'micro';
+      if (v <= 0.10) return 'pequeño';
+      if (v <= 0.20) return 'medio';
+      return 'grande';
+    }
+    function _lotLabel(cat) {
+      if (cat === 'micro')     return '< 0.05';
+      if (cat === 'pequeño') return '0.05–0.10';
+      if (cat === 'medio')     return '0.11–0.20';
+      return '> 0.20';
+    }
+    var todosVols = trades.map(function(t) { return t.volumen || 0; }).filter(function(v) { return v > 0; });
+    var uniqueVols = {};
+    todosVols.forEach(function(v) { uniqueVols[(Math.round(v * 100) / 100).toFixed(2)] = true; });
+    var usarRangos = Object.keys(uniqueVols).length > 8;
+
+    var grupLot = {};
+    trades.forEach(function(t) {
+      var v = t.volumen || 0;
+      if (v <= 0) return;
+      var key = usarRangos ? _lotCategoria(v) : (Math.round(v * 100) / 100).toFixed(2);
+      if (!grupLot[key]) grupLot[key] = { t: 0, w: 0, rr_w: 0, rr_l: 0, n_w: 0, n_l: 0, p: 0 };
+      grupLot[key].t++;
+      if (t.ganadora) {
+        grupLot[key].w++;
+        grupLot[key].rr_w += (t.puntos || 0);
+        grupLot[key].n_w++;
+      } else {
+        grupLot[key].rr_l += (t.puntos || 0);
+        grupLot[key].n_l++;
+      }
+      grupLot[key].p += (t.beneficio || 0);
+    });
+
+    var MIN_TRADES_LOT = 5;
+    var lotList = Object.keys(grupLot)
+      .filter(function(k) { return grupLot[k].t >= MIN_TRADES_LOT; })
+      .map(function(k) {
+        var g = grupLot[k];
+        var wr   = Math.round(g.w / g.t * 1000) / 10;
+        var avgW = g.n_w > 0 ? g.rr_w / g.n_w : 0;
+        var avgL = g.n_l > 0 ? g.rr_l / g.n_l : 0;
+        var rr   = avgL > 0 ? Math.round(avgW / avgL * 100) / 100 : 0;
+        var scoreConsist = wr * 0.6 + Math.min(rr * 25, 40);
+        var label = usarRangos ? k + ' (' + _lotLabel(k) + ')' : k + ' lots';
+        return { key: k, label: label, t: g.t, wr: wr, rr: rr, p: Math.round(g.p), score: scoreConsist };
+      });
+
+    if (lotList.length < 2) {
+      elMejorLot.innerHTML = '<div style="font-size:13px;color:var(--text-muted);">Se necesitan al menos 5 trades por lotaje (o rango) para mostrar este análisis. Actualmente hay ' + trades.length + ' trades en total.</div>';
+    } else {
+      var mejLotWR    = lotList.reduce(function(a, b) { return b.wr > a.wr ? b : a; });
+      var mejLotRRarr = lotList.filter(function(l) { return l.rr > 0; });
+      var mejLotRR    = mejLotRRarr.length > 0 ? mejLotRRarr.reduce(function(a, b) { return b.rr > a.rr ? b : a; }) : null;
+      var mejLotConst = lotList.reduce(function(a, b) { return b.score > a.score ? b : a; });
+
+      var html = '';
+      html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);margin-bottom:1rem;">';
+      html += '<div style="background:var(--bg);padding:.7rem;text-align:center;">' +
+        '<div style="font-size:10px;color:var(--green);letter-spacing:.15em;margin-bottom:.3rem;">MEJOR WR</div>' +
+        '<div style="font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--green);">' + mejLotWR.label + '</div>' +
+        '<div style="font-size:11px;color:var(--text-muted);">' + mejLotWR.wr + '% · ' + mejLotWR.t + 't</div></div>';
+      if (mejLotRR) {
+        html += '<div style="background:var(--bg);padding:.7rem;text-align:center;">' +
+          '<div style="font-size:10px;color:var(--gold);letter-spacing:.15em;margin-bottom:.3rem;">MEJOR R/R</div>' +
+          '<div style="font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--gold-bright);">' + mejLotRR.label + '</div>' +
+          '<div style="font-size:11px;color:var(--text-muted);">R/R ' + mejLotRR.rr + ' · ' + mejLotRR.t + 't</div></div>';
+      } else {
+        html += '<div style="background:var(--bg);padding:.7rem;text-align:center;"><div style="font-size:11px;color:var(--text-muted);">Sin R/R suficiente</div></div>';
+      }
+      html += '<div style="background:var(--bg);padding:.7rem;text-align:center;">' +
+        '<div style="font-size:10px;color:#C8BDA0;letter-spacing:.15em;margin-bottom:.3rem;">MÁS CONSISTENTE</div>' +
+        '<div style="font-family:'Cormorant Garamond',serif;font-size:20px;color:#C8BDA0;">' + mejLotConst.label + '</div>' +
+        '<div style="font-size:11px;color:var(--text-muted);">' + mejLotConst.wr + '% · R/R ' + mejLotConst.rr + '</div></div>';
+      html += '</div>';
+
+      html += '<div style="font-size:11px;color:var(--text-muted);margin-bottom:.4rem;letter-spacing:.1em;">TODOS LOS LOTAJES (mín. ' + MIN_TRADES_LOT + ' trades) · ' + (usarRangos ? 'agrupados por rango' : 'lotaje exacto') + '</div>';
+      lotList.sort(function(a, b) { return b.wr - a.wr; }).forEach(function(l) {
+        var bg = l.wr >= 60 ? '#3AAA6A' : l.wr >= 50 ? '#C9A84C' : '#CC5544';
+        var isMejWR = l.key === mejLotWR.key;
+        var isMejRR = mejLotRR && l.key === mejLotRR.key;
+        var isMejC  = l.key === mejLotConst.key;
+        var badge = isMejWR ? ' <span style="color:var(--green);font-size:10px;">WR</span>' :
+                    isMejRR ? ' <span style="color:var(--gold);font-size:10px;">R/R</span>' :
+                    isMejC  ? ' <span style="color:#C8BDA0;font-size:10px;">≈</span>' : '';
+        html += '<div style="display:flex;align-items:center;gap:.6rem;padding:.35rem 0;border-bottom:1px solid #0A0C14;">' +
+          '<span style="font-size:12px;color:var(--text-dim);width:110px;flex-shrink:0;">' + l.label + badge + '</span>' +
+          '<div style="flex:1;height:3px;background:var(--border);border-radius:2px;">' +
+          '<div style="height:100%;width:' + l.wr + '%;background:' + bg + ';border-radius:2px;"></div></div>' +
+          '<span style="font-size:12px;color:' + bg + ';width:48px;text-align:right;">' + l.wr + '%</span>' +
+          '<span style="font-size:11px;color:var(--text-muted);width:52px;text-align:right;">R/R ' + (l.rr > 0 ? l.rr : '—') + '</span>' +
+          '<span style="font-size:11px;color:var(--text-muted);width:38px;text-align:right;">' + l.t + 't</span>' +
+          '</div>';
+      });
+
+      var masUsadoKey = Object.keys(grupLot).reduce(function(a, b) { return grupLot[b].t > grupLot[a].t ? b : a; });
+      if (masUsadoKey !== mejLotWR.key && lotList.find(function(l) { return l.key === masUsadoKey; })) {
+        html += '<div style="margin-top:.8rem;padding:.6rem;border:1px solid #c9a84c22;border-left:2px solid var(--gold);background:#c9a84c08;font-size:12px;color:var(--gold-dim);">' +
+          '⚠ Operas más con ' + masUsadoKey + (usarRangos ? '' : ' lots') + ' pero tu mejor WR es con ' + mejLotWR.label + ' — considera ajustar tu sizing habitual.</div>';
+      }
+
+      elMejorLot.innerHTML = html;
     }
   }
 
