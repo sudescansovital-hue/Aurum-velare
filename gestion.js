@@ -469,15 +469,15 @@ function buildCicloDots() {
         '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);">' +
         '<div style="background:var(--bg);padding:.7rem;text-align:center;">' +
         '<div style="font-size:10px;color:var(--text-muted);margin-bottom:.2rem;">MÍN</div>' +
-        '<div style="font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--text-dim);">' + minVol.toFixed(2) + '</div>' +
+        '<div style="font-family:\'Cormorant Garamond\',serif;font-size:22px;color:var(--text-dim);">' + minVol.toFixed(2) + '</div>' +
         '<div style="font-size:11px;color:var(--text-muted);">lots</div></div>' +
         '<div style="background:var(--bg);padding:.7rem;text-align:center;border-left:1px solid var(--border-gold);border-right:1px solid var(--border-gold);">' +
         '<div style="font-size:10px;color:var(--gold);margin-bottom:.2rem;">MÁS USADO</div>' +
-        '<div style="font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--gold-bright);">' + masFreqKey + '</div>' +
+        '<div style="font-family:\'Cormorant Garamond\',serif;font-size:22px;color:var(--gold-bright);">' + masFreqKey + '</div>' +
         '<div style="font-size:11px;color:var(--text-muted);">' + masFreqCnt + ' trades · ' + masFreqPct + '%</div></div>' +
         '<div style="background:var(--bg);padding:.7rem;text-align:center;">' +
         '<div style="font-size:10px;color:var(--text-muted);margin-bottom:.2rem;">MÁX</div>' +
-        '<div style="font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--text-dim);">' + maxVol.toFixed(2) + '</div>' +
+        '<div style="font-family:\'Cormorant Garamond\',serif;font-size:22px;color:var(--text-dim);">' + maxVol.toFixed(2) + '</div>' +
         '<div style="font-size:11px;color:var(--text-muted);">lots</div></div>' +
         '</div>';
     }
@@ -1293,19 +1293,19 @@ function buildEstadisticasAvanzadas() {
       html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);margin-bottom:1rem;">';
       html += '<div style="background:var(--bg);padding:.7rem;text-align:center;">' +
         '<div style="font-size:10px;color:var(--green);letter-spacing:.15em;margin-bottom:.3rem;">MEJOR WR</div>' +
-        '<div style="font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--green);">' + mejLotWR.label + '</div>' +
+        '<div style="font-family:\'Cormorant Garamond\',serif;font-size:20px;color:var(--green);">' + mejLotWR.label + '</div>' +
         '<div style="font-size:11px;color:var(--text-muted);">' + mejLotWR.wr + '% · ' + mejLotWR.t + 't</div></div>';
       if (mejLotRR) {
         html += '<div style="background:var(--bg);padding:.7rem;text-align:center;">' +
           '<div style="font-size:10px;color:var(--gold);letter-spacing:.15em;margin-bottom:.3rem;">MEJOR R/R</div>' +
-          '<div style="font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--gold-bright);">' + mejLotRR.label + '</div>' +
+          '<div style="font-family:\'Cormorant Garamond\',serif;font-size:20px;color:var(--gold-bright);">' + mejLotRR.label + '</div>' +
           '<div style="font-size:11px;color:var(--text-muted);">R/R ' + mejLotRR.rr + ' · ' + mejLotRR.t + 't</div></div>';
       } else {
         html += '<div style="background:var(--bg);padding:.7rem;text-align:center;"><div style="font-size:11px;color:var(--text-muted);">Sin R/R suficiente</div></div>';
       }
       html += '<div style="background:var(--bg);padding:.7rem;text-align:center;">' +
         '<div style="font-size:10px;color:#C8BDA0;letter-spacing:.15em;margin-bottom:.3rem;">MÁS CONSISTENTE</div>' +
-        '<div style="font-family:'Cormorant Garamond',serif;font-size:20px;color:#C8BDA0;">' + mejLotConst.label + '</div>' +
+        '<div style="font-family:\'Cormorant Garamond\',serif;font-size:20px;color:#C8BDA0;">' + mejLotConst.label + '</div>' +
         '<div style="font-size:11px;color:var(--text-muted);">' + mejLotConst.wr + '% · R/R ' + mejLotConst.rr + '</div></div>';
       html += '</div>';
 
