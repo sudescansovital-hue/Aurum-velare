@@ -47,7 +47,7 @@ async function mandarEmailCodigo(email, codigo) {
     method: 'POST',
     headers: { 'Authorization': 'Bearer ' + RESEND_KEY, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      from: 'Aurum Velare <onboarding@resend.dev>',
+      from: 'Aurum Velare <send@aurumvelare.com>',
       to: [email],
       subject: '✦ Tu código de evaluación — Aurum Velare',
       html
@@ -119,7 +119,7 @@ module.exports = async function handler(req, res) {
     method: 'POST',
     headers: { 'Authorization': 'Bearer ' + RESEND_KEY, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      from: 'Aurum Velare <onboarding@resend.dev>',
+      from: 'Aurum Velare <send@aurumvelare.com>',
       to: ['sudescansovital@gmail.com'],
       subject: '✦ Pago Evalúame — ' + email,
       html: `<p>Nuevo pago de <strong>${email}</strong>. Código: <strong>${codigo}</strong></p>`
