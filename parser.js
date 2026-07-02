@@ -159,7 +159,17 @@ function _parsearMT5(raw, posicionesRow) {
     var fp       = fechaStr + '_' + (posId || (pe + '_' + vol));
 
     var pcFinal = pc !== null ? pc : pe;
-    var puntos  = tipo === 'sell' ? +(pe - pcFinal).toFixed(2) : +(pcFinal - pe).toFixed(2);
+    // 'puntos' debe reflejar el RIESGO del SL (distancia entrada→SL), no cuánto
+    // corrió el precio hasta el cierre. Antes se usaba siempre pe-pc, lo que
+    // marcaba trades ganadores que corrieron mucho como "SL excesivo" cuando
+    // en realidad el SL real podía estar perfecto. Se prioriza sl si es válido.
+    var slValido = (sl !== null && sl !== 0 && Math.abs(sl - pe) > 0.00001);
+    var puntos;
+    if (slValido) {
+      puntos = tipo === 'sell' ? +(sl - pe).toFixed(2) : +(pe - sl).toFixed(2);
+    } else {
+      puntos = tipo === 'sell' ? +(pe - pcFinal).toFixed(2) : +(pcFinal - pe).toFixed(2);
+    }
 
     trades.push({
       fp: fp, ben: ben, vol: vol, pe: pe, pc: pcFinal,
@@ -340,7 +350,13 @@ function _parsearCtrader(raw, headerRow) {
     var fAp    = _parseDate(g.apStr);
     var fCi    = _parseDate(g.ciStr);
     var tipo   = (g.dir.includes('vend') || g.dir.includes('sell')) ? 'sell' : 'buy';
-    var puntos = tipo === 'sell' ? +(g.pe - g.pc).toFixed(2) : +(g.pc - g.pe).toFixed(2);
+    var slValido = (g.sl !== null && g.sl !== 0 && Math.abs(g.sl - g.pe) > 0.00001);
+    var puntos;
+    if (slValido) {
+      puntos = tipo === 'sell' ? +(g.sl - g.pe).toFixed(2) : +(g.pe - g.sl).toFixed(2);
+    } else {
+      puntos = tipo === 'sell' ? +(g.pe - g.pc).toFixed(2) : +(g.pc - g.pe).toFixed(2);
+    }
 
     trades.push({
       fp: g.fp, ben: Math.round(g.ben * 100) / 100, vol: g.vol,
