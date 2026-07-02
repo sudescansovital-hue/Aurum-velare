@@ -114,6 +114,9 @@ function renderAdminTabla() {
     var estadoHtml = activo
       ? '<span style="color:var(--green);font-size:12px;">● Activo</span>'
       : '<span style="color:var(--red);font-size:12px;">● ' + (expirado ? 'Expirado' : 'Inactivo') + '</span>';
+    estadoHtml += u.tiene_ea
+      ? '<span style="color:#6A9AEE;font-size:10px;display:block;margin-top:.2rem;">EA ✓</span>'
+      : '';
     var packLabel  = PACK_LABELS[u.pack] || u.pack || '—';
     var ANIMAL_NOMBRE = { '🐝':'Hormiga','🦁':'León','🐘':'Elefante','🐻':'Oso','🐂':'Toro','🐺':'Lobo' };
     var animalText = u.animal ? (ANIMAL_NOMBRE[u.animal] || u.animal.replace(/\p{Emoji}/gu, '').trim() || '—') : '—';
@@ -192,6 +195,7 @@ function adminAbrirEditar(id) {
   set('admin-edit-exp',         u.fecha_expiracion ? u.fecha_expiracion.split('T')[0] : '');
   set('admin-edit-notas',       u.notas   || '');
   document.getElementById('admin-edit-activo').checked = !!u.activo;
+  document.getElementById('admin-edit-tiene-ea').checked = !!u.tiene_ea;
   adminActualizarSalaAsignada(u.animal || '');
 
   // Calcular días en proceso desde el primer trade del usuario
@@ -240,6 +244,7 @@ async function adminGuardarUsuario() {
     cuenta_retos:     document.getElementById('admin-edit-retos').value.trim()   || null,
     fecha_expiracion: document.getElementById('admin-edit-exp').value || null,
     activo:           document.getElementById('admin-edit-activo').checked,
+    tiene_ea:         document.getElementById('admin-edit-tiene-ea').checked,
     notas:            document.getElementById('admin-edit-notas').value.trim(),
     updated_at:       new Date().toISOString()
   };
