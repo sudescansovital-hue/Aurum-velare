@@ -363,3 +363,50 @@ Ranking de sala por OZT — siempre visible
 - ✓ SÍ: preguntas de Tablillas enviadas para revisión
 - ✗ NO: páginas estáticas (Inicio · El Proceso · estructura de Salas)
 - ✗ NO (por ahora): tablillas publicadas — son contenido estático gestionado por el admin
+
+---
+
+## ESTADO HOY — 02/07/2026
+
+### Completado en esta sesión
+
+**MT5 — Congelación de terminal (RESUELTO)**
+- Diagnóstico: `SESIONES_AURUM_v3.mq5` recreaba TODOS los rectángulos de sesión + noticias cada 1 segundo vía `OnTimer()`, y `EA_Aurum_Tracker.mq5` hacía `WebRequest` síncrono (10s timeout) directamente dentro de `OnTradeTransaction`, bloqueando el terminal en cada apertura/cierre/cambio de SL.
+- Fix indicador (`SESIONES_AURUM_v3_FIX.mq5`): las sesiones solo se redibujan cuando cambia el día calendario (comparación de entero, ~gratis). El countdown (M5/M15/H1/H4) sigue actualizándose cada segundo, es barato.
+- Fix EA (`EA_Aurum_Tracker_FIX.mq5`):
+  - `OnTradeTransaction` ya nunca llama a `WebRequest` directamente — solo encola el evento en memoria (`g_cola`), instantáneo.
+  - `OnTimer` procesa la cola completa **una vez al día** (`HoraEnvioDiario`, input, por defecto 23h servidor) — no en tiempo real, ya que el objetivo es registro/auditoría, no visualización en vivo en Aurum.
+  - Timeout de `WebRequest` bajado de 10s a 4s.
+  - Anti-duplicados: guard por firma de evento (`EsEventoDuplicado`) para apertura/cierre/parcial/SL — algunos brokers/cuentas Hedge disparan `OnTradeTransaction` dos veces para la misma transacción real.
+  - Guard de doble sincronización: variable global de terminal (`GlobalVariableSet`) evita repetir `SyncHistory48h()` si el EA se recarga dos veces en <30s (p.ej. al recompilar con el chart abierto).
+  - Persistencia en disco: la cola de eventos pendientes se escribe a `MQL5\Files\Common\aurum_cola_<cuenta>.txt` en cada cambio, y se recupera al arrancar — sobrevive a cierres de MT5/PC apagado (importante para swing trades de varios días).
+  - ⚠️ Limitación conocida y sin solución posible: MT5 no permite EAs en móvil. Si se gestiona una operación desde el móvil mientras el PC/MT5 de escritorio está apagado, ese cambio no se captura (el EA no está corriendo). Única solución real: VPS (24/7, independiente del PC personal) — pendiente de configurar, candidatos: VPS nativo de MetaQuotes (pestaña "VPS" en MT5) o el que ofrezca el broker/prop firm si aplica.
+- Estado de pruebas: EA probado en vivo en cuenta demo Roderas (152034) — apertura, parcial, SL a break even, todo registrado y sin duplicados tras el fix. Indicador de sesiones corregido pero **aún no probado en el chart** (pendiente).
+
+**Admin panel — activación de EA sin SQL manual (COMPLETADO)**
+- Añadido checkbox `tiene_ea` en el modal de edición de usuario (`index.html`), junto al de "Activo".
+- `admin.js`: carga `tiene_ea` al abrir el editor, lo guarda al hacer submit, y muestra badge "EA ✓" en la tabla de usuarios.
+- Columna `tiene_ea` (BOOLEAN DEFAULT false) creada en `usuarios_aurum` vía SQL (`ADD COLUMN IF NOT EXISTS`).
+- Activado para `roderastrader@gmail.com` — resolvió los 403 "El usuario no tiene acceso al EA Aurum".
+- Desplegado a producción (commit `da7a648`).
+
+**Bug de cálculo de `puntos` en Cumplimiento (PARCIALMENTE RESUELTO)**
+- Diagnóstico: en `parser.js` (ambos bloques, MT5 y cTrader), el campo `puntos` (usado por el apartado Cumplimiento para clasificar EDGE/AIRE/LÍMITE/FUERA) se calculaba como `|precio_entrada - precio_cierre|` en vez de `|precio_entrada - sl|`. Esto marcaba trades ganadores que corrieron mucho como si tuvieran un SL excesivo.
+- Fix aplicado en `parser.js`: usa `|pe - sl|` cuando el SL es válido (no nulo, no 0, no ≈ precio de entrada); si no, cae al fallback anterior. Desplegado a producción (commit `66a87b6`).
+- SQL retroactivo corrido en Supabase: recalculado `puntos` para los 599 trades existentes con SL real registrado (de 1341 totales; 742 sin SL registrado se quedan con el fallback).
+- **Limitación de fondo identificada, sin solución posible en datos ya importados**: para trades con gestión activa (break even, trailing), el export del broker solo guarda el **último valor de SL**, no el historial de cómo se fue moviendo. Un trade que empezó con SL de 8 puntos y se movió a break even/ganancia queda registrado con ese último SL, dando una distancia "puntos" grande que no refleja el riesgo real asumido. Verificado con un caso real (Willian, 1.00 lotes, +3571.52$, SL guardado del lado de ganancia → puntos=110.46, dato correcto matemáticamente pero no representativo del riesgo real).
+- Este problema **no existe** para trades registrados por el EA en adelante, porque captura cada cambio de SL como evento independiente (histórico completo, no solo la foto final).
+
+### Pendiente (decidido posponer, no urgente)
+
+- **Validación extra de SL "del lado equivocado"**: descartar como inválido un SL que esté en el lado de ganancia (por debajo de entrada en sell, por encima en buy) además del caso SL=0, usando el fallback en esos casos también.
+- **Campo `fuente` (`'import'` vs `'ea'`) en `trades`**: ya estaba en el backlog de antes, hoy se confirmó su necesidad — permite que trades importados a mano y trades auditados por el EA convivan sin romper continuidad de etapas/ciclos/OZT, con un badge visual distinguiendo el origen. SQL migration y diffs de `historial.js` para esto siguen sin aplicar.
+- **VPS para el EA**: pendiente de configurar, para que el registro no dependa de tener el PC encendido. Ver pestaña "VPS" nativa de MT5 como primera opción a explorar.
+- **Indicador de sesiones sin probar**: `SESIONES_AURUM_v3_FIX.mq5` está corregido pero no se ha cargado aún en el chart para confirmar que funciona bien en la práctica.
+- **Repo `aurum-web-base` con ruido sin resolver**: `node_modules` trackeado en git (debería estar en `.gitignore`), y cambios sin commitear en `preguntas.js`, `notify-registro.js`, `stripe-webhook.js` de sesiones anteriores — revisar si es trabajo en curso a retomar o descartar.
+
+### Estado actual por repo (actualizado)
+
+| Repo | Branch | Último commit relevante |
+|---|---|---|
+| sudescansovital-hue/Aurum-velare | main | `66a87b6` fix: puntos ignora SL=0 o SL≈entrada, usa precio de cierre como fallback |
