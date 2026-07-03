@@ -12,7 +12,6 @@ if (input) {
 }
 
 function solicitarTablilla() {
-  // En producción: formulario de encargo con Stripe
   const modal = document.createElement('div');
   modal.id='modal-tablilla'; modal.style.cssText = 'position:fixed;inset:0;background:#080A12EE;display:flex;align-items:center;justify-content:center;z-index:1000;';
   modal.innerHTML = `
@@ -56,7 +55,7 @@ function avisarTablilla() {
   msg.textContent = '✓ Anotado. Te avisamos cuando estén disponibles.';
 }
 
-function enviarPregunta() {
+async function enviarPregunta() {
   const texto = document.getElementById('pregunta-input').value.trim();
   const msg   = document.getElementById('pregunta-msg');
 
@@ -72,13 +71,32 @@ function enviarPregunta() {
     return;
   }
 
-  // En producción: guardar en Supabase con email opcional y notificar a Aurum
-  const email = document.getElementById('pregunta-email').value.trim();
-  msg.style.color = 'var(--green)';
-  msg.textContent = email
-    ? '✓ Recibida. Si la publicamos te avisamos en ' + email + '.'
-    : '✓ Recibida. Aurum la revisará. Si resuena, aparecerá aquí.';
-  document.getElementById('pregunta-input').value = '';
-  document.getElementById('pregunta-contador').textContent = '0 / 280';
-  document.getElementById('pregunta-email').value = '';
+  const email = document.getElementById('pregunta-email').value.trim() || null;
+
+  msg.style.color = 'var(--text-muted)';
+  msg.textContent = 'Enviando...';
+
+  const res = await fetch(SUPA_URL + '/rest/v1/tablillas_preguntas', {
+    method: 'POST',
+    headers: {
+      'apikey': SUPA_KEY,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=minimal'
+    },
+    body: JSON.stringify({ texto, email })
+  });
+
+  if (res.ok) {
+    document.getElementById('pregunta-input').value = '';
+    document.getElementById('pregunta-email').value = '';
+    if (document.getElementById('pregunta-contador'))
+      document.getElementById('pregunta-contador').textContent = '0 / 280';
+    msg.style.color = 'var(--green)';
+    msg.textContent = email
+      ? '✓ Recibida. Si la publicamos te avisamos en ' + email + '.'
+      : '✓ Recibida. Aurum la revisará. Si resuena, aparecerá aquí.';
+  } else {
+    msg.style.color = 'var(--red)';
+    msg.textContent = 'Error al enviar. Inténtalo de nuevo.';
+  }
 }
