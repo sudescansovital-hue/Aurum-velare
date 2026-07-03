@@ -413,9 +413,17 @@ function histSubir(file, onDone) {
         }).then(function() {
           cargarHistorialDesdeSupabase();
           if (typeof actualizarDashboard === 'function') actualizarDashboard();
+          msg.style.color = 'var(--green)'; msg.textContent = trades.length + ' trades reimportados.';
+        }).catch(function(err) {
+          console.error('[HISTORIAL] Error guardando trades:', err);
+          if (!err || !err.mensajeMostrado) {
+            msg.style.color = 'var(--red)';
+            msg.textContent = 'Error al guardar los trades. Reintenta la importación.';
+          }
         });
+      } else {
+        msg.style.color = 'var(--green)'; msg.textContent = trades.length + ' trades reimportados.';
       }
-      msg.style.color = 'var(--green)'; msg.textContent = trades.length + ' trades reimportados.';
       document.getElementById('hist-nombre').value = '';
       if (typeof onDone === 'function') onDone();
     })();
@@ -547,15 +555,32 @@ async function guardarTradesIndividuales(trades, nombreCuenta, numeroCuenta, par
     if (patchRes.error) console.error('[HISTORIAL] Error reparando cuenta nula:', patchRes.error);
   }
 
-  // 1.5. DELETE previo: borrar todos los trades de esta cuenta para reimportar limpio
-  var deleteParams = emailParam + '&cuenta=eq.' + encodeURIComponent(nombreCuenta);
-  if (numeroCuenta) deleteParams += '&cuenta_numero=eq.' + encodeURIComponent(numeroCuenta);
-  var delCuentaRes = await supaDelete('trades', deleteParams, token);
-  if (delCuentaRes.error) console.error('[HISTORIAL] Error en DELETE previo al reimport:', delCuentaRes.error);
-  else console.log('[HISTORIAL] DELETE completado — cuenta:', nombreCuenta, '| numero:', numeroCuenta, '| trades a reinsertar:', trades.length);
+  // 1.5. Proteger trades del EA: nunca pisar un trade que ya tiene el
+  //      historial completo de SL capturado por el EA (fuente='ea')
+  var deCuentaParams = emailParam + '&cuenta=eq.' + encodeURIComponent(nombreCuenta);
+  if (numeroCuenta) deCuentaParams += '&cuenta_numero=eq.' + encodeURIComponent(numeroCuenta);
+  var eaRes = await supaGet('trades', deCuentaParams + '&fuente=eq.ea&select=fp', token);
+  if (eaRes.error || !Array.isArray(eaRes.data)) {
+    console.error('[HISTORIAL] Error verificando trades protegidos (fuente=ea):', eaRes.error || 'data no es array: ' + JSON.stringify(eaRes.data));
+    var msgEl = document.getElementById('hist-msg');
+    if (msgEl) {
+      msgEl.style.color = 'var(--red)';
+      msgEl.textContent = 'No se pudo verificar qué trades están protegidos por el EA. Reintenta la importación.';
+    }
+    var errAbort = new Error('[HISTORIAL] Import abortado: fallo verificando protección fuente=ea');
+    errAbort.mensajeMostrado = true;
+    throw errAbort;
+  }
+  var fpsProtegidos = {};
+  eaRes.data.forEach(function(r) { if (r.fp) fpsProtegidos[r.fp] = true; });
 
-  // 2. INSERT de todos los trades del archivo
-  var rows = trades.map(function(t) {
+  var tradesAEnviar = trades.filter(function(t) { return !fpsProtegidos[t.fp]; });
+  var excluidos = trades.length - tradesAEnviar.length;
+  if (excluidos > 0) console.log('[HISTORIAL]', excluidos, 'trade(s) excluidos del reimport por ser fuente=ea (protegidos)');
+
+  // 2. UPSERT de todos los trades del archivo — nunca se borra nada que no
+  //    esté en el archivo nuevo. Requiere UNIQUE(fp) en Supabase (ya confirmado).
+  var rows = tradesAEnviar.map(function(t) {
     return {
       fp:            t.fp,
       fecha:         t.fecha || '',
@@ -572,13 +597,14 @@ async function guardarTradesIndividuales(trades, nombreCuenta, numeroCuenta, par
       dur_min:       Math.round(t.durMin || t.dur_min || 60),
       sl:            t.sl || null,
       tp:            t.tp || null,
-      volumen:       t.vol != null ? t.vol : (t.volumen != null ? t.volumen : null)
+      volumen:       t.vol != null ? t.vol : (t.volumen != null ? t.volumen : null),
+      fuente:        'import'
     };
   });
-  console.log('[INSERT] enviando', rows.length, 'rows | cuenta:', nombreCuenta, '| primer fp:', rows[0] && rows[0].fp);
+  console.log('[INSERT] enviando', rows.length, 'rows (upsert por fp, excluidos', excluidos, 'protegidos) | cuenta:', nombreCuenta, '| primer fp:', rows[0] && rows[0].fp);
   var _insertResp, _insertBody;
   try {
-    _insertResp = await fetch(SUPA_URL + '/rest/v1/trades', {
+    _insertResp = await fetch(SUPA_URL + '/rest/v1/trades?on_conflict=fp', {
       method:  'POST',
       headers: Object.assign(_headers(token), { 'Prefer': 'resolution=merge-duplicates,return=minimal' }),
       body:    JSON.stringify(rows)
