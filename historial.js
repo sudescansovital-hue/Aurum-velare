@@ -326,6 +326,49 @@ function _confirmarNumeroCuenta(numero, label) {
   });
 }
 
+// FIX corazón de datos (04/07) — comprueba si el número de cuenta detectado
+// en el archivo ya está asignado a OTRO usuario del sistema (usuarios_aurum).
+// Evita que un import con la sesión equivocada guarde trades/parciales de un
+// usuario bajo el email de otro (bug confirmado: 21 trades de Willian bajo
+// el email de Mara en trade_parciales, cuenta_numero 7747760).
+async function _verificarCuentaDeOtroUsuario(numeroCuenta, token) {
+  if (!numeroCuenta) return null;
+  try {
+    var q = 'select=email,cuenta_maestra,cuenta_retos,cuenta_prueba&or=(cuenta_maestra.eq.' +
+      encodeURIComponent(numeroCuenta) + ',cuenta_retos.eq.' + encodeURIComponent(numeroCuenta) +
+      ',cuenta_prueba.eq.' + encodeURIComponent(numeroCuenta) + ')';
+    var res = await supaGet('usuarios_aurum', q, token);
+    if (res.error || !Array.isArray(res.data)) return null;
+    var otro = res.data.find(function(u) { return u.email && u.email !== usuarioActual.email; });
+    return otro ? otro.email : null;
+  } catch (err) {
+    console.error('[HISTORIAL] Error verificando cuenta ajena:', err);
+    return null;
+  }
+}
+
+function _confirmarCuentaAjena(numero, emailOtro) {
+  return new Promise(function(resolve) {
+    var existing = document.getElementById('modal-cuenta-ajena');
+    if (existing) existing.remove();
+    var modal = document.createElement('div');
+    modal.id = 'modal-cuenta-ajena';
+    modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;z-index:99999';
+    modal.innerHTML =
+      '<div style="background:#0d1120;border:1px solid var(--red,#cc4444);border-radius:12px;padding:32px;max-width:460px;width:90%;text-align:center;position:relative;z-index:100000">' +
+        '<p style="color:#e0e0e0;margin:0 0 12px;line-height:1.6;font-size:15px">⚠ El número de cuenta <strong style="color:var(--gold,#c9a84c)">' + numero + '</strong> ya está asignado a otro usuario del sistema (<strong>' + emailOtro + '</strong>).</p>' +
+        '<p style="color:#e0e0e0;margin:0 0 24px;line-height:1.6;font-size:14px;opacity:.8">Si continúas, estos trades se guardarán con tu email actual pero con ese número de cuenta. ¿Seguro que quieres continuar?</p>' +
+        '<div style="display:flex;gap:12px;justify-content:center">' +
+          '<button id="btn-ca-cancelar" style="background:var(--gold,#c9a84c);color:#000;border:none;padding:10px 28px;border-radius:8px;cursor:pointer;font-weight:bold">Cancelar</button>' +
+          '<button id="btn-ca-continuar" style="background:transparent;color:var(--text,#e0e0e0);border:1px solid var(--border,#333);padding:10px 28px;border-radius:8px;cursor:pointer">Continuar de todos modos</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(modal);
+    document.getElementById('btn-ca-continuar').onclick = function() { modal.remove(); resolve(true); };
+    document.getElementById('btn-ca-cancelar').onclick  = function() { modal.remove(); resolve(false); };
+  });
+}
+
 function histSubirMultiple(files) {
   if (!files || !files.length) return;
   var arr = Array.from(files);
@@ -403,6 +446,20 @@ function histSubir(file, onDone) {
     }
     nombreFinal  = (numeroCuenta && CUENTAS_AURUM[numeroCuenta]) || 'Cuenta Externa';
     tipo         = nombreFinal === 'Cuenta Externa' ? 'extern' : 'real';
+
+    // FIX corazón de datos (04/07): avisar si este número de cuenta ya
+    // pertenece a otro usuario del sistema, antes de guardar nada.
+    var _emailAjeno = await _verificarCuentaDeOtroUsuario(numeroCuenta, getToken());
+    if (_emailAjeno) {
+      var _continuar = await _confirmarCuentaAjena(numeroCuenta, _emailAjeno);
+      if (!_continuar) {
+        msg.style.color = 'var(--gold)';
+        msg.textContent = 'Subida cancelada — ese número de cuenta pertenece a otro usuario.';
+        document.getElementById('hist-progreso').style.display = 'none';
+        if (typeof onDone === 'function') onDone();
+        return;
+      }
+    }
 
     (function() {
       trades.map(function(t){ return t.fp; }).filter(Boolean)
