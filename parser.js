@@ -91,7 +91,11 @@ function _parsearMT5(raw, posicionesRow) {
   if (headerRow >= raw.length) return { trades: [], parciales: [] };
 
   var headers = (raw[headerRow] || []).map(function(h) {
-    return String(h || '').normalize('NFC').toLowerCase().trim();
+    // FIX corazón de datos (04/07): algunos brokers añaden sufijo de zona
+    // horaria a la cabecera (ej. "Hora de apertura (UTC+1)"), lo que rompe
+    // la coincidencia exacta de _colIdx. Se quita antes de comparar.
+    return String(h || '').normalize('NFC').toLowerCase().trim()
+      .replace(/\s*\([^)]*\)\s*$/, '');
   });
 
   var precioIdxs = _allColIdx(headers, ['precio', 'price']);
@@ -202,7 +206,8 @@ function _parsearMT5(raw, posicionesRow) {
   if (txHeader >= raw.length) return { trades: trades, parciales: [] };
 
   var txHeaders = (raw[txHeader] || []).map(function(h) {
-    return String(h || '').normalize('NFC').toLowerCase().trim();
+    return String(h || '').normalize('NFC').toLowerCase().trim()
+      .replace(/\s*\([^)]*\)\s*$/, '');
   });
 
   var txColFecha  = _colIdx(txHeaders, ['fecha/hora', 'time']);
@@ -292,7 +297,11 @@ function _parsearCtrader(raw, headerRow) {
   var trades = [];
 
   var headers = (raw[headerRow] || []).map(function(h) {
-    return String(h || '').normalize('NFC').toLowerCase().trim();
+    // FIX corazón de datos (04/07): mismo fix que en _parsearMT5 — algunos
+    // brokers de cTrader añaden "(UTC+1)" a "Hora de apertura"/"Hora de
+    // cierre", rompiendo la coincidencia exacta de _colIdx.
+    return String(h || '').normalize('NFC').toLowerCase().trim()
+      .replace(/\s*\([^)]*\)\s*$/, '');
   });
 
   var colSim  = _colIdx(headers, ['símbolo', 'simbolo', 'symbol', 'instrument']);
