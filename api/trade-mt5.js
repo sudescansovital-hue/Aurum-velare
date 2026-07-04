@@ -175,13 +175,22 @@ async function handlePartialClose(body, email, cuentaNumero, cuentaNombre) {
   return { status: 200, json: { ok: true, event: 'partial_close', position_id, deal_id } };
 }
 
-async function handleClose(body, email, cuentaNumero) {
+// FIX corazón de datos (04/07): al cerrar, además de marcar ea_trades como
+// closed, se hace un upsert (por fp, igual mecanismo que historial.js) hacia
+// la tabla 'trades' con fuente='ea', replicando EXACTAMENTE las mismas
+// fórmulas que usa parser.js para 'puntos', 'ganadora', 'dia' y 'hora' —
+// verificado dato-a-dato contra un trade real (ticket 18579861, cuenta
+// 152034) antes de aplicar: la hora que manda el EA y la que guarda
+// Supabase con getUTCHours()/getUTCDay() coincide exacta con la hora del
+// terminal MT5, igual que hace parser.js con los históricos. Sin desfase.
+async function handleClose(body, email, cuentaNumero, cuentaNombre) {
   const { position_id, precio_cierre, beneficio_total, timestamp } = body;
 
   if (!position_id || precio_cierre == null || !timestamp) {
     return { status: 400, json: { error: 'close: faltan position_id, precio_cierre o timestamp' } };
   }
 
+  // 1. Cerrar en ea_trades (igual que antes)
   const r = await _patch('ea_trades', `position_id=eq.${encodeURIComponent(position_id)}`, {
     estado:       'closed',
     precio_cierre,
@@ -193,8 +202,98 @@ async function handleClose(body, email, cuentaNumero) {
     console.error('[trade-mt5] close PATCH error:', r.status, r.body);
     return { status: 500, json: { error: 'Error actualizando cierre', detail: r.body } };
   }
-  console.log('[trade-mt5] close OK — position_id:', position_id, '| precio_cierre:', precio_cierre);
-  return { status: 200, json: { ok: true, event: 'close', position_id } };
+
+  // 2. Traer los datos de apertura desde ea_trades para construir la fila de 'trades'
+  let eaRows;
+  try {
+    eaRows = await _get(
+      'ea_trades',
+      `position_id=eq.${encodeURIComponent(position_id)}&select=fp,tipo,volumen,precio_entrada,sl_actual,tp_original,fecha_entrada`
+    );
+  } catch (err) {
+    console.error('[trade-mt5] close: error leyendo ea_trades para upsert:', err.message);
+    return { status: 200, json: { ok: true, event: 'close', position_id, warning: 'ea_trades cerrado pero fallo leyendo datos para upsert a trades' } };
+  }
+
+  if (!Array.isArray(eaRows) || !eaRows.length) {
+    console.error('[trade-mt5] close: no se encontró ea_trades para upsert a trades — position_id:', position_id);
+    return { status: 200, json: { ok: true, event: 'close', position_id, warning: 'ea_trades cerrado pero no se pudo upsertar a trades (fila no encontrada)' } };
+  }
+  const ea = eaRows[0];
+
+  const fAp = ea.fecha_entrada ? new Date(ea.fecha_entrada) : null;
+  const fCi = new Date(timestamp);
+  const tipo = (ea.tipo || '').toLowerCase();
+  const pe = ea.precio_entrada;
+  const pc = precio_cierre;
+  const sl = ea.sl_actual;
+  const tp = ea.tp_original;
+  const ben = beneficio_total != null ? beneficio_total : 0;
+
+  // Mismo criterio que parser.js (fAp.getHours()/getDay()) — verificado que
+  // coincide con la hora de terminal usando getUTCHours()/getUTCDay() sobre
+  // el timestamp que manda el EA (sin conversión de zona horaria adicional).
+  const hora = fAp ? fAp.getUTCHours() : 0;
+  const dia  = fAp ? (fAp.getUTCDay() + 6) % 7 : 0;
+
+  // Mismo criterio que parser.js: prioriza distancia entrada→SL si el SL es
+  // válido; si no, distancia entrada→cierre. Siempre en valor absoluto.
+  const slValido = (sl !== null && sl !== undefined && sl !== 0 && Math.abs(sl - pe) > 0.00001);
+  let puntosRaw;
+  if (slValido) {
+    puntosRaw = tipo === 'sell' ? (sl - pe) : (pe - sl);
+  } else {
+    puntosRaw = tipo === 'sell' ? (pe - pc) : (pc - pe);
+  }
+  const puntos = Math.abs(Math.round(puntosRaw * 100) / 100);
+
+  const durMin = fAp ? Math.max(0, Math.round((fCi - fAp) / 60000)) : 60;
+
+  const fechaStr = fAp
+    ? (fAp.getUTCFullYear() + '.' + String(fAp.getUTCMonth() + 1).padStart(2, '0') + '.' + String(fAp.getUTCDate()).padStart(2, '0'))
+    : '';
+
+  const tradeRow = {
+    fp:             ea.fp,
+    fecha:          fechaStr,
+    usuario_email:  email,
+    cuenta:         cuentaNombre,
+    cuenta_numero:  cuentaNumero,
+    ganadora:       ben > 0,
+    beneficio:      ben,
+    hora:           hora,
+    dia:            dia,
+    puntos:         puntos,
+    precio_entrada: pe,
+    precio_cierre:  pc,
+    dur_min:        durMin,
+    sl:             sl,
+    tp:             tp,
+    volumen:        ea.volumen,
+    tipo:           tipo,
+    fuente:         'ea'
+  };
+
+  let rUpsert;
+  try {
+    rUpsert = await fetch(`${SUPA_URL}/rest/v1/trades?on_conflict=fp`, {
+      method: 'POST',
+      headers: Object.assign(_headers(), { 'Prefer': 'resolution=merge-duplicates,return=minimal' }),
+      body: JSON.stringify([tradeRow])
+    });
+  } catch (err) {
+    console.error('[trade-mt5] close: excepción en upsert a trades:', err.message);
+    return { status: 200, json: { ok: true, event: 'close', position_id, warning: 'ea_trades cerrado pero upsert a trades lanzó excepción' } };
+  }
+
+  if (!rUpsert.ok) {
+    const errBody = await rUpsert.text();
+    console.error('[trade-mt5] close: upsert a trades FALLÓ:', rUpsert.status, errBody);
+    return { status: 200, json: { ok: true, event: 'close', position_id, warning: 'ea_trades cerrado pero upsert a trades falló', detail: errBody } };
+  }
+
+  console.log('[trade-mt5] close OK — position_id:', position_id, '| upsert a trades OK | fp:', ea.fp);
+  return { status: 200, json: { ok: true, event: 'close', position_id, upserted_to_trades: true } };
 }
 
 // ── Handler principal ─────────────────────────────────────────────────────────
@@ -242,7 +341,7 @@ module.exports = async function handler(req, res) {
     if (event === 'open')          result = await handleOpen(req.body, email, cn, cuentaNombre);
     else if (event === 'sl_change')      result = await handleSlChange(req.body, email, cn);
     else if (event === 'partial_close')  result = await handlePartialClose(req.body, email, cn, cuentaNombre);
-    else if (event === 'close')          result = await handleClose(req.body, email, cn);
+    else if (event === 'close')          result = await handleClose(req.body, email, cn, cuentaNombre);
     else return res.status(400).json({ error: 'Evento desconocido: ' + event });
   } catch (err) {
     console.error('[trade-mt5] excepción en evento', event, ':', err.message);
