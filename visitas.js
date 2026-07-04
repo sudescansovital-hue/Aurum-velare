@@ -42,10 +42,14 @@ function verCuenta(cuenta) {
   }
 }
 
-function getTrades(nombreCuenta) {
+function getTrades(nombreCuenta, cuentaNumero) {
   if (!window.AURUM_TRADES) return [];
   var todos = window.AURUM_TRADES.todos || [];
   if (nombreCuenta === 'todos') return todos;
+  if (cuentaNumero) {
+    var num = String(cuentaNumero);
+    return todos.filter(function(t) { return t.cuenta_numero != null && String(t.cuenta_numero) === num; });
+  }
   var keyword = nombreCuenta.toLowerCase();
   return todos.filter(function(t) { return t.cuenta && t.cuenta.toLowerCase().indexOf(keyword) >= 0; });
 }
@@ -135,8 +139,12 @@ function _histEntrada(keyword) {
 }
 
 function buildCuentaReal(cuenta, nombreCuenta) {
+  var _u = window.usuarioActual;
+  var _numero = cuenta === 'maestra' ? (_u && _u.cuenta_maestra || null)
+              : cuenta === 'retos'   ? (_u && _u.cuenta_retos   || null)
+              : (_u && _u.cuenta_prueba || null);
   var hist   = _histEntrada(nombreCuenta);
-  var trades = getTrades(nombreCuenta);
+  var trades = getTrades(nombreCuenta, _numero);
   if (!hist && !trades.length) return;
 
   // Métricas principales: preferir HISTORIAL_CUENTAS (fusiona trades + historiales)
@@ -151,10 +159,6 @@ function buildCuentaReal(cuenta, nombreCuenta) {
   var rango = hist ? hist.periodo : _rangoFechas(trades);
 
   // Header
-  var _u = window.usuarioActual;
-  var _numero = cuenta === 'maestra' ? (_u && _u.cuenta_maestra || null)
-              : cuenta === 'retos'   ? (_u && _u.cuenta_retos   || null)
-              : (_u && _u.cuenta_prueba || null);
   var _MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
   var _fechas = trades.map(_fechaTrade).filter(Boolean).sort(function(a,b){ return a - b; });
   var _fechaIni = _fechas.length ? _fechas[0].getDate() + ' ' + _MESES[_fechas[0].getMonth()] + ' ' + _fechas[0].getFullYear() : null;
@@ -245,14 +249,15 @@ function buildCuentaReal(cuenta, nombreCuenta) {
 }
 
 function buildGlobal() {
+  var _u = window.usuarioActual;
   var histAll = window.HISTORIAL_CUENTAS || [];
   var histM   = _histEntrada('Cuenta Maestra');
   var histR   = _histEntrada('Cuenta Retos');
   var histP   = _histEntrada('Cuenta Prueba');
 
-  var maestra = getTrades('Cuenta Maestra');
-  var prueba  = getTrades('Cuenta Prueba');
-  var retos   = getTrades('Cuenta Retos');
+  var maestra = getTrades('Cuenta Maestra', _u && _u.cuenta_maestra);
+  var prueba  = getTrades('Cuenta Prueba',  _u && _u.cuenta_prueba);
+  var retos   = getTrades('Cuenta Retos',   _u && _u.cuenta_retos);
   var todos   = getTrades('todos');
 
   var totalHist = histAll.reduce(function(s,c){ return s+(c.total||0); }, 0);
