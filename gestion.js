@@ -2278,6 +2278,30 @@ async function confirmarReset() {
   await resetCuenta(radio.value);
 }
 
+async function _liberarCuentaAExterna(email, destino, token) {
+  var ep = 'usuario_email=eq.' + encodeURIComponent(email);
+
+  var resTrades = await supaGet('trades',
+    ep + '&cuenta=eq.' + encodeURIComponent(destino) + '&limit=1', token);
+  if (!resTrades.error && resTrades.data && resTrades.data.length) {
+    await supaPatch('trades',
+      ep + '&cuenta=eq.' + encodeURIComponent(destino),
+      { cuenta: 'Cuenta Externa', cuenta_numero: null }, token);
+  }
+
+  var resParciales = await supaGet('trade_parciales',
+    ep + '&cuenta=eq.' + encodeURIComponent(destino) + '&limit=1', token);
+  if (!resParciales.error && resParciales.data && resParciales.data.length) {
+    await supaPatch('trade_parciales',
+      ep + '&cuenta=eq.' + encodeURIComponent(destino),
+      { cuenta: 'Cuenta Externa', cuenta_numero: null }, token);
+  }
+
+  await supaPatch('historiales',
+    ep + '&nombre=eq.' + encodeURIComponent(destino),
+    { nombre: 'Cuenta Externa' }, token);
+}
+
 async function resetCuenta(tipoCuenta) {
   var errEl = document.getElementById('reset-error');
   var saldo = window.AURUM_OZT || 0;
@@ -2296,6 +2320,11 @@ async function resetCuenta(tipoCuenta) {
   if (r1.error) {
     if (errEl) { errEl.textContent = 'Error al registrar el gasto: ' + r1.error; errEl.style.display = 'block'; }
     return;
+  }
+
+  var destinoLabel = { cuenta_maestra:'Cuenta Maestra', cuenta_retos:'Cuenta Retos', cuenta_prueba:'Cuenta Prueba' }[tipoCuenta];
+  if (destinoLabel) {
+    await _liberarCuentaAExterna(email, destinoLabel, token);
   }
 
   var campoReset = {};
