@@ -465,12 +465,23 @@ function histSubir(file, onDone) {
       trades.map(function(t){ return t.fp; }).filter(Boolean)
         .forEach(function(fp) { HISTORIAL_ALL_FPS.add(nombreFinal + '|' + fp); });
       if (typeof guardarTradesIndividuales === 'function') {
-        guardarTradesIndividuales(trades, nombreFinal, numeroCuenta, parciales).then(function() {
+        var _resultadoImport = null;
+        guardarTradesIndividuales(trades, nombreFinal, numeroCuenta, parciales).then(function(resultado) {
+          _resultadoImport = resultado;
           return _actualizarEntradaHistorial(nombreFinal, tipo, numeroCuenta);
         }).then(function() {
           cargarHistorialDesdeSupabase();
           if (typeof actualizarDashboard === 'function') actualizarDashboard();
-          msg.style.color = 'var(--green)'; msg.textContent = trades.length + ' trades reimportados.';
+          msg.style.color = 'var(--green)';
+          if (_resultadoImport) {
+            var partes = [];
+            partes.push(_resultadoImport.nuevos + ' nuevo' + (_resultadoImport.nuevos !== 1 ? 's' : ''));
+            partes.push(_resultadoImport.actualizados + ' ya exist' + (_resultadoImport.actualizados !== 1 ? 'ían' : 'ía'));
+            if (_resultadoImport.protegidos > 0) partes.push(_resultadoImport.protegidos + ' protegido' + (_resultadoImport.protegidos !== 1 ? 's' : '') + ' (EA)');
+            msg.textContent = partes.join(' · ');
+          } else {
+            msg.textContent = trades.length + ' trades reimportados.';
+          }
         }).catch(function(err) {
           console.error('[HISTORIAL] Error guardando trades:', err);
           if (!err || !err.mensajeMostrado) {
@@ -612,13 +623,15 @@ async function guardarTradesIndividuales(trades, nombreCuenta, numeroCuenta, par
     if (patchRes.error) console.error('[HISTORIAL] Error reparando cuenta nula:', patchRes.error);
   }
 
-  // 1.5. Proteger trades del EA: nunca pisar un trade que ya tiene el
-  //      historial completo de SL capturado por el EA (fuente='ea')
+  // 1.5. Verificar qué trades de este archivo ya existen en Supabase (para
+  //      el mensaje final nuevos/ya existían) y proteger los del EA (nunca
+  //      pisar un trade que ya tiene el historial completo de SL capturado
+  //      por el EA, fuente='ea'). Una sola consulta para ambas cosas.
   var deCuentaParams = emailParam + '&cuenta=eq.' + encodeURIComponent(nombreCuenta);
   if (numeroCuenta) deCuentaParams += '&cuenta_numero=eq.' + encodeURIComponent(numeroCuenta);
-  var eaRes = await supaGet('trades', deCuentaParams + '&fuente=eq.ea&select=fp', token);
-  if (eaRes.error || !Array.isArray(eaRes.data)) {
-    console.error('[HISTORIAL] Error verificando trades protegidos (fuente=ea):', eaRes.error || 'data no es array: ' + JSON.stringify(eaRes.data));
+  var existRes = await supaGet('trades', deCuentaParams + '&select=fp,fuente', token);
+  if (existRes.error || !Array.isArray(existRes.data)) {
+    console.error('[HISTORIAL] Error verificando trades existentes/protegidos:', existRes.error || 'data no es array: ' + JSON.stringify(existRes.data));
     var msgEl = document.getElementById('hist-msg');
     if (msgEl) {
       msgEl.style.color = 'var(--red)';
@@ -629,11 +642,19 @@ async function guardarTradesIndividuales(trades, nombreCuenta, numeroCuenta, par
     throw errAbort;
   }
   var fpsProtegidos = {};
-  eaRes.data.forEach(function(r) { if (r.fp) fpsProtegidos[r.fp] = true; });
+  var fpsExistentes = {};
+  existRes.data.forEach(function(r) {
+    if (!r.fp) return;
+    fpsExistentes[r.fp] = true;
+    if (r.fuente === 'ea') fpsProtegidos[r.fp] = true;
+  });
 
   var tradesAEnviar = trades.filter(function(t) { return !fpsProtegidos[t.fp]; });
-  var excluidos = trades.length - tradesAEnviar.length;
-  if (excluidos > 0) console.log('[HISTORIAL]', excluidos, 'trade(s) excluidos del reimport por ser fuente=ea (protegidos)');
+  var protegidos = trades.length - tradesAEnviar.length;
+  if (protegidos > 0) console.log('[HISTORIAL]', protegidos, 'trade(s) excluidos del reimport por ser fuente=ea (protegidos)');
+
+  var nuevos = tradesAEnviar.filter(function(t) { return t.fp && !fpsExistentes[t.fp]; }).length;
+  var actualizados = tradesAEnviar.length - nuevos;
 
   // 2. UPSERT de todos los trades del archivo — nunca se borra nada que no
   //    esté en el archivo nuevo. Requiere UNIQUE(fp) en Supabase (ya confirmado).
@@ -658,7 +679,7 @@ async function guardarTradesIndividuales(trades, nombreCuenta, numeroCuenta, par
       fuente:        'import'
     };
   });
-  console.log('[INSERT] enviando', rows.length, 'rows (upsert por fp, excluidos', excluidos, 'protegidos) | cuenta:', nombreCuenta, '| primer fp:', rows[0] && rows[0].fp);
+  console.log('[INSERT] enviando', rows.length, 'rows (upsert por fp, excluidos', protegidos, 'protegidos) | cuenta:', nombreCuenta, '| primer fp:', rows[0] && rows[0].fp);
   var _insertResp, _insertBody;
   try {
     _insertResp = await fetch(SUPA_URL + '/rest/v1/trades?on_conflict=fp', {
@@ -721,4 +742,6 @@ async function guardarTradesIndividuales(trades, nombreCuenta, numeroCuenta, par
       console.error('[PARCIALES] excepcion en fetch:', err);
     }
   }
+
+  return { nuevos: nuevos, actualizados: actualizados, protegidos: protegidos };
 }
