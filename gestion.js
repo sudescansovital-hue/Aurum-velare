@@ -1,4 +1,4 @@
-﻿// ============================================================
+// ============================================================
 // LÓGICA DE MI GESTIÓN — datos reales de Supabase
 // ============================================================
 
@@ -44,6 +44,21 @@ function getTradesActivos() {
   return todos.filter(function(t) {
     return t.cuenta && t.cuenta.toLowerCase().indexOf(keyword) >= 0;
   });
+}
+
+// FIX corazón de datos (06/07): un SL movido a break-even o más allá (protegiendo
+// ganancia) se estaba midiendo por su distancia a la entrada igual que un SL de
+// riesgo real — un trade con 100+ puntos de beneficio protegido salía marcado
+// como "fuera del método", cuando es justo lo contrario: gestión perfecta.
+// Esta función centraliza el criterio para los 3 sitios que clasifican por puntos.
+function _esSlProtegido(t) {
+  if (!t || t.sl == null || !t.tipo) return false;
+  var pe = parseFloat(t.precio_entrada);
+  if (!pe) return false; // sin precio_entrada fiable (0 o null) — no se puede evaluar
+  if (parseFloat(t.precio_cierre) === 0) return false; // datos corruptos (ver Willian, precio_cierre=0)
+  var sl = parseFloat(t.sl);
+  if (isNaN(sl)) return false;
+  return t.tipo === 'sell' ? (sl <= pe) : (sl >= pe);
 }
 
 function buildTradeRecord() {
@@ -372,7 +387,7 @@ function buildCicloDots() {
   var limEdge   = (window.usuarioActual && window.usuarioActual.sl_edge)   || 11;
   var limAire   = (window.usuarioActual && window.usuarioActual.sl_aire)   || 25;
   var limLimite = (window.usuarioActual && window.usuarioActual.sl_limite) || 50;
-  var dentro = ultimos.filter(function(t){ return t.puntos <= limAire; });
+  var dentro = ultimos.filter(function(t){ return t.puntos <= limAire || _esSlProtegido(t); });
   var cumpl = ultimos.length > 0 ? Math.round(dentro.length/ultimos.length*1000)/10 : 0;
 
   // Score
@@ -680,12 +695,12 @@ function buildCumplimiento() {
   var limEdge   = (window.usuarioActual && window.usuarioActual.sl_edge)   || 11;
   var limAire   = (window.usuarioActual && window.usuarioActual.sl_aire)   || 25;
   var limLimite = (window.usuarioActual && window.usuarioActual.sl_limite) || 50;
-  var edge   = trades.filter(function(t){ return t.puntos <= limEdge; });
-  var aire   = trades.filter(function(t){ return t.puntos > limEdge && t.puntos <= limAire; });
-  var limite = trades.filter(function(t){ return t.puntos > limAire && t.puntos <= limLimite; });
-  var afuera = trades.filter(function(t){ return t.puntos > limLimite; });
-  var dentro = trades.filter(function(t){ return t.puntos <= limAire; });
-  var fuera  = trades.filter(function(t){ return t.puntos > limAire; });
+  var edge   = trades.filter(function(t){ return t.puntos <= limEdge || _esSlProtegido(t); });
+  var aire   = trades.filter(function(t){ return !_esSlProtegido(t) && t.puntos > limEdge && t.puntos <= limAire; });
+  var limite = trades.filter(function(t){ return !_esSlProtegido(t) && t.puntos > limAire && t.puntos <= limLimite; });
+  var afuera = trades.filter(function(t){ return !_esSlProtegido(t) && t.puntos > limLimite; });
+  var dentro = trades.filter(function(t){ return t.puntos <= limAire || _esSlProtegido(t); });
+  var fuera  = trades.filter(function(t){ return !_esSlProtegido(t) && t.puntos > limAire; });
 
   function wr(arr)  { return arr.length > 0 ? Math.round(arr.filter(function(t){ return t.ganadora; }).length/arr.length*1000)/10 : 0; }
   function pnlSum(arr) { return Math.round(arr.reduce(function(s,t){ return s+(t.beneficio||0); },0)*100)/100; }
@@ -808,7 +823,7 @@ function buildCumplimiento() {
       if (!key) return;
       if (!porMesCumpl[key]) { porMesCumpl[key] = { t:0, dentro:0 }; mesOrdenCumpl.push(key); }
       porMesCumpl[key].t++;
-      if (t.puntos <= limAire) porMesCumpl[key].dentro++;
+      if (t.puntos <= limAire || _esSlProtegido(t)) porMesCumpl[key].dentro++;
     });
     var MESES_C = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
     function _mesLabel(k) { var p = k.split('-'); return MESES_C[parseInt(p[1])-1] + ' ' + p[0].slice(2); }
