@@ -41,6 +41,19 @@ function getTradesActivos() {
   if (cuenta === 'global') return todos;
   var keyword = { maestra:'maestra', retos:'retos', prueba:'prueba' }[cuenta];
   if (!keyword) return todos;
+  // FIX corazón de datos (06/07): filtrar por cuenta_numero cuando esté disponible,
+  // no solo por el nombre/etiqueta — mismo fix ya aplicado en getTrades() de
+  // visitas.js (commit 09f7cae, 05/07). Sin esto, dos cuentas de usuarios
+  // distintos con la misma etiqueta (ej. "Cuenta Prueba") se mezclarían aquí,
+  // aunque en visitas.js ya estuvieran separadas correctamente.
+  var _u = window.usuarioActual;
+  var _numero = cuenta === 'maestra' ? (_u && _u.cuenta_maestra || null)
+              : cuenta === 'retos'   ? (_u && _u.cuenta_retos   || null)
+              : (_u && _u.cuenta_prueba || null);
+  if (_numero) {
+    var num = String(_numero);
+    return todos.filter(function(t) { return t.cuenta_numero != null && String(t.cuenta_numero) === num; });
+  }
   return todos.filter(function(t) {
     return t.cuenta && t.cuenta.toLowerCase().indexOf(keyword) >= 0;
   });
