@@ -138,6 +138,11 @@ function _parsearMT5(raw, posicionesRow) {
 
     var tipo = String(row[colTipo] || '').toLowerCase().trim();
     if (tipo && tipo !== 'buy' && tipo !== 'sell' && tipo !== 'compra' && tipo !== 'venta') continue;
+    // FIX corazón de datos (06/07): normalizar a 'buy'/'sell' — antes 'compra'/
+    // 'venta' (exports MT5 en español) pasaban el filtro pero nunca coincidían
+    // con 'sell' en el cálculo de puntos de abajo, tratando toda venta como compra.
+    if (tipo === 'compra') tipo = 'buy';
+    else if (tipo === 'venta') tipo = 'sell';
 
     var ben = (_num(row[colBen]) || 0) + (_num(row[colCom]) || 0) + (_num(row[colSwap]) || 0);
     var vol = _num(row[colVol]);
@@ -179,7 +184,7 @@ function _parsearMT5(raw, posicionesRow) {
       fp: fp, ben: ben, vol: vol, pe: pe, pc: pcFinal,
       puntos: Math.abs(puntos), ganadora: ben > 0,
       hora: hora, dia: dia, durMin: _durMin(fAp, fCi),
-      sl: sl, tp: tp, tipo: tipo
+      sl: sl, tp: tp, tipo: tipo || null
     });
 
     if (posId) {
