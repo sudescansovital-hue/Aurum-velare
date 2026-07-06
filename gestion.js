@@ -924,22 +924,30 @@ async function buildCumplimientoParciales() {
 
   Object.keys(porTrade).forEach(function(pid) {
     var grupo = porTrade[pid];
-    grupo.sort(function(a, b) { return String(a.hora || '').localeCompare(String(b.hora || '')); });
+    // FIX corazón de datos (06/07): 'hora' es un número (0-23), no texto —
+    // ordenar con localeCompare hacía que "14" ordenara antes que "8".
+    grupo.sort(function(a, b) { return (parseInt(a.hora, 10) || 0) - (parseInt(b.hora, 10) || 0); });
 
     var trade = tradeByFp[pid];
     var pe = trade ? (parseFloat(trade.precio_entrada) || null) : null;
 
     totalConParciales++;
 
-    grupo.forEach(function(p, idx) {
-      if (p.es_sl) return; // salida controlada por SL — no evaluar zona TP
+    // FIX corazón de datos (06/07): idxZona debe contar solo parciales de TP
+    // (no-SL) en orden — antes usaba el índice del array completo, así que
+    // una salida de SL intercalada desplazaba el resto y evaluaba el parcial
+    // contra la zona equivocada (ej. el 2º parcial real se juzgaba como 3º).
+    var idxTp = 0;
+    grupo.forEach(function(p) {
+      if (p.es_sl) return; // salida controlada por SL — no evaluar zona TP, no cuenta para el índice
       totalParciales++;
       if (pe === null) return;
 
       var puntos = Math.abs(pe - parseFloat(p.precio || 0));
       puntos = Math.round(puntos * 100) / 100;
 
-      var idxZona = Math.min(idx, 2);
+      var idxZona = Math.min(idxTp, 2);
+      idxTp++;
       var zona = zonas[idxZona];
 
       if (puntos >= zona.limMin && puntos <= zona.limMax) {
