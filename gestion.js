@@ -864,7 +864,10 @@ async function buildCumplimientoParciales() {
   }
 
   var inFilter = cuentasActivas.map(function(c){ return '"' + c + '"'; }).join(',');
-  var result = await supaGet('trade_parciales', 'cuenta_numero=in.(' + inFilter + ')&order=hora.asc', token);
+  // FIX corazón de datos (04/07): filtrar también por usuario_email, no solo
+  // por cuenta_numero — este último puede coincidir con la cuenta de OTRO
+  // usuario del sistema (confirmado: 7747760 es de Willian, no único global).
+  var result = await supaGet('trade_parciales', 'usuario_email=eq.' + encodeURIComponent(email) + '&cuenta_numero=in.(' + inFilter + ')&order=hora.asc', token);
   if (result.error) {
     contenedor.innerHTML = '<div style="padding:1rem 2rem;color:var(--red);font-size:13px;">Error al cargar parciales: ' + result.error + '</div>';
     return;
