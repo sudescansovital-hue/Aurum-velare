@@ -341,7 +341,7 @@ async function handleClose(body, email, cuentaNumero, cuentaNombre) {
 
   let rUpsert;
   try {
-    rUpsert = await fetch(`${SUPA_URL}/rest/v1/trades?on_conflict=fp`, {
+    rUpsert = await fetch(`${SUPA_URL}/rest/v1/trades?on_conflict=fp,usuario_email`, {
       method: 'POST',
       headers: Object.assign(_headers(), { 'Prefer': 'resolution=merge-duplicates,return=minimal' }),
       body: JSON.stringify([tradeRow])

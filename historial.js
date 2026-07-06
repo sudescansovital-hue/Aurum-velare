@@ -657,7 +657,7 @@ async function guardarTradesIndividuales(trades, nombreCuenta, numeroCuenta, par
   var actualizados = tradesAEnviar.length - nuevos;
 
   // 2. UPSERT de todos los trades del archivo — nunca se borra nada que no
-  //    esté en el archivo nuevo. Requiere UNIQUE(fp) en Supabase (ya confirmado).
+  //    esté en el archivo nuevo. Requiere UNIQUE(fp, usuario_email) en Supabase (ya confirmado).
   var rows = tradesAEnviar.map(function(t) {
     return {
       fp:            t.fp,
@@ -683,7 +683,7 @@ async function guardarTradesIndividuales(trades, nombreCuenta, numeroCuenta, par
   console.log('[INSERT] enviando', rows.length, 'rows (upsert por fp, excluidos', protegidos, 'protegidos) | cuenta:', nombreCuenta, '| primer fp:', rows[0] && rows[0].fp);
   var _insertResp, _insertBody;
   try {
-    _insertResp = await fetch(SUPA_URL + '/rest/v1/trades?on_conflict=fp', {
+    _insertResp = await fetch(SUPA_URL + '/rest/v1/trades?on_conflict=fp,usuario_email', {
       method:  'POST',
       headers: Object.assign(_headers(token), { 'Prefer': 'resolution=merge-duplicates,return=minimal' }),
       body:    JSON.stringify(rows)
