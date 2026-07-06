@@ -52,11 +52,12 @@ async function handleOpen(body, email, cuentaNumero, cuentaNombre) {
 
   if (Array.isArray(existing) && existing.length > 0) {
     // Posición ya registrada (p.ej. llegó de la sync OnInit pero ya estaba en ea_trades).
-    // Solo actualizamos sl_actual — sl_original y fecha_entrada quedan intactos.
+    // Solo actualizamos sl_actual/tp_actual — sl_original, tp_original y fecha_entrada quedan intactos.
+    // FIX corazón de datos (06/07): antes esta rama ignoraba el TP por completo.
     const r = await _patch(
       'ea_trades',
       `position_id=eq.${encodeURIComponent(position_id)}`,
-      { sl_actual: sl != null ? sl : null }
+      { sl_actual: sl != null ? sl : null, tp_actual: tp != null ? tp : null }
     );
     if (!r.ok) {
       console.error('[trade-mt5] open (update sl_actual) error:', r.status, r.body);
@@ -78,6 +79,7 @@ async function handleOpen(body, email, cuentaNumero, cuentaNombre) {
     sl_original:    sl       != null ? sl       : null,
     tp_original:    tp       != null ? tp       : null,
     sl_actual:      sl       != null ? sl       : null,
+    tp_actual:      tp       != null ? tp       : null,
     puntos_sl:      puntos_sl != null ? puntos_sl : null,
     estado:         'open',
     fecha_entrada:  timestamp
@@ -122,6 +124,69 @@ async function handleSlChange(body, email, cuentaNumero) {
 
   console.log('[trade-mt5] sl_change OK — position_id:', position_id, '| sl_nuevo:', sl_nuevo);
   return { status: 200, json: { ok: true, event: 'sl_change', position_id, sl_nuevo } };
+}
+
+// FIX corazón de datos (06/07): espejo exacto de handleSlChange, tabla
+// ea_tp_changes en vez de ea_sl_changes, tp_actual en vez de sl_actual.
+async function handleTpChange(body, email, cuentaNumero) {
+  const { position_id, tp_anterior, tp_nuevo, timestamp } = body;
+
+  if (!position_id || tp_nuevo == null || !timestamp) {
+    return { status: 400, json: { error: 'tp_change: faltan position_id, tp_nuevo o timestamp' } };
+  }
+
+  // 1. Registrar el cambio
+  const r1 = await _post('ea_tp_changes', {
+    position_id,
+    usuario_email: email,
+    cuenta_numero: cuentaNumero,
+    tp_anterior:   tp_anterior != null ? tp_anterior : null,
+    tp_nuevo,
+    timestamp
+  }, 'return=minimal');
+
+  if (!r1.ok) {
+    console.error('[trade-mt5] tp_change INSERT error:', r1.status, r1.body);
+    return { status: 500, json: { error: 'Error registrando cambio TP', detail: r1.body } };
+  }
+
+  // 2. Actualizar tp_actual en ea_trades (no fatal si falla)
+  const r2 = await _patch('ea_trades', `position_id=eq.${encodeURIComponent(position_id)}`, { tp_actual: tp_nuevo });
+  if (!r2.ok) {
+    console.warn('[trade-mt5] tp_change PATCH tp_actual warn:', r2.status, r2.body);
+  }
+
+  console.log('[trade-mt5] tp_change OK — position_id:', position_id, '| tp_nuevo:', tp_nuevo);
+  return { status: 200, json: { ok: true, event: 'tp_change', position_id, tp_nuevo } };
+}
+
+// FIX corazón de datos (06/07): evento correctivo que manda el EA cuando
+// detecta (via polling cada 10s) el primer valor real de SL y/o TP tras
+// haber abierto a mercado sin ninguno de los dos puestos. Solo actualiza
+// sl_original/tp_original si vienen informados (no pisa con null).
+async function handleOriginalCapture(body, email, cuentaNumero) {
+  const { position_id, sl, tp, timestamp } = body;
+
+  if (!position_id) {
+    return { status: 400, json: { error: 'original_capture: falta position_id' } };
+  }
+
+  const patch = {};
+  if (sl != null) { patch.sl_original = sl; patch.sl_actual = sl; }
+  if (tp != null) { patch.tp_original = tp; patch.tp_actual = tp; }
+
+  if (Object.keys(patch).length === 0) {
+    return { status: 200, json: { ok: true, event: 'original_capture', position_id, skipped: true } };
+  }
+
+  const r = await _patch('ea_trades', `position_id=eq.${encodeURIComponent(position_id)}`, patch);
+  if (!r.ok) {
+    console.error('[trade-mt5] original_capture PATCH error:', r.status, r.body);
+    return { status: 500, json: { error: 'Error guardando original_capture', detail: r.body } };
+  }
+
+  console.log('[trade-mt5] original_capture OK — position_id:', position_id, '| patch:', JSON.stringify(patch));
+  return { status: 200, json: { ok: true, event: 'original_capture', position_id, patch } };
 }
 
 async function handlePartialClose(body, email, cuentaNumero, cuentaNombre) {
@@ -208,7 +273,7 @@ async function handleClose(body, email, cuentaNumero, cuentaNombre) {
   try {
     eaRows = await _get(
       'ea_trades',
-      `position_id=eq.${encodeURIComponent(position_id)}&select=fp,tipo,volumen,precio_entrada,sl_actual,tp_original,fecha_entrada`
+      `position_id=eq.${encodeURIComponent(position_id)}&select=fp,tipo,volumen,precio_entrada,sl_actual,tp_actual,fecha_entrada`
     );
   } catch (err) {
     console.error('[trade-mt5] close: error leyendo ea_trades para upsert:', err.message);
@@ -227,7 +292,7 @@ async function handleClose(body, email, cuentaNumero, cuentaNombre) {
   const pe = ea.precio_entrada;
   const pc = precio_cierre;
   const sl = ea.sl_actual;
-  const tp = ea.tp_original;
+  const tp = ea.tp_actual; // FIX 06/07: antes usaba tp_original (estático); ahora tp_actual se mantiene al día
   const ben = beneficio_total != null ? beneficio_total : 0;
 
   // Mismo criterio que parser.js (fAp.getHours()/getDay()) — verificado que
@@ -340,6 +405,8 @@ module.exports = async function handler(req, res) {
   try {
     if (event === 'open')          result = await handleOpen(req.body, email, cn, cuentaNombre);
     else if (event === 'sl_change')      result = await handleSlChange(req.body, email, cn);
+    else if (event === 'tp_change')      result = await handleTpChange(req.body, email, cn);
+    else if (event === 'original_capture') result = await handleOriginalCapture(req.body, email, cn);
     else if (event === 'partial_close')  result = await handlePartialClose(req.body, email, cn, cuentaNombre);
     else if (event === 'close')          result = await handleClose(req.body, email, cn, cuentaNombre);
     else return res.status(400).json({ error: 'Evento desconocido: ' + event });
