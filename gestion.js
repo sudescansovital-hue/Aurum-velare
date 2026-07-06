@@ -755,7 +755,7 @@ function buildCumplimiento() {
   // Alertas: top-3 trades with highest puntos (worst outliers)
   var elAlertas = document.getElementById('cumpl-alertas');
   if (elAlertas) {
-    var conSlExcesivo = trades.filter(function(t){ return t.sl != null && t.puntos > limAire; })
+    var conSlExcesivo = trades.filter(function(t){ return t.sl != null && t.puntos > limAire && !_esSlProtegido(t); })
       .sort(function(a, b){ return b.puntos - a.puntos; })
       .slice(0, 3);
     var sinSl = trades.filter(function(t){ return t.sl == null; })
