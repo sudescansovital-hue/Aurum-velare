@@ -179,7 +179,7 @@ function _parsearMT5(raw, posicionesRow) {
       fp: fp, ben: ben, vol: vol, pe: pe, pc: pcFinal,
       puntos: Math.abs(puntos), ganadora: ben > 0,
       hora: hora, dia: dia, durMin: _durMin(fAp, fCi),
-      sl: sl, tp: tp
+      sl: sl, tp: tp, tipo: tipo
     });
 
     if (posId) {
@@ -371,7 +371,7 @@ function _parsearCtrader(raw, headerRow) {
       fp: g.fp, ben: Math.round(g.ben * 100) / 100, vol: g.vol,
       pe: g.pe, pc: g.pc, puntos: Math.abs(puntos), ganadora: g.ben > 0,
       hora: fAp ? fAp.getHours() : 0, dia: fAp ? (fAp.getDay() + 6) % 7 : 0,
-      durMin: _durMin(fAp, fCi), sl: g.sl, tp: g.tp
+      durMin: _durMin(fAp, fCi), sl: g.sl, tp: g.tp, tipo: tipo
     });
   });
 

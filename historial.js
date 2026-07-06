@@ -676,6 +676,7 @@ async function guardarTradesIndividuales(trades, nombreCuenta, numeroCuenta, par
       sl:            t.sl || null,
       tp:            t.tp || null,
       volumen:       t.vol != null ? t.vol : (t.volumen != null ? t.volumen : null),
+      tipo:          t.tipo || null,
       fuente:        'import'
     };
   });
