@@ -81,16 +81,11 @@ function buildTradeRecord() {
   if (tb   && !trades.length) { tb.innerHTML   = ''; }
   if (verd && !trades.length) { verd.innerHTML = ''; }
   if (trades.length) {
-    var scalp = trades.filter(function(t){ return t.dur_min < 30; });
-    var intra = trades.filter(function(t){ return t.dur_min >= 30 && t.dur_min < 240; });
-    var swing = trades.filter(function(t){ return t.dur_min >= 240 && t.dur_min < 1440; });
-    var multi = trades.filter(function(t){ return t.dur_min >= 1440; });
-    var _tm = function(arr, label) {
-      var w = arr.filter(function(t){ return t.ganadora; }).length;
-      var p = arr.reduce(function(s,t){ return s+(t.beneficio||0); },0);
-      return { l:label, t:arr.length, wr:arr.length>0?Math.round(w/arr.length*1000)/10:0, pnl:Math.round(p*100)/100 };
-    };
-    var tipos = [_tm(scalp,'Scalping <30min'), _tm(intra,'Intradía 30m–4h'), _tm(swing,'✦ Swing 4h–24h'), _tm(multi,'Multi-día >24h')];
+    // FIX corazón de datos (06/07): antes se recalculaba aquí, a mano, exactamente
+    // lo mismo que calcTipos() en visitas.js (mismos umbrales, mismas etiquetas) —
+    // un fix futuro al WR ambiguo (o a cualquier otro cálculo) solo se aplicaba en
+    // uno de los dos sitios. Ahora ambos llaman a la misma función.
+    var tipos = (typeof calcTipos === 'function') ? calcTipos(trades) : [];
     var maxT = Math.max.apply(null, tipos.map(function(d){ return d.t; })) || 1;
     if (tb) {
       tb.innerHTML = tipos.map(function(d) {
@@ -1782,7 +1777,8 @@ function buildDashboardHero() {
   el = document.getElementById('dash-pnl-global');    if (el) el.textContent = pnlStr;
   el = document.getElementById('dash-pnl-global-sub');if (el) el.textContent = cuentas.length + ' cuenta' + (cuentas.length !== 1 ? 's' : '') + ' · entorno real';
   el = document.getElementById('card-global-pnl');    if (el) el.textContent = pnlStr;
-  el = document.getElementById('card-global-sub');    if (el) el.textContent = totalTrades + ' trades · WR ' + wr + '%';
+  var conEAGlobal = todos.filter(function(t) { return t.fuente === 'ea'; }).length;
+  el = document.getElementById('card-global-sub');    if (el) el.textContent = totalTrades + ' trades · WR ' + wr + '%' + (conEAGlobal > 0 ? ' · ' + conEAGlobal + ' auditado' + (conEAGlobal !== 1 ? 's' : '') + ' EA' : '');
 
   // Ciclo actual
   var ciclosCompletados = Math.floor(totalTrades / 111);
@@ -1875,12 +1871,15 @@ function buildDashboardHero() {
   if (bP) bP.innerHTML = '<span style="' + badgeStyle + 'background:rgba(201,168,76,.1);color:var(--gold);border:1px solid var(--gold-dim);">Challenge</span>';
 
   // Cards por cuenta — coincidencia parcial case-insensitive
+  // FIX corazón de datos (06/07): antes recalculaba wr/pnl a mano aquí, por
+  // tercera vez en el proyecto (ya estaba en calcMetricas de visitas.js y en
+  // calcTipos). Ahora reutiliza calcMetricas() como fuente del cálculo.
   function statsCuenta(keyword) {
     var sub = todos.filter(function(t) { return t.cuenta && t.cuenta.toLowerCase().indexOf(keyword) >= 0; });
-    var p   = Math.round(sub.reduce(function(s, t) { return s + (t.beneficio || 0); }, 0) * 100) / 100;
-    var w   = sub.filter(function(t) { return t.ganadora; }).length;
-    var wr  = sub.length > 0 ? Math.round(w / sub.length * 1000) / 10 : 0;
-    return { pnl: (p >= 0 ? '+' : '') + p + '$', sub: sub.length + ' trades · WR ' + wr + '%' };
+    var m = (typeof calcMetricas === 'function') ? calcMetricas(sub) : { pnl: 0, wr: 0 };
+    var conEA = sub.filter(function(t) { return t.fuente === 'ea'; }).length;
+    var subTxt = sub.length + ' trades · WR ' + m.wr + '%' + (conEA > 0 ? ' · ' + conEA + ' auditado' + (conEA !== 1 ? 's' : '') + ' EA' : '');
+    return { pnl: (m.pnl >= 0 ? '+' : '') + m.pnl + '$', sub: subTxt };
   }
   var sM = statsCuenta('maestra'), sR = statsCuenta('retos'), sP = statsCuenta('prueba');
   el = document.getElementById('card-maestra-pnl'); if (el) el.textContent = sM.pnl;
