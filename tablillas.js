@@ -19,8 +19,58 @@ function mostrarTab(tab) {
     items[tabMap[tab]].classList.add('active');
   }
 
+  if (tab === 'inicio'     && typeof cargarRetosPreviewHome === 'function') cargarRetosPreviewHome();
   if (tab === 'retos'      && typeof cargarRetosActivos === 'function') cargarRetosActivos();
   if (tab === 'calendario' && typeof renderCalendario  === 'function') renderCalendario(_calYear, _calMonth);
+}
+
+// FIX corazón de datos (07/07): antes la home mostraba 2 retos de muestra
+// escritos a mano en index.html, nunca conectados a Supabase. Esta función
+// carga los retos reales (misma tabla y mismo filtro que cargarRetosActivos
+// en gestion.js) y muestra los 2 más próximos a cerrar.
+async function cargarRetosPreviewHome() {
+  var cont = document.getElementById('home-retos-preview');
+  if (!cont) return;
+  if (typeof supaGet !== 'function' || typeof getToken !== 'function') return;
+
+  var res = await supaGet('retos', 'order=fecha_cierre.asc', getToken());
+  if (res.error || !res.data) {
+    cont.innerHTML = '';
+    return;
+  }
+
+  var retos = res.data.filter(function(r) { return r.estado !== 'cerrado'; }).slice(0, 2);
+  if (!retos.length) {
+    cont.innerHTML = '';
+    return;
+  }
+
+  cont.style.display = 'grid';
+  cont.style.gridTemplateColumns = retos.length > 1 ? '1fr 1fr' : '1fr';
+  cont.style.gap = '1px';
+  cont.style.background = 'var(--border)';
+
+  cont.innerHTML = retos.map(function(r) {
+    var esEquipo  = r.tipo === 'equipo';
+    var etiqueta  = esEquipo ? ('Reto activo' + (r.sala ? ' · Sala ' + r.sala : '')) : 'Reto activo · Individual';
+    var premioPartes = [];
+    if (r.premio_ozt)   premioPartes.push('◈ ' + r.premio_ozt + ' OZT');
+    if (r.premio_extra) premioPartes.push(r.premio_extra);
+    var premioTxt = premioPartes.join(' · ') || '—';
+    var cierreTxt = '—';
+    if (r.fecha_cierre) {
+      var fc = new Date(r.fecha_cierre);
+      cierreTxt = 'Cierra ' + fc.getDate() + ' ' + fc.toLocaleString('es-ES', { month: 'short' }).replace('.', '');
+    }
+    return '<div style="background:var(--bg2);padding:1.2rem 1.5rem;position:relative;">' +
+      '<div style="position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--border-gold),transparent);"></div>' +
+      '<div style="font-size:11px;color:var(--text-muted);margin-bottom:.5rem;letter-spacing:.2em;text-transform:uppercase;">' + etiqueta + '</div>' +
+      '<div style="font-size:15px;color:var(--text-dim);margin-bottom:.8rem;line-height:1.6;">' + (r.descripcion || r.titulo || '') + '</div>' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+      '<div style="font-size:13px;color:var(--gold-bright);">' + premioTxt + '</div>' +
+      '<div style="font-size:12px;color:var(--text-muted);">' + cierreTxt + '</div>' +
+      '</div></div>';
+  }).join('');
 }
 
 function init_dashboard() {
@@ -39,6 +89,7 @@ function init_dashboard() {
   // Stats del dashboard con datos reales si ya están disponibles
   if (typeof buildDashboardHero  === 'function') buildDashboardHero();
   if (typeof renderCalendario    === 'function') renderCalendario(_calYear, _calMonth);
+  if (typeof cargarRetosPreviewHome === 'function') cargarRetosPreviewHome();
 
   // Historial etapas
   const etapasEl = document.getElementById('dash-etapas-historial');
