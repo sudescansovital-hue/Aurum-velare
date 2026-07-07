@@ -1997,6 +1997,7 @@ function renderCalendario(year, month) {
 
   grid.innerHTML = html;
   if (window._retosCache) pintarRetosEnCalendario(window._retosCache);
+  if (window._agendaCache) pintarAgendaEnCalendario(window._agendaCache);
 }
 
 function calNavegar(dir) {
@@ -2032,6 +2033,55 @@ function pintarRetosEnCalendario(retos) {
         }, 200);
       };
     })(r.id);
+    celda.appendChild(chip);
+  });
+}
+
+// FIX corazón de datos (07/07): carga la disponibilidad real del usuario
+// (tabla disponibilidad_agenda) — antes guardarAgenda() solo pintaba en el
+// DOM, sin persistir nada. Rellena la lista de "Mis sesiones agendadas" y
+// pinta una chip en el calendario, mismo patrón que pintarRetosEnCalendario.
+async function cargarAgenda() {
+  var lista = document.getElementById('agenda-lista');
+  var email = window.usuarioActual && window.usuarioActual.email;
+  if (!email || typeof supaGet !== 'function') return;
+
+  var res = await supaGet('disponibilidad_agenda', 'usuario_email=eq.' + encodeURIComponent(email) + '&order=fecha.asc', getToken());
+  if (res.error || !res.data) return;
+
+  window._agendaCache = res.data;
+  pintarAgendaEnCalendario(res.data);
+
+  if (!lista) return;
+  if (!res.data.length) {
+    lista.innerHTML = '<div style="font-size:13px;color:var(--text-muted);font-style:italic;padding:.5rem 0;">Sin sesiones agendadas. Añade tu disponibilidad para que Aurum sepa cuándo puedes conectarte.</div>';
+    return;
+  }
+  lista.innerHTML = res.data.map(function(a) {
+    var d = new Date(a.fecha + 'T12:00:00');
+    var fechaStr = d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+    return '<div style="display:flex;align-items:center;justify-content:space-between;background:#0A0C18;border:1px solid var(--border);padding:.6rem 1rem;margin-bottom:.4rem;">' +
+      '<div><div style="font-size:13px;color:var(--text-dim);">' + fechaStr + '</div><div style="font-size:11px;color:var(--gold);">' + a.sesion + '</div></div>' +
+      '<div onclick="borrarSesionAgenda(' + a.id + ')" style="font-size:12px;color:var(--text-muted);cursor:pointer;opacity:.5;padding:.2rem .5rem;">✕</div>' +
+    '</div>';
+  }).join('');
+}
+
+async function borrarSesionAgenda(id) {
+  var res = await supaDelete('disponibilidad_agenda', 'id=eq.' + id, getToken());
+  if (res.error) { alert('Error al borrar: ' + res.error); return; }
+  cargarAgenda();
+}
+
+function pintarAgendaEnCalendario(agenda) {
+  (agenda || []).forEach(function(a) {
+    if (!a.fecha) return;
+    var celda = document.getElementById('cal-day-' + a.fecha);
+    if (!celda) return;
+    var chip = document.createElement('div');
+    chip.style.cssText = 'font-size:10px;background:#4A7AAA22;color:#6A9AEE;border:1px solid #4A7AAA33;padding:1px 4px;border-radius:1px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+    chip.title = 'Disponible: ' + a.sesion;
+    chip.textContent = '◆ ' + a.sesion;
     celda.appendChild(chip);
   });
 }

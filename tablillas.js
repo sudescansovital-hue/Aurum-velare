@@ -22,6 +22,7 @@ function mostrarTab(tab) {
   if (tab === 'inicio'     && typeof cargarRetosPreviewHome === 'function') cargarRetosPreviewHome();
   if (tab === 'retos'      && typeof cargarRetosActivos === 'function') cargarRetosActivos();
   if (tab === 'calendario' && typeof renderCalendario  === 'function') renderCalendario(_calYear, _calMonth);
+  if (tab === 'calendario' && typeof cargarAgenda === 'function') cargarAgenda();
 }
 
 // FIX corazón de datos (07/07): antes la home mostraba 2 retos de muestra
@@ -90,6 +91,7 @@ function init_dashboard() {
   if (typeof buildDashboardHero  === 'function') buildDashboardHero();
   if (typeof renderCalendario    === 'function') renderCalendario(_calYear, _calMonth);
   if (typeof cargarRetosPreviewHome === 'function') cargarRetosPreviewHome();
+  if (typeof cargarAgenda === 'function') cargarAgenda();
 
   // Historial etapas
   const etapasEl = document.getElementById('dash-etapas-historial');

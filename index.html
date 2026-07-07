@@ -2640,6 +2640,17 @@
         </div>
       </div>
 
+      <!-- Disponibilidad agendada por los usuarios -->
+      <div style="margin-top:2rem;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem;">
+          <div style="font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#cc9966;">Disponibilidad agendada</div>
+          <button onclick="adminCargarDisponibilidad()" style="font-size:11px;padding:.3rem .7rem;background:transparent;border:1px solid #cc664433;color:#cc9966;cursor:pointer;">↻</button>
+        </div>
+        <div id="admin-disponibilidad-lista" style="display:flex;flex-direction:column;gap:.5rem;">
+          <div style="font-size:12px;color:var(--text-muted);">—</div>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -2755,7 +2766,20 @@ function cerrarAnimal() {
 function seleccionarSesion(el,valor){document.querySelectorAll('#agenda-sesiones>div').forEach(d=>{d.style.borderColor='var(--border)';d.style.background='#060810';d.style.color='var(--text-dim)'});el.style.borderColor='var(--gold)';el.style.background='#C9A84C0A';el.style.color='var(--gold-bright)';document.getElementById('agenda-hora').value=valor;}
 function abrirAgenda(){const m=document.getElementById('modal-agenda');m.style.display='flex';document.body.style.overflow='hidden';document.getElementById('agenda-fecha').min=new Date().toISOString().split('T')[0];}
 function cerrarAgenda(){document.getElementById('modal-agenda').style.display='none';document.body.style.overflow='';document.getElementById('agenda-msg').textContent='';}
-function guardarAgenda(){const fecha=document.getElementById('agenda-fecha').value,hora=document.getElementById('agenda-hora').value,msg=document.getElementById('agenda-msg');if(!fecha||!hora){msg.style.color='var(--red)';msg.textContent='Selecciona día y sesión.';return;}const d=new Date(fecha+'T12:00:00'),fechaStr=d.toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'}),lista=document.getElementById('agenda-lista'),vacio=lista.querySelector('[style*="italic"]');if(vacio)vacio.remove();const item=document.createElement('div');item.style.cssText='display:flex;align-items:center;justify-content:space-between;background:#0A0C18;border:1px solid var(--border);padding:.6rem 1rem;margin-bottom:.4rem;';item.innerHTML=`<div><div style="font-size:13px;color:var(--text-dim);">${fechaStr}</div><div style="font-size:11px;color:var(--gold);">${hora}</div></div><div onclick="this.parentElement.remove()" style="font-size:12px;color:var(--text-muted);cursor:pointer;opacity:.5;padding:.2rem .5rem;">✕</div>`;lista.appendChild(item);msg.style.color='var(--green)';msg.textContent='✓ Disponibilidad registrada.';setTimeout(()=>cerrarAgenda(),1200);}
+// FIX corazón de datos (07/07): antes esto solo pintaba una tarjeta en el DOM,
+// nunca llamaba a Supabase — desaparecía al refrescar. Ahora guarda de verdad
+// en disponibilidad_agenda y recarga la lista real (cargarAgenda, gestion.js).
+async function guardarAgenda(){
+  const fecha=document.getElementById('agenda-fecha').value,hora=document.getElementById('agenda-hora').value,msg=document.getElementById('agenda-msg');
+  if(!fecha||!hora){msg.style.color='var(--red)';msg.textContent='Selecciona día y sesión.';return;}
+  const email=usuarioActual&&usuarioActual.email;
+  if(!email){msg.style.color='var(--red)';msg.textContent='Sesión no válida, vuelve a iniciar sesión.';return;}
+  const res=await supaPost('disponibilidad_agenda',{usuario_email:email,fecha:fecha,sesion:hora},'return=minimal',getToken());
+  if(res.error){msg.style.color='var(--red)';msg.textContent='Error al guardar: '+res.error;return;}
+  msg.style.color='var(--green)';msg.textContent='✓ Disponibilidad registrada.';
+  if(typeof cargarAgenda==='function')cargarAgenda();
+  setTimeout(()=>cerrarAgenda(),1200);
+}
 </script>
 <script>
 // Auto-espaciado: mide los tabs y aplica el margen correcto a cada panel

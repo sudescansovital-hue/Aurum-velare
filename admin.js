@@ -417,6 +417,35 @@ function adminCopiarCodigo() {
 
 // ── Gestión de Retos ──────────────────────────────────────────────
 
+// FIX corazón de datos (07/07): vista de admin para ver la disponibilidad
+// que los usuarios han agendado (tabla disponibilidad_agenda), para poder
+// organizar eventos. Mismo patrón visual que adminCargarRetos.
+async function adminCargarDisponibilidad() {
+  var contenedor = document.getElementById('admin-disponibilidad-lista');
+  if (!contenedor) return;
+  contenedor.innerHTML = '<div style="font-size:12px;color:var(--text-muted);">Cargando...</div>';
+
+  var res = await supaGet('disponibilidad_agenda', 'order=fecha.asc', getToken());
+  if (res.error || !res.data) {
+    contenedor.innerHTML = '<div style="font-size:12px;color:#e05;">Error: ' + (res.error || 'sin datos') + '</div>';
+    return;
+  }
+  if (!res.data.length) {
+    contenedor.innerHTML = '<div style="font-size:12px;color:var(--text-muted);">Nadie ha agendado disponibilidad todavía.</div>';
+    return;
+  }
+
+  contenedor.innerHTML = res.data.map(function(a) {
+    var fecha = a.fecha || '—';
+    return '<div style="background:var(--bg2);border:1px solid var(--border);padding:.6rem .8rem;display:flex;justify-content:space-between;align-items:center;gap:.5rem;">' +
+      '<div style="flex:1;min-width:0;">' +
+        '<div style="font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + a.usuario_email + '</div>' +
+        '<div style="font-size:11px;color:var(--text-muted);">' + fecha + ' · ' + a.sesion + '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
 async function adminCargarRetos() {
   var contenedor = document.getElementById('admin-retos-lista');
   if (!contenedor) return;
