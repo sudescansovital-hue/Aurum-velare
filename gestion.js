@@ -1783,8 +1783,8 @@ function buildDashboardHero() {
   // Ciclo actual
   var ciclosCompletados = Math.floor(totalTrades / 111);
   var cicloActual = ciclosCompletados + 1;
-  var enCurso = totalTrades % 111 || 111;
-  var pctCiclo = Math.round(enCurso / 111 * 100);
+  var enCurso = totalTrades === 0 ? 0 : (totalTrades % 111 || 111);
+  var pctCiclo = totalTrades === 0 ? 0 : Math.round(enCurso / 111 * 100);
   el = document.getElementById('dash-ciclo');     if (el) el.textContent = 'Ciclo ' + cicloActual;
   el = document.getElementById('dash-ciclo-sub'); if (el) el.textContent = enCurso + ' / 111 trades · ' + pctCiclo + '%';
   el = document.getElementById('ciclo-encurso-txt'); if (el) el.textContent = 'Ciclo ' + cicloActual + ' en curso — ' + enCurso + ' trades';
@@ -1897,6 +1897,7 @@ function init_gestion() {
     var ahora = new Date();
     fechaEl.textContent = ahora.toLocaleDateString('es-ES', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
   }
+  cargarDiario();
   // Esperar a que Supabase cargue los datos
   function intentar(intentos) {
     if (window.AURUM_TRADES && window.AURUM_TRADES.todos && window.AURUM_TRADES.todos.length > 0) {
@@ -1913,23 +1914,56 @@ function init_gestion() {
   intentar(10); // intenta hasta 5 segundos
 }
 
-function guardarEntradaDiario() {
-  var texto = document.getElementById('diario-input').value.trim();
-  var msg   = document.getElementById('diario-msg');
-  if (!texto) { msg.style.color='var(--red)'; msg.textContent='Escribe algo antes de guardar.'; return; }
-  var ahora = new Date();
-  var fechaStr = ahora.toLocaleDateString('es-ES', { day:'numeric', month:'long', year:'numeric' });
+function _escapeHtml(s) {
+  var d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function _pintarEntradaDiario(entrada, alPrincipio) {
   var entradas = document.getElementById('diario-entradas');
+  if (!entradas) return;
+  var fecha = new Date(entrada.created_at);
+  var hoy = new Date();
+  var esHoy = fecha.toDateString() === hoy.toDateString();
+  var fechaStr = (esHoy ? 'Hoy · ' : '') + fecha.toLocaleDateString('es-ES', { day:'numeric', month:'long', year:'numeric' });
   var nuevaEntrada = document.createElement('div');
   nuevaEntrada.style.cssText = 'background:var(--bg2);padding:1.5rem 2rem;position:relative;';
   nuevaEntrada.innerHTML = '<div style="position:absolute;top:0;left:0;bottom:0;width:2px;background:linear-gradient(to bottom,transparent,var(--gold),transparent);"></div>' +
     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem;">' +
-    '<div style="font-size:12px;color:var(--gold-dim);">Hoy · '+fechaStr+'</div>' +
+    '<div style="font-size:12px;color:var(--gold-dim);">'+fechaStr+'</div>' +
     '<div style="font-size:11px;color:var(--green);">✓ Guardada</div></div>' +
-    '<div style="font-size:15px;color:var(--text-dim);line-height:1.8;">'+texto+'</div>';
-  entradas.insertBefore(nuevaEntrada, entradas.firstChild);
+    '<div style="font-size:15px;color:var(--text-dim);line-height:1.8;">'+_escapeHtml(entrada.texto)+'</div>';
+  if (alPrincipio) entradas.insertBefore(nuevaEntrada, entradas.firstChild);
+  else entradas.appendChild(nuevaEntrada);
+}
+
+async function cargarDiario() {
+  var entradas = document.getElementById('diario-entradas');
+  if (!entradas || !usuarioActual || !usuarioActual.email) return;
+  var token  = getToken();
+  var params = 'usuario_email=eq.' + encodeURIComponent(usuarioActual.email) + '&order=created_at.desc&limit=30';
+  var r = await supaGet('diario_entradas', params, token);
+  if (r.error || !r.data) { console.error('[diario] error al cargar', r.error); return; }
+  entradas.innerHTML = '';
+  r.data.forEach(function(e) { _pintarEntradaDiario(e, false); });
+}
+
+async function guardarEntradaDiario() {
+  var texto = document.getElementById('diario-input').value.trim();
+  var msg   = document.getElementById('diario-msg');
+  if (!texto) { msg.style.color='var(--red)'; msg.textContent='Escribe algo antes de guardar.'; return; }
+  if (!usuarioActual || !usuarioActual.email) { msg.style.color='var(--red)'; msg.textContent='Sesión no válida, vuelve a iniciar sesión.'; return; }
+  var token = getToken();
+  var r = await supaPost('diario_entradas', { usuario_email: usuarioActual.email, texto: texto }, 'return=representation', token);
+  if (r.error) {
+    msg.style.color = 'var(--red)';
+    msg.textContent = 'Error al guardar. Inténtalo de nuevo.';
+    console.error('[diario] error al guardar', r.error);
+    return;
+  }
+  _pintarEntradaDiario(r.data[0], true);
   document.getElementById('diario-input').value = '';
-  if (typeof guardarEntradaDiarioSupabase === 'function') guardarEntradaDiarioSupabase(texto);
   msg.style.color = 'var(--green)';
   msg.textContent = '✓ Entrada guardada.';
   setTimeout(function(){ msg.textContent = ''; }, 3000);
