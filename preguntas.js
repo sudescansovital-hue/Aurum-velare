@@ -43,7 +43,7 @@ function solicitarTablilla() {
   document.body.appendChild(modal);
 }
 
-function avisarTablilla() {
+async function avisarTablilla() {
   const email = document.getElementById('tablilla-email').value.trim();
   const msg   = document.getElementById('tablilla-msg');
   if (!email || !email.includes('@')) {
@@ -51,8 +51,22 @@ function avisarTablilla() {
     msg.textContent = 'Introduce un email válido.';
     return;
   }
-  msg.style.color = 'var(--green)';
-  msg.textContent = '✓ Anotado. Te avisamos cuando estén disponibles.';
+  const res = await fetch(SUPA_URL + '/rest/v1/tablilla_avisos', {
+    method: 'POST',
+    headers: {
+      'apikey': SUPA_KEY,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=minimal'
+    },
+    body: JSON.stringify({ email })
+  });
+  if (res.ok || res.status === 409) {
+    msg.style.color = 'var(--green)';
+    msg.textContent = '✓ Anotado. Te avisamos cuando estén disponibles.';
+  } else {
+    msg.style.color = 'var(--red)';
+    msg.textContent = 'Error al guardar, inténtalo de nuevo.';
+  }
 }
 
 async function enviarPregunta() {

@@ -93,26 +93,36 @@ function init_dashboard() {
   if (typeof cargarRetosPreviewHome === 'function') cargarRetosPreviewHome();
   if (typeof cargarAgenda === 'function') cargarAgenda();
 
-  // Historial etapas
+  // Historial etapas — datos reales desde etapa_historial, ya no hardcodeado
+  cargarEtapaHistorial();
+}
+
+async function cargarEtapaHistorial() {
   const etapasEl = document.getElementById('dash-etapas-historial');
-  if (etapasEl) {
-    const etapasCompletadas = [
-      { num: '0', nombre: 'Silencio',    fecha: '01 Feb 2026', validada: true },
-      { num: '0.5', nombre: 'Umbral',    fecha: '15 Feb 2026', validada: true },
-      { num: '1', nombre: 'Estructura',  fecha: '10 Mar 2026', validada: true },
-      { num: '1.5', nombre: 'Fractura',  fecha: '02 Abr 2026', validada: true },
-      { num: '2', nombre: 'Claridad',    fecha: '25 Abr 2026', validada: true },
-      { num: '2.5', nombre: 'Consistencia', fecha: '10 May 2026', validada: true },
-    ];
-    etapasEl.innerHTML = etapasCompletadas.map(e => `
-      <div style="display:flex;align-items:center;gap:.5rem;padding:.4rem 0;border-bottom:1px solid #0A0C14;">
-        <div style="font-family:'Cormorant Garamond',serif;font-size:16px;color:var(--gold-dim);width:24px;">${e.num}</div>
-        <div style="flex:1;">
-          <div style="font-size:12px;color:var(--text-dim);">${e.nombre}</div>
-          <div style="font-size:10px;color:var(--text-muted);">${e.fecha}</div>
-        </div>
-        ${e.validada ? '<div style="font-size:10px;color:var(--green);">✓</div>' : ''}
-      </div>
-    `).join('');
+  if (!etapasEl || !usuarioActual || !usuarioActual.email) return;
+  if (typeof supaGet !== 'function' || typeof getToken !== 'function') return;
+
+  var ETAPAS_NOMBRES = (typeof ETAPAS !== 'undefined') ? ETAPAS :
+    ['Descubrimiento','Silencio','Umbral','Estructura','Fractura','Claridad','Consistencia','Confianza','Paciencia','Rentabilidad','Vuelo','✦ Oro'];
+
+  var params = 'usuario_email=eq.' + encodeURIComponent(usuarioActual.email) + '&order=created_at.asc';
+  var res = await supaGet('etapa_historial', params, getToken());
+  if (res.error || !res.data || !res.data.length) {
+    etapasEl.innerHTML = '<div style="font-size:12px;color:var(--text-muted);padding:.5rem 0;">Aún no hay etapas registradas.</div>';
+    return;
   }
+
+  etapasEl.innerHTML = res.data.map(function(e) {
+    var fecha = new Date(e.created_at);
+    var fechaStr = fecha.toLocaleDateString('es-ES', { day:'2-digit', month:'short', year:'numeric' });
+    var nombre = ETAPAS_NOMBRES[e.etapa] || ('Etapa ' + e.etapa);
+    return '<div style="display:flex;align-items:center;gap:.5rem;padding:.4rem 0;border-bottom:1px solid #0A0C14;">' +
+      '<div style="font-family:\'Cormorant Garamond\',serif;font-size:16px;color:var(--gold-dim);width:24px;">' + e.etapa + '</div>' +
+      '<div style="flex:1;">' +
+      '<div style="font-size:12px;color:var(--text-dim);">' + nombre + '</div>' +
+      '<div style="font-size:10px;color:var(--text-muted);">' + fechaStr + '</div>' +
+      '</div>' +
+      '<div style="font-size:10px;color:var(--green);">✓</div>' +
+      '</div>';
+  }).join('');
 }

@@ -252,11 +252,12 @@ async function adminGuardarUsuario() {
 
   try {
     // Leer valores actuales desde BD justo antes del PATCH
-    var _prevRes  = await supaGet('usuarios_aurum', 'id=eq.' + adminEditId + '&select=cuenta_maestra,cuenta_retos,cuenta_prueba&limit=1', getToken());
+    var _prevRes  = await supaGet('usuarios_aurum', 'id=eq.' + adminEditId + '&select=cuenta_maestra,cuenta_retos,cuenta_prueba,etapa&limit=1', getToken());
     var _prevRow  = (_prevRes.data && _prevRes.data[0]) || {};
     var prevMaestra = _prevRow.cuenta_maestra || null;
     var prevRetos   = _prevRow.cuenta_retos   || null;
     var prevPrueba  = _prevRow.cuenta_prueba  || null;
+    var prevEtapa   = _prevRow.etapa;
     console.log('[ADMIN] previos  — maestra:', prevMaestra, '| retos:', prevRetos, '| prueba:', prevPrueba);
     console.log('[ADMIN] nuevos   — maestra:', datos.cuenta_maestra, '| retos:', datos.cuenta_retos, '| prueba:', datos.cuenta_prueba);
 
@@ -281,6 +282,10 @@ async function adminGuardarUsuario() {
         { numeroPrevio: prevRetos,   numero: datos.cuenta_retos,   destino: 'Cuenta Retos'   },
         { numeroPrevio: prevPrueba,  numero: datos.cuenta_prueba,  destino: 'Cuenta Prueba'  }
       ]);
+      if (prevEtapa !== datos.etapa) {
+        var _histRes = await supaPost('etapa_historial', { usuario_email: _u.email, etapa: datos.etapa }, 'return=minimal', getToken());
+        if (_histRes.error) console.error('[ADMIN] error al registrar etapa_historial:', _histRes.error);
+      }
     }
 
     adminCerrarModal();

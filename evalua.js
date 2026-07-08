@@ -406,7 +406,7 @@ async function cargarYEvaluarDesdeSupabase() {
   }, 300);
 }
 
-function unirseListaEspera() {
+async function unirseListaEspera() {
   const email = document.getElementById('waitlist-email').value.trim();
   const msg   = document.getElementById('waitlist-msg');
   if (!email || !email.includes('@')) {
@@ -414,7 +414,13 @@ function unirseListaEspera() {
     msg.textContent = 'Introduce un email válido.';
     return;
   }
-  // En producción: guardar en Supabase
+  var r = await supaPost('lista_espera', { email: email }, 'return=representation');
+  if (r.error && r.error.indexOf('duplicate') === -1 && r.error.indexOf('23505') === -1) {
+    msg.style.color = 'var(--red)';
+    msg.textContent = 'Error al guardar, inténtalo de nuevo.';
+    console.error('[lista_espera] error al guardar', r.error);
+    return;
+  }
   msg.style.color = 'var(--green)';
   msg.textContent = '✓ Plaza reservada. Te contactamos en cuanto haya acceso disponible.';
   document.getElementById('waitlist-email').value = '';
