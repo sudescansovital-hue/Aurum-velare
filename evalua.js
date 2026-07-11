@@ -4,17 +4,9 @@
 // Para modificar la lógica: edita estas funciones
 // ============================================================
 
-// Códigos válidos — en producción vendrán de Supabase
-const CODIGOS_VALIDOS = {
-  'AURUM-EVAL-DEMO-2026': { usado: false, nombre: 'Demo' },
-  'AURUM-EVAL-TEST-0001': { usado: false, nombre: 'Test' },
-  'AURUM-EVAL-TEST-0002': { usado: false, nombre: 'Test2' },
-  'AURUM-EVAL-TEST-0003': { usado: false, nombre: 'Test3' },
-};
+// (código muerto eliminado: CODIGOS_VALIDOS y cuentasEvaluadas nunca se usaban)
 
-const cuentasEvaluadas = new Map();
-
-// Simular pago (en producción: redirigir a Stripe)
+// Redirige al pago real de Stripe
 function simularPago() {
   if (!window.usuarioActual) {
     if (typeof abrirLogin === 'function') abrirLogin();
@@ -49,14 +41,6 @@ async function validarCodigoEvalua() {
   var input = (document.getElementById('evalua-codigo-input').value || '').trim().toUpperCase();
   var err = document.getElementById('evalua-codigo-err');
   if (!input) { err.textContent = 'Introduce tu código.'; return; }
-
-  // Primero comprobar código demo hardcodeado
-  if (input === 'AURUM-EVAL-DEMO-2026') {
-    err.textContent = '';
-    document.getElementById('evalua-paso-codigo').style.display = 'none';
-    document.getElementById('evalua-zona-subida').style.display = 'block';
-    return;
-  }
 
   // Validar contra Supabase
   err.textContent = 'Validando...';
