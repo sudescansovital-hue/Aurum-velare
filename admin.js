@@ -187,6 +187,7 @@ function adminAbrirEditar(id) {
   document.getElementById('admin-edit-email').textContent = u.email;
   set('admin-edit-pack',   u.pack    || 'umbral');
   set('admin-edit-etapa',  u.etapa   || 1);
+  set('admin-edit-etapa-fecha', ''); // siempre vacío al abrir — es una acción puntual, no un dato guardado del usuario
   set('admin-edit-animal',      u.animal  || '');
   set('admin-edit-acceso-sala', u.acceso_sala_extra || '');
   set('admin-edit-maestra', u.cuenta_maestra || '');
@@ -283,7 +284,15 @@ async function adminGuardarUsuario() {
         { numeroPrevio: prevPrueba,  numero: datos.cuenta_prueba,  destino: 'Cuenta Prueba'  }
       ]);
       if (prevEtapa !== datos.etapa) {
-        var _histRes = await supaPost('etapa_historial', { usuario_email: _u.email, etapa: datos.etapa }, 'return=minimal', getToken());
+        var _histBody = { usuario_email: _u.email, etapa: datos.etapa };
+        // FIX corazón de datos (11/07): permite fijar la fecha real del cambio de
+        // etapa al reconstruir historial pasado desde el admin. Si se deja vacío,
+        // se omite el campo y Supabase usa el default now(), igual que antes.
+        var _fechaManual = document.getElementById('admin-edit-etapa-fecha');
+        if (_fechaManual && _fechaManual.value) {
+          _histBody.created_at = new Date(_fechaManual.value + 'T12:00:00').toISOString();
+        }
+        var _histRes = await supaPost('etapa_historial', _histBody, 'return=minimal', getToken());
         if (_histRes.error) console.error('[ADMIN] error al registrar etapa_historial:', _histRes.error);
       }
     }
