@@ -44,7 +44,7 @@ async function validarCodigoEvalua() {
 
   // Validar contra Supabase
   err.textContent = 'Validando...';
-  var res = await supaGet('usuarios_aurum', 'codigo_eval=eq.' + input + '&select=id,codigo_eval', null);
+  var res = await supaGet('usuarios_aurum', 'codigo_eval=eq.' + input + '&select=id,codigo_eval', getToken());
   if (res.error || !res.data || res.data.length === 0) {
     err.textContent = 'Código no reconocido. Verifica el email que recibiste tras el pago.';
     return;
