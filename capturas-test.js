@@ -14,6 +14,7 @@ var CAPTURAS_TEST_STORE = 'handles';
 var _capturasTestCarpetaHandle = null;
 var _capturasTestBlobActual = null;
 var _capturasTestImgUrlActual = null;
+var _capturasTestGuardadoBloqueado = false;
 
 function _capturasTestTieneAcceso() {
   return !!(window.usuarioActual &&
@@ -115,6 +116,32 @@ async function elegirCarpetaCapturasTest() {
   }
 }
 
+// ── Control de habilitado del botón "Guardar en mi carpeta" ──
+// Evita guardar la misma captura duplicada: exige nota no vacía y se
+// bloquea de nuevo tras un guardado correcto hasta la siguiente captura.
+
+function _capturasTestPuedeGuardar() {
+  if (_capturasTestGuardadoBloqueado) return false;
+  var nota = document.getElementById('captura-test-nota');
+  return !!(nota && nota.value.trim() !== '');
+}
+
+function _capturasTestActualizarBotonGuardar() {
+  var btn = document.getElementById('captura-test-btn-guardar');
+  if (!btn) return;
+  if (_capturasTestPuedeGuardar()) {
+    btn.onclick = guardarCapturaEnCarpetaTest;
+    btn.style.opacity = '1';
+    btn.style.pointerEvents = 'auto';
+    btn.style.cursor = 'pointer';
+  } else {
+    btn.onclick = null;
+    btn.style.opacity = '.4';
+    btn.style.pointerEvents = 'none';
+    btn.style.cursor = 'default';
+  }
+}
+
 // ── Captura de pantalla propia (independiente de Salas/LiveKit) ──
 
 function _capturasTestEsperarFrame(video) {
@@ -148,6 +175,15 @@ async function capturarPantallaTest() {
       if (img) { img.src = _capturasTestImgUrlActual; img.style.display = 'block'; }
       var guardarZona = document.getElementById('captura-test-guardar-zona');
       if (guardarZona) guardarZona.style.display = 'block';
+
+      // Nueva captura → estado limpio: nota vacía, guardado desbloqueado, botón deshabilitado hasta escribir nota
+      var nota = document.getElementById('captura-test-nota');
+      if (nota) nota.value = '';
+      var preview = document.getElementById('captura-test-nota-preview');
+      if (preview) preview.textContent = '';
+      _capturasTestGuardadoBloqueado = false;
+      _capturasTestActualizarBotonGuardar();
+      _capturasTestMostrarMsg('', false);
     }, 'image/jpeg', 0.92);
   } catch (e) {
     if (e.name !== 'NotAllowedError') _capturasTestMostrarMsg('Error al capturar pantalla: ' + e.message, true);
@@ -182,7 +218,9 @@ async function guardarCapturaEnCarpetaTest() {
     await wJson.write(JSON.stringify({ imagen: nombreImg, nota: nota, fecha: new Date(ts).toISOString() }, null, 2));
     await wJson.close();
 
-    _capturasTestMostrarMsg('Guardado: ' + nombreImg, false);
+    _capturasTestGuardadoBloqueado = true;
+    _capturasTestActualizarBotonGuardar();
+    _capturasTestMostrarMsg('Guardado. Captura una nueva imagen para guardar otra.', false);
   } catch (e) {
     _capturasTestMostrarMsg('Error al guardar: ' + e.message, true);
   }
@@ -233,7 +271,7 @@ function _capturasTestCrearZona() {
     '</div>' +
 
     '<div id="captura-test-guardar-zona" style="display:none;margin-top:1rem;">' +
-      '<div onclick="guardarCapturaEnCarpetaTest()" class="btn-gold" style="font-size:13px;padding:.6rem 1.5rem;display:inline-block;">Guardar en mi carpeta</div>' +
+      '<div id="captura-test-btn-guardar" class="btn-gold" style="font-size:13px;padding:.6rem 1.5rem;display:inline-block;opacity:.4;pointer-events:none;cursor:default;">Guardar en mi carpeta</div>' +
     '</div>' +
 
     '<div id="captura-test-msg" style="font-size:13px;margin-top:.8rem;min-height:18px;"></div>';
@@ -241,7 +279,10 @@ function _capturasTestCrearZona() {
   var nota = zona.querySelector('#captura-test-nota');
   var preview = zona.querySelector('#captura-test-nota-preview');
   if (nota && preview) {
-    nota.addEventListener('input', function() { preview.textContent = nota.value; });
+    nota.addEventListener('input', function() {
+      preview.textContent = nota.value;
+      _capturasTestActualizarBotonGuardar();
+    });
   }
 
   return zona;
