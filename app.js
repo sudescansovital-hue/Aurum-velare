@@ -61,6 +61,7 @@ async function _activarSesion(email) {
     animal:     animalMap[u.pack] || 'âœ¦',
     animalSala: u.animal || null,
     pack:       packMap[u.pack] || u.pack || 'Sin pack',
+    packSlug:   u.pack || null,
     packLevel:    u.etapa || 1,
     etapa:        u.etapa || 1,
     activo:       u.activo,

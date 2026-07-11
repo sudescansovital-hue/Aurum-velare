@@ -31,6 +31,7 @@ function gestTab(id) {
   if (id === 'cumplimiento')  _esperarTrades(buildCumplimiento);
   if (id === 'estadisticas')  _esperarTrades(buildEstadisticasAvanzadas);
   if (id === 'historial') init_historial();
+  if (id === 'diario' && typeof initZonaCapturasTest === 'function') initZonaCapturasTest();
   if (typeof aplicarEspaciadoPaneles === 'function') setTimeout(aplicarEspaciadoPaneles, 50);
 }
 
