@@ -190,8 +190,7 @@ async function cargarHistorialDesdeSupabase() {
 
       var fechas = trades.map(function(t) {
         var _f = _fechaDesdeFp(t.fp); if (_f) return _f;
-        if (t.created_at) return new Date(t.created_at);
-        return null;
+        return null; // sin fecha real conocida — no se usa fallback a fecha de subida
       }).filter(Boolean).sort(function(a, b) { return a - b; });
 
       var periodo = fechas.length > 0
@@ -584,8 +583,7 @@ async function _actualizarEntradaHistorial(nombreCuenta, tipo, numeroCuenta) {
   var MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
   var fechas = trades.map(function(t) {
     var _f = _fechaDesdeFp(t.fp); if (_f) return _f;
-    if (t.created_at) return new Date(t.created_at);
-    return null;
+    return null; // sin fecha real conocida — no se usa fallback a fecha de subida
   }).filter(Boolean).sort(function(a, b) { return a - b; });
 
   var periodo = fechas.length > 0
