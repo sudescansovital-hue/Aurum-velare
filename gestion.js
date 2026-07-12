@@ -2244,14 +2244,32 @@ async function cargarRetosActivos() {
         var prog        = calcularProgreso(tradesReto, condicion);
         if (prog) {
           var pct = prog.requeridos > 0 ? Math.round(prog.actual / prog.requeridos * 100) : 0;
-          botonHTML += '<div style="margin-top:.8rem;">' +
-            '<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-bottom:.4rem;">' +
-              '<span>Progreso</span><span style="color:var(--gold);">' + prog.actual + ' / ' + prog.requeridos + ' operaciones</span>' +
-            '</div>' +
-            '<div style="height:4px;background:var(--border);border-radius:2px;">' +
-              '<div style="height:100%;width:' + pct + '%;background:linear-gradient(90deg,#C9A84C44,var(--gold-bright));border-radius:2px;transition:width .3s;"></div>' +
-            '</div>' +
-          '</div>';
+          var yaGanado = !!participacion.ganador;
+
+          // FIX corazón de datos (12/07): detección automática de reto cumplido.
+          // Se marca solo (progreso + ganador + completado_at); el premio en OZT
+          // sigue requiriendo aprobación manual del admin — no se auto-paga aquí.
+          if (!yaGanado && prog.actual >= prog.requeridos) {
+            supaPatch('retos_participantes', 'id=eq.' + participacion.id, {
+              progreso: prog.actual, ganador: true, completado_at: new Date().toISOString()
+            }, token);
+            yaGanado = true;
+          }
+
+          if (yaGanado) {
+            botonHTML += '<div style="margin-top:.8rem;display:flex;align-items:center;gap:.4rem;font-size:12px;color:var(--gold-bright);">' +
+              '<div style="width:5px;height:5px;border-radius:50%;background:var(--gold-bright);"></div>' +
+              '✦ Reto cumplido — premio pendiente de aprobación</div>';
+          } else {
+            botonHTML += '<div style="margin-top:.8rem;">' +
+              '<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-bottom:.4rem;">' +
+                '<span>Progreso</span><span style="color:var(--gold);">' + prog.actual + ' / ' + prog.requeridos + ' operaciones</span>' +
+              '</div>' +
+              '<div style="height:4px;background:var(--border);border-radius:2px;">' +
+                '<div style="height:100%;width:' + pct + '%;background:linear-gradient(90deg,#C9A84C44,var(--gold-bright));border-radius:2px;transition:width .3s;"></div>' +
+              '</div>' +
+            '</div>';
+          }
         }
       }
     } else {
