@@ -48,6 +48,7 @@ function esAdmin() {
 async function init_admin() {
   if (!esAdmin()) { irA('home'); return; }
   await cargarUsuariosAdmin();
+  if (typeof adminCargarPremiosPendientes === 'function') adminCargarPremiosPendientes();
 }
 
 // ── Carga y render ──────────────────────────────────────────
@@ -427,6 +428,81 @@ function adminCopiarCodigo() {
   var codigo = (document.getElementById('admin-codigo-text').textContent || '').trim();
   if (!codigo) return;
   navigator.clipboard.writeText(codigo).then(function() { showToast('Código copiado'); });
+}
+
+// ── Premios pendientes de entregar (retos cumplidos, sin OZT acreditado) ────
+// FIX corazón de datos (12/07): detección automática de retos cumplidos ya
+// existe en gestion.js (marca ganador=true + completado_at al vuelo cuando
+// el usuario carga su panel de Retos). Esto NO acredita el OZT solo — solo
+// avisa aquí, con badge, para que el admin apruebe/entregue el premio a mano.
+
+async function adminCargarPremiosPendientes() {
+  var badge      = document.getElementById('admin-premios-badge');
+  var contenedor = document.getElementById('admin-premios-lista');
+  if (!contenedor) return;
+  contenedor.innerHTML = '<div style="font-size:12px;color:var(--text-muted);">Cargando...</div>';
+
+  var res = await supaGet('retos_participantes', 'ganador=eq.true&premio_entregado=eq.false&order=completado_at.asc', getToken());
+  if (res.error || !res.data) {
+    contenedor.innerHTML = '<div style="font-size:12px;color:#e05;">Error: ' + (res.error || 'sin datos') + '</div>';
+    if (badge) badge.style.display = 'none';
+    return;
+  }
+
+  var pendientes = res.data;
+  if (!pendientes.length) {
+    contenedor.innerHTML = '<div style="font-size:12px;color:var(--text-muted);">No hay premios pendientes de entregar.</div>';
+    if (badge) badge.style.display = 'none';
+    return;
+  }
+
+  // Traer título y premio_ozt de los retos implicados en una sola consulta
+  var retoIds = pendientes.map(function(p) { return p.reto_id; })
+    .filter(function(v, i, a) { return v && a.indexOf(v) === i; });
+  var retosMap = {};
+  if (retoIds.length) {
+    var idList = retoIds.map(function(id) { return '"' + id + '"'; }).join(',');
+    var resRetos = await supaGet('retos', 'id=in.(' + idList + ')&select=id,titulo,premio_ozt', getToken());
+    (resRetos.data || []).forEach(function(r) { retosMap[r.id] = r; });
+  }
+
+  if (badge) { badge.textContent = pendientes.length; badge.style.display = 'inline-block'; }
+
+  contenedor.innerHTML = pendientes.map(function(p) {
+    var reto   = retosMap[p.reto_id] || {};
+    var premio = reto.premio_ozt || 0;
+    var fecha  = p.completado_at ? new Date(p.completado_at).toLocaleDateString('es-ES') : '—';
+    return '<div id="premio-row-' + p.id + '" style="background:var(--bg2);border:1px solid var(--border-gold);padding:.6rem .8rem;display:flex;justify-content:space-between;align-items:center;gap:.5rem;">' +
+      '<div style="flex:1;min-width:0;">' +
+        '<div style="font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (p.usuario_email || '—') + '</div>' +
+        '<div style="font-size:11px;color:var(--text-muted);">' + (reto.titulo || '(reto sin título)') + ' · cumplido ' + fecha + ' · <span style="color:var(--gold);">' + premio + ' OZT</span></div>' +
+      '</div>' +
+      '<button onclick="adminEntregarPremio(\'' + p.id + '\',\'' + p.usuario_email + '\',' + premio + ')" style="background:var(--gold);color:#0A0C14;border:none;padding:.35rem .8rem;font-size:11px;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;font-family:inherit;">Entregar</button>' +
+    '</div>';
+  }).join('');
+}
+
+async function adminEntregarPremio(participacionId, email, premioOzt) {
+  if (!confirm('¿Entregar ' + premioOzt + ' OZT a ' + email + '?')) return;
+  var token = getToken();
+
+  var resU = await supaGet('usuarios_aurum', 'email=eq.' + encodeURIComponent(email) + '&select=ozt_ganados_retos&limit=1', token);
+  if (resU.error || !resU.data || !resU.data.length) {
+    showToast('Error al leer usuario: ' + (resU.error || 'no encontrado'));
+    return;
+  }
+  var actual = resU.data[0].ozt_ganados_retos || 0;
+
+  var resPatchU = await supaPatch('usuarios_aurum', 'email=eq.' + encodeURIComponent(email),
+    { ozt_ganados_retos: actual + premioOzt, updated_at: new Date().toISOString() }, token);
+  if (resPatchU.error) { showToast('Error al acreditar OZT: ' + resPatchU.error); return; }
+
+  var resPatchP = await supaPatch('retos_participantes', 'id=eq.' + participacionId,
+    { premio_entregado: true }, token);
+  if (resPatchP.error) { showToast('OZT acreditado, pero error al marcar como entregado: ' + resPatchP.error); return; }
+
+  showToast('Premio entregado a ' + email);
+  adminCargarPremiosPendientes();
 }
 
 // ── Gestión de Retos ──────────────────────────────────────────────
