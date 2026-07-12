@@ -29,6 +29,24 @@ function _numeroDesdeFichero(raw, fileName) {
   return null;
 }
 
+// FIX corazón de datos (12/07): el fp puede venir en 3 formatos distintos
+// según el broker de origen — antes solo se reconocía MT5, y las cuentas
+// cTrader caían siempre al fallback de created_at (fecha de subida del
+// archivo en vez de fecha real del trade). Misma lógica de 3 formatos que
+// ya usa _parseDate() en parser.js, para que el sistema detecte el formato
+// automáticamente sin importar de qué broker venga el historial.
+function _fechaDesdeFp(fp) {
+  if (!fp) return null;
+  var s = String(fp);
+  var m = s.match(/(\d{4})\.(\d{2})\.(\d{2})/);           // MT5: 2026.06.12
+  if (m) return new Date(+m[1], +m[2]-1, +m[3]);
+  m = s.match(/(\d{2})\/(\d{2})\/(\d{4})/);                // cTrader: 12/06/2026
+  if (m) return new Date(+m[3], +m[2]-1, +m[1]);
+  m = s.match(/(\d{4})-(\d{2})-(\d{2})/);                  // ISO: 2026-06-12
+  if (m) return new Date(+m[1], +m[2]-1, +m[3]);
+  return null;
+}
+
 // Extrae el número de cuenta de la fila "Cuenta de trading:" del Excel
 function detectarNumeroCuentaDeRaw(raw, fileName) {
   var nums = Object.keys(CUENTAS_AURUM);
@@ -171,7 +189,7 @@ async function cargarHistorialDesdeSupabase() {
       var rr    = ptsL > 0 ? Math.round(ptsW / ptsL * 100) / 100 : 0;
 
       var fechas = trades.map(function(t) {
-        if (t.fp) { var m = String(t.fp).match(/(\d{4})\.(\d{2})\.(\d{2})/); if (m) return new Date(+m[1], +m[2]-1, +m[3]); }
+        var _f = _fechaDesdeFp(t.fp); if (_f) return _f;
         if (t.created_at) return new Date(t.created_at);
         return null;
       }).filter(Boolean).sort(function(a, b) { return a - b; });
@@ -565,7 +583,7 @@ async function _actualizarEntradaHistorial(nombreCuenta, tipo, numeroCuenta) {
 
   var MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
   var fechas = trades.map(function(t) {
-    if (t.fp) { var m = String(t.fp).match(/(\d{4})\.(\d{2})\.(\d{2})/); if (m) return new Date(+m[1], +m[2]-1, +m[3]); }
+    var _f = _fechaDesdeFp(t.fp); if (_f) return _f;
     if (t.created_at) return new Date(t.created_at);
     return null;
   }).filter(Boolean).sort(function(a, b) { return a - b; });
