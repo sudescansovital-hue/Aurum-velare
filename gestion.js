@@ -2165,6 +2165,24 @@ function calcularProgreso(trades, condicion) {
   return { actual: Math.min(actual, requeridos), requeridos: requeridos };
 }
 
+// FIX corazón de datos (12/07 noche): fecha real de un trade, para cortar
+// "trades desde que me apunté a un reto" por FECHA, no por posición en el
+// array. Mismo patrón de 3 formatos que el resto del sistema (MT5, cTrader,
+// fallback created_at) — necesaria aquí porque _parseFecha() ya existe en
+// este archivo pero vive encerrada dentro de otra función, no reutilizable.
+function _fechaRealTrade(t) {
+  var campos = [t.fp, t.fecha_cierre, t.fecha].filter(Boolean);
+  for (var i = 0; i < campos.length; i++) {
+    var s = String(campos[i]);
+    var m1 = s.match(/(\d{4})\.(\d{2})\.(\d{2})/);          // MT5: AAAA.MM.DD
+    if (m1) return new Date(parseInt(m1[1]), parseInt(m1[2]) - 1, parseInt(m1[3]));
+    var m2 = s.match(/(\d{2})\/(\d{2})\/(\d{4})/);          // cTrader: DD/MM/AAAA
+    if (m2) return new Date(parseInt(m2[3]), parseInt(m2[2]) - 1, parseInt(m2[1]));
+  }
+  if (t.created_at) return new Date(t.created_at);          // último recurso
+  return null;
+}
+
 async function cargarRetosActivos() {
   var contenedor = document.getElementById('retos-activos-lista');
   if (!contenedor) return;
@@ -2238,9 +2256,18 @@ async function cargarRetosActivos() {
       var condicion = r.condicion;
       if (typeof condicion === 'string') { try { condicion = JSON.parse(condicion); } catch(e) { condicion = null; } }
       if (condicion && condicion.tipo) {
-        var todosUser   = window._userTrades || [];
-        var desdeIdx    = participacion.trades_al_inicio || 0;
-        var tradesReto  = todosUser.slice(desdeIdx);
+        var todosUser    = window._userTrades || [];
+        var fechaInicio  = participacion.created_at ? new Date(participacion.created_at) : null;
+        var tradesReto;
+        if (fechaInicio) {
+          tradesReto = todosUser.filter(function(t) {
+            var f = _fechaRealTrade(t);
+            return f && f >= fechaInicio;
+          });
+        } else {
+          // Fallback: sin fecha de registro guardada, mantener comportamiento anterior
+          tradesReto = todosUser.slice(participacion.trades_al_inicio || 0);
+        }
         var prog        = calcularProgreso(tradesReto, condicion);
         if (prog) {
           var pct = prog.requeridos > 0 ? Math.round(prog.actual / prog.requeridos * 100) : 0;
