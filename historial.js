@@ -194,9 +194,9 @@ async function cargarHistorialDesdeSupabase() {
       }).filter(Boolean).sort(function(a, b) { return a - b; });
 
       var periodo = fechas.length > 0
-        ? fechas[0].getDate() + ' ' + MESES[fechas[0].getMonth()] + ' – ' +
+        ? fechas[0].getDate() + ' ' + MESES[fechas[0].getMonth()] + ' ' + fechas[0].getFullYear() + ' – ' +
           fechas[fechas.length-1].getDate() + ' ' + MESES[fechas[fechas.length-1].getMonth()] + ' ' + fechas[fechas.length-1].getFullYear()
-        : new Date().toLocaleDateString('es-ES');
+        : 'Sin fecha registrada';
 
       HISTORIAL_CUENTAS.push({
         nombre:  nombreCuenta,
@@ -587,9 +587,9 @@ async function _actualizarEntradaHistorial(nombreCuenta, tipo, numeroCuenta) {
   }).filter(Boolean).sort(function(a, b) { return a - b; });
 
   var periodo = fechas.length > 0
-    ? fechas[0].getDate() + ' ' + MESES[fechas[0].getMonth()] + ' – ' +
+    ? fechas[0].getDate() + ' ' + MESES[fechas[0].getMonth()] + ' ' + fechas[0].getFullYear() + ' – ' +
       fechas[fechas.length-1].getDate() + ' ' + MESES[fechas[fechas.length-1].getMonth()] + ' ' + fechas[fechas.length-1].getFullYear()
-    : new Date().toLocaleDateString('es-ES');
+    : 'Sin fecha registrada';
 
   var nombre = (trades[0] && trades[0].cuenta) || nombreCuenta;
   var entrada = {
