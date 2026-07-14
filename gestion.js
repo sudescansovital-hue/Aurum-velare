@@ -689,6 +689,20 @@ function buildEquity() {
 function buildCumplimiento() {
   renderSlConfig();
   var trades = getTradesActivos();
+
+  // FIX corazón de datos (14/07): excluir trades con precio_entrada y
+  // precio_cierre en 0 — son datos rotos de imports fallidos entre el
+  // 13/06 y el 18/06 (parser de esos días no capturaba el precio), no un
+  // SL real. Sin este filtro, 'puntos' se calcula como abs(sl - 0) = el
+  // valor del SL en bruto (ej. 5340 puntos), contaminando la clasificación
+  // Edge/Aire/Límite/Fuera con datos imposibles. Confirmado con SQL en
+  // Supabase: sin el filtro el % "fuera del método" salía en 25.5%
+  // (958/1286), con el filtro sale el real: 10.4% (223/249). No afecta a
+  // ninguna otra pantalla (P&L, Trade Record, Equity no usan esta función).
+  trades = trades.filter(function(t) {
+    return !(t.precio_entrada === 0 && t.precio_cierre === 0);
+  });
+
   if (trades.length < 5) {
     ['cumpl-dentro-num','cumpl-dentro-pct','cumpl-fuera-num','cumpl-fuera-pct',
      'cumpl-wr-dentro','cumpl-wr-dentro-sub','cumpl-wr-fuera','cumpl-wr-fuera-sub'].forEach(function(id) {
