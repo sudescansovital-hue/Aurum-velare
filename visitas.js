@@ -74,6 +74,17 @@ function _rangoFechas(trades) {
 function calcMetricas(trades) {
   var total = trades.length;
   if (!total) return { total:0, wins:0, wr:0, pnl:0, rr:0, esp:0, ptsW:0, ptsL:0 };
+
+  // FIX corazón de datos (14/07): excluir trades con precio_entrada=0 y
+  // precio_cierre=0 — datos rotos de imports fallidos 13-18/06, no un SL
+  // real. Sin esto, 'puntos' se calcula sobre precio=0 y contamina el
+  // promedio de ganadores/perdedores usado para R/R y Esperanza.
+  trades = trades.filter(function(t) {
+    return !(t.precio_entrada === 0 && t.precio_cierre === 0);
+  });
+  total = trades.length;
+  if (!total) return { total:0, wins:0, wr:0, pnl:0, rr:0, esp:0, ptsW:0, ptsL:0 };
+
   var wins = trades.filter(function(t){ return t.ganadora; }).length;
   var wr   = Math.round(wins / total * 1000) / 10;
   var pnl  = Math.round(trades.reduce(function(s,t){ return s + (t.beneficio||0); }, 0) * 100) / 100;
