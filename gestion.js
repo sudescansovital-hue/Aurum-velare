@@ -147,7 +147,7 @@ function buildHorarios() {
     if (elT) elT.textContent = 'Mapa horario real';
     var elV = document.getElementById('gest-horarios-ventana');
     if (elV) elV.textContent = '▲ Tu ventana real (17:00–02:00) · —';
-    ['gest-horas-barras','gest-dias-semana','gest-patrones'].forEach(function(id) {
+    ['gest-horas-barras','gest-dias-semana','gest-patrones','gest-ventanas-15min'].forEach(function(id) {
       var e = document.getElementById(id); if (e) e.innerHTML = '';
     });
     return;
@@ -367,6 +367,10 @@ function buildCicloDots() {
       var e = document.getElementById(id); if (e) e.textContent = '—';
     });
     if (cd) cd.innerHTML = '';
+    var cva = document.getElementById('ciclo-vs-anterior');
+    if (cva) cva.innerHTML = '';
+    var elLotCiclo = document.getElementById('ciclo-lotajes');
+    if (elLotCiclo) elLotCiclo.innerHTML = '';
     return;
   }
 
@@ -709,7 +713,7 @@ function buildCumplimiento() {
      'cumpl-wr-dentro','cumpl-wr-dentro-sub','cumpl-wr-fuera','cumpl-wr-fuera-sub'].forEach(function(id) {
       var e = document.getElementById(id); if (e) e.textContent = '—';
     });
-    ['cumpl-sl-dist','cumpl-alertas'].forEach(function(id) {
+    ['cumpl-sl-dist','cumpl-alertas','cumpl-evolucion-mensual'].forEach(function(id) {
       var e = document.getElementById(id); if (e) e.innerHTML = '';
     });
     return;
