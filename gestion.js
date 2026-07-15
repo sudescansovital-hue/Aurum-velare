@@ -892,10 +892,19 @@ async function buildCumplimientoParciales() {
   contenedor.innerHTML = '<div style="padding:1rem 2rem;color:var(--text-muted);font-size:13px;">Cargando parciales…</div>';
 
   var token = getToken();
+  var cuentaSel = window.cuentaActivaGestion || 'global';
   var cuentasActivas = [];
-  if (ua.cuenta_maestra) cuentasActivas.push(String(ua.cuenta_maestra));
-  if (ua.cuenta_retos)   cuentasActivas.push(String(ua.cuenta_retos));
-  if (ua.cuenta_prueba)  cuentasActivas.push(String(ua.cuenta_prueba));
+  if (cuentaSel === 'global') {
+    if (ua.cuenta_maestra) cuentasActivas.push(String(ua.cuenta_maestra));
+    if (ua.cuenta_retos)   cuentasActivas.push(String(ua.cuenta_retos));
+    if (ua.cuenta_prueba)  cuentasActivas.push(String(ua.cuenta_prueba));
+  } else if (cuentaSel === 'maestra' && ua.cuenta_maestra) {
+    cuentasActivas.push(String(ua.cuenta_maestra));
+  } else if (cuentaSel === 'retos' && ua.cuenta_retos) {
+    cuentasActivas.push(String(ua.cuenta_retos));
+  } else if (cuentaSel === 'prueba' && ua.cuenta_prueba) {
+    cuentasActivas.push(String(ua.cuenta_prueba));
+  }
 
   if (!cuentasActivas.length) {
     contenedor.innerHTML = '<div style="padding:1rem 2rem;color:var(--text-muted);font-size:13px;">Sin cuentas activas.</div>';
