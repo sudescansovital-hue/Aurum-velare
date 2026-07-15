@@ -362,7 +362,8 @@ function buildCicloDots() {
   if (trades.length < 5) {
     ['ciclo-num-actual','ciclo-encurso-txt','ciclo-wr','ciclo-wr-sub','ciclo-pnl',
      'ciclo-rr','ciclo-rr-sub','ciclo-esp','ciclo-cumpl','ciclo-cumpl-sub',
-     'ciclo-puntuacion','ciclo-veredicto-txt'].forEach(function(id) {
+     'ciclo-puntuacion','ciclo-veredicto-txt','ciclo-completado-label',
+     'ciclo-completado-trades'].forEach(function(id) {
       var e = document.getElementById(id); if (e) e.textContent = '—';
     });
     if (cd) cd.innerHTML = '';
