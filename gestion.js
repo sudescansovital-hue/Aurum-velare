@@ -81,6 +81,11 @@ function buildTradeRecord() {
   var verd = document.getElementById('gest-tipo-trader-veredicto');
   if (tb   && !trades.length) { tb.innerHTML   = ''; }
   if (verd && !trades.length) { verd.innerHTML = ''; }
+  if (!trades.length) {
+    ['gest-tipo-trader-veredicto-maestra','gest-tipo-trader-veredicto-retos','gest-tipo-trader-veredicto-prueba'].forEach(function(id) {
+      var e = document.getElementById(id); if (e) e.innerHTML = '';
+    });
+  }
   if (trades.length) {
     // FIX corazón de datos (06/07): antes se recalculaba aquí, a mano, exactamente
     // lo mismo que calcTipos() en visitas.js (mismos umbrales, mismas etiquetas) —
@@ -1146,7 +1151,7 @@ function buildEstadisticasAvanzadas() {
      'eav-tp-pct','eav-tp-sub',
      'eav-revenge-num','eav-revenge-sub','eav-mejor-lotaje'].forEach(function(id){ setEl(id, '—'); });
     ['eav-revenge-lista','eav-lote-tras-perdida','eav-lote-consistencia',
-     'eav-hora-analisis','eav-peor-dia-analisis','eav-duracion-analisis','eav-veredicto','eav-ultimos30'].forEach(function(id){ setHTML(id, ''); });
+     'eav-hora-analisis','eav-peor-dia-analisis','eav-duracion-analisis','eav-veredicto','eav-ultimos30','eav-riesgo-ruina'].forEach(function(id){ setHTML(id, ''); });
     return;
   }
 
