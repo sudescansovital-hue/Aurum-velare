@@ -716,6 +716,7 @@ function buildCumplimiento() {
     ['cumpl-sl-dist','cumpl-alertas','cumpl-evolucion-mensual'].forEach(function(id) {
       var e = document.getElementById(id); if (e) e.innerHTML = '';
     });
+    buildCumplimientoParciales();
     return;
   }
 
@@ -1143,9 +1144,9 @@ function buildEstadisticasAvanzadas() {
      'eav-mejor-val','eav-mejor-sub',
      'eav-peor-val','eav-peor-sub',
      'eav-tp-pct','eav-tp-sub',
-     'eav-revenge-num','eav-revenge-sub'].forEach(function(id){ setEl(id, '—'); });
+     'eav-revenge-num','eav-revenge-sub','eav-mejor-lotaje'].forEach(function(id){ setEl(id, '—'); });
     ['eav-revenge-lista','eav-lote-tras-perdida','eav-lote-consistencia',
-     'eav-hora-analisis','eav-peor-dia-analisis','eav-duracion-analisis','eav-veredicto'].forEach(function(id){ setHTML(id, ''); });
+     'eav-hora-analisis','eav-peor-dia-analisis','eav-duracion-analisis','eav-veredicto','eav-ultimos30'].forEach(function(id){ setHTML(id, ''); });
     return;
   }
 
