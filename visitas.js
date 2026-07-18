@@ -106,7 +106,7 @@ function calcTipos(trades) {
   function tm(arr, label, col) {
     var w = arr.filter(function(t){ return t.ganadora; }).length;
     var p = arr.reduce(function(s,t){ return s + (t.beneficio||0); }, 0);
-    return { l:label, t:arr.length, wr:arr.length>0?Math.round(w/arr.length*1000)/10:0, pnl:Math.round(p*100)/100, col:col };
+    return { l:label, t:arr.length, wr:arr.length>0?Math.round(w/arr.length*1000)/10:null, pnl:Math.round(p*100)/100, col:col };
   }
   return [
     tm(scalp, 'Scalping <30min',  '#6A8AEE44'),
@@ -123,7 +123,7 @@ function calcDias(trades) {
     if (d >= 0 && d <= 4) { dias[d].t++; if(t.ganadora) dias[d].w++; dias[d].p += t.beneficio||0; }
   });
   return dias.map(function(d) {
-    var wr = d.t > 0 ? Math.round(d.w / d.t * 1000) / 10 : 0;
+    var wr = d.t > 0 ? Math.round(d.w / d.t * 1000) / 10 : null;
     return { d:d.d, wr:wr, pnl:Math.round(d.p*100)/100, t:d.t, best:wr>=70, bad:wr<50&&d.t>0 };
   });
 }
@@ -214,7 +214,7 @@ function buildCuentaReal(cuenta, nombreCuenta) {
       return '<div style="margin-bottom:.8rem;">' +
         '<div style="display:flex;justify-content:space-between;margin-bottom:.3rem;">' +
         '<span style="font-size:14px;color:'+(d.wr>=70?'var(--gold-bright)':'var(--text-dim)')+';">'+d.l+'</span>' +
-        '<span style="font-size:12px;color:var(--text-muted);">'+d.t+'t · '+d.wr+'% · '+(d.pnl>=0?'+':'')+d.pnl+'$</span></div>' +
+        '<span style="font-size:12px;color:var(--text-muted);">'+d.t+'t' + (d.wr===null?'':' · '+d.wr+'%') + ' · '+(d.pnl>=0?'+':'')+d.pnl+'$</span></div>' +
         '<div style="height:4px;background:var(--border);border-radius:2px;">' +
         '<div style="height:100%;width:'+Math.round(d.t/maxT*100)+'%;background:'+d.col+';border-radius:2px;"></div></div></div>';
     }).join('');

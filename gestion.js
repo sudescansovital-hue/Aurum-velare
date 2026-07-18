@@ -117,7 +117,7 @@ function buildTradeRecord() {
         return '<div style="margin-bottom:.8rem;">' +
           '<div style="display:flex;justify-content:space-between;margin-bottom:.3rem;">' +
           '<span style="font-size:15px;color:'+(d.wr>=70?'var(--gold-bright)':'var(--text-dim)')+';">'+d.l+'</span>' +
-          '<span style="font-size:13px;color:var(--text-muted);">'+d.t+'t · '+d.wr+'% WR · '+(d.pnl>=0?'+':'')+d.pnl+'$</span></div>' +
+          '<span style="font-size:13px;color:var(--text-muted);">'+d.t+'t' + (d.wr===null?'':' · '+d.wr+'% WR') + ' · '+(d.pnl>=0?'+':'')+d.pnl+'$</span></div>' +
           '<div style="height:4px;background:var(--border);border-radius:2px;">' +
           '<div style="height:100%;width:'+Math.round(d.t/maxT*100)+'%;background:'+col+';border-radius:2px;"></div></div></div>';
       }).join('');
@@ -224,12 +224,12 @@ function buildHorarios() {
     var mx = Math.max.apply(null, Object.keys(porHora).map(function(k){ return porHora[k].t; })) || 1;
     for (var h = 0; h < 24; h++) {
       var d = porHora[h];
-      var wr = d.t > 0 ? Math.round(d.w/d.t*100) : 0;
+      var wr = d.t > 0 ? Math.round(d.w/d.t*100) : null;
       var col = document.createElement('div');
       col.style.cssText = 'flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;';
       var ht = d.t === 0 ? 1 : Math.max(3, (d.t/mx)*85);
       var bg = d.t === 0 ? 'var(--border)' : wr >= 70 ? '#3AAA6A' : wr >= 50 ? '#C9A84C44' : '#CC554466';
-      col.innerHTML = '<div style="width:100%;height:'+ht+'px;background:'+bg+';border-radius:1px 1px 0 0;" title="'+h+':xx · '+d.t+' trades · WR '+wr+'%"></div>' +
+      col.innerHTML = '<div style="width:100%;height:'+ht+'px;background:'+bg+';border-radius:1px 1px 0 0;" title="'+h+':xx · '+d.t+' trades' + (wr === null ? '' : ' · WR '+wr+'%') + '"></div>' +
         '<div style="font-size:9px;color:var(--text-muted);margin-top:2px;">'+h+'</div>';
       hb.appendChild(col);
     }
@@ -244,15 +244,15 @@ function buildHorarios() {
       if (d >= 0 && d <= 4) { dias[d].t++; if(t.ganadora) dias[d].w++; dias[d].p += t.beneficio||0; }
     });
     var sorted = dias.map(function(d) {
-      return { d:d.d, wr:d.t>0?Math.round(d.w/d.t*1000)/10:0, pnl:Math.round(d.p*100)/100, t:d.t };
-    }).sort(function(a,b){ return b.wr-a.wr; });
+      return { d:d.d, wr:d.t>0?Math.round(d.w/d.t*1000)/10:null, pnl:Math.round(d.p*100)/100, t:d.t };
+    }).sort(function(a,b){ if(a.wr===null&&b.wr===null) return 0; if(a.wr===null) return 1; if(b.wr===null) return -1; return b.wr-a.wr; });
     ds.innerHTML = sorted.map(function(d) {
       var best = d.wr >= 65; var bad = d.wr < 50 && d.t > 0;
       return '<div style="display:flex;align-items:center;gap:.8rem;padding:.5rem 0;border-bottom:1px solid #0A0C14;">' +
         '<span style="font-size:14px;width:85px;color:'+(best?'#C8BDA0':bad?'var(--red)':'var(--text-dim)')+';">'+(best?'✦ ':bad?'⚠ ':'')+d.d+'</span>' +
         '<div style="flex:1;height:3px;background:var(--border);border-radius:2px;">' +
-        '<div style="height:100%;width:'+d.wr+'%;background:'+(best?'#4ACC8A':bad?'#CC554444':'#C9A84C44')+';border-radius:2px;"></div></div>' +
-        '<span style="font-size:13px;color:'+(best?'var(--green)':bad?'var(--red)':'var(--text-muted)')+';width:115px;text-align:right;">'+d.wr+'% · '+(d.pnl>=0?'+':'')+d.pnl+'$</span></div>';
+        '<div style="height:100%;width:'+(d.wr===null?0:d.wr)+'%;background:'+(best?'#4ACC8A':bad?'#CC554444':'#C9A84C44')+';border-radius:2px;"></div></div>' +
+        '<span style="font-size:13px;color:'+(best?'var(--green)':bad?'var(--red)':'var(--text-muted)')+';width:115px;text-align:right;">'+(d.wr===null ? 'Sin trades' : d.wr+'% · '+(d.pnl>=0?'+':'')+d.pnl+'$')+'</span></div>';
     }).join('');
   }
 
@@ -468,7 +468,7 @@ function buildCicloDots() {
       var prevStart = Math.max(0, prevEnd - 111);
       var prev      = prevEnd > prevStart ? trades.slice(prevStart, prevEnd) : [];
       var prevWins  = prev.filter(function(t){ return t.ganadora; }).length;
-      var prevWR    = prev.length > 0 ? Math.round(prevWins/prev.length*1000)/10 : 0;
+      var prevWR    = prev.length > 0 ? Math.round(prevWins/prev.length*1000)/10 : null;
       var prevPnl   = Math.round(prev.reduce(function(s,t){ return s+(t.beneficio||0); },0)*100)/100;
       var prevPtsW  = prevWins > 0 ? prev.filter(function(t){ return t.ganadora; }).reduce(function(s,t){ return s+(t.puntos||0); },0)/prevWins : 0;
       var prevLoss  = prev.length - prevWins;
@@ -486,7 +486,7 @@ function buildCicloDots() {
         '<div style="background:var(--bg);padding:.8rem;text-align:center;">' +
         '<div style="font-size:11px;color:var(--text-muted);margin-bottom:.2rem;">Win Rate</div>' +
         '<div style="font-family:\'Cormorant Garamond\',serif;font-size:24px;color:var(--green);">'+wr+'%</div>' +
-        '<div style="font-size:12px;color:var(--text-muted);">ant: '+prevWR+'% '+_cvaTag(wr,prevWR,true)+'</div></div>' +
+        '<div style="font-size:12px;color:var(--text-muted);">ant: '+(prevWR===null?'sin datos':prevWR+'%')+' '+(prevWR===null?'':_cvaTag(wr,prevWR,true))+'</div></div>' +
         '<div style="background:var(--bg);padding:.8rem;text-align:center;">' +
         '<div style="font-size:11px;color:var(--text-muted);margin-bottom:.2rem;">R/R</div>' +
         '<div style="font-family:\'Cormorant Garamond\',serif;font-size:24px;color:var(--gold-bright);">'+rr+'</div>' +
@@ -754,7 +754,7 @@ function buildCumplimiento() {
   var dentro = trades.filter(function(t){ return t.puntos <= limAire || _esSlProtegido(t); });
   var fuera  = trades.filter(function(t){ return !_esSlProtegido(t) && t.puntos > limAire; });
 
-  function wr(arr)  { return arr.length > 0 ? Math.round(arr.filter(function(t){ return t.ganadora; }).length/arr.length*1000)/10 : 0; }
+  function wr(arr)  { return arr.length > 0 ? Math.round(arr.filter(function(t){ return t.ganadora; }).length/arr.length*1000)/10 : null; }
   function pnlSum(arr) { return Math.round(arr.reduce(function(s,t){ return s+(t.beneficio||0); },0)*100)/100; }
   function pct(arr) { return Math.round(arr.length/n*1000)/10; }
 
@@ -767,9 +767,9 @@ function buildCumplimiento() {
     'cumpl-dentro-pct':    pct(dentro) + '% de tus trades',
     'cumpl-fuera-num':     fuera.length,
     'cumpl-fuera-pct':     pct(fuera) + '% — a revisar',
-    'cumpl-wr-dentro':     wrDentro + '%',
+    'cumpl-wr-dentro':     (wrDentro === null ? '—' : wrDentro + '%'),
     'cumpl-wr-dentro-sub': 'P&L ' + (pnlDentro >= 0 ? '+' : '') + pnlDentro + '$ · riesgo controlado',
-    'cumpl-wr-fuera':      wrFuera + '%',
+    'cumpl-wr-fuera':      (wrFuera === null ? '—' : wrFuera + '%'),
     'cumpl-wr-fuera-sub':  'P&L ' + (pnlFuera >= 0 ? '+' : '') + pnlFuera + '$ · más riesgo'
   };
   Object.keys(els).forEach(function(id) {
@@ -837,9 +837,11 @@ function buildCumplimiento() {
     }
 
     var pctEdge = pct(edge);
-    var lectura = pctEdge >= 70
-      ? '"El ' + pctEdge + '% de tus trades respetan el Edge ' + limEdge + '. Tu win rate dentro del método es ' + wrDentro + '%. El proceso está en marcha."'
-      : '"El ' + pctEdge + '% de tus trades respetan el Edge ' + limEdge + '. Cuando lo respetas, tu win rate sube al ' + wrDentro + '%. El método funciona — el reto es aplicarlo siempre."';
+    var lectura = wrDentro === null
+      ? '"Aún no hay trades dentro del método en esta cuenta para evaluar el win rate del edge."'
+      : (pctEdge >= 70
+        ? '"El ' + pctEdge + '% de tus trades respetan el Edge ' + limEdge + '. Tu win rate dentro del método es ' + wrDentro + '%. El proceso está en marcha."'
+        : '"El ' + pctEdge + '% de tus trades respetan el Edge ' + limEdge + '. Cuando lo respetas, tu win rate sube al ' + wrDentro + '%. El método funciona — el reto es aplicarlo siempre."');
 
     var tagHtml2 = '<div class="tag" style="display:block;margin-bottom:1rem;">Operaciones fuera del método · Las más críticas</div>';
     var lecturaHtml = '<div style="padding:1rem;border:1px solid #c9a84c22;background:linear-gradient(135deg,#161208,#1a1608);border-left:2px solid #c9a84c;">' +
@@ -1829,7 +1831,7 @@ function buildDashboardHero() {
   window._totalTrades = totalTrades;
   window._userTrades  = todos;
   var wins = todos.filter(function(t) { return t.ganadora; });
-  var wr = totalTrades > 0 ? Math.round(wins.length / totalTrades * 1000) / 10 : 0;
+  var wr = totalTrades > 0 ? Math.round(wins.length / totalTrades * 1000) / 10 : null;
   var pnl = Math.round(todos.reduce(function(s, t) { return s + (t.beneficio || 0); }, 0) * 100) / 100;
   var pnlStr = (pnl >= 0 ? '+' : '') + pnl + '$';
   var cuentas = [];
@@ -1837,13 +1839,13 @@ function buildDashboardHero() {
 
   var el;
   el = document.getElementById('dash-trades-total');  if (el) el.textContent = totalTrades;
-  el = document.getElementById('dash-wr-global');     if (el) el.textContent = wr + '%';
-  el = document.getElementById('dash-wr-global-sub'); if (el) el.textContent = wins.length + ' wins de ' + totalTrades;
+  el = document.getElementById('dash-wr-global');     if (el) el.textContent = (wr === null ? '—' : wr + '%');
+  el = document.getElementById('dash-wr-global-sub'); if (el) el.textContent = (totalTrades === 0 ? 'Sin trades registrados' : wins.length + ' wins de ' + totalTrades);
   el = document.getElementById('dash-pnl-global');    if (el) el.textContent = pnlStr;
   el = document.getElementById('dash-pnl-global-sub');if (el) el.textContent = cuentas.length + ' cuenta' + (cuentas.length !== 1 ? 's' : '') + ' · entorno real';
   el = document.getElementById('card-global-pnl');    if (el) el.textContent = pnlStr;
   var conEAGlobal = todos.filter(function(t) { return t.fuente === 'ea'; }).length;
-  el = document.getElementById('card-global-sub');    if (el) el.textContent = totalTrades + ' trades · WR ' + wr + '%' + (conEAGlobal > 0 ? ' · ' + conEAGlobal + ' auditado' + (conEAGlobal !== 1 ? 's' : '') + ' EA' : '');
+  el = document.getElementById('card-global-sub');    if (el) el.textContent = totalTrades === 0 ? 'Sin trades registrados' : (totalTrades + ' trades · WR ' + wr + '%' + (conEAGlobal > 0 ? ' · ' + conEAGlobal + ' auditado' + (conEAGlobal !== 1 ? 's' : '') + ' EA' : ''));
 
   // Ciclo actual
   var ciclosCompletados = Math.floor(totalTrades / 111);
