@@ -159,16 +159,7 @@ function _destinoLogin() {
 async function hacerLogout() {
   console.log('[LOGOUT] hacerLogout llamado â€” usuarioActual:', usuarioActual && usuarioActual.email, '| SESSION:', typeof SESSION !== 'undefined' ? SESSION : 'undefined');
   await signOut();
-  usuarioActual = null;
-  window.AURUM_TRADES = null;
-  if (typeof cuentasBuilt !== 'undefined') { Object.keys(cuentasBuilt).forEach(function(k){ delete cuentasBuilt[k]; }); }
-  if (typeof HISTORIAL_CUENTAS !== 'undefined') { HISTORIAL_CUENTAS = []; }
-  if (typeof HISTORIAL_ALL_FPS !== 'undefined') { HISTORIAL_ALL_FPS = new Set(); }
-  document.getElementById('nav-user-widget').style.display = 'none';
-  document.getElementById('nav-login-btn').style.display   = 'block';
-  const adminLink = document.getElementById('nav-admin-link');
-  if (adminLink) adminLink.style.display = 'none';
-  irA('home');
+  location.reload();
 }
 
 function irA(pagina) {
