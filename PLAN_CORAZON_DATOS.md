@@ -1,13 +1,18 @@
-## 📋 Balance de verificación (18/07) — 5 de 8 hallazgos ya resueltos
+## 📋 Balance de verificación (18/07) — 7 de 8 hallazgos ya resueltos
 
 Auditoría completa contra código real el 18/07. Resultado:
 - ✅ RESUELTOS: EA→trades, reset cuenta (777 OZT) migra a Externa,
   preguntas.js guarda en Supabase, tablillas.js lee historial real,
-  ordenación por hora en Cumplimiento (numérica).
-- ⚠️ PENDIENTES (3, relacionados entre sí): WR "0%" ambiguo (duplicado en
-  gestion.js y visitas.js), duplicación visitas.js/gestion.js sin unificar,
-  orden cronológico en buildEstadisticasAvanzadas (racha/drawdown/revenge
-  trading sobre orden de importación, no fecha real del trade).
+  ordenación por hora en Cumplimiento (numérica), orden cronológico en
+  getTradesActivos() (commit 4bb633c).
+- ✅ RESUELTO (18/07, commit c6fd926): los 12 sitios reales donde el WR se
+  mostraba como "0%" en vez de "sin datos" ahora usan null como centinela,
+  con "—" o mensajes neutros en el HTML. Cubre gestion.js (buildDashboardHero,
+  buildCumplimiento, buildHorarios, buildCicloDots, buildTradeRecord) y
+  visitas.js (calcTipos, calcDias, buildCuentaReal). Los sitios ya protegidos
+  por filtros previos (t>=3, t>0) se dejaron sin tocar por ser innecesarios.
+- ⚠️ PENDIENTE (1): duplicación visitas.js/gestion.js sin unificar — cambio
+  de arquitectura mayor, se deja para otra sesión dedicada.
 
 Detalle de cada punto verificado más abajo, en las secciones originales
 correspondientes (no se han borrado, quedan como referencia).
