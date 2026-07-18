@@ -1,3 +1,17 @@
+## 📋 Balance de verificación (18/07) — 5 de 8 hallazgos ya resueltos
+
+Auditoría completa contra código real el 18/07. Resultado:
+- ✅ RESUELTOS: EA→trades, reset cuenta (777 OZT) migra a Externa,
+  preguntas.js guarda en Supabase, tablillas.js lee historial real,
+  ordenación por hora en Cumplimiento (numérica).
+- ⚠️ PENDIENTES (3, relacionados entre sí): WR "0%" ambiguo (duplicado en
+  gestion.js y visitas.js), duplicación visitas.js/gestion.js sin unificar,
+  orden cronológico en buildEstadisticasAvanzadas (racha/drawdown/revenge
+  trading sobre orden de importación, no fecha real del trade).
+
+Detalle de cada punto verificado más abajo, en las secciones originales
+correspondientes (no se han borrado, quedan como referencia).
+
 # Plan "corazón de datos" — preparado la noche del 02/07, para aplicar el 03/07
 
 No se ha tocado producción ni GitHub. Todo esto está diseñado y verificado
