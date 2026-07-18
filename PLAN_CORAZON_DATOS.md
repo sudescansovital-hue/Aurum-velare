@@ -775,3 +775,14 @@ la primera prueba. Nada queda pendiente de código de esta sesión.
    **Para la próxima sesión:** decidir si se replantea `wr_minimo` antes
    o junto con añadir `rr_minimo` (ratio riesgo/beneficio, pendiente del
    punto 1).
+
+## ✅ Verificado (18/07) — "TP alcanzado" en 0% en cuenta Maestra: dato real, no bug
+
+Comprobado con SQL directo sobre 5 trades ganadores reales de Maestra con tp
+registrado: precio_entrada, precio_cierre y tp están en la misma unidad
+(precio real, ~4000-4200), sin desajuste. Las distancias reales al TP
+(29-390 puntos) confirman que Roderas cierra manualmente casi siempre antes
+de tocar el TP en su cuenta Maestra — el 0% es un reflejo fiel de su
+comportamiento real de trading, no un fallo de cálculo. El margen de 0.5
+puntos en el código (buildEstadisticasAvanzadas) es correcto. No requiere
+ninguna acción.
