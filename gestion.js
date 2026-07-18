@@ -1163,6 +1163,7 @@ function buildEstadisticasAvanzadas() {
 
   if (trades.length < 5) {
     ['eav-racha-num','eav-racha-tipo','eav-racha-sub',
+     'eav-racha-max-win','eav-racha-max-loss',
      'eav-dd-max','eav-dd-sub',
      'eav-mejor-val','eav-mejor-sub',
      'eav-peor-val','eav-peor-sub',
@@ -1183,6 +1184,17 @@ function buildEstadisticasAvanzadas() {
   setEl('eav-racha-num', racha);
   setEl('eav-racha-tipo', rachaGanando ? 'ganando' : 'perdiendo');
   setEl('eav-racha-sub', racha + ' consecutivos ' + (rachaGanando ? 'ganadores' : 'perdedores'));
+
+  // Racha máxima histórica (ganadora y perdedora)
+  var rachaMaxWin = 0, rachaMaxLoss = 0, rachaTmp = 0, tipoTmp = null;
+  trades.forEach(function(t) {
+    if (t.ganadora === tipoTmp) { rachaTmp++; }
+    else { tipoTmp = t.ganadora; rachaTmp = 1; }
+    if (tipoTmp === true  && rachaTmp > rachaMaxWin)  rachaMaxWin = rachaTmp;
+    if (tipoTmp === false && rachaTmp > rachaMaxLoss) rachaMaxLoss = rachaTmp;
+  });
+  setEl('eav-racha-max-win', rachaMaxWin);
+  setEl('eav-racha-max-loss', rachaMaxLoss);
 
   // 2. Drawdown máximo
   var cumPnl = 0, peak = 0, maxDD = 0;
