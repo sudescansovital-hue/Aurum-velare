@@ -826,3 +826,80 @@ cada uno — igual que se hizo con los 12 puntos del WR ambiguo hoy.
 **Punto de partida sugerido:** empezar por calcMetricas(), es la función
 más compartida (6 llamadas) y ya se auditó a fondo hoy (18/07) — se sabe
 exactamente dónde está y quién la usa.
+
+---
+
+## ✅ CERRADO (18/07) — WR 0% ambiguo en calcMetricas()
+
+**Commit `224504d`, desplegado 18/07.** `calcMetricas()` (visitas.js:74)
+devolvía `wr:0` cuando no había trades válidos que calcular — indistinguible
+de un 0% de acierto real. Ahora devuelve `wr:null` en ese caso (mismo
+patrón que ya tenía `calcTipos()`).
+
+Actualizados los 5 puntos que consumen ese valor, para pintar `'—'` (o
+excluir la cuenta del ranking) en vez de mostrar "null%":
+- `buildGlobal()`, línea 306 (visitas.js).
+- `buildCuentaReal()`, línea 190 (visitas.js).
+- "Patrones comunes" en `buildGlobal()` (visitas.js) — excluye
+  `wr===null` antes de ordenar, para que no pueda ganar como "cuenta más
+  limpia".
+- `statsCuenta()` dentro de `buildDashboardHero()` (gestion.js).
+
+Verificado visualmente en la cuenta de Willian. No requiere ninguna
+acción más.
+
+## ✅ CERRADO (18/07) — Datos de sesión anterior pegados al cambiar de usuario sin F5
+
+**Commit `df2a678`, desplegado 18/07.** Bug encontrado durante la
+verificación del fix anterior: al entrar como Willian justo después de
+haber estado como Roderas (sin recargar la página por completo), se veían
+datos de la cuenta 152034 de Roderas (Cuenta Prueba) en la pantalla de
+Willian.
+
+Confirmado con SQL directo que **no era un problema de datos** —
+`usuarios_aurum` y `trades` estaban correctos en Supabase (Willian con
+`NULL` en las 3 cuentas, las 58 filas de `cuenta_numero=152034` todas bajo
+`roderastrader@gmail.com`) — era caché de variables JS pegado en el
+navegador entre sesiones.
+
+**Fix:** `hacerLogout()` (app.js) simplificado a solo `signOut()` +
+`location.reload()`, eliminando el reseteo manual de 9 variables que era
+frágil (dependía de acordarse de añadir cada variable global nueva a la
+lista cada vez que se creaba una — ya se habían quedado fuera 7:
+`window.cuentaActivaGestion`, `yaBuiltGestion`, `_totalTrades`,
+`_userTrades`, `AURUM_OZT`, `_agendaCache`, `_retosCache`). La recarga
+completa reinicializa todo de golpe y reconstruye el DOM desde cero, sin
+depender de mantener esa lista sincronizada.
+
+Verificado en producción: sesión Roderas → Salir → sesión Willian, sin
+rastro de datos anteriores. No requiere ninguna acción más.
+
+## ✅ CERRADO (18/07) — 313 trades de Roderas con precio_entrada=0/precio_cierre=0 en 3 cuentas antiguas, copia duplicada bajo boli-al@hotmail.com
+
+Encontrado durante la verificación del fix de logout, al ver que Mara
+mostraba datos que no debería tener.
+
+**Causa raíz:** la migración Willian→Roderas del 12/07 movió las cuentas
+`7741924`, `135146` y `7746279` (etiquetadas "Externa", sin protección del
+trigger `prevenir_cuenta_ajena` a diferencia de las cuentas Maestra/Retos/
+Prueba), pero los precios quedaron a `0` del lado de Roderas, mientras una
+copia completa con los datos correctos quedó bajo el email de Mara desde
+una fase de pruebas anterior.
+
+**Fix aplicado en 2 pasos vía SQL directo en Supabase** (con pre-check y
+post-check en cada paso, sin script versionado en el repo):
+1. `UPDATE` restaurando `precio_entrada`, `precio_cierre` y `puntos` en las
+   313 filas de Roderas desde las filas equivalentes de Mara (emparejadas
+   por `id_posicion` extraído del `fp`, ya que el `fp` completo no
+   coincidía en formato entre los dos lados). `beneficio` no se tocó
+   porque ya coincidía correctamente en ambos lados.
+2. `DELETE` de las 313 filas bajo `boli-al@hotmail.com` para esas 3
+   cuentas — Mara no debe tener trades de cuentas ajenas.
+
+**Verificado:** Roderas conserva 75/131/107 filas por cuenta (313 total),
+0 filas rotas restantes. Mara: 0 filas de esas cuentas.
+
+**Nota para el futuro:** revisar si `trade_parciales` tiene el mismo
+problema para estas 3 cuentas — no se comprobó en esta ronda, el trigger
+`prevenir_cuenta_ajena` no cubre esa tabla (ya documentado con el caso
+Willian→Mara del 04/07).
