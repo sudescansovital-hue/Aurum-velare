@@ -35,10 +35,28 @@ function gestTab(id) {
   if (typeof aplicarEspaciadoPaneles === 'function') setTimeout(aplicarEspaciadoPaneles, 50);
 }
 
+function fechaDesdeFp(fp) {
+  if (!fp) return null;
+  var m = String(fp).match(/(\d{4})\.(\d{2})\.(\d{2})\s+(\d{2}):(\d{2}):(\d{2})/);
+  if (m) return new Date(parseInt(m[1]), parseInt(m[2])-1, parseInt(m[3]), parseInt(m[4]), parseInt(m[5]), parseInt(m[6]));
+  return null;
+}
+
+function ordenarTradesPorFechaReal(arr) {
+  return arr.slice().sort(function(a, b) {
+    var fa = fechaDesdeFp(a.fp), fb = fechaDesdeFp(b.fp);
+    if (!fa && !fb) return 0;
+    if (!fa) return 1;
+    if (!fb) return -1;
+    return fa - fb;
+  });
+}
+
 function getTradesActivos() {
   var cuenta = window.cuentaActivaGestion || 'global';
   if (!window.AURUM_TRADES) return [];
   var todos = window.AURUM_TRADES.todos || [];
+  todos = ordenarTradesPorFechaReal(todos);
   if (cuenta === 'global') return todos;
   var keyword = { maestra:'maestra', retos:'retos', prueba:'prueba' }[cuenta];
   if (!keyword) return todos;
