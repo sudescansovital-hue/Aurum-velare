@@ -1947,7 +1947,7 @@ function buildDashboardHero() {
     var conEA = sub.filter(function(t) { return t.fuente === 'ea'; }).length;
     var subTxt = sub.length === 0
       ? 'Sin trades'
-      : sub.length + ' trades · WR ' + m.wr + '%' + (conEA > 0 ? ' · ' + conEA + ' auditado' + (conEA !== 1 ? 's' : '') + ' EA' : '');
+      : sub.length + ' trades · WR ' + (m.wr === null ? '—' : m.wr + '%') + (conEA > 0 ? ' · ' + conEA + ' auditado' + (conEA !== 1 ? 's' : '') + ' EA' : '');
     return { pnl: (m.pnl >= 0 ? '+' : '') + m.pnl + '$', sub: subTxt };
   }
   var sM = statsCuenta('maestra'), sR = statsCuenta('retos'), sP = statsCuenta('prueba');

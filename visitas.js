@@ -73,7 +73,7 @@ function _rangoFechas(trades) {
 
 function calcMetricas(trades) {
   var total = trades.length;
-  if (!total) return { total:0, wins:0, wr:0, pnl:0, rr:0, esp:0, ptsW:0, ptsL:0 };
+  if (!total) return { total:0, wins:0, wr:null, pnl:0, rr:0, esp:0, ptsW:0, ptsL:0 };
 
   // FIX corazón de datos (14/07): excluir trades con precio_entrada=0 y
   // precio_cierre=0 — datos rotos de imports fallidos 13-18/06, no un SL
@@ -83,7 +83,7 @@ function calcMetricas(trades) {
     return !(t.precio_entrada === 0 && t.precio_cierre === 0);
   });
   total = trades.length;
-  if (!total) return { total:0, wins:0, wr:0, pnl:0, rr:0, esp:0, ptsW:0, ptsL:0 };
+  if (!total) return { total:0, wins:0, wr:null, pnl:0, rr:0, esp:0, ptsW:0, ptsL:0 };
 
   var wins = trades.filter(function(t){ return t.ganadora; }).length;
   var wr   = Math.round(wins / total * 1000) / 10;
@@ -187,7 +187,7 @@ function buildCuentaReal(cuenta, nombreCuenta) {
 
   // Stats principales
   _set(cuenta + '-stat-pnl', (m.pnl >= 0 ? '+' : '') + m.pnl + '$');
-  _set(cuenta + '-stat-wr',  m.wr + '%');
+  _set(cuenta + '-stat-wr',  m.wr === null ? '—' : m.wr + '%');
   _set(cuenta + '-stat-wr-sub', m.wins + ' wins de ' + m.total);
   _set(cuenta + '-stat-rr',  m.rr);
   _set(cuenta + '-stat-esp', (m.esp >= 0 ? '+' : '') + m.esp);
@@ -303,7 +303,7 @@ function buildGlobal() {
     (histP || prueba.length)  ? 'Prueba'  : false
   ].filter(Boolean);
   _set('global-stat-pnl-sub', nomCuentas.join(' + ') + (rango ? ' · ' + rango : ''));
-  _set('global-stat-wr',  mG.wr + '%');
+  _set('global-stat-wr',  mG.wr === null ? '—' : mG.wr + '%');
   _set('global-stat-wr-sub', mG.wins + ' de ' + mG.total + ' trades');
   _set('global-stat-rr',  mG.rr);
   _set('global-stat-esp', (mG.esp >= 0 ? '+' : '') + mG.esp);
@@ -348,7 +348,7 @@ function buildGlobal() {
       { n:'Maestra', wr:mM.wr, t:mM.total || maestra.length },
       { n:'Retos',   wr:mR.wr, t:mR.total || retos.length },
       { n:'Prueba',  wr:mP.wr, t:mP.total || prueba.length }
-    ].filter(function(c){ return c.t > 0; }).sort(function(a,b){ return b.wr - a.wr; });
+    ].filter(function(c){ return c.t > 0 && c.wr !== null; }).sort(function(a,b){ return b.wr - a.wr; });
     var bestCuenta = cuentasWR[0];
 
     var items = [];
