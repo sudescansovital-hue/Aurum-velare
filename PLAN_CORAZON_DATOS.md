@@ -791,3 +791,38 @@ de tocar el TP en su cuenta Maestra — el 0% es un reflejo fiel de su
 comportamiento real de trading, no un fallo de cálculo. El margen de 0.5
 puntos en el código (buildEstadisticasAvanzadas) es correcto. No requiere
 ninguna acción.
+
+---
+
+## 🔧 Para otra sesión — Unificar visitas.js y gestion.js (no es urgente)
+
+**Qué es:** verCuenta() (el selector Global/Maestra/Retos/Prueba de Mi
+Gestión) vive en visitas.js, y llama a buildCuentaReal()/buildGlobal() ahí
+mismo, con sus propias copias de calcMetricas(), calcTipos(), calcDias().
+gestion.js tiene sus propias versiones de cálculos muy similares
+(buildDashboardHero, buildTradeRecord, etc.) que leen la misma variable
+global (window.cuentaActivaGestion) pero recalculan todo por su cuenta.
+
+**Por qué importa:** cualquier bug o mejora en estos cálculos (ya pasó hoy
+con el WR ambiguo) hay que aplicarlo dos veces, en dos archivos, o queda
+inconsistente entre pantallas.
+
+**Cómo abordarlo, con seguridad (no es un cambio urgente ni arriesgado si
+se hace paso a paso):**
+1. Primero, listar TODAS las funciones duplicadas entre ambos archivos
+(calcMetricas, calcTipos, calcDias, y cualquier otra que calcule lo mismo
+dos veces) — comparando función por función cuál versión es más completa/
+correcta hoy.
+2. Elegir UNA sola copia de cada función (la más completa/correcta) y
+moverla a un sitio compartido — puede ser un archivo nuevo (ej. utils-
+calculos.js) cargado antes que gestion.js y visitas.js, o dejarla en uno
+de los dos y que el otro la reutilice.
+3. Cambiar las llamadas de un archivo primero (el que tenga menos riesgo,
+probablemente visitas.js ya que tiene menos funciones), verificar en
+pantalla que nada cambia visualmente, y solo entonces tocar el otro.
+4. Un archivo/función a la vez, con verificación visual en pantalla entre
+cada uno — igual que se hizo con los 12 puntos del WR ambiguo hoy.
+
+**Punto de partida sugerido:** empezar por calcMetricas(), es la función
+más compartida (6 llamadas) y ya se auditó a fondo hoy (18/07) — se sabe
+exactamente dónde está y quién la usa.
