@@ -8,6 +8,7 @@
 
 //--- Inputs
 input string Email          = "";
+input string EaPassword     = "";
 input string EndpointURL    = "https://aurumvelare.com/api/trade-mt5";
 input int    AvisarCadaXIntentos = 10; // FIX 06/07: ya no se descarta nunca; esto solo controla cada cuántos intentos fallidos se avisa en el log
 input int    IntervaloEnvioSegundos = 3600; // cada cuánto se procesa la cola (por defecto 1h)
@@ -223,6 +224,7 @@ string BuildOpenJson(ulong pos_id, string fp, string tipo, double vol,
    return "{\"event\":\"open\""
         + ",\"email\":\""         + Email                        + "\""
         + ",\"cuenta_numero\":\"" + g_cuenta_numero              + "\""
+        + ",\"ea_password\":\""   + EaPassword                   + "\""
         + ",\"position_id\":\""   + IntegerToString(pos_id)      + "\""
         + ",\"fp\":\""            + fp                           + "\""
         + ",\"tipo\":\""          + tipo                         + "\""
@@ -240,6 +242,7 @@ string BuildSlChangeJson(ulong pos_id, double sl_ant, double sl_new, datetime t)
    return "{\"event\":\"sl_change\""
         + ",\"email\":\""         + Email                   + "\""
         + ",\"cuenta_numero\":\"" + g_cuenta_numero         + "\""
+        + ",\"ea_password\":\""   + EaPassword               + "\""
         + ",\"position_id\":\""   + IntegerToString(pos_id) + "\""
         + ",\"sl_anterior\":"     + ant_str
         + ",\"sl_nuevo\":"        + DoubleToString(sl_new, 5)
@@ -254,6 +257,7 @@ string BuildTpChangeJson(ulong pos_id, double tp_ant, double tp_new, datetime t)
    return "{\"event\":\"tp_change\""
         + ",\"email\":\""         + Email                   + "\""
         + ",\"cuenta_numero\":\"" + g_cuenta_numero         + "\""
+        + ",\"ea_password\":\""   + EaPassword               + "\""
         + ",\"position_id\":\""   + IntegerToString(pos_id) + "\""
         + ",\"tp_anterior\":"     + ant_str
         + ",\"tp_nuevo\":"        + DoubleToString(tp_new, 5)
@@ -271,6 +275,7 @@ string BuildOriginalCaptureJson(ulong pos_id, double sl, double tp, datetime t) 
    return "{\"event\":\"original_capture\""
         + ",\"email\":\""         + Email                   + "\""
         + ",\"cuenta_numero\":\"" + g_cuenta_numero         + "\""
+        + ",\"ea_password\":\""   + EaPassword               + "\""
         + ",\"position_id\":\""   + IntegerToString(pos_id) + "\""
         + ",\"sl\":"              + sl_str
         + ",\"tp\":"              + tp_str
@@ -284,6 +289,7 @@ string BuildPartialCloseJson(ulong pos_id, ulong deal_id, double vol,
    return "{\"event\":\"partial_close\""
         + ",\"email\":\""         + Email                    + "\""
         + ",\"cuenta_numero\":\"" + g_cuenta_numero          + "\""
+        + ",\"ea_password\":\""   + EaPassword                + "\""
         + ",\"position_id\":\""   + IntegerToString(pos_id)  + "\""
         + ",\"deal_id\":\""       + IntegerToString(deal_id) + "\""
         + ",\"volumen\":"         + DoubleToString(vol, 2)
@@ -299,6 +305,7 @@ string BuildCloseJson(ulong pos_id, ulong deal_id, double precio_cierre,
    return "{\"event\":\"close\""
         + ",\"email\":\""           + Email                    + "\""
         + ",\"cuenta_numero\":\""   + g_cuenta_numero          + "\""
+        + ",\"ea_password\":\""     + EaPassword                + "\""
         + ",\"position_id\":\""     + IntegerToString(pos_id)  + "\""
         + ",\"deal_id\":\""         + IntegerToString(deal_id) + "\""
         + ",\"precio_cierre\":"     + DoubleToString(precio_cierre,   5)
