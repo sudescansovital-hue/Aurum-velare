@@ -942,6 +942,8 @@ concreto (fuga, duplicado, cruce de cuentas) que apunte de nuevo a
 cualquiera de estos, sí merece revisarse otra vez — pero no como
 suposición de auditoría sin datos.
 
+
+
 **Pendiente de menor prioridad, sin incidente real todavía:**
 `ea_trades`, `ea_sl_changes` y `ea_tp_changes` no tienen el trigger
 `prevenir_cuenta_ajena` (solo `trades` y `trade_parciales` lo tienen,
@@ -995,6 +997,12 @@ cuenta de un usuario con `tiene_ea=true` podría inyectar eventos de
 trade falsos (open/close/sl_change/tp_change) a su nombre. No abordado
 en esta sesión, queda como el siguiente fix de seguridad a diseñar.
 
+**✅ ACTUALIZACIÓN (misma noche, segunda mitad de la sesión 19/07):** este
+hallazgo se abordó y las fases 1-3 ya están cerradas y verificadas en
+producción. Ver sección "Autenticación de eventos del EA" más abajo. Solo
+queda pendiente la fase 4 (hacerlo obligatorio) y el panel admin de
+gestión de contraseñas.
+
 ## Nota de proceso, para futuras sesiones
 
 El informe de auditoría de hoy mostró en sus propios 3 hallazgos de base
@@ -1005,3 +1013,64 @@ había corregido en algún momento sin que este documento se actualizara.
 **Regla ya aplicada hoy y a mantener:** todo hallazgo de "riesgo" a nivel
 de base de datos debe confirmarse con SQL real antes de proponer un fix,
 no basta con el histórico de este documento.
+
+---
+
+# Sesión 19/07 (segunda mitad) — Autenticación de eventos del EA (api/trade-mt5.js)
+
+## PARTE NUEVA — Autenticación de eventos del EA
+
+**Hallazgo:** el endpoint aceptaba eventos del EA validando solo `email` +
+`tiene_ea`, sin ninguna prueba de que la petición viniera realmente del
+EA de ese usuario — cualquiera con el email podía falsificar un POST.
+
+**Mecanismo aplicado:** contraseña única por usuario (columna
+`ea_password` en `usuarios_aurum`), enviada por el EA en cada evento y
+comprobada por el servidor.
+
+**Estado real, fase a fase:**
+
+- **FASE 1 (cerrada, desplegada):** servidor con columna `ea_password`
+  creada, contraseña de Roderas generada, validación NO bloqueante —
+  compara si llega, pero nunca rechaza el evento todavía, solo logs.
+  Commit `351be58`.
+- **Repo sincronizado con el `.mq5` real:** el `EA_Aurum_Tracker.mq5` que
+  había en el repo estaba obsoleto (sin cola persistida, sin tracking de
+  TP, con descarte de eventos tras 3 reintentos). Se sustituyó por el
+  `EA_Aurum_Tracker_FIX.mq5` real que corre en la terminal MT5 de
+  Roderas. Commit `c8a211c`.
+- **FASE 2 (cerrada):** input `EaPassword` añadido al EA, mandado en los
+  seis `BuildXxxJson()` (open, sl_change, tp_change, original_capture,
+  partial_close, close). Commit `812d5a5`.
+- **FASE 3 (cerrada, verificada con datos reales):** Roderas reconfiguró
+  su EA en MT5 (cuenta 152034) con la contraseña, confirmado en logs de
+  Vercel: `"ea_password: OK para roderastrader@gmail.com"`. Funcionando
+  en producción.
+- **FASE 4 (PENDIENTE, siguiente paso):** hacer la contraseña obligatoria
+  en el servidor — rechazar cualquier evento sin `ea_password` o que no
+  coincida. Antes de aplicar esto hay que confirmar que TODOS los
+  usuarios con `tiene_ea=true` tienen ya su contraseña generada y
+  configurada en su EA (ahora mismo solo Roderas la tiene puesta), si no
+  se les bloquearía sin avisar.
+
+## PENDIENTE NUEVO A AÑADIR — Panel admin: gestión de ea_password
+
+Roderas señaló que ahora mismo generar y consultar la contraseña de un
+usuario requiere SQL manual en Supabase — no es sostenible con más de un
+usuario con EA. Falta en `admin.js`/`index.html`, junto al interruptor
+existente de activar/desactivar EA por usuario:
+
+- Mostrar la contraseña actual del usuario (o "sin generar" si no tiene).
+- Botón para generar una nueva (rotación si se filtra o el usuario la
+  pierde) — considerar si generar automáticamente al activar el
+  interruptor de EA por primera vez, para ahorrar un paso.
+- Botón de copiar al portapapeles, para pasársela al usuario.
+
+**Orden recomendado para cuando se retome:**
+1. Completar el panel admin (para poder generar y repartir contraseñas a
+   otros usuarios como Willian sin tirar de SQL).
+2. Confirmar que todos los usuarios con `tiene_ea=true` tienen ya su
+   contraseña puesta en su EA real.
+3. Solo entonces aplicar la fase 4 (bloqueo obligatorio) — así no se
+   corre el riesgo de bloquear a un usuario que aún no tiene contraseña
+   configurada.
