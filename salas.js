@@ -206,9 +206,10 @@ async function _getLiveKitToken(roomName) {
   var body = { room_name: roomName, participant_name: nick };
   console.log('[LK] token request → POST /api/livekit-token', body);
   try {
+    var _token = (typeof getToken === 'function') ? getToken() : null;
     var r = await fetch('/api/livekit-token', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (_token || '') },
       body: JSON.stringify(body)
     });
     var rawText = await r.text();
