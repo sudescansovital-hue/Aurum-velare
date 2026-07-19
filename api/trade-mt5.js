@@ -378,7 +378,7 @@ module.exports = async function handler(req, res) {
   try {
     const rows = await _get(
       'usuarios_aurum',
-      `email=eq.${encodeURIComponent(email)}&select=email,tiene_ea,cuenta_maestra,cuenta_retos,cuenta_prueba&limit=1`
+      `email=eq.${encodeURIComponent(email)}&select=email,tiene_ea,cuenta_maestra,cuenta_retos,cuenta_prueba,ea_password&limit=1`
     );
     if (!Array.isArray(rows) || !rows.length) {
       return res.status(403).json({ error: 'Usuario no encontrado: ' + email });
@@ -391,6 +391,20 @@ module.exports = async function handler(req, res) {
 
   if (!user.tiene_ea) {
     return res.status(403).json({ error: 'El usuario no tiene acceso al EA Aurum' });
+  }
+
+  // FASE 1 (19/07) — verificación de ea_password NO obligatoria todavía.
+  // Objetivo: no romper el EA de Roderas en producción, que aún no manda
+  // este campo. La fase 4 hará esto obligatorio (rechazo real).
+  const eaPasswordRecibida = req.body.ea_password;
+  if (!user.ea_password) {
+    console.log('[trade-mt5] ea_password: usuario', email, 'sin contraseña configurada aún (fase 1, no bloqueante)');
+  } else if (!eaPasswordRecibida) {
+    console.warn('[trade-mt5] ea_password: usuario', email, 'tiene contraseña configurada pero el EA no la mandó (aceptado por compatibilidad, fase 1)');
+  } else if (eaPasswordRecibida !== user.ea_password) {
+    console.error('[trade-mt5] ea_password: NO COINCIDE para', email, '— evento aceptado igualmente (fase 1, no bloqueante)');
+  } else {
+    console.log('[trade-mt5] ea_password: OK para', email);
   }
 
   // Resolver nombre de carpeta desde número de cuenta
