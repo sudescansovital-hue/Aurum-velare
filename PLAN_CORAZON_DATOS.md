@@ -903,3 +903,105 @@ post-check en cada paso, sin script versionado en el repo):
 problema para estas 3 cuentas — no se comprobó en esta ronda, el trigger
 `prevenir_cuenta_ajena` no cubre esa tabla (ya documentado con el caso
 Willian→Mara del 04/07).
+
+---
+
+# Sesión 19/07 — Auditoría completa de integridad (Bloques A-E) + 2 fixes de seguridad en LiveKit, aplicados y verificados en producción
+
+## Parte 1 — Auditoría de integridad de datos, verificada con SQL real
+
+Auditoría en modo solo lectura sobre 5 bloques (fugas de datos entre
+usuarios, valores 0/null engañosos, caché de sesión, duplicados de `fp`,
+cobertura del trigger `prevenir_cuenta_ajena`). El informe inicial (basado
+en código + incidentes documentados en este mismo archivo) marcó 3
+hallazgos como críticos a nivel de base de datos. Verificados después con
+SQL real ejecutado por Roderas, **los 3 eran falsos positivos:**
+
+- **`trade_parciales` SÍ tiene el trigger `prevenir_cuenta_ajena`**
+  (confirmado con SQL: existe `trg_prevenir_cuenta_ajena_parciales`). El
+  informe se apoyó en el incidente Willian→Mara del 04/07 y en la nota
+  de la sesión del 12/07 (línea ~902 de este mismo documento, "el trigger
+  no cubre esa tabla") sin volver a comprobar el estado actual — el
+  trigger se añadió en algún momento posterior y esa nota quedó
+  desactualizada. **Corrección respecto a lo anotado arriba en este
+  documento: sí está cubierta.**
+- **No hay fuga de emails vía anon key** en `tablilla_avisos` /
+  `lista_espera`. Confirmado revisando `pg_policies`: esas tablas solo
+  tienen políticas `INSERT`, ninguna `SELECT` pública — la anon key
+  (pública por diseño, embebida en el JS) no puede leerlas.
+- **No hay riesgo real de duplicados por `fp` de formato mixto.**
+  Confirmado con SQL contra toda la base de datos: 0 casos del formato
+  peligroso (fallback `fecha_pe_vol`, dos guiones bajos, el que podía
+  colisionar entre trades reales distintos). El `UNIQUE(fp,
+  usuario_email)` existe como constraint real en `trades`, no solo como
+  comentario.
+
+**Lección para no reabrir estos 3 sin motivo nuevo:** no hay incidente
+real asociado a ninguno de los tres hoy. Si en el futuro aparece un caso
+concreto (fuga, duplicado, cruce de cuentas) que apunte de nuevo a
+cualquiera de estos, sí merece revisarse otra vez — pero no como
+suposición de auditoría sin datos.
+
+**Pendiente de menor prioridad, sin incidente real todavía:**
+`ea_trades`, `ea_sl_changes` y `ea_tp_changes` no tienen el trigger
+`prevenir_cuenta_ajena` (solo `trades` y `trade_parciales` lo tienen,
+confirmado). Riesgo teórico, no materializado: si algún día se reasigna
+entre usuarios una cuenta con EA activo, estas 3 tablas quedarían
+expuestas al mismo tipo de cruce que ya pasó con `trade_parciales` en
+04/07 y 12/07. No urgente mientras no se reasignen cuentas con EA.
+
+## Parte 2 — Fixes reales aplicados y verificados hoy
+
+**1. `api/livekit-token.js` (commit `ca1afed`) — endpoint sin ningún
+control de acceso, corregido.**
+El endpoint generaba un token de LiveKit con `canPublish`/`canSubscribe`
+para cualquier `room_name` pedido, sin comprobar sesión ni pertenencia a
+la sala — cualquiera, incluso sin login, podía entrar a audio/vídeo de
+cualquier sala, incluida la del Águila, solo con conocer el nombre
+(hardcodeado y visible en `salas.js`). Fix: el endpoint ahora exige un
+JWT válido de Supabase (validado contra `/auth/v1/user`) y comprueba que
+la sala pedida corresponda al animal del usuario — traduciendo emoji→slug
+con un mapa `ANIMAL_SLUG`, porque `usuarios_aurum.animal` se guarda como
+emoji (🦁, 🐝...) y no como slug (`leon`, `hormiga`...) — o que el usuario
+sea el admin. Whitelist cerrada a las 7 salas reales (6 de animal +
+`sala-aguila`); `sala-abierta` queda en el whitelist preparada pero
+inactiva, porque el frontend hoy no la llama (`LIVEKIT_ROOMS` en
+`salas.js` no tiene esa entrada) — activarla es una decisión de producto
+aparte, no de este fix. **Verificado en producción** con `curl` directo
+(401 sin token) y con la consola del navegador (403 "No tienes acceso a
+esta sala" al intentar entrar con la cuenta de Roderas, no admin, a Sala
+Toro).
+
+**2. `salas.js` (commit `6238496`) — UI de sala vacía tras rechazo,
+corregido.**
+Tras el fix anterior, apareció un bug de percepción (confirmado con la
+consola del navegador, no era el fix de seguridad fallando): `entrarSala()`
+mostraba el panel de "sala interior" (chat, cabecera, botones) antes de
+saber si el servidor iba a conceder el token — así que durante unos
+segundos, tras un rechazo, la pantalla parecía "haber entrado" cuando en
+realidad el acceso real (audio/vídeo) estaba siendo bloqueado, con solo
+un toast transitorio como aviso. Fix: si `_conectarLiveKit()` recibe
+`!token`, ahora revierte la UI a la lista de salas (`salas-lista` visible,
+`sala-interior` oculta) además de mostrar un mensaje claro ("No tienes
+acceso a esta sala.") en vez de dejar la pantalla de sala vacía.
+
+## Pendiente para la próxima sesión
+
+**`api/trade-mt5.js` acepta eventos del EA sin validar identidad del
+emisor** — solo comprueba `email` + `cuenta_numero` en texto plano contra
+`usuarios_aurum.tiene_ea`, sin JWT ni ningún secreto por usuario. Riesgo:
+suplantación de escritura — alguien que conozca el email y número de
+cuenta de un usuario con `tiene_ea=true` podría inyectar eventos de
+trade falsos (open/close/sl_change/tp_change) a su nombre. No abordado
+en esta sesión, queda como el siguiente fix de seguridad a diseñar.
+
+## Nota de proceso, para futuras sesiones
+
+El informe de auditoría de hoy mostró en sus propios 3 hallazgos de base
+de datos que apoyarse solo en el código y en incidentes ya documentados
+en este archivo, sin verificar el estado *actual* con una consulta real,
+lleva a falsas alarmas — el trigger de `trade_parciales`, en concreto, se
+había corregido en algún momento sin que este documento se actualizara.
+**Regla ya aplicada hoy y a mantener:** todo hallazgo de "riesgo" a nivel
+de base de datos debe confirmarse con SQL real antes de proponer un fix,
+no basta con el histórico de este documento.
