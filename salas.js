@@ -251,7 +251,12 @@ function _conectarLiveKit(tipo) {
     if (!LK) { showToast('LiveKit SDK no disponible.'); return; }
 
     var token = await _getLiveKitToken(roomName);
-    if (!token) { showToast('Error al obtener acceso a la sala.'); return; }
+    if (!token) {
+      showToast('No tienes acceso a esta sala.');
+      document.getElementById('sala-interior').style.display = 'none';
+      document.getElementById('salas-lista').style.display   = 'block';
+      return;
+    }
 
     livekitRoom = new LK.Room({ adaptiveStream: true, dynacast: true });
 
