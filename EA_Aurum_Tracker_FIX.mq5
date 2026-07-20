@@ -364,6 +364,15 @@ void PersistirCola() {
 // y los vuelve a meter en g_cola para que ProcessRetryQueue los reintente.
 void CargarColaPersistida() {
    string fname = ColaFileName();
+
+   // FIX (20/07): g_cola es variable global — un reinicio por REASON_PARAMETERS
+   // no la limpia (sigue viva en memoria). Sin este reset, cada reinicio de
+   // ese tipo volvía a sumar el contenido del archivo sobre lo que ya había
+   // en memoria, duplicando la cola indefinidamente. PersistirCola() ya
+   // sobrescribe el archivo completo en cada cambio, así que partir de cero
+   // aquí es seguro: lo único que debe sobrevivir es lo que hay en disco.
+   ArrayResize(g_cola, 0);
+
    if(!FileIsExist(fname, FILE_COMMON)) return;
 
    int fh = FileOpen(fname, FILE_READ | FILE_TXT | FILE_ANSI | FILE_COMMON);
