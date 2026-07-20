@@ -422,8 +422,8 @@ function histSubir(file, onDone) {
     var _parsed = parsearTrades(raw);
     var trades   = Array.isArray(_parsed) ? _parsed : (_parsed.trades || []);
     var parciales = Array.isArray(_parsed) ? [] : (_parsed.parciales || []);
-    if (!trades || trades.length < 5) {
-      msg.style.color = 'var(--red)'; msg.textContent = 'No se encontraron trades XAU/USD suficientes.';
+    if (!trades || trades.length < 1) {
+      msg.style.color = 'var(--red)'; msg.textContent = 'No se encontraron trades XAU/USD en el archivo.';
       document.getElementById('hist-progreso').style.display = 'none';
       if (typeof onDone === 'function') onDone();
       return;
