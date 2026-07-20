@@ -1074,3 +1074,59 @@ existente de activar/desactivar EA por usuario:
 3. Solo entonces aplicar la fase 4 (bloqueo obligatorio) — así no se
    corre el riesgo de bloquear a un usuario que aún no tiene contraseña
    configurada.
+
+---
+
+# Sesión 20/07 — Cuenta Retos 167807: bug crítico de cola duplicada en el EA + ajustes de import
+
+## HALLAZGO 1 (crítico) — `g_cola` se duplicaba en cada reinicio del EA
+
+`g_cola` (la cola de eventos pendientes del EA) era una variable global
+que nunca se reseteaba en `OnInit()`. En MQL5, un reinicio por
+`REASON_PARAMETERS` (cambiar Inputs y aceptar Propiedades) no limpia las
+variables globales — solo llama a `OnDeinit()`+`OnInit()` sobre la misma
+instancia. `CargarColaPersistida()` sumaba el contenido del archivo de
+disco sobre lo que ya había en memoria en cada reinicio, duplicando la
+cola exponencialmente.
+
+Confirmado en producción: la cuenta 167807 llegó a **440.555 eventos
+"pendientes" (105,7 MB)** partiendo de solo 3 trades reales, tras los
+reinicios normales de configurar Email/EaPassword/IntervaloEnvioSegundos
+tanto ayer como hoy. Verificado en logs de Vercel que **NO** llegó a
+dispararse el envío masivo contra el servidor — se detectó a tiempo (solo
+4 peticiones reales a `/api/trade-mt5` en 24h, todas de un único
+`position_id` legítimo).
+
+**FIX aplicado:** `ArrayResize(g_cola, 0)` al inicio de
+`CargarColaPersistida()`, antes de leer el archivo — así cada reinicio
+parte de cero y solo carga lo que hay legítimamente en disco (que
+`PersistirCola()` sí sobrescribe entero en cada cambio, así que es
+seguro). Un solo punto de cambio. Commit `c63fd20`.
+
+Archivo de cola corrupto de la 167807
+(`aurum_cola_167807.txt`, `Common\Files`) borrado a mano tras confirmar
+que MT5 ya no lo tenía bloqueado (se quitó el EA del gráfico primero).
+Verificado tras el fix: reinicio limpio, log del EA mostrando solo "2
+eventos pendientes" (los legítimos).
+
+**Importante para el futuro:** cualquier reconfiguración del EA (Email,
+EaPassword, intervalos) implica reinicios por `REASON_PARAMETERS` — antes
+del fix esto era peligroso en cadena, ahora ya no. Si algún día se ve un
+archivo `aurum_cola_<cuenta>.txt` anormalmente grande o un "eventos
+pendientes" muy alto en el log de MT5, **este es el patrón a revisar
+primero**.
+
+## HALLAZGO 2 (menor) — mínimo de 5 trades bloqueaba importar cuentas nuevas
+
+`historial.js` exigía un mínimo de 5 trades para permitir la importación
+manual, lo que impedía importar cuentas nuevas con pocos trades — el
+mensaje de error ("no se encontraron trades XAU/USD suficientes") además
+era confuso, sonaba a fallo de detección del parser cuando en realidad
+funcionaba bien. Bajado el mínimo a 1 (solo bloquea si `trades.length ===
+0`) y mensaje corregido a "No se encontraron trades XAU/USD en el
+archivo". Commit `1d960a0`, desplegado a producción.
+
+## Resultado
+
+Cuenta Retos 167807 operativa — EA sincronizando correctamente y datos
+visibles en Trade Record.
