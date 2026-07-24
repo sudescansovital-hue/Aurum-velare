@@ -4,6 +4,7 @@
 
 const SUPA_URL = process.env.SUPABASE_URL || 'https://rsrbxcvlnbwpiyhumqmt.supabase.co';
 const SUPA_KEY = process.env.SUPABASE_SERVICE_KEY;
+const EA_SHARED_SECRET = process.env.EA_SHARED_SECRET;
 
 function _headers() {
   return {
@@ -366,8 +367,13 @@ async function handleClose(body, email, cuentaNumero, cuentaNombre) {
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   if (!SUPA_KEY)             return res.status(500).json({ error: 'SUPABASE_SERVICE_KEY no configurada' });
+  if (!EA_SHARED_SECRET)     return res.status(500).json({ error: 'EA_SHARED_SECRET no configurada' });
 
-  const { event, email, cuenta_numero } = req.body || {};
+  const { event, email, cuenta_numero, token } = req.body || {};
+
+  if (token !== EA_SHARED_SECRET) {
+    return res.status(401).json({ error: 'Token inválido o ausente' });
+  }
 
   if (!event || !email || !cuenta_numero) {
     return res.status(400).json({ error: 'Campos requeridos: event, email, cuenta_numero' });
