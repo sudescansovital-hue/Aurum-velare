@@ -1130,3 +1130,75 @@ archivo". Commit `1d960a0`, desplegado a producción.
 
 Cuenta Retos 167807 operativa — EA sincronizando correctamente y datos
 visibles en Trade Record.
+
+---
+
+# Sesión 24/07 — Token compartido para el EA + fix visual de ciclo dots
+
+## ✅ CERRADO — Fix visual de `buildCicloDots` (gestion.js)
+
+Cuando `completados === 0` (ningún ciclo de 111 trades cerrado todavía),
+el bloque que actualiza `#ciclo-completado-label` y
+`#ciclo-completado-trades` estaba detrás de un `if (completados > 0)`
+sin rama `else` — se quedaba visible el texto de plantilla de
+`index.html` (`"Ciclo 1 — completado"` / `"111 / 111 trades"`), aunque
+fuera mentira. Ahora, con `completados === 0`, se muestra "Aún sin
+ciclos completados" y el bloque de trades queda vacío. Commit `a1c689f`,
+desplegado y en producción.
+
+## ✅ CERRADO — Token compartido para autenticar al EA (capa nueva, independiente de `ea_password`)
+
+**Hallazgo confirmado contra código real:** `api/trade-mt5.js` no
+validaba ningún secreto — solo comprobaba `email` + `tiene_ea`, así que
+cualquiera con el email de un usuario con EA activo podía falsificar
+eventos. Además, si `cuenta_numero` no coincidía con
+`cuenta_maestra`/`cuenta_retos`/`cuenta_prueba` del usuario, el endpoint
+lo etiquetaba "Cuenta Externa" y seguía aceptándolo sin más (este segundo
+punto queda sin tocar, ver pendientes abajo).
+
+**Mecanismo aplicado (solo el primero de los dos):** input `Token` nuevo
+en el EA (`EA_Aurum_Tracker_FIX.mq5`), mandado en los seis eventos
+(open/sl_change/tp_change/original_capture/partial_close/close),
+validado en `api/trade-mt5.js` contra la variable de entorno
+`EA_SHARED_SECRET` — rechazo `401` si no coincide o falta. Es una capa
+**independiente** del mecanismo `ea_password` por usuario (que sigue en
+fase 1 de 4, sin tocar — ver fase 4 pendiente abajo): `Token` = "es un
+EA legítimo", `ea_password` = "es la cuenta correcta" (pendiente).
+
+Commit `fce8eb8`. Desplegado y **ACTIVO en producción** — el 401 ya está
+en vigor. `EA_SHARED_SECRET` confirmada como configurada en Vercel
+(Production + Preview) antes del deploy.
+
+## ⚠️ PENDIENTE — URGENTE, primero de todo en la próxima sesión
+
+El EA real en MT5 (carpeta `MQL5\Experts`, **no** el `.mq5` del repo)
+todavía tiene la versión vieja sin el campo `Token`. Como el rechazo 401
+ya está activo en producción, **el EA puede estar fallando en silencio
+ahora mismo en cada evento** hasta que se reemplace.
+
+**Pasos:** copiar el `.mq5` actualizado del repo a `MQL5\Experts`,
+compilar, recargar el EA en el gráfico, y pegar el Token en Entradas.
+Revisar el log de "Expertos" en MT5 para confirmar si ha habido
+rechazos 401 mientras tanto (y, si los hubo, cuántos eventos se han
+perdido — la cola de reintentos del EA los reintendrá en cuanto el
+Token esté puesto, así que probablemente no haya pérdida real, pero hay
+que confirmarlo, no asumirlo).
+
+## Pendiente — sin empezar
+
+1. **Cambio #2 de seguridad, todavía sin aplicar:** rechazar con `403`
+   en `api/trade-mt5.js` si `cuenta_numero` no pertenece al usuario
+   (`cuenta_maestra`/`cuenta_retos`/`cuenta_prueba`) — ahora mismo solo
+   se etiqueta "Cuenta Externa" y se acepta igual.
+2. **Fase 4 de `ea_password`** (hacerlo obligatorio) — ahora mismo solo
+   avisa por log, nunca rechaza. Ver detalle de fases 1-3 más arriba
+   (sesión 19/07, segunda mitad).
+3. **Columna `fecha` vacía en trades `fuente='import'` de MT5:** el
+   parser `_parsearMT5` nunca calcula `fecha` en el objeto trade (solo
+   `hora` y `dia`), así que `historial.js` siempre sube `fecha=''` para
+   importaciones manuales de MT5. No afecta al cálculo de "días activa"
+   (usa el `fp`), pero puede afectar a otros sitios que lean
+   `trade.fecha` directamente — sin confirmar todavía cuáles.
+4. **Dos ítems de diseño de producto**, arrastrados de sesiones
+   anteriores: bloqueo de parámetros de Cumplimiento, y rediseño de
+   packs (Raíz/Umbral/Senda/Cima/VIP).
