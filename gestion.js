@@ -406,10 +406,10 @@ function buildCicloDots() {
   var el;
   el = document.getElementById('ciclo-num-actual'); if (el) el.textContent = cicloActual;
   el = document.getElementById('ciclo-encurso-txt'); if (el) el.textContent = 'Ciclo ' + cicloActual + ' en curso — ' + enCurso + ' trades';
-  if (completados > 0) {
-    el = document.getElementById('ciclo-completado-label'); if (el) el.textContent = 'Ciclo ' + completados + ' — completado';
-    el = document.getElementById('ciclo-completado-trades'); if (el) el.textContent = '111 / 111 trades';
-  }
+  el = document.getElementById('ciclo-completado-label');
+  if (el) el.textContent = completados > 0 ? ('Ciclo ' + completados + ' — completado') : 'Aún sin ciclos completados';
+  el = document.getElementById('ciclo-completado-trades');
+  if (el) el.textContent = completados > 0 ? '111 / 111 trades' : '';
 
   // Métricas del ciclo actual
   var ultimos = trades.slice(-enCurso);
