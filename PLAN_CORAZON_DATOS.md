@@ -1073,7 +1073,11 @@ comprobada por el servidor.
   configurada en su EA (ahora mismo solo Roderas la tiene puesta), si no
   se les bloquearía sin avisar.
 
-## PENDIENTE NUEVO A AÑADIR — Panel admin: gestión de ea_password
+## ✅ CERRADO (25/07) — Panel admin: gestión de ea_password
+
+Construido y probado en producción — ver sección "Sesión 25/07 (verificación)" más abajo para el detalle completo (commit `b534651`). Las 3 piezas pedidas abajo quedaron todas cubiertas: mostrar/generar/copiar, dentro del modal de edición de usuario existente, junto al interruptor "Tiene EA".
+
+## Panel admin: gestión de ea_password (hallazgo original, referencia histórica)
 
 Roderas señaló que ahora mismo generar y consultar la contraseña de un
 usuario requiere SQL manual en Supabase — no es sostenible con más de un
@@ -1263,7 +1267,7 @@ Roderas pidió verificar puntualmente 7 pendientes concretos ya anotados en este
 
 **2. Fase 4 de `ea_password` — confirmado que SIGUE PENDIENTE, sin cambios.** `api/trade-mt5.js` líneas 402-414 idénticas a lo ya documentado: solo `console.log`/`console.warn`/`console.error` según el caso, ningún `return` que rechace. Sigue en fase 1 de 4.
 
-**3. Panel admin de `ea_password` — confirmado que SIGUE SIN CONSTRUIR.** `grep` de `ea_password`/`eaPassword`/`EaPassword` contra `admin.js` e `index.html`: cero resultados en ambos. No existe ningún UI para mostrar, generar o copiar la contraseña — sigue siendo SQL manual.
+**3. ✅ CERRADO (25/07) — Panel admin de `ea_password` construido y probado en producción.** En el momento de esta verificación (mismo día) seguía sin construir (`grep` de `ea_password`/`eaPassword`/`EaPassword` contra `admin.js` e `index.html`: cero resultados). Se construyó esa misma sesión: dentro del modal de edición de usuario existente (`#admin-modal`), un bloque nuevo (`#admin-edit-ea-password-block`) justo debajo del checkbox "Tiene EA", visible/oculto en vivo según ese checkbox. Tres piezas: campo de solo lectura con la contraseña actual, botón "Generar nueva" (14 caracteres alfanuméricos sin ambiguos `0/O`/`1/l/I`, guarda al instante en Supabase vía `PATCH` a `usuarios_aurum.ea_password`, sin esperar a "Guardar cambios"), y botón "Copiar" (`navigator.clipboard`). Commit `b534651`, desplegado (push `5e3915a..b534651`) y **verificado en producción por Roderas**: el bloque aparece/desaparece al marcar/desmarcar "Tiene EA", el generador probado en vivo dio `rz6hDfVx5EAqJZ` (14 caracteres, sin ambiguos), Copiar funciona, y el guardado instantáneo persiste sin pulsar "Guardar cambios".
 
 **4. Unificación visitas.js/gestion.js — NI cerrado NI completamente intacto.** Ver nota añadida arriba, en su sección original. Unificación parcial (commit `be9cb22`, 07/07) ya existía antes incluso de que se escribiera la recomendación de este mismo documento (18/07) — quedó sin detectar en la propia auditoría que la recomendó.
 
@@ -1281,4 +1285,4 @@ Roderas pidió verificar puntualmente 7 pendientes concretos ya anotados en este
 
 **7. ✅ CERRADO/CONFIRMADO (25/07) — Las 4 cuentas cTrader sin fecha recuperable (135146, 7741924, 7746279, 7751048).** Roderas ejecutó la consulta propuesta arriba: **1037 filas sin fecha** — exactamente el mismo total que quedó tras el backfill de hoy (sesión "Fecha vacía en imports MT5" más arriba: de 1284 trades `fuente='import'` con `fecha=''`, 247 recuperados vía `fp`, quedaron 1037 irrecuperables). Coincidencia exacta confirmada: **los 1037 trades sin fecha son, en efecto, estas 4 cuentas** — ninguno tiene fecha dentro de su `fp` (mismo patrón "solo ID numérico" ya documentado en la sesión 12/07). Sin decisión tomada sobre si investigar un origen alternativo de la fecha (archivo fuente distinto, etc.) — se mantiene el mensaje honesto ("Sin fecha registrada") como solución ya aplicada, no hay nada más pendiente de código aquí.
 
-**Resumen final — de los 7: 3 estaban cerrados sin documentar (1, parcialmente el 4, y el 7 coincide con el backfill ya aplicado), 3 confirmados sin cambios (2, 3, 5), y 1 (6) era un riesgo real activo que se detectó, verificó y **cerró en esta misma sesión** — trigger recreado en las 5 tablas correctas. Los 7 quedan verificados y, de ellos, ninguno sigue abierto salvo los ya sabidos de antes (fase 4 `ea_password`, panel admin `ea_password`, `rr_minimo`), más el detalle menor de versionar el SQL del trigger en el repo.**
+**Resumen final — de los 7: 3 estaban cerrados sin documentar (1, parcialmente el 4, y el 7 coincide con el backfill ya aplicado), 2 confirmados sin cambios (2, 5), y 2 (3 y 6) eran/eran-parte-de trabajo real que se detectó y **se cerró en esta misma sesión** — el panel admin de `ea_password` se construyó y se verificó en producción (punto 3), y el trigger se recreó en las 5 tablas correctas (punto 6). De los 7, solo quedan abiertos de verdad: fase 4 de `ea_password` (2) y `rr_minimo` (5), más el detalle menor de versionar el SQL del trigger en el repo.**
