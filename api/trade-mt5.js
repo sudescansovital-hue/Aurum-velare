@@ -399,19 +399,18 @@ module.exports = async function handler(req, res) {
     return res.status(403).json({ error: 'El usuario no tiene acceso al EA Aurum' });
   }
 
-  // FASE 1 (19/07) — verificación de ea_password NO obligatoria todavía.
-  // Objetivo: no romper el EA de Roderas en producción, que aún no manda
-  // este campo. La fase 4 hará esto obligatorio (rechazo real).
+  // FASE 4 (25/07) — ea_password obligatoria: rechazo 401 real, mismo
+  // patrón que el Token compartido (rechazo antes de procesar el evento).
+  // Capa independiente del Token: Token = "es un EA legítimo", ea_password
+  // = "es la cuenta correcta". Confirmado antes de aplicar: el único
+  // usuario con tiene_ea=true y EA activo de verdad (Roderas) ya tiene
+  // ea_password puesta y confirmada en su EA real.
   const eaPasswordRecibida = req.body.ea_password;
-  if (!user.ea_password) {
-    console.log('[trade-mt5] ea_password: usuario', email, 'sin contraseña configurada aún (fase 1, no bloqueante)');
-  } else if (!eaPasswordRecibida) {
-    console.warn('[trade-mt5] ea_password: usuario', email, 'tiene contraseña configurada pero el EA no la mandó (aceptado por compatibilidad, fase 1)');
-  } else if (eaPasswordRecibida !== user.ea_password) {
-    console.error('[trade-mt5] ea_password: NO COINCIDE para', email, '— evento aceptado igualmente (fase 1, no bloqueante)');
-  } else {
-    console.log('[trade-mt5] ea_password: OK para', email);
+  if (!user.ea_password || eaPasswordRecibida !== user.ea_password) {
+    console.error('[trade-mt5] ea_password: rechazado para', email, '— no coincide o falta');
+    return res.status(401).json({ error: 'ea_password inválida o ausente' });
   }
+  console.log('[trade-mt5] ea_password: OK para', email);
 
   // Resolver nombre de carpeta desde número de cuenta
   let cuentaNombre = 'Cuenta Externa';
