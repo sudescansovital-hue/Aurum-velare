@@ -1277,12 +1277,6 @@ Roderas ejecutó la consulta propuesta arriba contra `information_schema.trigger
 
 **Pendiente real, con prioridad alta para la próxima sesión:** recrear el trigger `prevenir_cuenta_ajena` en las tablas que lo necesitan (`trades`, `trade_parciales`, `usuarios_aurum` como mínimo — valorar si también `ea_trades`/`ea_sl_changes`/`ea_tp_changes`), y esta vez dejarlo versionado en un `.sql` del repo (no solo creado a mano en Supabase), precisamente para evitar que esto vuelva a perderse sin que nadie se entere.
 
-**7. Las 4 cuentas cTrader sin fecha recuperable (135146, 7741924, 7746279, 7751048) — SIN VERIFICAR, requiere SQL.** Confirmado por código que no existe ningún script de backfill/reimportación nuevo en el repo para estas cuentas — consistente con "sin decisión tomada, sin tocar". El número exacto actual solo se puede confirmar en Supabase (la anon key no puede leerlo, mismo bloqueo por RLS que en la sesión anterior):
-```sql
-select cuenta_numero, count(*), count(*) filter (where fecha is null or fecha='') as sin_fecha
-from trades
-where cuenta_numero in ('135146','7741924','7746279','7751048')
-group by cuenta_numero;
-```
+**7. ✅ CERRADO/CONFIRMADO (25/07) — Las 4 cuentas cTrader sin fecha recuperable (135146, 7741924, 7746279, 7751048).** Roderas ejecutó la consulta propuesta arriba: **1037 filas sin fecha** — exactamente el mismo total que quedó tras el backfill de hoy (sesión "Fecha vacía en imports MT5" más arriba: de 1284 trades `fuente='import'` con `fecha=''`, 247 recuperados vía `fp`, quedaron 1037 irrecuperables). Coincidencia exacta confirmada: **los 1037 trades sin fecha son, en efecto, estas 4 cuentas** — ninguno tiene fecha dentro de su `fp` (mismo patrón "solo ID numérico" ya documentado en la sesión 12/07). Sin decisión tomada sobre si investigar un origen alternativo de la fecha (archivo fuente distinto, etc.) — se mantiene el mensaje honesto ("Sin fecha registrada") como solución ya aplicada, no hay nada más pendiente de código aquí.
 
-**Resumen — de los 7: 2 estaban cerrados sin documentar (1 y parcialmente el 4), 3 confirmados sin cambios (2, 3, 5), 1 confirmado por SQL como riesgo real activo, más grave de lo documentado (6 — ver arriba), y 1 sigue sin verificar por falta de acceso a Supabase (7, consulta pendiente de ejecutar).**
+**Resumen — de los 7: 3 estaban cerrados sin documentar (1, parcialmente el 4, y el 7 coincide con el backfill ya aplicado), 3 confirmados sin cambios (2, 3, 5), y 1 confirmado por SQL como riesgo real activo, más grave de lo documentado (6 — ver arriba). Los 7 quedan verificados — no queda ninguno pendiente de comprobación.**
