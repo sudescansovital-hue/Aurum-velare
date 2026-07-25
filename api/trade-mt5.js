@@ -420,6 +420,15 @@ module.exports = async function handler(req, res) {
   else if (user.cuenta_retos   && String(user.cuenta_retos)   === cn) cuentaNombre = 'Cuenta Retos';
   else if (user.cuenta_prueba  && String(user.cuenta_prueba)  === cn) cuentaNombre = 'Cuenta Prueba';
 
+  // Segunda capa (25/07): la cuenta que manda el EA debe pertenecer al
+  // usuario. Si no coincide con ninguna de sus 3 cuentas registradas, se
+  // rechaza en vez de aceptarla como "Cuenta Externa". No afecta a
+  // historial.js ni a la importación manual, que siguen aceptando
+  // cualquier cuenta_numero.
+  if (cuentaNombre === 'Cuenta Externa') {
+    return res.status(403).json({ error: 'cuenta_numero no pertenece al usuario: ' + cn });
+  }
+
   // Despachar evento
   let result;
   try {
