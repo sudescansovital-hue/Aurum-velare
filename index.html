@@ -2931,8 +2931,18 @@ document.addEventListener('DOMContentLoaded', function() {
       </div>
       <div style="text-align:center;">
         <label style="font-size:11px;color:var(--text-muted);letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:.6rem;">Tiene EA</label>
-        <input id="admin-edit-tiene-ea" type="checkbox" style="width:18px;height:18px;cursor:pointer;accent-color:#cc9966;">
+        <input id="admin-edit-tiene-ea" type="checkbox" onchange="adminToggleEaPasswordBlock(this.checked)" style="width:18px;height:18px;cursor:pointer;accent-color:#cc9966;">
       </div>
+    </div>
+
+    <div id="admin-edit-ea-password-block" style="display:none;margin-bottom:1rem;padding:.8rem .9rem;border:1px solid var(--border);background:var(--bg2);">
+      <label style="font-size:11px;color:var(--text-muted);letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:.5rem;">Contraseña EA (ea_password)</label>
+      <div style="display:flex;gap:.5rem;align-items:center;">
+        <input id="admin-edit-ea-password" type="text" readonly placeholder="Sin contraseña generada" style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.5rem .7rem;font-size:13px;font-family:monospace;letter-spacing:.05em;box-sizing:border-box;">
+        <button onclick="adminCopiarEaPassword()" style="padding:.5rem .8rem;background:transparent;border:1px solid var(--border);color:var(--text-muted);cursor:pointer;font-size:12px;white-space:nowrap;">Copiar</button>
+        <button onclick="adminGenerarEaPassword()" style="padding:.5rem .8rem;background:transparent;border:1px solid #cc664466;color:#cc9966;cursor:pointer;font-size:12px;white-space:nowrap;">Generar nueva</button>
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:.4rem;">Se guarda al instante en Supabase al generar — no hace falta pulsar "Guardar cambios".</div>
     </div>
 
     <div style="margin-bottom:1.5rem;">

@@ -198,6 +198,9 @@ function adminAbrirEditar(id) {
   set('admin-edit-notas',       u.notas   || '');
   document.getElementById('admin-edit-activo').checked = !!u.activo;
   document.getElementById('admin-edit-tiene-ea').checked = !!u.tiene_ea;
+  set('admin-edit-ea-password', u.ea_password || '');
+  var eaPassBlock = document.getElementById('admin-edit-ea-password-block');
+  if (eaPassBlock) eaPassBlock.style.display = u.tiene_ea ? 'block' : 'none';
   adminActualizarSalaAsignada(u.animal || '');
 
   // Calcular días en proceso desde el primer trade del usuario
@@ -228,6 +231,41 @@ function adminAbrirEditar(id) {
 function adminCerrarModal() {
   document.getElementById('admin-modal').style.display = 'none';
   adminEditId = null;
+}
+
+function adminToggleEaPasswordBlock(checked) {
+  var b = document.getElementById('admin-edit-ea-password-block');
+  if (b) b.style.display = checked ? 'block' : 'none';
+}
+
+async function adminGenerarEaPassword() {
+  if (!adminEditId) return;
+  // Sin caracteres ambiguos (0/O, 1/l/I) — se teclea a mano en el input del EA en MT5
+  var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+  var pass = '';
+  for (var i = 0; i < 14; i++) pass += chars.charAt(Math.floor(Math.random() * chars.length));
+
+  var res = await supaPatch('usuarios_aurum', 'id=eq.' + adminEditId, { ea_password: pass, updated_at: new Date().toISOString() }, getToken());
+  if (res.error) {
+    console.error('[ADMIN] adminGenerarEaPassword error:', res.error);
+    showToast('Error generando contraseña EA');
+    return;
+  }
+
+  document.getElementById('admin-edit-ea-password').value = pass;
+  var u = adminUsuarios.find(function(x) { return x.id === adminEditId; });
+  if (u) u.ea_password = pass;
+  showToast('Contraseña EA generada y guardada');
+}
+
+function adminCopiarEaPassword() {
+  var val = document.getElementById('admin-edit-ea-password').value;
+  if (!val) { showToast('No hay contraseña que copiar'); return; }
+  navigator.clipboard.writeText(val).then(function() {
+    showToast('Contraseña copiada');
+  }).catch(function() {
+    showToast('No se pudo copiar — cópiala manualmente');
+  });
 }
 
 async function adminGuardarUsuario() {
