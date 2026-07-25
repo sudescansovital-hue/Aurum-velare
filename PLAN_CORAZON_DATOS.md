@@ -935,6 +935,16 @@ SQL real ejecutado por Roderas, **los 3 eran falsos positivos:**
   trigger se añadió en algún momento posterior y esa nota quedó
   desactualizada. **Corrección respecto a lo anotado arriba en este
   documento: sí está cubierta.**
+  **⚠️ DESMENTIDO A SU VEZ (verificado por SQL el 25/07, ver sección
+  "Sesión 25/07 (verificación)" al final del documento):** una consulta
+  posterior contra `information_schema.triggers` da **0 filas** para
+  `prevenir_cuenta_ajena` en toda la base de datos — ni en
+  `trade_parciales`, ni en `trades`, ni en `usuarios_aurum`. O el trigger
+  se perdió entre el 19/07 y el 25/07, o esta comprobación de aquí tenía
+  un problema (nombre distinto, `search_path`, etc.) que no se detectó en
+  su momento. Cualquiera de las dos posibilidades es un hallazgo grave por
+  sí solo. No dar por buena ninguna de las dos fechas sin volver a
+  comprobar con una tercera consulta.
 - **No hay fuga de emails vía anon key** en `tablilla_avisos` /
   `lista_espera`. Confirmado revisando `pg_policies`: esas tablas solo
   tienen políticas `INSERT`, ninguna `SELECT` pública — la anon key
@@ -1259,13 +1269,13 @@ Roderas pidió verificar puntualmente 7 pendientes concretos ya anotados en este
 
 **5. `rr_minimo` para retos — confirmado que SIGUE FALTANDO en los 3 sitios.** `grep` de `rr_minimo` en todo el repo: solo aparece dentro de este propio documento, en ningún archivo de código. El `<select id="admin-reto-condicion-tipo">` (`index.html:2621-2627`) solo tiene `lote_maximo`/`wr_minimo`/`trades_sin_revenge`/`pnl_minimo`; `calcularProgreso()` (`gestion.js:2203-2229`) tiene el mismo `else if` para esos mismos 4 tipos, sin rama para `rr_minimo`. Nada construido todavía.
 
-**6. Trigger `prevenir_cuenta_ajena` en `ea_trades`/`ea_sl_changes`/`ea_tp_changes` — SIN VERIFICAR, requiere SQL.** No hay ningún `.sql` versionado en el repo que defina este trigger (se creó directo en Supabase), y no se puede consultar `information_schema.triggers`/`pg_trigger` con la anon key pública vía REST — la sesión 19/07 de este mismo documento ya advirtió que apoyarse en el histórico sin volver a comprobar el estado real lleva a falsas alarmas (ahí, el propio trigger de `trade_parciales` había cambiado sin que se actualizara la nota). Para confirmar el estado real, ejecuta esto en el SQL Editor de Supabase:
-```sql
-select event_object_table, trigger_name
-from information_schema.triggers
-where trigger_name ilike '%prevenir_cuenta_ajena%'
-order by event_object_table;
-```
+**6. ⚠️⚠️ Trigger `prevenir_cuenta_ajena` — CONFIRMADO POR SQL (25/07): NO EXISTE EN NINGUNA TABLA. Riesgo real, no teórico.**
+
+Roderas ejecutó la consulta propuesta arriba contra `information_schema.triggers`: **0 filas**. El trigger no existe en `ea_trades`/`ea_sl_changes`/`ea_tp_changes` (que era lo único que este documento tenía anotado como pendiente) **ni tampoco en `trades`, `trade_parciales` ni `usuarios_aurum`**, donde múltiples secciones anteriores de este mismo documento (línea ~419, sesión 12/07; línea ~930, sesión 19/07 — "`trade_parciales` SÍ tiene el trigger... confirmado con SQL") **afirmaban que sí existía**. Esas notas quedan desmentidas por esta consulta más reciente — **ninguna tabla del sistema tiene hoy protección real contra `UPDATE usuario_email` cruzado entre usuarios.**
+
+**Por qué esto es grave de verdad:** este documento registra al menos 2 incidentes reales de contaminación cruzada que se atribuyeron a la ausencia de este trigger en tablas concretas (Willian→Mara vía `trade_parciales`, 04/07; los 101 registros duplicados Willian→Roderas, 12/07) mientras se asumía que `trades`/`usuarios_aurum` sí estaban protegidas. Si el trigger nunca existió en ninguna tabla (o existió y se perdió en algún momento sin registrarlo), **cualquier reasignación de cuenta hecha desde entonces — incluida la migración Willian→Roderas del 12/07 y los ajustes de `admin.js`/`resetCuenta()` — se ha apoyado en una protección que no estaba ahí.** No hay evidencia de que esto haya causado un incidente nuevo, pero tampoco hay ninguna red de seguridad activa ahora mismo.
+
+**Pendiente real, con prioridad alta para la próxima sesión:** recrear el trigger `prevenir_cuenta_ajena` en las tablas que lo necesitan (`trades`, `trade_parciales`, `usuarios_aurum` como mínimo — valorar si también `ea_trades`/`ea_sl_changes`/`ea_tp_changes`), y esta vez dejarlo versionado en un `.sql` del repo (no solo creado a mano en Supabase), precisamente para evitar que esto vuelva a perderse sin que nadie se entere.
 
 **7. Las 4 cuentas cTrader sin fecha recuperable (135146, 7741924, 7746279, 7751048) — SIN VERIFICAR, requiere SQL.** Confirmado por código que no existe ningún script de backfill/reimportación nuevo en el repo para estas cuentas — consistente con "sin decisión tomada, sin tocar". El número exacto actual solo se puede confirmar en Supabase (la anon key no puede leerlo, mismo bloqueo por RLS que en la sesión anterior):
 ```sql
@@ -1275,4 +1285,4 @@ where cuenta_numero in ('135146','7741924','7746279','7751048')
 group by cuenta_numero;
 ```
 
-**Resumen — de los 7, 2 estaban cerrados sin documentar (1 y parcialmente el 4), 3 confirmados sin cambios (2, 3, 5), y 2 no se pudieron verificar desde aquí por falta de acceso a Supabase (6 y 7) — quedan anotados con la consulta exacta para cerrarlos en cuanto Roderas la ejecute.**
+**Resumen — de los 7: 2 estaban cerrados sin documentar (1 y parcialmente el 4), 3 confirmados sin cambios (2, 3, 5), 1 confirmado por SQL como riesgo real activo, más grave de lo documentado (6 — ver arriba), y 1 sigue sin verificar por falta de acceso a Supabase (7, consulta pendiente de ejecutar).**
