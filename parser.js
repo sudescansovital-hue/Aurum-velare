@@ -184,7 +184,8 @@ function _parsearMT5(raw, posicionesRow) {
       fp: fp, ben: ben, vol: vol, pe: pe, pc: pcFinal,
       puntos: Math.abs(puntos), ganadora: ben > 0,
       hora: hora, dia: dia, durMin: _durMin(fAp, fCi),
-      sl: sl, tp: tp, tipo: tipo || null
+      sl: sl, tp: tp, tipo: tipo || null,
+      fecha: fechaStr
     });
 
     if (posId) {
