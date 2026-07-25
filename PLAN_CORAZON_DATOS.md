@@ -1186,19 +1186,49 @@ que confirmarlo, no asumirlo).
 
 ## Pendiente — sin empezar
 
-1. **Cambio #2 de seguridad, todavía sin aplicar:** rechazar con `403`
-   en `api/trade-mt5.js` si `cuenta_numero` no pertenece al usuario
-   (`cuenta_maestra`/`cuenta_retos`/`cuenta_prueba`) — ahora mismo solo
-   se etiqueta "Cuenta Externa" y se acepta igual.
+1. **✅ CERRADO (25/07)** — Cambio #2 de seguridad: rechazar con `403`
+   en `api/trade-mt5.js` si `cuenta_numero` no pertenece al usuario.
+   Ver sección "Sesión 25/07" más abajo.
 2. **Fase 4 de `ea_password`** (hacerlo obligatorio) — ahora mismo solo
    avisa por log, nunca rechaza. Ver detalle de fases 1-3 más arriba
    (sesión 19/07, segunda mitad).
-3. **Columna `fecha` vacía en trades `fuente='import'` de MT5:** el
-   parser `_parsearMT5` nunca calcula `fecha` en el objeto trade (solo
-   `hora` y `dia`), así que `historial.js` siempre sube `fecha=''` para
-   importaciones manuales de MT5. No afecta al cálculo de "días activa"
-   (usa el `fp`), pero puede afectar a otros sitios que lean
-   `trade.fecha` directamente — sin confirmar todavía cuáles.
+3. **✅ CERRADO (25/07)** — Columna `fecha` vacía en trades
+   `fuente='import'` de MT5. Ver sección "Sesión 25/07" más abajo.
 4. **Dos ítems de diseño de producto**, arrastrados de sesiones
    anteriores: bloqueo de parámetros de Cumplimiento, y rediseño de
    packs (Raíz/Umbral/Senda/Cima/VIP).
+
+---
+
+# Sesión 25/07 — Cierre de los dos pendientes de seguridad/datos de la sesión anterior
+
+## ✅ CERRADO — Cambio #2 de seguridad: rechazo `403` en `api/trade-mt5.js`
+
+Segunda capa tras el `401` por `Token` (sesión 24/07): si el
+`cuenta_numero` que manda el EA no coincide con `cuenta_maestra`,
+`cuenta_retos` ni `cuenta_prueba` del usuario, el endpoint ya no lo
+etiqueta "Cuenta Externa" y lo acepta — ahora responde `403`. Commit
+`c19860b`.
+
+**No afecta a `historial.js` ni a la importación manual de "Historial
+Externo"** — código separado, sigue aceptando cualquier `cuenta_numero`
+como hasta ahora, sin cambios.
+
+## ✅ CERRADO — Fecha vacía en imports MT5 (`_parsearMT5`)
+
+Confirmado: `_parsearMT5` nunca calculaba ni incluía un campo `fecha`
+en el objeto de cada trade (solo `hora` y `dia`), así que en
+`historial.js` la línea `fecha: t.fecha || ''` siempre guardaba vacío
+para trades `fuente='import'`. Fix: `_parsearMT5` ahora añade
+`fecha: fechaStr` en el `trades.push`, reutilizando el mismo `fechaStr`
+que ya se calculaba para construir el `fp` de cada trade. Commit
+`aa29cc7`.
+
+**Backfill ejecutado en Supabase por SQL** (no por este fix, que solo
+aplica a futuras importaciones): de 1284 trades `fuente='import'` con
+`fecha=''`, **247 recuperados** (extrayendo la fecha del propio `fp`,
+que ya la traía delante). Quedan **1037 trades con fecha irrecuperable
+por este método** (el `fp` tampoco tenía fecha en origen) — pendiente
+para otra sesión si se quiere investigar más a fondo (posible origen:
+mismo patrón de `fp` sin fecha ya documentado para varias cuentas
+Externa de cTrader en la sesión 12/07).
