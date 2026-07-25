@@ -169,7 +169,11 @@ el plan inicial y conviene tener en cuenta mañana (no se han tocado):
 
 Revisado el resto del código (`salas.js`, `admin.js`, `tablillas.js`, `visitas.js`, `auth.js`) buscando específicamente otros `DELETE` masivos o peligrosos como el de `historial.js`. Resultado: **no hay ninguno más**. El único otro `DELETE` del sistema (en `admin.js`, borrar un reto) está bien acotado por `id` — solo borra la fila exacta que el admin decide borrar a propósito, no hay riesgo de arrastre.
 
-## Bug de origen confirmado — contradicción "0 trades / Ciclo 111·100%" (RESUELTO EL DIAGNÓSTICO, FIX TRIVIAL PENDIENTE DE APLICAR)
+## ✅ CERRADO (verificado 25/07, aplicado sin documentar el 08/07) — Bug "0 trades / Ciclo 111·100%"
+
+**Verificado contra código real el 25/07:** el fix ya está aplicado desde hace semanas. `gestion.js:1853-1854` (`buildDashboardHero`) tiene exactamente el guard propuesto abajo (`enCurso`/`pctCiclo` en 0 si `totalTrades === 0`) — commit `9480852` ("fix: persistir diario en Supabase + guard totalTrades=0 en ciclo", 08/07), que nunca se reflejó en este documento. `buildCicloDots` (gestion.js:381-402) sigue con el patrón `trades.length % 111 || 111` sin ese guard explícito, pero no es un bug real porque conserva el guard `if (trades.length < 5) return` (línea 385) que ya lo protegía, tal como decía el hallazgo original de abajo.
+
+## Bug de origen confirmado — contradicción "0 trades / Ciclo 111·100%" (hallazgo original, referencia histórica)
 
 Encontrada la causa exacta de la contradicción vista anoche en la captura de Roderas. En `gestion.js`, función `buildDashboardHero` (la que alimenta el panel "Trades totales / Ciclo actual / OZT" de Mi Proceso), línea 1751:
 
@@ -794,6 +798,12 @@ ninguna acción.
 
 ---
 
+## ⚠️ ACTUALIZACIÓN (verificado 25/07) — Unificación parcial ya existía, más vieja que esta misma recomendación
+
+**Verificado contra código real:** esto no está "completamente sin tocar". El commit `be9cb22` (07/07 — anterior incluso a que se escribiera la recomendación de abajo) ya unificó 2 de los puntos duplicados: `buildTradeRecord()` y `statsCuenta()` (dentro de `buildDashboardHero()`) en `gestion.js` **ya no recalculan a mano** — llaman directamente a `calcTipos()`/`calcMetricas()` de `visitas.js` (`typeof calcTipos === 'function'`). Confirmado con `grep`: `gestion.js` no tiene ninguna definición propia de `calcMetricas`/`calcTipos`/`calcDias`.
+
+**Lo que SÍ sigue sin unificar (confirmado 25/07):** `visitas.js` sigue siendo el único dueño de esas 3 funciones (no se movieron a un archivo compartido tipo `utils-calculos.js`), y otras funciones de `gestion.js` — `buildCicloDots` (líneas ~417/428/471) y `buildEstadisticasAvanzadas` (líneas ~1507-1601) — siguen con su propio cálculo de WR/PNL inline, sin pasar por `calcMetricas`/`calcTipos`. La duplicación de fondo no está resuelta, pero tampoco está intacta — es un progreso parcial y silencioso de hace más de 2 semanas.
+
 ## 🔧 Para otra sesión — Unificar visitas.js y gestion.js (no es urgente)
 
 **Qué es:** verCuenta() (el selector Global/Maestra/Retos/Prueba de Mi
@@ -1232,3 +1242,37 @@ por este método** (el `fp` tampoco tenía fecha en origen) — pendiente
 para otra sesión si se quiere investigar más a fondo (posible origen:
 mismo patrón de `fp` sin fecha ya documentado para varias cuentas
 Externa de cTrader en la sesión 12/07).
+
+---
+
+# Sesión 25/07 (verificación) — Estado real de 7 pendientes, confirmado contra código/datos (no auditoría nueva)
+
+Roderas pidió verificar puntualmente 7 pendientes concretos ya anotados en este documento, para separar lo que ya se resolvió sin documentar de lo que sigue de verdad abierto. Verificado contra el código real en disco (y `git log` para fechar los fixes encontrados) — sin tocar código en esta sesión.
+
+**1. Bug "0 trades / Ciclo 111·100%" (`buildDashboardHero`) — ✅ CERRADO, ya lo estaba.** Ver nota añadida arriba, en su sección original. Commit `9480852` (08/07), nunca documentado.
+
+**2. Fase 4 de `ea_password` — confirmado que SIGUE PENDIENTE, sin cambios.** `api/trade-mt5.js` líneas 402-414 idénticas a lo ya documentado: solo `console.log`/`console.warn`/`console.error` según el caso, ningún `return` que rechace. Sigue en fase 1 de 4.
+
+**3. Panel admin de `ea_password` — confirmado que SIGUE SIN CONSTRUIR.** `grep` de `ea_password`/`eaPassword`/`EaPassword` contra `admin.js` e `index.html`: cero resultados en ambos. No existe ningún UI para mostrar, generar o copiar la contraseña — sigue siendo SQL manual.
+
+**4. Unificación visitas.js/gestion.js — NI cerrado NI completamente intacto.** Ver nota añadida arriba, en su sección original. Unificación parcial (commit `be9cb22`, 07/07) ya existía antes incluso de que se escribiera la recomendación de este mismo documento (18/07) — quedó sin detectar en la propia auditoría que la recomendó.
+
+**5. `rr_minimo` para retos — confirmado que SIGUE FALTANDO en los 3 sitios.** `grep` de `rr_minimo` en todo el repo: solo aparece dentro de este propio documento, en ningún archivo de código. El `<select id="admin-reto-condicion-tipo">` (`index.html:2621-2627`) solo tiene `lote_maximo`/`wr_minimo`/`trades_sin_revenge`/`pnl_minimo`; `calcularProgreso()` (`gestion.js:2203-2229`) tiene el mismo `else if` para esos mismos 4 tipos, sin rama para `rr_minimo`. Nada construido todavía.
+
+**6. Trigger `prevenir_cuenta_ajena` en `ea_trades`/`ea_sl_changes`/`ea_tp_changes` — SIN VERIFICAR, requiere SQL.** No hay ningún `.sql` versionado en el repo que defina este trigger (se creó directo en Supabase), y no se puede consultar `information_schema.triggers`/`pg_trigger` con la anon key pública vía REST — la sesión 19/07 de este mismo documento ya advirtió que apoyarse en el histórico sin volver a comprobar el estado real lleva a falsas alarmas (ahí, el propio trigger de `trade_parciales` había cambiado sin que se actualizara la nota). Para confirmar el estado real, ejecuta esto en el SQL Editor de Supabase:
+```sql
+select event_object_table, trigger_name
+from information_schema.triggers
+where trigger_name ilike '%prevenir_cuenta_ajena%'
+order by event_object_table;
+```
+
+**7. Las 4 cuentas cTrader sin fecha recuperable (135146, 7741924, 7746279, 7751048) — SIN VERIFICAR, requiere SQL.** Confirmado por código que no existe ningún script de backfill/reimportación nuevo en el repo para estas cuentas — consistente con "sin decisión tomada, sin tocar". El número exacto actual solo se puede confirmar en Supabase (la anon key no puede leerlo, mismo bloqueo por RLS que en la sesión anterior):
+```sql
+select cuenta_numero, count(*), count(*) filter (where fecha is null or fecha='') as sin_fecha
+from trades
+where cuenta_numero in ('135146','7741924','7746279','7751048')
+group by cuenta_numero;
+```
+
+**Resumen — de los 7, 2 estaban cerrados sin documentar (1 y parcialmente el 4), 3 confirmados sin cambios (2, 3, 5), y 2 no se pudieron verificar desde aquí por falta de acceso a Supabase (6 y 7) — quedan anotados con la consulta exacta para cerrarlos en cuanto Roderas la ejecute.**
