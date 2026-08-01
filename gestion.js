@@ -1761,6 +1761,7 @@ function renderSlConfig() {
   var vTp3 = (ua && ua.tp_parcial3) || 50;
   div.innerHTML =
     '<span style="font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--text-muted);">Umbrales SL</span>' +
+    '<span style="font-size:10px;color:var(--text-muted);opacity:.7;">(gestionado por tu mentor)</span>' +
     _slInput('Edge',   'sl-inp-edge',   vEdge) +
     _slInput('Aire',   'sl-inp-aire',   vAire) +
     _slInput('Límite', 'sl-inp-limite', vLim)  +
@@ -1783,9 +1784,8 @@ function renderSlConfig() {
 function _slInput(label, id, val) {
   return '<label style="display:flex;align-items:center;gap:.4rem;">' +
     '<span style="font-size:12px;color:var(--text-muted);">' + label + '</span>' +
-    '<input id="' + id + '" type="number" value="' + val + '" min="1" max="999" ' +
-    'style="width:55px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.25rem .4rem;font-size:13px;font-family:inherit;text-align:center;outline:none;" ' +
-    'onfocus="this.style.borderColor=\'var(--gold)\'" onblur="this.style.borderColor=\'var(--border)\'">' +
+    '<input id="' + id + '" type="number" value="' + val + '" min="1" max="999" disabled ' +
+    'style="width:55px;background:var(--bg);border:1px solid var(--border);color:var(--text-muted);padding:.25rem .4rem;font-size:13px;font-family:inherit;text-align:center;outline:none;cursor:not-allowed;">' +
     '</label>';
 }
 
