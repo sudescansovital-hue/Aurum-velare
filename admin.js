@@ -347,6 +347,31 @@ async function adminGuardarUsuario() {
       }
     }
 
+    if (adminCumplDesbloqueado && _u && _u.email) {
+      var cumplDatos = {
+        sl_edge: parseFloat(document.getElementById('admin-edit-sl-edge').value) || 11,
+        sl_aire: parseFloat(document.getElementById('admin-edit-sl-aire').value) || 25,
+        sl_limite: parseFloat(document.getElementById('admin-edit-sl-limite').value) || 50,
+        tp_parcial1: parseFloat(document.getElementById('admin-edit-tp1').value) || 18,
+        tp_parcial2: parseFloat(document.getElementById('admin-edit-tp2').value) || 33,
+        tp_parcial3: parseFloat(document.getElementById('admin-edit-tp3').value) || 50,
+        cumplimiento_bloqueado: true,
+        updated_at: new Date().toISOString()
+      };
+      var _cumplRes = await supaPatch('usuarios_aurum', 'id=eq.' + adminEditId, cumplDatos, getToken());
+      if (_cumplRes.error) {
+        console.error('[ADMIN] error guardando umbrales cumplimiento:', _cumplRes.error);
+      } else {
+        await supaPost('cumplimiento_historial', {
+          usuario_email: _u.email,
+          sl_edge: cumplDatos.sl_edge, sl_aire: cumplDatos.sl_aire, sl_limite: cumplDatos.sl_limite,
+          tp_parcial1: cumplDatos.tp_parcial1, tp_parcial2: cumplDatos.tp_parcial2, tp_parcial3: cumplDatos.tp_parcial3,
+          motivo: 'Cambio de etapa ' + adminEtapaOriginal + '→' + datos.etapa + ', aprobado por admin'
+        }, 'return=minimal', getToken());
+      }
+      adminCumplDesbloqueado = false;
+    }
+
     adminCerrarModal();
     showToast('Usuario actualizado');
     await cargarUsuariosAdmin();
