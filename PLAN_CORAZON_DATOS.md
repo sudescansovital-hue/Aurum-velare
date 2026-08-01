@@ -1292,3 +1292,122 @@ Roderas pidió verificar puntualmente 7 pendientes concretos ya anotados en este
 **7. ✅ CERRADO/CONFIRMADO (25/07) — Las 4 cuentas cTrader sin fecha recuperable (135146, 7741924, 7746279, 7751048).** Roderas ejecutó la consulta propuesta arriba: **1037 filas sin fecha** — exactamente el mismo total que quedó tras el backfill de hoy (sesión "Fecha vacía en imports MT5" más arriba: de 1284 trades `fuente='import'` con `fecha=''`, 247 recuperados vía `fp`, quedaron 1037 irrecuperables). Coincidencia exacta confirmada: **los 1037 trades sin fecha son, en efecto, estas 4 cuentas** — ninguno tiene fecha dentro de su `fp` (mismo patrón "solo ID numérico" ya documentado en la sesión 12/07). Sin decisión tomada sobre si investigar un origen alternativo de la fecha (archivo fuente distinto, etc.) — se mantiene el mensaje honesto ("Sin fecha registrada") como solución ya aplicada, no hay nada más pendiente de código aquí.
 
 **Resumen final — de los 7: 3 estaban cerrados sin documentar (1, parcialmente el 4, y el 7 coincide con el backfill ya aplicado), 1 confirmado sin cambios (5, `rr_minimo`), y 3 (2, 3 y 6) eran/eran-parte-de trabajo real que se detectó y **se cerró en esta misma sesión**: el panel admin de `ea_password` se construyó y se verificó en producción (punto 3), la fase 4 de `ea_password` se hizo obligatoria y se verificó en logs reales de MT5 (punto 2), y el trigger `prevenir_cuenta_ajena` se recreó en las 5 tablas correctas (punto 6). De los 7, solo queda abierto de verdad: `rr_minimo` (5), más el detalle menor de versionar el SQL del trigger en el repo.**
+
+---
+
+# Sesión 01/08 — EA bloqueado por 2FA de Vercel (resuelto vía CLI) + Cumplimiento Punto 1 completo
+
+## ✅ CERRADO — EA en tiempo real recuperado tras pérdida de acceso al panel de Vercel
+
+El `EA_SHARED_SECRET` quedó marcado como variable "Sensitive" en Vercel en
+una sesión anterior — un valor sensible, una vez guardado así, no se puede
+volver a leer ni desde el dashboard ni desde `vercel env pull` (sale vacío
+`""` aunque la variable exista). Sumado a que Roderas perdió acceso al login
+por navegador de Vercel (2FA sin recovery codes ni app configurada), el EA
+llevaba días fallando con `401 | Token inválido o ausente` en las 3 cuentas
+(7747760, 152034, 167807).
+
+**Hallazgo clave:** la sesión de la Vercel CLI en el PC de Roderas
+(`C:\Users\boli-\aurum-web-base`) seguía autenticada de forma independiente
+al login del navegador — el bloqueo de 2FA solo afecta al panel web, no a
+la CLI. Esto permitió resolver todo sin depender de que Vercel respondiera
+al ticket de recuperación de 2FA (que se mandó igualmente, sigue pendiente
+de respuesta para recuperar el acceso al dashboard en general).
+
+**Fix aplicado vía CLI:**
+1. `npx vercel env rm EA_SHARED_SECRET production` — borrada la variable
+   vieja e ilegible
+2. Nuevo valor generado localmente: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
+3. `npx vercel env add EA_SHARED_SECRET production` — añadida la nueva,
+   esta vez marcada como NO sensible para poder leerla en el futuro
+4. `npx vercel --prod` — redeploy manual para aplicar el cambio
+5. Nuevo valor pegado en el input `Token` del EA en las 3 cuentas
+
+**Confusión importante detectada y corregida durante la sesión:** el Token
+(`EA_SHARED_SECRET`, global, vive solo en Vercel) y el `ea_password`
+(por usuario, vive en `usuarios_aurum`, visible/regenerable desde el panel
+admin) son dos capas de autenticación independientes en `api/trade-mt5.js`
+— se llegó a poner por error el valor de `ea_password` en el campo `Token`
+del EA, lo cual seguía dando 401. Aclarado y corregido.
+
+**Efecto secundario detectado:** el `ea_password` se regeneró sin querer
+durante las pruebas (botón "Generar nueva" en el panel admin) — valor
+actual: `AmwF5BadSqKSeP`. El valor viejo (`aee980b790bd069beb0043fa0db72f66`)
+ya no es válido, quedó invalidado por el propio regenerado.
+
+**Cola de reintentos atascada:** los eventos fallidos durante el periodo sin
+Token válido quedaron guardados en `aurum_cola_[cuenta].txt`
+(`%APPDATA%\MetaQuotes\Terminal\Common\Files\`, por `FILE_COMMON` en el
+`.mq5`) y se reintentaban en bucle con los valores viejos cada vez que se
+vaciaba la cola. Se borraron manualmente los archivos de las 2 cuentas
+afectadas (152034, 167807) para limpiar el atasco.
+
+**Verificado en producción:** las 3 cuentas sincronizan sin error 401.
+Valores guardados como plantilla `aurum_config` en cada instalación de MT5
+para no perderlos en próximos cambios de parámetros (recordar: MQL5 hace
+reinit completo del EA en cualquier cambio de input, incluidos los
+segundos del timer — usar "Cargar" en vez de reescribir a mano si el campo
+Token aparece vacío).
+
+**Pendiente:** ticket de recuperación de 2FA de Vercel sigue abierto con
+soporte, sin resolver — no bloqueante ahora que la CLI cubre lo necesario,
+pero recomendable resolverlo para tener acceso completo al dashboard.
+
+## ✅ CERRADO — Cumplimiento, Punto 1: bloqueo de parámetros con historial
+
+Los 5 parámetros (`sl_edge`, `sl_aire`, `sl_limite`, `tp_parcial1/2/3`)
+salen del panel del usuario y pasan a gestionarse solo desde el admin.
+
+**Piezas aplicadas:**
+1. **SQL** — tabla nueva `cumplimiento_historial` (id, usuario_email,
+   sl_edge, sl_aire, sl_limite, tp_parcial1/2/3, motivo, created_at), RLS +
+   policy `service_role_all` igual que el resto de tablas. Campo nuevo
+   `usuarios_aurum.cumplimiento_bloqueado` (boolean, default false).
+2. **`admin.js` + `index.html`** (commit `da85c5d`) — nuevo bloque
+   `#admin-edit-cumplimiento-block` en el modal de usuario, entre
+   `ea_password` y "Notas internas". Los 6 campos se muestran deshabilitados
+   por defecto. Botón "🔓 Desbloquear" solo activa los campos si la Etapa
+   del formulario difiere de la etapa original con la que se abrió el modal
+   (`adminEtapaOriginal`, capturada en `adminAbrirEditar`).
+3. **`admin.js`** (commit `4ee994a`) — dentro de `adminGuardarUsuario`, si
+   `adminCumplDesbloqueado` es true: `PATCH` a `usuarios_aurum` con los 6
+   valores + `cumplimiento_bloqueado: true` (se re-bloquea automáticamente
+   al guardar), e `INSERT` en `cumplimiento_historial` con motivo
+   `"Cambio de etapa X→Y, aprobado por admin"`.
+4. **`gestion.js`** (commit `ee794e0`) — `_slInput()` ahora renderiza los
+   inputs con `disabled`, y el panel de Cumplimiento del usuario muestra
+   "(gestionado por tu mentor)" junto al título "Umbrales SL". Las
+   funciones `guardarConfigSl`/`guardarConfigTpParciales` quedan sin uso
+   (los listeners `onchange` ya no disparan porque los inputs están
+   deshabilitados) — no se borraron, por si se quiere reutilizar el patrón
+   más adelante.
+
+**Verificado en producción:** probado en Mara (`boli-al@hotmail.com`, sin
+cuentas asignadas, la más segura para pruebas) — desbloqueo funciona,
+guardado funciona, fila nueva en `cumplimiento_historial` confirmada por
+SQL, y el panel del propio usuario (probado con Mara y con Roderas)
+muestra los campos bloqueados con el aviso correcto.
+
+**Incidente durante las pruebas (sin impacto final):** al probar el
+desbloqueo en la cuenta de Roderas se guardó por accidente `etapa=3`
+en `usuarios_aurum` (el valor real era 5). Detectado y corregido por SQL
+antes de cerrar la sesión — valor real confirmado por dos fuentes
+independientes (el propio desplegable del modal antes de tocar nada, y
+"TU NIVEL: 05 · Claridad" en el dashboard del usuario).
+
+## ⏳ PENDIENTE — Cumplimiento, Puntos 2 y 4
+
+- **Punto 2 (MFE):** solo se preparó el terreno en SQL — columnas nuevas
+  `mfe_price` y `mfe_puntos` (numeric) en `ea_trades`, sin lógica de
+  captura todavía. La implementación real requiere tocar `OnTick()` en el
+  `.mq5` (trackear el precio más favorable alcanzado por cada posición
+  abierta), recompilar en MetaEditor, y redistribuir manualmente a cada
+  instalación de MT5 — deliberadamente aplazado a otra sesión por el riesgo
+  de tocar la función que vigila posiciones con dinero real, en una sesión
+  ya larga con varios diffs mal aplicados por Claude Code (inputs
+  duplicados, texto colado en medio de una línea — detectados y corregidos
+  antes de commitear, ninguno llegó a producción).
+- **Zonas TP nuevas (TP0–TP5):** diseño ya cerrado en sesión anterior
+  (ver arriba), implementación sin empezar.
+- **Punto 4 (gráfico mensual):** fix del orden de meses en vista Global,
+  sin empezar.
