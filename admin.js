@@ -201,6 +201,17 @@ function adminAbrirEditar(id) {
   set('admin-edit-ea-password', u.ea_password || '');
   var eaPassBlock = document.getElementById('admin-edit-ea-password-block');
   if (eaPassBlock) eaPassBlock.style.display = u.tiene_ea ? 'block' : 'none';
+  set('admin-edit-sl-edge', u.sl_edge || 11);
+  set('admin-edit-sl-aire', u.sl_aire || 25);
+  set('admin-edit-sl-limite', u.sl_limite || 50);
+  set('admin-edit-tp1', u.tp_parcial1 || 18);
+  set('admin-edit-tp2', u.tp_parcial2 || 33);
+  set('admin-edit-tp3', u.tp_parcial3 || 50);
+  adminEtapaOriginal = u.etapa || 1;
+  adminCumplDesbloqueado = false;
+  ['admin-edit-sl-edge','admin-edit-sl-aire','admin-edit-sl-limite','admin-edit-tp1','admin-edit-tp2','admin-edit-tp3'].forEach(function(id){ document.getElementById(id).disabled = true; });
+  var estadoEl = document.getElementById('admin-cumpl-estado');
+  if (estadoEl) estadoEl.innerHTML = u.cumplimiento_bloqueado ? '<span style="color:var(--red);">🔒 Bloqueado</span>' : '<span style="color:var(--green);">🔓 Sin bloquear aún</span>';
   adminActualizarSalaAsignada(u.animal || '');
 
   // Calcular días en proceso desde el primer trade del usuario
@@ -726,4 +737,18 @@ async function adminGuardarEdicionReto(id) {
   document.getElementById('modal-editar-reto').remove();
   showToast('Reto actualizado');
   adminCargarRetos();
+}
+
+var adminEtapaOriginal = null;
+var adminCumplDesbloqueado = false;
+
+function adminDesbloquearCumplimiento() {
+  var etapaActual = parseInt(document.getElementById('admin-edit-etapa').value) || 1;
+  if (etapaActual === adminEtapaOriginal) {
+    showToast('Cambia primero la etapa para poder desbloquear');
+    return;
+  }
+  ['admin-edit-sl-edge','admin-edit-sl-aire','admin-edit-sl-limite','admin-edit-tp1','admin-edit-tp2','admin-edit-tp3'].forEach(function(id){ document.getElementById(id).disabled = false; });
+  adminCumplDesbloqueado = true;
+  showToast('Umbrales desbloqueados para este guardado');
 }

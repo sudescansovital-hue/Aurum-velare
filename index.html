@@ -2945,6 +2945,23 @@ document.addEventListener('DOMContentLoaded', function() {
       <div style="font-size:11px;color:var(--text-muted);margin-top:.4rem;">Se guarda al instante en Supabase al generar — no hace falta pulsar "Guardar cambios".</div>
     </div>
 
+    <div id="admin-edit-cumplimiento-block" style="margin-bottom:1rem;padding:.8rem .9rem;border:1px solid var(--border);background:var(--bg2);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem;">
+        <label style="font-size:11px;color:var(--text-muted);letter-spacing:.1em;text-transform:uppercase;">Umbrales Cumplimiento</label>
+        <span id="admin-cumpl-estado" style="font-size:11px;"></span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin-bottom:.5rem;">
+        <div><label style="font-size:10px;color:var(--text-muted);">Edge</label><input id="admin-edit-sl-edge" type="number" disabled style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.4rem;font-size:13px;box-sizing:border-box;"></div>
+        <div><label style="font-size:10px;color:var(--text-muted);">Aire</label><input id="admin-edit-sl-aire" type="number" disabled style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.4rem;font-size:13px;box-sizing:border-box;"></div>
+        <div><label style="font-size:10px;color:var(--text-muted);">Límite</label><input id="admin-edit-sl-limite" type="number" disabled style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.4rem;font-size:13px;box-sizing:border-box;"></div>
+        <div><label style="font-size:10px;color:var(--text-muted);">TP1</label><input id="admin-edit-tp1" type="number" disabled style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.4rem;font-size:13px;box-sizing:border-box;"></div>
+        <div><label style="font-size:10px;color:var(--text-muted);">TP2</label><input id="admin-edit-tp2" type="number" disabled style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.4rem;font-size:13px;box-sizing:border-box;"></div>
+        <div><label style="font-size:10px;color:var(--text-muted);">TP3</label><input id="admin-edit-tp3" type="number" disabled style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.4rem;font-size:13px;box-sizing:border-box;"></div>
+      </div>
+      <button id="admin-cumpl-unlock-btn" onclick="adminDesbloquearCumplimiento()" style="padding:.4rem .7rem;background:transparent;border:1px solid #cc664466;color:#cc9966;cursor:pointer;font-size:11px;">🔓 Desbloquear (requiere cambiar la etapa primero)</button>
+      <div style="font-size:10px;color:var(--text-muted);margin-top:.4rem;">Se relockean automáticamente al guardar. Cada cambio queda registrado.</div>
+    </div>
+
     <div style="margin-bottom:1.5rem;">
       <label style="font-size:11px;color:var(--text-muted);letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:.4rem;">Notas internas</label>
       <textarea id="admin-edit-notas" rows="3" placeholder="Notas privadas sobre este usuario..." style="width:100%;background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:.5rem .7rem;font-size:13px;box-sizing:border-box;font-family:inherit;resize:vertical;"></textarea>
