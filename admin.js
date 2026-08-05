@@ -252,7 +252,7 @@ function adminToggleEaPasswordBlock(checked) {
 async function adminGenerarEaPassword() {
   if (!adminEditId) return;
   // Sin caracteres ambiguos (0/O, 1/l/I) — se teclea a mano en el input del EA en MT5
-  var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+  var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   var pass = '';
   for (var i = 0; i < 14; i++) pass += chars.charAt(Math.floor(Math.random() * chars.length));
 
