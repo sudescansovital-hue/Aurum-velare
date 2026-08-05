@@ -1411,3 +1411,58 @@ independientes (el propio desplegable del modal antes de tocar nada, y
   (ver arriba), implementación sin empezar.
 - **Punto 4 (gráfico mensual):** fix del orden de meses en vista Global,
   sin empezar.
+
+---
+
+# Sesión 05/08 — Fix del generador de `ea_password` (ambigüedad de lectura) + notas de cola y `sl_original`
+
+## ✅ BUG RESUELTO (05/08) — Generador de EA_PASSWORD mezclaba mayúsculas y minúsculas
+
+El generador de `ea_password` en `admin.js` mezclaba mayúsculas y
+minúsculas (`chars` incluía `a-z` y `A-Z`), causando confusión visual al
+teclear la contraseña a mano en el input del EA en MT5 (ej. "f" leída
+como "F"). Esto provocaba rechazo `401` permanente ("ea_password
+inválida o ausente") en `trade-mt5.js`, indistinguible a simple vista
+porque el valor "parecía" coincidir en pantalla.
+
+**Fix aplicado:** `chars` ahora solo usa `'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'`
+(solo mayúsculas + dígitos seguros, sin `0/O/1/L/I`). Commit `0896fea`,
+desplegado en producción.
+
+**Importante:** contraseñas ya generadas antes del fix no se regeneran
+solas — hay que pulsar "Generar nueva" para las cuentas que aún no la
+tengan actualizada.
+
+## ⚠️ NOTA IMPORTANTE — cola de reintentos persistida en disco no se autocorrige con un cambio de credenciales
+
+`aurum_cola_[cuenta].txt`: si el EA acumula eventos fallidos con una
+credencial vieja (contraseña o token incorrectos), cambiar la
+credencial en el input del EA **NO** corrige los eventos ya encolados —
+cada JSON queda con el valor congelado del momento en que se generó.
+
+Hay que borrar el archivo de cola manualmente en
+`%APPDATA%\MetaQuotes\Terminal\Common\Files\` antes de recargar el EA
+tras cualquier cambio de credenciales, o seguirán fallando
+indefinidamente (la cola ya no descarta eventos, reintenta para
+siempre — ver FIX 06/07, sesión 20/07 más arriba).
+
+## ⚠️ LIMITACIÓN CONOCIDA (confirmada 05/08) — `sl_original` NULL/0 en trades reconstruidos vía SyncHistory48h
+
+`sl_original` queda NULL/0 para trades reconstruidos vía
+`SyncHistory48h` cuando la posición se abrió a mercado sin SL y se
+cerró ANTES de que el EA estuviera corriendo en vivo para esa sesión —
+`SyncHistory48h` lee el SL de la orden original en el momento de
+apertura (`HistoryOrderGetDouble ORDER_SL`), no el SL añadido después.
+
+El mecanismo `original_capture` (`CheckOriginalesPendientes`) sí
+captura correctamente el SL real cuando la posición permanece abierta
+mientras el EA vigila en tiempo real (polling cada 10s desde
+`OnTick`).
+
+No se ha resuelto ni se ha decidido prioridad — queda anotado.
+
+## ⏳ PENDIENTE INMEDIATO — poner el EaPassword nuevo en Maestra y Prueba
+
+Poner el `EaPassword` nuevo (generado tras el fix de arriba) en las
+cuentas Maestra (7747760) y Prueba (152034) — Retos (167807) ya está
+hecha y confirmada funcionando en Supabase.
