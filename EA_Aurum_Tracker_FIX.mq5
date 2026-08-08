@@ -11,6 +11,7 @@ input string Email          = "";
 input string EaPassword     = "";
 input string Token          = "";
 input string EndpointURL    = "https://aurumvelare.com/api/trade-mt5";
+input string EventoEndpointURL = "https://aurumvelare.com/api/trade-evento"; // FASE 3 (brief linea de tiempo Diario): entrada/breakeven/parcial/cierre
 input int    AvisarCadaXIntentos = 10; // FIX 06/07: ya no se descarta nunca; esto solo controla cada cuántos intentos fallidos se avisa en el log
 input int    IntervaloEnvioSegundos = 3600; // cada cuánto se procesa la cola (por defecto 1h)
 input int    HorasSync      = 48;
@@ -35,6 +36,12 @@ struct PendingEvent {
 };
 PendingEvent g_cola[];
 
+//--- Cola de reintentos SEPARADA para /api/trade-evento (FASE 3, brief linea
+// de tiempo Diario). Aislada a proposito de g_cola: g_cola ya tuvo el bug de
+// duplicacion exponencial (ver comentarios de CargarColaPersistida), asi que
+// esta cola nueva no comparte funciones ni estado con la existente.
+PendingEvent g_cola_eventos[];
+
 //--- Persistencia de la cola a disco (sobrevive a reinicios del EA)
 // FIX corazón de datos (06/07): g_cola vivía solo en memoria — cualquier
 // reinicio del EA (cambio de gráfico, reconexión, recompilar, lo que sea)
@@ -44,6 +51,13 @@ PendingEvent g_cola[];
 // IntervaloEnvioSegundos (3600s por defecto) llegara a vaciar la cola.
 string ColaFileName() {
    return "aurum_cola_" + g_cuenta_numero + ".txt";
+}
+
+// Archivo de persistencia separado para g_cola_eventos — nunca comparte
+// nombre ni contenido con ColaFileName(), para no arriesgar mezclar las dos
+// colas en disco.
+string ColaEventosFileName() {
+   return "aurum_cola_eventos_" + g_cuenta_numero + ".txt";
 }
 
 //+------------------------------------------------------------------+
@@ -322,6 +336,73 @@ string BuildCloseJson(ulong pos_id, ulong deal_id, double precio_cierre,
 }
 
 //+------------------------------------------------------------------+
+//| CONSTRUCTORES JSON — /api/trade-evento (FASE 3, brief linea de   |
+//| tiempo Diario). Payload esperado por api/trade-evento.js: token, |
+//| email, cuenta_numero, ea_password, fp, tipo_evento,              |
+//| puntos_desde_entrada, precio, volumen_afectado, timestamp.       |
+//+------------------------------------------------------------------+
+
+string BuildEntradaEventoJson(string fp, double precio_entrada, datetime t) {
+   return "{\"tipo_evento\":\"entrada\""
+        + ",\"email\":\""              + Email                     + "\""
+        + ",\"cuenta_numero\":\""      + g_cuenta_numero           + "\""
+        + ",\"ea_password\":\""        + EaPassword                 + "\""
+        + ",\"token\":\""              + Token                      + "\""
+        + ",\"fp\":\""                 + fp                          + "\""
+        + ",\"precio\":"               + DoubleToString(precio_entrada, 5)
+        + ",\"puntos_desde_entrada\":null"
+        + ",\"volumen_afectado\":null"
+        + ",\"timestamp\":\""          + DatetimeToISO(t)           + "\""
+        + "}";
+}
+
+// tipo_evento='breakeven': se manda cada vez que se detecta un cambio real
+// de SL (mismo punto donde ya se manda sl_change a trade-mt5) — confirmado
+// con el usuario que este EA no distingue "breakeven escalonado" de otros
+// ajustes de SL, así que todo cambio de SL detectado cuenta como este evento.
+string BuildBreakevenEventoJson(string fp, double puntos_desde_entrada, double sl_nuevo, datetime t) {
+   return "{\"tipo_evento\":\"breakeven\""
+        + ",\"email\":\""              + Email                     + "\""
+        + ",\"cuenta_numero\":\""      + g_cuenta_numero           + "\""
+        + ",\"ea_password\":\""        + EaPassword                 + "\""
+        + ",\"token\":\""              + Token                      + "\""
+        + ",\"fp\":\""                 + fp                          + "\""
+        + ",\"precio\":"               + DoubleToString(sl_nuevo, 5)
+        + ",\"puntos_desde_entrada\":" + DoubleToString(puntos_desde_entrada, 2)
+        + ",\"volumen_afectado\":null"
+        + ",\"timestamp\":\""          + DatetimeToISO(t)           + "\""
+        + "}";
+}
+
+string BuildParcialEventoJson(string fp, double volumen, double precio, datetime t) {
+   return "{\"tipo_evento\":\"parcial\""
+        + ",\"email\":\""              + Email                     + "\""
+        + ",\"cuenta_numero\":\""      + g_cuenta_numero           + "\""
+        + ",\"ea_password\":\""        + EaPassword                 + "\""
+        + ",\"token\":\""              + Token                      + "\""
+        + ",\"fp\":\""                 + fp                          + "\""
+        + ",\"precio\":"               + DoubleToString(precio, 5)
+        + ",\"puntos_desde_entrada\":null"
+        + ",\"volumen_afectado\":"     + DoubleToString(volumen, 2)
+        + ",\"timestamp\":\""          + DatetimeToISO(t)           + "\""
+        + "}";
+}
+
+string BuildCierreEventoJson(string fp, double precio_cierre, datetime t) {
+   return "{\"tipo_evento\":\"cierre\""
+        + ",\"email\":\""              + Email                     + "\""
+        + ",\"cuenta_numero\":\""      + g_cuenta_numero           + "\""
+        + ",\"ea_password\":\""        + EaPassword                 + "\""
+        + ",\"token\":\""              + Token                      + "\""
+        + ",\"fp\":\""                 + fp                          + "\""
+        + ",\"precio\":"               + DoubleToString(precio_cierre, 5)
+        + ",\"puntos_desde_entrada\":null"
+        + ",\"volumen_afectado\":null"
+        + ",\"timestamp\":\""          + DatetimeToISO(t)           + "\""
+        + "}";
+}
+
+//+------------------------------------------------------------------+
 //| HTTP                                                              |
 //+------------------------------------------------------------------+
 
@@ -348,6 +429,36 @@ bool DoWebRequest(const string json_body) {
                ? CharArrayToString(result, 0, WHOLE_ARRAY, CP_UTF8)
                : "";
    Print("[AURUM] HTTP:", code, " | error:", GetLastError(), " | resp:", resp);
+   return false;
+}
+
+// Copia exacta de DoWebRequest, apuntando a EventoEndpointURL en vez de
+// EndpointURL. Duplicada a propósito (no parametrizada) para no tocar
+// DoWebRequest — mismo dominio aurumvelare.com, así que no hace falta
+// añadir nada nuevo a la lista blanca de WebRequest en MT5.
+bool DoWebRequestEventos(const string json_body) {
+   uchar  data_u[];
+   char   data[];
+   char   result[];
+   string result_headers;
+
+   int len = StringToCharArray(json_body, data_u, 0, StringLen(json_body), CP_UTF8);
+   if(len <= 0) return false;
+   ArrayCopy(data, data_u);
+
+   ResetLastError();
+   int code = WebRequest(
+      "POST", EventoEndpointURL,
+      "Content-Type: application/json\r\n",
+      4000, data, result, result_headers
+   );
+
+   if(code == 200) return true;
+
+   string resp = (ArraySize(result) > 0)
+               ? CharArrayToString(result, 0, WHOLE_ARRAY, CP_UTF8)
+               : "";
+   Print("[AURUM EVENTO] HTTP:", code, " | error:", GetLastError(), " | resp:", resp);
    return false;
 }
 
@@ -407,6 +518,54 @@ void CargarColaPersistida() {
             " eventos pendientes de una sesión anterior, se reintentarán ahora");
 }
 
+// Copia exacta de PersistirCola(), sobre g_cola_eventos y ColaEventosFileName().
+void PersistirColaEventos() {
+   int fh = FileOpen(ColaEventosFileName(), FILE_WRITE | FILE_TXT | FILE_ANSI | FILE_COMMON);
+   if(fh == INVALID_HANDLE) {
+      Print("[AURUM EVENTO] ERROR: no se pudo escribir el archivo de cola — ", ColaEventosFileName(),
+            " | error:", GetLastError());
+      return;
+   }
+   for(int i = 0; i < ArraySize(g_cola_eventos); i++)
+      FileWriteString(fh, g_cola_eventos[i].json_body + "\r\n");
+   FileClose(fh);
+}
+
+// Copia exacta de CargarColaPersistida(), sobre g_cola_eventos y
+// ColaEventosFileName(). Mismo reset a cero al inicio, por el mismo motivo
+// (variable global que sobrevive a reinicios por REASON_PARAMETERS).
+void CargarColaEventosPersistida() {
+   string fname = ColaEventosFileName();
+
+   ArrayResize(g_cola_eventos, 0);
+
+   if(!FileIsExist(fname, FILE_COMMON)) return;
+
+   int fh = FileOpen(fname, FILE_READ | FILE_TXT | FILE_ANSI | FILE_COMMON);
+   if(fh == INVALID_HANDLE) {
+      Print("[AURUM EVENTO] ERROR: no se pudo leer el archivo de cola — ", fname,
+            " | error:", GetLastError());
+      return;
+   }
+
+   int recuperados = 0;
+   while(!FileIsEnding(fh)) {
+      string linea = FileReadString(fh);
+      if(StringLen(linea) == 0) continue;
+      int sz = ArraySize(g_cola_eventos);
+      ArrayResize(g_cola_eventos, sz + 1);
+      g_cola_eventos[sz].json_body      = linea;
+      g_cola_eventos[sz].reintentos     = 0;
+      g_cola_eventos[sz].ultimo_intento = 0;
+      recuperados++;
+   }
+   FileClose(fh);
+
+   if(recuperados > 0)
+      Print("[AURUM EVENTO] ⚠ Cola recuperada tras reinicio — ", recuperados,
+            " eventos pendientes de una sesión anterior, se reintentarán ahora");
+}
+
 // IMPORTANTE: SendEvent NUNCA llama a DoWebRequest directamente.
 // Antes se intentaba un envío síncrono aquí mismo, dentro de OnTradeTransaction,
 // con timeout de 10s — eso es lo que congelaba el terminal en cada cambio de SL
@@ -419,6 +578,18 @@ void SendEvent(const string json_body) {
    g_cola[sz].reintentos     = 0;
    g_cola[sz].ultimo_intento = 0; // 0 = listo para procesar en el próximo tick del timer
    PersistirCola(); // FIX 06/07: guardar a disco inmediatamente tras encolar
+}
+
+// Copia exacta de SendEvent(), sobre g_cola_eventos — encola para
+// /api/trade-evento (FASE 3). Tampoco llama a DoWebRequestEventos
+// directamente, mismo motivo que SendEvent: no bloquear el hilo de trading.
+void SendTradeEvento(const string json_body) {
+   int sz = ArraySize(g_cola_eventos);
+   ArrayResize(g_cola_eventos, sz + 1);
+   g_cola_eventos[sz].json_body      = json_body;
+   g_cola_eventos[sz].reintentos     = 0;
+   g_cola_eventos[sz].ultimo_intento = 0;
+   PersistirColaEventos();
 }
 
 // FIX corazón de datos (06/07): antes esta función descartaba un evento
@@ -457,6 +628,34 @@ void ProcessRetryQueue() {
    // si ya no queda nada) — así un reinicio posterior no vuelve a
    // reintentar eventos que ya se enviaron o ya se descartaron.
    if(huboCambios) PersistirCola();
+}
+
+// Copia exacta de ProcessRetryQueue(), sobre g_cola_eventos y
+// DoWebRequestEventos(). Nunca se llama a sí misma ni comparte estado con
+// ProcessRetryQueue() — un fallo aquí no puede afectar a la cola de trades.
+void ProcessRetryQueueEventos() {
+   if(ArraySize(g_cola_eventos) == 0) return;
+   Print("[AURUM EVENTO] Procesando cola — ", ArraySize(g_cola_eventos), " eventos pendientes");
+   int i = 0;
+   bool huboCambios = false;
+   while(i < ArraySize(g_cola_eventos)) {
+      g_cola_eventos[i].reintentos++;
+      g_cola_eventos[i].ultimo_intento = TimeCurrent();
+
+      if(DoWebRequestEventos(g_cola_eventos[i].json_body)) {
+         for(int j = i; j < ArraySize(g_cola_eventos) - 1; j++) g_cola_eventos[j] = g_cola_eventos[j + 1];
+         ArrayResize(g_cola_eventos, ArraySize(g_cola_eventos) - 1);
+         huboCambios = true;
+      } else {
+         if(g_cola_eventos[i].reintentos % AvisarCadaXIntentos == 0) {
+            Print("[AURUM EVENTO] ⚠ Evento lleva ", g_cola_eventos[i].reintentos,
+                  " intentos fallidos y SIGUE en cola (no se descarta) — ",
+                  g_cola_eventos[i].json_body);
+         }
+         i++;
+      }
+   }
+   if(huboCambios) PersistirColaEventos();
 }
 
 //+------------------------------------------------------------------+
@@ -516,6 +715,23 @@ double GetBeneficioTotalPos(ulong pos_id) {
                 + HistoryDealGetDouble(d, DEAL_SWAP);
    }
    return total;
+}
+
+// FASE 3 (brief linea de tiempo Diario): construir fp para el evento
+// 'cierre' hace falta la hora de apertura de la posición — pero en el cierre
+// completo (HandleDealClose, rama else) la posición ya no está seleccionable
+// con PositionSelectByTicket (ya cerró). Se recupera del historial de deals,
+// mismo patrón que ya usa SyncHistory48h más abajo para encontrar el deal de
+// apertura (DEAL_ENTRY_IN) de una posición cerrada.
+datetime GetEntryTimeForPosition(ulong pos_id) {
+   if(!HistorySelectByPosition(pos_id)) return 0;
+   int n = HistoryDealsTotal();
+   for(int i = 0; i < n; i++) {
+      ulong d = HistoryDealGetTicket(i);
+      if((ENUM_DEAL_ENTRY)HistoryDealGetInteger(d, DEAL_ENTRY) == DEAL_ENTRY_IN)
+         return (datetime)HistoryDealGetInteger(d, DEAL_TIME);
+   }
+   return 0;
 }
 
 void SyncHistory48h() {
@@ -650,13 +866,19 @@ void HandleDealOpen(const MqlTradeTransaction &trans) {
    TpMapSet(pos_id, tp);
    PendienteAgregar(pos_id, sl != 0.0, tp != 0.0); // FIX 06/07: vigilar si falta SL/TP original
 
-   string json = BuildOpenJson(pos_id, BuildFp(entry_time, pos_id),
+   string fp   = BuildFp(entry_time, pos_id);
+   string json = BuildOpenJson(pos_id, fp,
                                tipo_str, vol, pe, sl, tp, puntos_sl, entry_time);
    Print("[AURUM] Apertura — pos:", pos_id, " | ", tipo_str,
          " | pe:", DoubleToString(pe, 5),
          " | sl:", DoubleToString(sl, 5),
          " | pts:", DoubleToString(puntos_sl, 2));
    SendEvent(json);
+
+   // FASE 3 (brief linea de tiempo Diario): evento 'entrada' en paralelo,
+   // después del SendEvent existente (orden a propósito, ver confirmación
+   // dada al usuario antes de este cambio).
+   SendTradeEvento(BuildEntradaEventoJson(fp, pe, entry_time));
 }
 
 void HandleDealClose(const MqlTradeTransaction &trans) {
@@ -683,6 +905,13 @@ void HandleDealClose(const MqlTradeTransaction &trans) {
             " | price:", DoubleToString(price, 5),
             " | ben:", DoubleToString(profit, 2));
       SendEvent(json);
+
+      // FASE 3: evento 'parcial'. La posición sigue seleccionada aquí
+      // (is_partial = PositionSelectByTicket ya tuvo éxito), así que
+      // POSITION_TIME da la hora de apertura sin necesidad de historial.
+      datetime entry_time = (datetime)PositionGetInteger(POSITION_TIME);
+      string   fp         = BuildFp(entry_time, pos_id);
+      SendTradeEvento(BuildParcialEventoJson(fp, vol, price, dtime));
    } else {
       double beneficio_total = GetBeneficioTotalPos(pos_id);
       string json = BuildCloseJson(pos_id, deal_id, price, beneficio_total, dtime);
@@ -694,6 +923,12 @@ void HandleDealClose(const MqlTradeTransaction &trans) {
       SlMapRemove(pos_id);
       TpMapRemove(pos_id);
       PendienteQuitarPorPosId(pos_id); // FIX 06/07: ya no hace falta vigilar una posición cerrada
+
+      // FASE 3: evento 'cierre'. Aquí la posición YA NO está seleccionable
+      // (cerró del todo) — la hora de apertura se recupera del historial.
+      datetime entry_time = GetEntryTimeForPosition(pos_id);
+      string   fp         = BuildFp(entry_time, pos_id);
+      SendTradeEvento(BuildCierreEventoJson(fp, price, dtime));
    }
 }
 
@@ -722,6 +957,16 @@ void HandlePositionModified(const MqlTradeTransaction &trans) {
                " | ", DoubleToString(sl_prev, 5), " → ", DoubleToString(sl_nuevo, 5));
          SlMapSet(pos_id, sl_nuevo);
          SendEvent(json);
+
+         // FASE 3: todo cambio de SL detectado cuenta como 'breakeven' en la
+         // línea de tiempo (confirmado con el usuario — este EA no distingue
+         // "breakeven escalonado" de otros ajustes de SL). La posición sigue
+         // seleccionada aquí (PositionSelectByTicket ya tuvo éxito arriba).
+         double   precio_entrada    = PositionGetDouble(POSITION_PRICE_OPEN);
+         datetime entry_time        = (datetime)PositionGetInteger(POSITION_TIME);
+         string   fp                = BuildFp(entry_time, pos_id);
+         double   puntos_desde_ent  = MathAbs(sl_nuevo - precio_entrada);
+         SendTradeEvento(BuildBreakevenEventoJson(fp, puntos_desde_ent, sl_nuevo, now));
       }
    }
 
@@ -811,6 +1056,10 @@ int OnInit() {
    // de vuelta a g_cola para que se reintenten en el próximo OnTimer.
    CargarColaPersistida();
 
+   // FASE 3: mismo mecanismo, cola separada. Va después de la existente
+   // a propósito (ver confirmación dada al usuario sobre orden de llamadas).
+   CargarColaEventosPersistida();
+
    // Precarga SL de posiciones abiertas (seguro en OnInit, sin WebRequest)
    PopulateSlMap();
 
@@ -821,9 +1070,11 @@ int OnInit() {
    Print("[AURUM] Cuenta  : ", g_cuenta_numero);
    Print("[AURUM] Email   : ", Email);
    Print("[AURUM] Endpoint: ", EndpointURL);
+   Print("[AURUM] Endpoint eventos (línea de tiempo): ", EventoEndpointURL);
    Print("[AURUM] ⚠ Añade la URL a la lista blanca si no está:");
    Print("[AURUM]   MT5 → Herramientas → Opciones → Asesores Expertos");
    Print("[AURUM]   → Permitir WebRequest → agregar: https://aurumvelare.com");
+   Print("[AURUM]   (mismo dominio para ambos endpoints, no hace falta añadir nada más)");
    Print("[AURUM] Sincronización inicial en 5 segundos...");
    Print("══════════════════════════════════════════════════");
 
@@ -834,6 +1085,7 @@ void OnDeinit(const int reason) {
    EventKillTimer();
    Print("[AURUM] EA detenido | razón:", reason,
          " | eventos pendientes: ", ArraySize(g_cola),
+         " | eventos línea de tiempo pendientes: ", ArraySize(g_cola_eventos),
          " (guardados en disco, se recuperan al reiniciar)");
 }
 
@@ -878,6 +1130,11 @@ void OnTimer() {
       return;
    }
    ProcessRetryQueue();
+
+   // FASE 3: cola separada, se procesa después de la existente a propósito
+   // (ver confirmación dada al usuario — un fallo aquí nunca puede bloquear
+   // ni afectar a ProcessRetryQueue(), que ya se ejecutó por completo arriba).
+   ProcessRetryQueueEventos();
 }
 
 // FIX corazón de datos (06/07): revisa cada ~10s si alguna posición vigilada
