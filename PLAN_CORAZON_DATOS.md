@@ -1466,3 +1466,163 @@ No se ha resuelto ni se ha decidido prioridad — queda anotado.
 Poner el `EaPassword` nuevo (generado tras el fix de arriba) en las
 cuentas Maestra (7747760) y Prueba (152034) — Retos (167807) ya está
 hecha y confirmada funcionando en Supabase.
+---
+
+# Sesión 08/08 — Línea de tiempo de auditoría EA en el Diario (fases 1-3 del brief) + rotación de `ea_password`
+
+## ✅ FASE 1 CERRADA — tabla `trade_eventos` + RLS
+
+Nueva tabla para registrar los eventos intermedios de gestión del EA
+(entrada, breakeven, parcial, cierre) por trade, pensada para alimentar
+una línea de tiempo dentro de cada entrada del Diario existente. Brief
+completo: `brief_diario_linea_tiempo_ea.md`.
+
+- Columnas: `id`, `fp`, `tipo_evento` (check: entrada/breakeven/parcial/
+  cierre), `puntos_desde_entrada`, `precio`, `volumen_afectado`,
+  `timestamp`, `creado_en`.
+- Índice único `(fp, tipo_evento, timestamp)` para idempotencia — soporta
+  reintentos del EA sin duplicar filas.
+- RLS replicada exactamente del patrón confirmado de `trades`
+  (`tr_admin_select`/`tr_admin_todo`/`tr_user_todo`, email admin
+  hardcodeado `roderastrader@gmail.com` — mismo desajuste ya conocido
+  respecto a `ADMIN_EMAIL` en `app.js`, no corregido aquí, es tarea
+  aparte que toca ambas tablas a la vez).
+
+**Bug real detectado y corregido durante la fase 1:** el diseño original
+llevaba `fp REFERENCES trades(fp)`, pero `trades` solo recibe fila al
+CIERRE del trade (`handleClose` en `api/trade-mt5.js`) — mientras el
+trade está abierto solo existe en `ea_trades`. Con el FK puesto, los
+eventos `entrada`/`breakeven`/`parcial` (que se mandan ANTES del cierre)
+habrían violado la FK siempre. Fix: se quitó el FK
+(`sql_trade_eventos_fix_fk.sql`) y de paso se confirmó que `trades.fp`
+sí es único de verdad (`ALTER TABLE trades ADD CONSTRAINT trades_fp_unique
+UNIQUE (fp)`, sin error — no había duplicados).
+
+## ✅ FASE 2 CERRADA — endpoint `/api/trade-evento`
+
+Mismo patrón que `api/trade-mt5.js` (auth por `token` + `ea_password` +
+`cuenta_numero` perteneciente al usuario). Insert idempotente vía
+`on_conflict=fp,tipo_evento,timestamp` + `Prefer: resolution=ignore-
+duplicates`, en vez del `_get` previo que usa `trade-mt5.js` — una sola
+llamada, Postgres hace `ON CONFLICT DO NOTHING`.
+
+**Verificado end-to-end en producción con curl manual:**
+- Primer envío → `200 {"ok":true,"event":"entrada","action":"inserted"}`
+- Mismo payload repetido → `"action":"skipped_duplicate"` (idempotencia
+  confirmada)
+
+## ✅ FASE 3 CERRADA — EA modificado (aditivo, sin tocar lo existente)
+
+`EA_Aurum_Tracker_FIX.mq5` editado para mandar los 4 tipos de evento a
+`/api/trade-evento`, en paralelo total a la ruta existente de
+`/api/trade-mt5` — cola separada (`g_cola_eventos[]`), archivo de
+persistencia separado (`aurum_cola_eventos_<cuenta>.txt`), funciones
+paralelas (`SendTradeEvento`, `DoWebRequestEventos`,
+`ProcessRetryQueueEventos`, etc.), cero funciones ni estado compartido
+con `SendEvent`/`DoWebRequest`/`ProcessRetryQueue`/`PersistirCola`/
+`CargarColaPersistida`. Orden explícito en `OnInit`/`OnTimer`/`OnDeinit`:
+siempre se llama primero a la ruta existente, después a la nueva.
+
+Decisiones de diseño confirmadas durante la sesión:
+- **Breakeven mapping:** no existe (todavía) ningún EA de gestión
+  automática por niveles en producción — el `EA_Aurum_Tracker_FIX`
+  solo detecta cambios de SL hechos manualmente. Se mapea *todo* cambio
+  de SL detectado a `tipo_evento='breakeven'`. Si en el futuro se
+  construye un EA de gestión automática por escalones (diseño discutido
+  en esta misma sesión: 14→BE, 18→+7, 25→+14, 33→+22, 50→+33 según
+  Edge/Aire/Límite — nunca implementado, quedó en fase de diseño), esta
+  lógica de mapeo habría que revisarla.
+- **Cola de eventos:** separada de la cola de trades existente (decisión
+  explícita para que un fallo en `/api/trade-evento` nunca pueda
+  bloquear ni retrasar el envío de trades reales).
+
+**No compilado, no probado en MT5 todavía** — pendiente para próxima
+sesión: abrir en MetaEditor, compilar (F7), probar primero solo en
+Cuenta Prueba (152034), confirmar en Supabase que `trade_eventos` recibe
+filas correctas antes de tocar Maestra o Retos.
+
+## ✅ FASE 4 CERRADA — badge Cumplimiento + línea de tiempo en Trade Record
+
+Desplegado a producción en el commit `39fce7f` (08/08).
+
+**Corrección sobre el contexto del brief:** la sección CONTEXTO asumía
+que el Diario "ya existe... vinculado a trades vía fp/position_id, con
+imagen + texto + tipo + fecha". Confirmado por SQL en Supabase (08/08)
+que es falso: `diario_entradas` solo tiene `id`, `usuario_email`,
+`texto`, `created_at` — sin `fp`, sin `tipo`, sin imagen. La única pieza
+de capturas de pantalla del proyecto es `capturas-test.js`, una "zona de
+pruebas" que guarda la imagen en una carpeta local del usuario (File
+System Access API), sin Supabase y sin vínculo a ningún trade. Nunca ha
+existido una entrada de Diario con foto + fp de un trade a la vez.
+
+**Decisión de sesión:** en vez de construir de cero el vínculo fp+imagen
+en `diario_entradas` (trabajo no contemplado en el brief), el badge de
+Cumplimiento + línea de tiempo de `trade_eventos` se implementó en
+**Trade Record**, donde ya hay trades reales con `fp`. Vincular foto +
+trade en el Diario queda como funcionalidad futura aparte, sin fecha.
+
+**Implementación** — `ea-auditoria.js`, módulo nuevo y aislado a
+propósito (decisión explícita: no tocar ninguna función de cálculo
+existente):
+- Filtra trades `fuente='ea'` con `sl` y `tp` no nulos.
+- Una sola query a `trade_eventos` (`fp=in.(...)`) para todos los
+  elegibles a la vez; solo entran los que además tienen eventos reales.
+  Sin aviso ni error para los que no cumplen — se ven igual que antes.
+- Duplica (no comparte) la línea de criterio "dentro del método" que ya
+  usa `buildCumplimiento` en `gestion.js` — decisión explícita tras
+  detectar que una primera versión refactorizaba ese criterio a una
+  función compartida, lo cual tocaba código de cálculo existente sin
+  necesidad real.
+- Se engancha por `addEventListener` a botones ya existentes (tab Trade
+  Record + selector de cuenta) + polling de respaldo — cero ediciones a
+  `gestTab`/`verCuenta`/`actualizarDashboard`.
+
+**Verificado en local antes de desplegar:** fila de prueba real
+insertada en `trade_eventos` (fp `2026.08.07_21011540`, `fuente='ea'`,
+`sl=4336.37`, `tp=4374.95`) — confirmado visualmente por el usuario que
+el badge y la línea de tiempo renderizan correctamente en Trade Record →
+Cuenta Prueba antes del commit + push a producción.
+
+## ⚠️ LIMITACIÓN CONOCIDA (confirmada 08/08) — `sl`/`tp` NULL en trades EA por desconexión de sesión
+
+Confirmado por SQL: una parte de los trades con `fuente='ea'` tienen `sl`
+y `tp` a NULL — corresponde a operaciones donde hubo desconexión de
+sesión (cierre de PC, cambio a móvil, etc.) mientras el EA operaba, no
+un bug de código. Patrón intermitente en el tiempo (no hay fecha de
+corte), consistente con causa de conexión, no de versión del EA. Se
+resolverá de raíz con el VPS de operación 24/7 (ya pendiente en el
+proceso general, sin fecha). Confirmado con el trade de prueba
+`2026.08.06_20891813`: tiene exactamente este problema (sl/tp NULL), por
+lo que la fase 4 lo excluye correctamente del bloque de auditoría.
+
+## 🔐 Rotación de `ea_password` (roderastrader@gmail.com)
+
+La `ea_password` anterior quedó expuesta en texto plano durante las
+pruebas manuales de `/api/trade-evento` (pegada varias veces en el chat
+de planificación). Rotada por SQL (mismo mecanismo que
+`sql_ea_password.sql`, forzando el reemplazo). Valor nuevo puesto en el
+input `EaPassword` del EA en MT5 y verificado sin errores 401 en el log
+de Expertos.
+
+**`EA_SHARED_SECRET` (Token) NO rotado** — quedó igualmente expuesto en
+el chat, pero se decidió aplazar la rotación porque afecta a los 3 EAs
+de las 3 cuentas (Maestra/Retos/Prueba) a la vez, y se prefirió no
+hacerlo en una sesión ya larga. Alternativa decidida para cuando se
+retome: en vez de rotar el secreto compartido, crear una variable de
+entorno nueva y separada solo para `/api/trade-evento` (ej.
+`EA_EVENTOS_SECRET`), para que el EA que ya opera las 3 cuentas reales
+no tenga que tocarse en absoluto.
+
+## 📌 PENDIENTE INMEDIATO próxima sesión
+
+1. ✅ Commit + push de fases 1-3 — confirmado hecho (`8ab5b2f`).
+2. ✅ `.mq5` compilado y cargado en Cuenta Prueba (152034), autenticando
+   sin 401 en el log de Expertos. Pendiente real: que abra el mercado el
+   lunes para que genere eventos reales (`entrada`/`breakeven`/
+   `parcial`/`cierre`) y confirmar en Supabase que llegan correctos.
+3. Crear `EA_EVENTOS_SECRET` en vez de rotar `EA_SHARED_SECRET`. Sigue
+   sin empezar.
+4. ✅ Fase 4 del brief — cerrada (`39fce7f`), ver sección arriba.
+5. Funcionalidad futura, sin fecha: vincular foto + trade dentro de una
+   entrada del Diario (requiere columna `fp` en `diario_entradas` +
+   almacenamiento de imagen en Supabase — no existe hoy).
