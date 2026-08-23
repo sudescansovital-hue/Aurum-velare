@@ -1763,3 +1763,76 @@ infraestructura (fuera del código JS, pero relevante), quedan 2 cosas sin
 versionar en el repo (`EA_EVENTOS_SECRET` sin crear, trigger y RLS de hoy
 sin `.sql`) — mismo tipo de deuda que ya causó una pérdida real una vez
 (el trigger `prevenir_cuenta_ajena`).
+
+---
+
+# Sesión 23/08 — Detalle exacto de lo aplicado hoy en Supabase y en código
+
+Registro puntual de los 4 cambios de hoy, para dejar constancia de qué se
+hizo exactamente (mismo motivo que ya se documentó como pendiente arriba:
+sin esto, la próxima auditoría no podría confirmarlo). Ninguno de los 4 se
+aplicó en esta sesión de documentación — ya estaban hechos antes, esto solo
+los registra por escrito.
+
+## 1. Políticas RLS de admin corregidas en `trades`, `trade_parciales` y `historiales`
+
+Las políticas de acceso de administrador de estas 3 tablas apuntaban al
+email de Roderas (`roderastrader@gmail.com`) en vez de al de Willian
+(`sudescansovital@gmail.com`, la cuenta real de administración de la
+plataforma). Corregidas hoy en Supabase para apuntar a
+`sudescansovital@gmail.com`.
+
+**Coincide con un patrón ya señalado en este mismo documento** (sesión
+08/08, fase 1 de `trade_eventos`): el email de admin está hardcodeado por
+separado en varios sitios (RLS de cada tabla, `ADMIN_EMAIL` en `app.js`)
+en vez de vivir en un solo sitio de referencia — cada tabla nueva (o cada
+política corregida a mano) corre el riesgo de quedar apuntando al email
+equivocado si no se copia con cuidado desde una tabla ya correcta. No se
+ha unificado esto hoy, solo se corrigieron las 3 políticas afectadas.
+
+**No versionado:** igual que el trigger `prevenir_cuenta_ajena` (sesión
+25/07) y ya señalado como pendiente más arriba en este documento, no hay
+ningún `.sql` en el repo con la política corregida — solo aplicada a mano
+en el panel de Supabase.
+
+## 2. `cuenta_numero` ya no se vacía al revocar una cuenta
+
+`admin.js` (`_reasignarCuentaExterna`) y `gestion.js`
+(`_liberarCuentaAExterna`, en `trades` y `trade_parciales`) dejaban
+`cuenta_numero: null` al mover los trades de una cuenta revocada a "Cuenta
+Externa". Con dos cuentas distintas acabando ahí, el número que las
+distinguía se perdía y quedaban indistinguibles entre sí. Ahora se
+conserva. Commit `5e94cd6`. Detalle completo ya documentado arriba, en la
+sección "Sesión 23/08 — Verificación punto por punto..." (punto 1 de
+"Aplicado hoy, confirmado en código").
+
+## 3. `historial.js` refresca `CUENTAS_AURUM` en cada subida
+
+Antes solo se reconstruía si estaba vacía en memoria; ahora se reconstruye
+siempre, justo antes de procesar el archivo subido. Evita que una subida
+se mande a "Cuenta Externa" por error si el admin cambió el número de
+cuenta del usuario mientras este ya tenía la pestaña de Historial abierta
+sin recargar. Commit `fe3b871`. Detalle completo ya documentado arriba, en
+la misma sección (punto 2 de "Aplicado hoy, confirmado en código").
+
+## 4. Separación manual de 222 trades de Roderas mezclados sin `cuenta_numero` en Cuenta Externa
+
+**Mismo patrón que los incidentes de cruce/mezcla de cuentas ya
+documentados en este archivo** (Willian↔Mara del 04/07, Willian↔Roderas
+del 12/07): 222 trades de Roderas habían quedado en "Cuenta Externa" sin
+`cuenta_numero` asignado, mezclados entre sí sin forma de saber a cuál de
+sus cuentas reales pertenecía cada uno.
+
+**Corregido hoy en Supabase, usando como fuente de verdad los archivos
+reales exportados desde MT5** de las dos cuentas de Roderas — Retos
+(`167807`) y Prueba (`152034`) — para separar y reasignar cada uno de los
+222 trades a la cuenta correcta, en vez de dejarlos indistinguibles bajo
+"Cuenta Externa".
+
+**No versionado:** al igual que el punto 1, esto se aplicó directamente en
+Supabase, sin ningún script `.sql` guardado en el repo con el criterio
+exacto de reasignación usado. Recomendación ya repetida en este documento
+para casos así (sesión 12/07, "Pasos técnicos que costó encontrar"):
+si se necesita repetir un cruce de datos parecido en el futuro, merece la
+pena dejar la consulta usada en un archivo versionado, no solo ejecutada a
+mano.
