@@ -193,7 +193,19 @@ var pctCiclo = totalTrades === 0 ? 0 : Math.round(enCurso / 111 * 100);
 
 Con esto, y con el fix de `handleClose` que conecta el EA a `trades`, en cuanto Roderas tenga su primer trade real contado, ambos números (Trades totales y Ciclo actual) van a coincidir de verdad, sin contradicción.
 
-## Confirmación precisa del backlog #5 (reasignar cuenta con reset de 777 OZT) — CORREGIDO tras revisar admin.js completo
+## ✅ CERRADO (confirmado 23/08, aplicado sin documentar el 04/07) — backlog #5
+
+**Verificado contra código real el 23/08:** el fix de abajo (hacer que
+`resetCuenta()` llame a la misma lógica de dos fases) ya está aplicado
+desde hace 7 semanas — commit `c7fa5e8` ("resetCuenta migra trades y
+parciales a Cuenta Externa", 04/07), que nunca se reflejó en este
+documento. `gestion.js` tiene `_liberarCuentaAExterna(email, destino,
+token)`, llamada dentro de `resetCuenta()` justo antes de poner el campo a
+`null`. Ver detalle en "Sesión 23/08" al final del documento. Este punto no
+requiere ninguna acción — se deja el hallazgo original abajo como
+referencia histórica.
+
+## Confirmación precisa del backlog #5 (reasignar cuenta con reset de 777 OZT) — CORREGIDO tras revisar admin.js completo (hallazgo original, referencia histórica)
 
 **Corrección importante respecto a lo que anoté antes esta noche:** dije que "no existe ningún código para mover trades a Cuenta Externa al reasignar". Eso era incompleto — sí existe, y está bien hecho: `admin.js`, función `_reasignarCuentaExterna` (línea 299). Cuando el admin revoca un número de un hueco (`cuenta_maestra`, etc.), mueve todos los trades de esa etiqueta a `"Cuenta Externa"` con `cuenta_numero: null`; cuando asigna un número nuevo, recupera de `"Cuenta Externa"` específicamente los trades que coinciden con ese número exacto y los mueve a la etiqueta nueva. Es un diseño de dos fases (revocar → asignar) que evita la mezcla que yo había predicho.
 
@@ -1626,3 +1638,128 @@ no tenga que tocarse en absoluto.
 5. Funcionalidad futura, sin fecha: vincular foto + trade dentro de una
    entrada del Diario (requiere columna `fp` en `diario_entradas` +
    almacenamiento de imagen en Supabase — no existe hoy).
+
+---
+
+# Sesión 23/08 — Verificación punto por punto contra código real (`admin.js`, `gestion.js`, `historial.js`, `api/trade-mt5.js`)
+
+Roderas pidió comparar todo lo que este documento marca como "pendiente"
+contra el código real de estos 4 archivos, sin tocar nada — solo
+diagnóstico. Verificado leyendo el código en disco + `git log`/`git show`
+para fechar hallazgos, no por suposición.
+
+## 🆕 Encontrado CERRADO pero nunca documentado — backlog #5 (reset de cuenta, 777 OZT)
+
+El backlog #5 de este mismo documento (sección "Confirmación precisa del
+backlog #5", cerca de la línea 196) sigue afirmando que `resetCuenta()` en
+`gestion.js` "no llama a `_reasignarCuentaExterna` ni a nada equivalente" y
+que los trades del usuario que resetea su cuenta "quedan con la etiqueta
+vieja para siempre". **Esto lleva 7 semanas sin ser cierto:** el commit
+`c7fa5e8` ("resetCuenta migra trades y parciales a Cuenta Externa",
+**04/07/2026**) añadió `_liberarCuentaAExterna(email, destino, token)` y la
+conecta dentro de `resetCuenta()` justo antes de poner el campo a `null` —
+mismo mecanismo de dos fases que ya usaba `_reasignarCuentaExterna` en
+`admin.js`. Nunca se marcó como cerrado en este documento. No queda ninguna
+acción de código pendiente aquí — solo se corrige el estado del documento
+(ver nota en la sección original, arriba).
+
+## 📝 Aplicado hoy (23/08), confirmado en código
+
+1. **`admin.js`/`gestion.js` — ya no se borra `cuenta_numero` al revocar o
+   liberar una cuenta.** `_reasignarCuentaExterna` (admin.js) y
+   `_liberarCuentaAExterna` (gestion.js, 2 sitios: `trades` y
+   `trade_parciales`) dejaban `cuenta_numero: null` al mover trades a
+   "Cuenta Externa" — dos cuentas distintas que acaban ahí podían acabar
+   mezcladas al no conservar el número que las distingue. Commit `5e94cd6`.
+2. **`historial.js` — `CUENTAS_AURUM` se reconstruye en cada subida,** no
+   solo si estaba vacío. Antes, si el admin cambiaba el número de cuenta de
+   un usuario mientras este ya tenía la pestaña de Historial abierta, la
+   siguiente subida podía usar el número viejo en memoria y mandar el
+   archivo a "Cuenta Externa" en vez de a la cuenta correcta. Commit
+   `fe3b871`.
+
+**Nota de proceso sobre estos dos commits:** en ambos casos, el archivo que
+Roderas pegó venía de una copia antigua del chat (antes de varios fixes ya
+en producción) — el diff completo traía el fix pedido mezclado con
+reversiones no relacionadas (algunas graves: `on_conflict=fp` sin
+`usuario_email`, pérdida del campo `tipo` en el insert, vuelta a mínimo de
+5 trades para importar, parser de fechas cTrader revertido, etc.). En
+ambos casos se descartó el archivo completo y se aplicó a mano solo el
+cambio mínimo correspondiente al mensaje de commit, verificado con `git
+diff` antes de cada commit — mismo protocolo que ya se documentó en la
+sesión 12/07 ("Lección operativa... Project Knowledge desactualizado").
+
+## 📝 Reportado como hecho hoy (23/08) — NO verificable en estos 4 archivos
+
+Roderas reportó dos cambios adicionales de hoy que son de base de datos
+(Supabase), no de estos 4 archivos JS — no hay ningún `.sql` versionado en
+el repo para ninguno de los dos, así que quedan documentados tal como se
+reportaron, sin confirmación por código:
+
+- **RLS de `trades`/`trade_parciales`/`historiales` corregida.**
+- **Separación manual de trades de Retos/Prueba que se habían mezclado**
+  (mismo patrón que los incidentes de cruce de cuentas ya documentados en
+  las sesiones 04/07 y 12/07 — Willian↔Mara, Willian↔Roderas).
+
+**Pendiente real que queda de esto (mismo patrón que el trigger
+`prevenir_cuenta_ajena`, sesión 25/07):** versionar en el repo qué política
+RLS exacta se aplicó y qué `UPDATE` exacto separó los trades — si no se
+deja constancia, la próxima auditoría no podrá confirmar qué se hizo ni
+cuándo, igual que pasó con el trigger que se perdió sin que nadie se
+enterara.
+
+## ⚠️ Pendiente de verdad, confirmado en código hoy (no ha cambiado nada)
+
+Todo esto sigue exactamente como lo dejaron las sesiones anteriores —
+verificado línea por línea hoy, no solo releído del documento:
+
+1. **`rr_minimo`** — sigue sin existir. `grep` de `rr_minimo` en todo el
+   repo: cero resultados en código, solo aparece dentro de este documento.
+   `calcularProgreso()` en `gestion.js` sigue con los mismos 4 tipos
+   (`lote_maximo`, `wr_minimo`, `trades_sin_revenge`, `pnl_minimo`).
+2. **`wr_minimo` mal diseñado** — sin rediseñar, sin decisión tomada.
+3. **Unificación `visitas.js`/`gestion.js`** — sigue parcial. Confirmado:
+   `buildTradeRecord()` y `statsCuenta()` (dentro de `buildDashboardHero`)
+   sí reutilizan `calcTipos()`/`calcMetricas()` (`typeof calcTipos ===
+   'function'` / `typeof calcMetricas === 'function'`). `buildCicloDots()`
+   (gestion.js:381) y `buildEstadisticasAvanzadas()` (gestion.js:1153)
+   siguen con su propio cálculo de WR/PNL/RR inline, sin pasar por esas
+   funciones compartidas.
+4. **`EA_EVENTOS_SECRET`** — nunca se creó. Confirmado: `api/trade-evento.js`
+   sigue usando `process.env.EA_SHARED_SECRET`, el mismo secreto compartido
+   que `api/trade-mt5.js`, en vez de una variable propia.
+5. **Trigger `prevenir_cuenta_ajena` sin versionar en el repo** — sigue sin
+   existir ningún `.sql` con el `CREATE TRIGGER`/`CREATE OR REPLACE
+   FUNCTION` que se aplicó a mano en Supabase el 25/07.
+6. **Zonas TP nuevas (TP0–TP5)** — implementación sin empezar. Confirmado:
+   `gestion.js` sigue solo con `tp_parcial1/2/3` (TP1/TP2/TP3) en todos los
+   sitios (`renderSlConfig`, `buildCumplimientoParciales`, guardado de
+   config).
+7. **Cumplimiento Punto 2 (MFE)** — solo el terreno preparado en SQL
+   (`mfe_price`/`mfe_puntos` en `ea_trades`). Confirmado: `api/trade-mt5.js`
+   no lee ni guarda esos campos en ningún handler — la captura real
+   requiere tocar `OnTick()` en el `.mq5`, no este archivo.
+8. **Willian con `tiene_ea=true` sin `ea_password`** — dato suelto en
+   Supabase, sigue sin decidirse si se le desmarca `tiene_ea`. No
+   bloqueante (su EA no está activo de verdad).
+
+**Fuera de alcance de esta verificación (no son parte de los 4 archivos
+pedidos hoy):** `visitas.js` Punto 4 de Cumplimiento (orden de meses en
+vista Global), `preguntas.js`/`tablillas.js` (guardado real de preguntas,
+historial hardcodeado — aunque el de tablillas ya se confirmó resuelto en
+la sesión 12/07), los 4 botones de `index.html` sin función real (agenda,
+info-animal, info-etapa, `cerrarJitsi`), y el desajuste de nombres de
+campo en `evalua.js`. Ninguno de estos se tocó ni se releyó hoy — siguen
+con el estado que ya tenían en el documento, sin verificación nueva.
+
+## Resumen — qué queda pendiente de verdad, todo confirmado hoy
+
+De los 4 archivos revisados, no queda ningún bug de datos abierto en
+`admin.js`, `historial.js` ni `api/trade-mt5.js`. En `gestion.js` no queda
+ningún bug de datos abierto tampoco — lo que queda son 3 piezas de
+**funcionalidad sin construir** (no bugs): `rr_minimo`, rediseño de
+`wr_minimo`, y la unificación completa con `visitas.js`. A nivel de
+infraestructura (fuera del código JS, pero relevante), quedan 2 cosas sin
+versionar en el repo (`EA_EVENTOS_SECRET` sin crear, trigger y RLS de hoy
+sin `.sql`) — mismo tipo de deuda que ya causó una pérdida real una vez
+(el trigger `prevenir_cuenta_ajena`).
