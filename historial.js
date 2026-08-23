@@ -413,12 +413,13 @@ function histSubir(file, onDone) {
   async function procesarRaw(raw, numeroCuentaForzado) {
     document.getElementById('hist-prog-bar').style.width = '70%';
     document.getElementById('hist-prog-txt').textContent = 'Calculando...';
-    if (Object.keys(CUENTAS_AURUM).length === 0) {
-      var _u = window.usuarioActual;
-      if (_u && _u.cuenta_maestra) CUENTAS_AURUM[_u.cuenta_maestra] = 'Cuenta Maestra';
-      if (_u && _u.cuenta_retos)   CUENTAS_AURUM[_u.cuenta_retos]   = 'Cuenta Retos';
-      if (_u && _u.cuenta_prueba)  CUENTAS_AURUM[_u.cuenta_prueba]  = 'Cuenta Prueba';
-    }
+    // Se reconstruye siempre (no solo si está vacía) para no usar datos
+    // viejos si el número de cuenta cambió en el admin sin recargar la página.
+    CUENTAS_AURUM = {};
+    var _u = window.usuarioActual;
+    if (_u && _u.cuenta_maestra) CUENTAS_AURUM[_u.cuenta_maestra] = 'Cuenta Maestra';
+    if (_u && _u.cuenta_retos)   CUENTAS_AURUM[_u.cuenta_retos]   = 'Cuenta Retos';
+    if (_u && _u.cuenta_prueba)  CUENTAS_AURUM[_u.cuenta_prueba]  = 'Cuenta Prueba';
     var _parsed = parsearTrades(raw);
     var trades   = Array.isArray(_parsed) ? _parsed : (_parsed.trades || []);
     var parciales = Array.isArray(_parsed) ? [] : (_parsed.parciales || []);
