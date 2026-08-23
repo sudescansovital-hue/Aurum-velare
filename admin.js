@@ -401,9 +401,11 @@ async function _reasignarCuentaExterna(email, cuentas) {
         ep + '&cuenta=eq.' + encodeURIComponent(destino) + '&limit=1', token);
       console.log('[REASIGNAR] revocación — trades en', destino, ':', resRev.data ? resRev.data.length : 'error', resRev.error || '');
       if (!resRev.error && resRev.data && resRev.data.length) {
+        // No se vacía cuenta_numero: se conserva para no mezclar esta cuenta
+        // revocada con otras que también acaben en Cuenta Externa.
         await supaPatch('trades',
           ep + '&cuenta=eq.' + encodeURIComponent(destino),
-          { cuenta: 'Cuenta Externa', cuenta_numero: null }, token);
+          { cuenta: 'Cuenta Externa' }, token);
         await supaPatch('historiales',
           ep + '&nombre=eq.' + encodeURIComponent(destino),
           { nombre: 'Cuenta Externa' }, token);

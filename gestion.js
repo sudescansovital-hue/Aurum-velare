@@ -2520,9 +2520,11 @@ async function _liberarCuentaAExterna(email, destino, token) {
   var resTrades = await supaGet('trades',
     ep + '&cuenta=eq.' + encodeURIComponent(destino) + '&limit=1', token);
   if (!resTrades.error && resTrades.data && resTrades.data.length) {
+    // No se vacía cuenta_numero: se conserva para no mezclar esta cuenta
+    // revocada con otras que también acaben en Cuenta Externa.
     await supaPatch('trades',
       ep + '&cuenta=eq.' + encodeURIComponent(destino),
-      { cuenta: 'Cuenta Externa', cuenta_numero: null }, token);
+      { cuenta: 'Cuenta Externa' }, token);
   }
 
   var resParciales = await supaGet('trade_parciales',
@@ -2530,7 +2532,7 @@ async function _liberarCuentaAExterna(email, destino, token) {
   if (!resParciales.error && resParciales.data && resParciales.data.length) {
     await supaPatch('trade_parciales',
       ep + '&cuenta=eq.' + encodeURIComponent(destino),
-      { cuenta: 'Cuenta Externa', cuenta_numero: null }, token);
+      { cuenta: 'Cuenta Externa' }, token);
   }
 
   await supaPatch('historiales',
