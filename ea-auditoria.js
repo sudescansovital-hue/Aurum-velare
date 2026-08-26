@@ -36,8 +36,29 @@ function _eaAuditoriaFechaDesdeFp(fp) {
   return new Date(+m[1], +m[2] - 1, +m[3]);
 }
 
-function _eaAuditoriaTipoLabel(tipoEvento) {
+function _eaAuditoriaTipoLabel(tipoEvento, dolares) {
+  if (tipoEvento === 'breakeven' && dolares != null) {
+    if (dolares > 3) return 'SL protegido';
+    if (dolares < -3) return 'SL ajustado';
+    return 'Breakeven';
+  }
   return { entrada: 'Entrada', breakeven: 'Breakeven', parcial: 'Parcial', cierre: 'Cierre' }[tipoEvento] || tipoEvento;
+}
+
+// Deriva el valor en $ de un movimiento de SL sin depender de una constante
+// de valor-por-punto (que varía por bróker/instrumento): usa el propio
+// resultado final del trade (t.beneficio) y su movimiento total de precio
+// (precio_cierre - precio_entrada) para obtener el $/punto real de ESE
+// trade y volumen, y lo aplica a los puntos ya ganados en el momento del
+// evento. Solo válido si el trade cerró completo (sin parciales) y sin
+// eso, devuelve null y el label cae al valor por defecto ('Breakeven').
+function _eaAuditoriaDolaresEvento(t, ev) {
+  if (ev.tipo_evento !== 'breakeven' || ev.puntos_desde_entrada == null) return null;
+  if (t.beneficio == null || t.precio_cierre == null || t.precio_entrada == null) return null;
+  var movTotal = Math.abs(t.precio_cierre - t.precio_entrada);
+  if (!movTotal) return null;
+  var valorPorPunto = t.beneficio / movTotal;
+  return Math.round(parseFloat(ev.puntos_desde_entrada) * valorPorPunto * 100) / 100;
 }
 
 function _eaAuditoriaFormatHora(ts) {
@@ -92,10 +113,11 @@ function _eaAuditoriaCrearFila(t, eventos, limAire) {
   eventos.forEach(function(ev) {
     var rowEv = document.createElement('div');
     rowEv.style.cssText = 'display:flex;gap:1rem;padding:.4rem 0;font-size:13px;color:var(--text-dim);border-bottom:1px solid #0A0C14;';
+    var dolaresEv = _eaAuditoriaDolaresEvento(t, ev);
     rowEv.innerHTML =
       '<span style="width:110px;color:var(--text-muted);flex-shrink:0;">' + _eaAuditoriaFormatHora(ev.timestamp) + '</span>' +
-      '<span style="width:90px;color:var(--gold-dim);flex-shrink:0;">' + _eaAuditoriaTipoLabel(ev.tipo_evento) + '</span>' +
-      '<span>' + _eaAuditoriaDetalleEvento(ev) + '</span>';
+      '<span style="width:110px;color:var(--gold-dim);flex-shrink:0;">' + _eaAuditoriaTipoLabel(ev.tipo_evento, dolaresEv) + '</span>' +
+      '<span>' + _eaAuditoriaDetalleEvento(ev) + (dolaresEv != null ? ' · ' + (dolaresEv >= 0 ? '+' : '') + dolaresEv + '$' : '') + '</span>';
     timeline.appendChild(rowEv);
   });
   fila.appendChild(timeline);
