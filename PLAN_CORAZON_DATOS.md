@@ -1836,3 +1836,115 @@ para casos así (sesión 12/07, "Pasos técnicos que costó encontrar"):
 si se necesita repetir un cruce de datos parecido en el futuro, merece la
 pena dejar la consulta usada en un archivo versionado, no solo ejecutada a
 mano.
+
+---
+
+# Sesión 26/08 — EA sin autenticar (Token vacío, 3ª+ recurrencia) + estrategia A/B rescatada, corregida y desplegada
+
+## 🔴 Token/ea_password rotos en producción — mismo patrón que 01/08, 05/08 y 08/08
+
+El EA real (cuenta 176821, roderastrader@gmail.com) llevaba tiempo dando
+`401 | Token inválido o ausente` en todos los eventos — el campo `Token`
+estaba vacío en los parámetros del EA. Es la **cuarta vez documentada**
+que este mecanismo se rompe (ver sesiones 01/08 — EA bloqueado 2FA,
+recuperado vía CLI, Token rotado y marcado explícitamente "NO sensible
+para poder leerla en el futuro"; 05/08 — fix del generador de
+`ea_password`; 08/08 — rotación de `ea_password`, Token aplazado a
+propósito). **Sigue sin identificarse la causa raíz de por qué el campo
+`Token` del EA se vacía entre sesiones** — MQL5 no debería perder inputs
+en un reinicio normal salvo `REASON_PARAMETERS` mal gestionado (ver
+[[project_ea_cola_bug]] para el bug relacionado de `g_cola`, ya cerrado, y
+la plantilla `aurum_config.set` mencionada el 01/08 para prevenir esto,
+que no parece haberse usado de forma consistente desde entonces).
+
+**Discrepancia sin resolver:** la nota del 01/08 dice que el nuevo
+`EA_SHARED_SECRET` se guardó explícitamente como NO sensible. Hoy
+(`vercel env pull` sobre todas las variables del proyecto, no solo esta)
+volvió vacío para absolutamente todas — comportamiento típico de
+"Sensitive". O el ajuste de esa sesión no se aplicó de verdad, o algo lo
+volvió a marcar Sensitive después. No investigado más a fondo hoy — si
+vuelve a hacer falta rotar, comprobar el flag explícitamente en el
+dashboard antes de asumir que se puede leer.
+
+**Fix aplicado:**
+1. `EA_SHARED_SECRET` rotado (`vercel env rm` + `vercel env add`,
+   valor generado con `openssl rand -hex 32`) + redeploy.
+2. Valor nuevo pegado en el EA real — **primer intento con una errata**
+   (un carácter repetido omitido al copiar a mano, detectado comparando
+   carácter a carácter contra lo que el usuario pegó de vuelta en el
+   chat). Lección para la próxima vez que haga falta pasar un secreto
+   largo: dárselo siempre en bloque de código copiable, pedir que se
+   copie del campo real (no que se retipee) para verificar.
+3. `ea_password` del EA real (`aee980b790bd069beb0043fa0db72f66`) no
+   coincidía con la guardada en Supabase — corregido a
+   `ebafbfad0104da3e00df3fb0c3bd8180` por el propio usuario (confirmado
+   que ya lo sabía; no hizo falta ni se pudo tocar la tabla directamente,
+   sin service key disponible en esta sesión).
+
+**Cola de reintentos — 34 eventos atascados, recuperados sin pérdida de
+datos** (a diferencia del 01/08, donde se borraron los archivos de cola
+de las 2 cuentas afectadas y se aceptó perder esos eventos): cada línea
+de `aurum_cola_176821.txt`/`aurum_cola_eventos_176821.txt` lleva el
+`token`/`ea_password` grabados en el momento de encolarse — `DoWebRequest`
+reenvía el `json_body` tal cual, nunca se reconstruye con las credenciales
+nuevas. Los 34 (deduplicados a 12 payloads únicos — varias posiciones
+tenían el mismo evento repetido 3-10 veces idénticas, aparentemente por
+`SyncHistory48h()` re-encolando en reinicios sucesivos sin comprobar si ya
+había una entrada pendiente para ese `position_id`+evento — no confirmado
+en código, ver [[project_ea_cola_bug]]) se reenviaron a mano contra los
+endpoints reales de producción (`/api/trade-mt5`, `/api/trade-evento`) con
+las credenciales corregidas. Idempotencia por `position_id`/`fp` confirmó
+que no se duplicó nada (una posición ya tenía fila previa, solo se
+actualizó).
+
+## ✅ Estrategia A/B — rescatada de `feature/estrategia-ab` (09/08), Hallazgo #1 corregido, verificada con trade real
+
+La rama `feature/estrategia-ab` (commit único, "wip... sin desplegar,
+tiene bugs pendientes", 09/08) llevaba 17 días sin fusionar. Contenía dos
+cosas mezcladas: la feature original de clasificación A/B, y una
+respuesta ya escrita (sin verificar) al Hallazgo #1 de una auditoría del
+mismo día (`ClasificarEstrategia()` nunca se ejecutaba en el caso normal
+de SL-puesto-al-abrir — ver detalle en `docs/ARQUITECTURA.md`, entrada
+recuperada hoy "Estado sesión 09 Ago 2026").
+
+**Revisado antes de traer nada:** el diff completo de `EA_Aurum_Tracker_FIX.mq5`
+en la rama (todas las llamadas a `BuildOpenJson`/`BuildOriginalCaptureJson`
+actualizadas de forma consistente, Opción B aplicada en los 3 sitios donde
+puede haber SL ya puesto al abrir) y de `api/trade-mt5.js` (validación de
+`estrategia` contra lista cerrada, propagación a `trades` en el cierre).
+Se descartó a propósito el resto de archivos tocados en esa misma rama
+(`admin.js`, `gestion.js`, `historial.js`, ~288 líneas de
+`docs/ARQUITECTURA.md`) — sin relación con estrategia, y `historial.js`
+en concreto reintroducía un bug de caché de `CUENTAS_AURUM` que `main` ya
+había corregido después del 09/08.
+
+**Bloqueadores encontrados y resueltos en el camino** (cada uno confirmado
+con evidencia real antes de continuar, no asumido):
+- `sql_estrategia.sql` que el usuario creía ya ejecutado no existía en el
+  repo ni en Supabase (columna `estrategia` daba 42703 en `ea_trades` y
+  `trades`) — se creó, y costó **tres intentos** hasta que el `ALTER
+  TABLE trades` realmente se aplicó (los dos primeros "ya lo ejecuté" no
+  se reflejaban en `information_schema.columns` al aislar la
+  comprobación línea por línea).
+- Verificación final hecha con consulta real vía un endpoint de
+  diagnóstico temporal (`api/debugread-tmp.js`, gateado por
+  `EA_SHARED_SECRET`, desplegado y retirado en la misma sesión) porque el
+  anon key público da `[]` por RLS en `ea_trades`/`trades` — no sirve para
+  confirmar contenido de filas, solo para comprobar si una columna existe
+  (sí sirve para eso, un `42703` es inequívoco).
+
+**Commit `980723d` en `main`, desplegado a producción.** Verificado con
+trade real: `position_id 21890309` (176821) abrió sin SL, clasificó
+`estrategia:estructura` vía `original_capture`, cerró con beneficio
+144,76€ — confirmado con el campo `estrategia` poblado en la fila final
+de `trades` por consulta directa (no solo por el `200 OK` del insert).
+`position_id 21872062` (mismo día, caso con SL/TP capturados por separado)
+verificado igual.
+
+**Pendiente, sin empezar:** la rama `feature/estrategia-ab` sigue en el
+remoto — se puede borrar cuando se confirme que no queda nada más
+rescatable de los archivos descartados (no revisados a fondo, solo
+descartados por no ser del tema de hoy). El resto de hallazgos de la
+auditoría del 09/08 (#2-#8 en la rama) tampoco se revisaron — estado
+actual desconocido, no asumir resueltos ni vigentes sin comprobar contra
+código real primero.

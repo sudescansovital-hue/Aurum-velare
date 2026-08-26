@@ -1,7 +1,95 @@
 # AURUM VELARE — Arquitectura Web
 > Documento vivo. Se actualiza con el proyecto.  
-> Última actualización: 2 de julio de 2026  
+> Última actualización: 26 de agosto de 2026  
 > Para uso interno — contexto de desarrollo y nuevas sesiones de trabajo.
+
+---
+
+## ⚠️ Nota de continuidad (26/08) — este archivo estuvo 2 meses sin entradas nuevas
+
+Entre el 02/07 y hoy, el trabajo real de cada sesión se documentó en
+`PLAN_CORAZON_DATOS.md` (sesiones 12/07 en adelante — Token/ea_password,
+cola duplicada, auditorías del 18/07 y 19/07, etc.), no aquí, pese a que la
+regla de mantenimiento de arriba dice que este archivo es la única fuente
+de verdad. La única excepción fue una rama sin fusionar
+(`feature/estrategia-ab`, 09/08) que sí añadió una entrada aquí, pero nunca
+llegó a `main` — se recupera parte de ella más abajo. A partir de hoy se
+retoma la entrada por sesión aquí; para el detalle técnico completo de
+cada una, `PLAN_CORAZON_DATOS.md` sigue siendo el brief de referencia (ver
+regla #2 de mantenimiento, arriba) — este archivo se queda como índice/
+resumen de alto nivel.
+
+---
+
+## Estado sesión 26 Ago 2026 — EA sin autenticar (Token vacío) + estrategia A/B desplegada
+
+> Detalle completo, paso a paso, en `PLAN_CORAZON_DATOS.md` → "Sesión
+> 26/08". Resumen aquí:
+
+**Token/ea_password rotos en producción (3ª+ vez que pasa — ver también
+sesiones 01/08, 05/08 y 08/08 en `PLAN_CORAZON_DATOS.md`, mismo patrón
+recurrente sin causa raíz confirmada):** el campo `Token` del EA real
+llevaba tiempo vacío (todos los eventos rechazados con 401). Como
+`EA_SHARED_SECRET` es "Sensitive" en Vercel (irrecuperable — nota: el
+01/08 se dejó anotado que se guardó como NO sensible; hoy se comprobó que
+sí lo era, discrepancia sin resolver, revisar si vuelve a pasar), se
+rotó por uno nuevo y se corrigió además un `ea_password` desincronizado
+entre el EA real y Supabase. 34 eventos que se habían quedado atascados en
+la cola de reintentos del EA (`aurum_cola_176821.txt`) se reenviaron a
+mano vía API (idempotente por `position_id`/`fp`, sin duplicados) en vez
+de borrarse como se hizo el 01/08 — no se perdió ningún dato.
+
+**✅ RESUELTO (26/08) — Hallazgo #1 de la auditoría 09/08** (ver entrada
+`Estado sesión 09 Ago 2026 (auditoría)` más abajo, recuperada hoy desde
+`feature/estrategia-ab`): `ClasificarEstrategia()` ahora también se
+ejecuta en `HandleDealOpen`/`SyncOpenPositions`/`SyncHistory48h` cuando el
+SL ya viene puesto al abrir (Opción B), no solo cuando llega después. Antes
+solo clasificaba en el caso raro; el caso normal del plan de lotaje fijo
+se quedaba siempre sin clasificar.
+
+**Verificado end-to-end con trade real:** `position_id 21890309`
+(cuenta 176821, roderastrader@gmail.com) — abrió sin SL, clasificó
+`estrategia:estructura` vía `original_capture`, cerró con beneficio
+144,76€, confirmado con consulta real (service role, no anon key — RLS
+bloquea lectura anónima de `ea_trades`/`trades`) el campo `estrategia`
+poblado en la fila final de `trades`.
+
+**Commit `980723d` en `main`, desplegado.** Se rescató de
+`feature/estrategia-ab` (09/08) solo lo relacionado con estrategia
+(`api/trade-mt5.js`, `EA_Aurum_Tracker_FIX.mq5`, `sql_estrategia.sql`) —
+se descartó a propósito el resto de esa rama (`admin.js`/`gestion.js`/
+`historial.js`), sin relación con el tema y con al menos una reversión de
+un fix posterior de `main` (caché de `CUENTAS_AURUM` en `historial.js`).
+La rama sigue sin borrar en el remoto, ya superada.
+
+---
+
+## Estado sesión 09 Ago 2026 (auditoría) — Barrido extensivo de código, mismo rigor que 03/07
+
+> Recuperada hoy (26/08) desde `feature/estrategia-ab`, rama que nunca se
+> fusionó a `main` — por eso esta entrada no apareció aquí hasta ahora,
+> pese a ser del 09/08. Solo se trae el Hallazgo #1 (relevante y ya
+> resuelto); el resto de hallazgos de aquella auditoría (#2-#8, admin
+> email, código muerto, etc.) quedaron en la rama sin revisar hoy — no se
+> asume su estado actual sin verificar contra código real primero.
+
+### Hallazgo #1 — 🔴 CRÍTICO — `ClasificarEstrategia()` no se ejecuta en el caso normal de uso — ✅ RESUELTO (26/08)
+
+`EA_Aurum_Tracker_FIX.mq5:1034-1046` (línea de la auditoría original),
+causa raíz en `PendienteAgregar()`. La clasificación de estrategia A/B
+solo corría dentro de `CheckOriginalesPendientes()`, gateada por
+`!g_pend_sl_hecho[i]`. Pero `PendienteAgregar(pos_id, sl != 0.0, ...)`
+marca `g_pend_sl_hecho = true` de inmediato si la posición abre **con SL
+ya puesto** — que es el caso normal según el plan de lotaje fijo. Ningún
+otro punto del EA llamaba a `ClasificarEstrategia()`. Resultado: `estrategia`
+se quedaba NULL en prácticamente todos los trades reales, salvo el caso
+raro de abrir a mercado sin SL y ponerlo después.
+
+**Fix aplicado y verificado 26/08** (ver entrada de arriba, "Estado sesión
+26 Ago 2026"): Opción B — clasificar también en `HandleDealOpen`,
+`SyncOpenPositions` y `SyncHistory48h` cuando el SL ya está puesto al
+abrir. Detalle técnico completo en `PLAN_CORAZON_DATOS.md` → "Sesión
+26/08".
 
 ---
 
