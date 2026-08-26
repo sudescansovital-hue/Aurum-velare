@@ -231,11 +231,20 @@ void PendienteQuitarPorPosId(ulong pos_id) {
 //| CONSTRUCTORES JSON                                                |
 //+------------------------------------------------------------------+
 
+// (09/08, ampliado el mismo día): campo 'estrategia' — clasificación A/B para
+// el caso de orden pendiente activada, donde el SL ya viene puesto desde el
+// instante mismo del open (a diferencia del caso cubierto por
+// BuildOriginalCaptureJson/CheckOriginalesPendientes, que es para cuando el
+// SL llega después). Mismo cálculo, mismas bandas, misma regla de fijación
+// (una sola vez) — ver ClasificarEstrategia(). Si sl==0.0 en el momento del
+// open, quien llama pasa estrategia="" (null) y queda pendiente del camino
+// de captura tardía, sin duplicar clasificación.
 string BuildOpenJson(ulong pos_id, string fp, string tipo, double vol,
                      double pe, double sl, double tp, double puntos_sl,
-                     datetime entry_time) {
+                     string estrategia, datetime entry_time) {
    string sl_str  = (sl != 0.0) ? DoubleToString(sl, 5) : "null";
    string tp_str  = (tp != 0.0) ? DoubleToString(tp, 5) : "null";
+   string est_str = (estrategia != "") ? ("\"" + estrategia + "\"") : "null";
    return "{\"event\":\"open\""
         + ",\"email\":\""         + Email                        + "\""
         + ",\"cuenta_numero\":\"" + g_cuenta_numero              + "\""
@@ -249,6 +258,7 @@ string BuildOpenJson(ulong pos_id, string fp, string tipo, double vol,
         + ",\"sl\":"              + sl_str
         + ",\"tp\":"              + tp_str
         + ",\"puntos_sl\":"       + DoubleToString(puntos_sl, 2)
+        + ",\"estrategia\":"      + est_str
         + ",\"timestamp\":\""     + DatetimeToISO(entry_time)    + "\""
         + "}";
 }
@@ -283,13 +293,33 @@ string BuildTpChangeJson(ulong pos_id, double tp_ant, double tp_new, datetime t)
         + "}";
 }
 
+// Clasificación automática de estrategia (A/B) — bandas de tolerancia con
+// frontera en el punto medio entre categorías, para que ningún SL entre
+// 0 y 37.5 pts quede sin clasificar:
+//   rechazo_rsi (Estrategia A) : 0    - 9    pts (medio entre 7 y 11)
+//   estructura  (Estrategia B) : 9    - 37.5 pts (medio 11-25 y medio 25-50;
+//                                 incluye Edge y Aire — ya se distinguen por
+//                                 los puntos de SL guardados, sin campo aparte)
+//   sin clasificar              : 37.5+ pts (zona Límite/fuera de método ya
+//                                 existente — no se toca)
+// Se llama UNA sola vez, en CheckOriginalesPendientes(), con el primer SL
+// real detectado (ver REGLA DE FIJACIÓN ahí mismo).
+string ClasificarEstrategia(double puntos) {
+   if(puntos <= 9.0)  return "rechazo_rsi";
+   if(puntos <= 37.5) return "estructura";
+   return ""; // fuera de rango — string vacío = no clasificar
+}
+
 // FIX corazón de datos (06/07): evento correctivo para cuando se abrió a
 // mercado sin SL/TP y luego aparece el primer valor real. Solo manda el
 // campo que se acaba de capturar (el otro va como null y el backend lo
 // ignora, no lo pisa).
-string BuildOriginalCaptureJson(ulong pos_id, double sl, double tp, datetime t) {
-   string sl_str = (sl != 0.0) ? DoubleToString(sl, 5) : "null";
-   string tp_str = (tp != 0.0) ? DoubleToString(tp, 5) : "null";
+// (09/08) + campo 'estrategia': clasificación A/B calculada en
+// CheckOriginalesPendientes() a partir del primer SL real — ver ClasificarEstrategia().
+string BuildOriginalCaptureJson(ulong pos_id, double sl, double tp, string estrategia, datetime t) {
+   string sl_str  = (sl != 0.0) ? DoubleToString(sl, 5) : "null";
+   string tp_str  = (tp != 0.0) ? DoubleToString(tp, 5) : "null";
+   string est_str = (estrategia != "") ? ("\"" + estrategia + "\"") : "null";
    return "{\"event\":\"original_capture\""
         + ",\"email\":\""         + Email                   + "\""
         + ",\"cuenta_numero\":\"" + g_cuenta_numero         + "\""
@@ -298,6 +328,7 @@ string BuildOriginalCaptureJson(ulong pos_id, double sl, double tp, datetime t) 
         + ",\"position_id\":\""   + IntegerToString(pos_id) + "\""
         + ",\"sl\":"              + sl_str
         + ",\"tp\":"              + tp_str
+        + ",\"estrategia\":"      + est_str
         + ",\"timestamp\":\""     + DatetimeToISO(t)        + "\""
         + "}";
 }
@@ -689,12 +720,15 @@ void SyncOpenPositions() {
       double   vol       = PositionGetDouble(POSITION_VOLUME);
       string   tipo_str  = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) ? "buy" : "sell";
       double   puntos_sl = (sl != 0.0) ? MathAbs(pe - sl) : 0.0;
+      // (09/08) Op. B: si el SL ya está puesto en el momento del sync, se
+      // clasifica aquí mismo — si no, queda pendiente vía CheckOriginalesPendientes().
+      string   estrategia_open = (sl != 0.0) ? ClasificarEstrategia(puntos_sl) : "";
 
       SlMapSet(pos_id, sl);
       TpMapSet(pos_id, tp);
       PendienteAgregar(pos_id, sl != 0.0, tp != 0.0); // FIX 06/07: vigilar si falta SL/TP original
       string json = BuildOpenJson(pos_id, BuildFp(open_time, pos_id),
-                                  tipo_str, vol, pe, sl, tp, puntos_sl, open_time);
+                                  tipo_str, vol, pe, sl, tp, puntos_sl, estrategia_open, open_time);
       Print("[AURUM SYNC] Posición abierta (SL=valor actual) — pos:", pos_id);
       SendEvent(json);
       synced++;
@@ -779,10 +813,13 @@ void SyncHistory48h() {
       double   entry_vol   = HistoryDealGetDouble(dt, DEAL_VOLUME);
       string   tipo_str    = (HistoryDealGetInteger(dt, DEAL_TYPE) == DEAL_TYPE_BUY) ? "buy" : "sell";
       double   puntos_sl   = (sl_orig != 0.0) ? MathAbs(entry_price - sl_orig) : 0.0;
+      // (09/08) Op. B: mismo criterio que en los otros dos sitios — el SL de
+      // la orden ya se conoce al reconciliar histórico, así que se clasifica aquí.
+      string   estrategia_open = (sl_orig != 0.0) ? ClasificarEstrategia(puntos_sl) : "";
 
       string json_open = BuildOpenJson(pos_id, BuildFp(entry_time, pos_id),
                                        tipo_str, entry_vol, entry_price,
-                                       sl_orig, tp_orig, puntos_sl, entry_time);
+                                       sl_orig, tp_orig, puntos_sl, estrategia_open, entry_time);
       Print("[AURUM SYNC] Posición cerrada — pos:", pos_id,
             " | pe:", DoubleToString(entry_price, 5),
             " | sl_orig:", DoubleToString(sl_orig, 5));
@@ -862,13 +899,19 @@ void HandleDealOpen(const MqlTradeTransaction &trans) {
    }
 
    double puntos_sl = (sl != 0.0) ? MathAbs(pe - sl) : 0.0;
+   // (09/08) Hallazgo #1 de la auditoría — caso de orden pendiente activada:
+   // el SL ya viene puesto en este mismo instante (a diferencia del open a
+   // mercado sin SL, cubierto por CheckOriginalesPendientes()/original_capture
+   // más abajo). Se clasifica aquí, en el propio evento 'open', para que la
+   // escritura sea atómica (Opción B — ver ARQUITECTURA.md, sesión 09/08 auditoría).
+   string estrategia_open = (sl != 0.0) ? ClasificarEstrategia(puntos_sl) : "";
    SlMapSet(pos_id, sl);
    TpMapSet(pos_id, tp);
    PendienteAgregar(pos_id, sl != 0.0, tp != 0.0); // FIX 06/07: vigilar si falta SL/TP original
 
    string fp   = BuildFp(entry_time, pos_id);
    string json = BuildOpenJson(pos_id, fp,
-                               tipo_str, vol, pe, sl, tp, puntos_sl, entry_time);
+                               tipo_str, vol, pe, sl, tp, puntos_sl, estrategia_open, entry_time);
    Print("[AURUM] Apertura — pos:", pos_id, " | ", tipo_str,
          " | pe:", DoubleToString(pe, 5),
          " | sl:", DoubleToString(sl, 5),
@@ -1008,12 +1051,20 @@ void CheckOriginalesPendientes() {
       bool   huboCaptura = false;
 
       double sl_para_evento = 0.0, tp_para_evento = 0.0;
+      string estrategia_capturada = ""; // solo se rellena si AQUÍ se captura el primer SL real
 
       if(!g_pend_sl_hecho[i] && sl_actual != 0.0) {
          g_pend_sl_hecho[i] = true;
          sl_para_evento = sl_actual;
          SlMapSet(pos_id, sl_actual);
          huboCaptura = true;
+
+         // Clasificación por bandas — SOLO aquí, con el primer SL real.
+         // No se recalcula en cambios posteriores (breakeven/gestión activa,
+         // esos siguen su propio evento en HandlePositionModified()).
+         double precio_entrada_pos = PositionGetDouble(POSITION_PRICE_OPEN);
+         double puntos_sl_real     = MathAbs(precio_entrada_pos - sl_actual);
+         estrategia_capturada      = ClasificarEstrategia(puntos_sl_real);
       }
       if(!g_pend_tp_hecho[i] && tp_actual != 0.0) {
          g_pend_tp_hecho[i] = true;
@@ -1023,10 +1074,11 @@ void CheckOriginalesPendientes() {
       }
 
       if(huboCaptura) {
-         string json = BuildOriginalCaptureJson(pos_id, sl_para_evento, tp_para_evento, TimeTradeServer());
+         string json = BuildOriginalCaptureJson(pos_id, sl_para_evento, tp_para_evento, estrategia_capturada, TimeTradeServer());
          Print("[AURUM] Original capturado — pos:", pos_id,
                " | sl:", DoubleToString(sl_para_evento, 5),
-               " | tp:", DoubleToString(tp_para_evento, 5));
+               " | tp:", DoubleToString(tp_para_evento, 5),
+               " | estrategia:", (estrategia_capturada != "" ? estrategia_capturada : "(sin clasificar)"));
          SendEvent(json);
       }
 

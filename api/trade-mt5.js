@@ -6,6 +6,14 @@ const SUPA_URL = process.env.SUPABASE_URL || 'https://rsrbxcvlnbwpiyhumqmt.supab
 const SUPA_KEY = process.env.SUPABASE_SERVICE_KEY;
 const EA_SHARED_SECRET = process.env.EA_SHARED_SECRET;
 
+// Clasificación A/B por bandas de SL (ver EA: ClasificarEstrategia()).
+// Compartida por handleOpen (Opción B, 09/08 — orden pendiente activada, SL
+// ya puesto desde el open) y handleOriginalCapture (SL llega después). Ambos
+// caminos escriben el mismo valor de la misma forma — solo cambia el evento
+// que lo dispara. Validada aquí también, por defensa en profundidad — el EA
+// solo debería mandar estos dos valores o null.
+const ESTRATEGIAS_VALIDAS = ['rechazo_rsi', 'estructura'];
+
 function _headers() {
   return {
     'apikey':        SUPA_KEY,
@@ -42,10 +50,18 @@ async function _patch(table, params, body) {
 // ── Handlers por evento ───────────────────────────────────────────────────────
 
 async function handleOpen(body, email, cuentaNumero, cuentaNombre) {
-  const { position_id, fp, tipo, volumen, precio_entrada, sl, tp, puntos_sl, timestamp } = body;
+  const { position_id, fp, tipo, volumen, precio_entrada, sl, tp, puntos_sl, estrategia, timestamp } = body;
 
   if (!position_id || !fp || precio_entrada == null || !timestamp) {
     return { status: 400, json: { error: 'open: faltan position_id, fp, precio_entrada o timestamp' } };
+  }
+
+  // (09/08, Opción B) El EA solo manda estrategia != null cuando el SL ya
+  // venía puesto al abrir (orden pendiente activada) — si no, llega null y
+  // se clasifica más tarde vía original_capture. Si viene, tiene que ser
+  // válida.
+  if (estrategia != null && !ESTRATEGIAS_VALIDAS.includes(estrategia)) {
+    return { status: 400, json: { error: 'open: estrategia inválida: ' + estrategia } };
   }
 
   // Comprobar si la posición ya existe para proteger sl_original y fecha_entrada
@@ -83,7 +99,8 @@ async function handleOpen(body, email, cuentaNumero, cuentaNombre) {
     tp_actual:      tp       != null ? tp       : null,
     puntos_sl:      puntos_sl != null ? puntos_sl : null,
     estado:         'open',
-    fecha_entrada:  timestamp
+    fecha_entrada:  timestamp,
+    estrategia:     estrategia || null
   };
 
   const r = await _post('ea_trades', row, 'return=minimal');
@@ -165,8 +182,10 @@ async function handleTpChange(body, email, cuentaNumero) {
 // detecta (via polling cada 10s) el primer valor real de SL y/o TP tras
 // haber abierto a mercado sin ninguno de los dos puestos. Solo actualiza
 // sl_original/tp_original si vienen informados (no pisa con null).
+// Camino de clasificación A/B para cuando el SL llega DESPUÉS del open (ver
+// ESTRATEGIAS_VALIDAS arriba, y handleOpen para el caso de SL ya puesto al abrir).
 async function handleOriginalCapture(body, email, cuentaNumero) {
-  const { position_id, sl, tp, timestamp } = body;
+  const { position_id, sl, tp, estrategia, timestamp } = body;
 
   if (!position_id) {
     return { status: 400, json: { error: 'original_capture: falta position_id' } };
@@ -175,6 +194,15 @@ async function handleOriginalCapture(body, email, cuentaNumero) {
   const patch = {};
   if (sl != null) { patch.sl_original = sl; patch.sl_actual = sl; }
   if (tp != null) { patch.tp_original = tp; patch.tp_actual = tp; }
+  // El EA la calcula UNA sola vez, con el primer SL real — si el SL está
+  // fuera de rango (zona Límite/fuera de método) manda estrategia=null y
+  // esta columna no se toca.
+  if (estrategia != null) {
+    if (!ESTRATEGIAS_VALIDAS.includes(estrategia)) {
+      return { status: 400, json: { error: 'original_capture: estrategia inválida: ' + estrategia } };
+    }
+    patch.estrategia = estrategia;
+  }
 
   if (Object.keys(patch).length === 0) {
     return { status: 200, json: { ok: true, event: 'original_capture', position_id, skipped: true } };
@@ -274,7 +302,7 @@ async function handleClose(body, email, cuentaNumero, cuentaNombre) {
   try {
     eaRows = await _get(
       'ea_trades',
-      `position_id=eq.${encodeURIComponent(position_id)}&select=fp,tipo,volumen,precio_entrada,sl_actual,tp_actual,fecha_entrada`
+      `position_id=eq.${encodeURIComponent(position_id)}&select=fp,tipo,volumen,precio_entrada,sl_actual,tp_actual,fecha_entrada,estrategia`
     );
   } catch (err) {
     console.error('[trade-mt5] close: error leyendo ea_trades para upsert:', err.message);
@@ -337,6 +365,7 @@ async function handleClose(body, email, cuentaNumero, cuentaNombre) {
     tp:             tp,
     volumen:        ea.volumen,
     tipo:           tipo,
+    estrategia:     ea.estrategia || null,
     fuente:         'ea'
   };
 
