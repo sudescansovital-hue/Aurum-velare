@@ -118,6 +118,9 @@ function renderAdminTabla() {
     estadoHtml += u.tiene_ea
       ? '<span style="color:#6A9AEE;font-size:10px;display:block;margin-top:.2rem;">EA ✓</span>'
       : '';
+    estadoHtml += (u.tiene_ea && _adminEaDesincronizado(u))
+      ? '<span style="color:var(--red);font-size:10px;display:block;margin-top:.2rem;" title="Token o ea_password del EA ya no coinciden con Supabase">⚠️ EA desincronizado</span>'
+      : '';
     var packLabel  = PACK_LABELS[u.pack] || u.pack || '—';
     var ANIMAL_NOMBRE = { '🐝':'Hormiga','🦁':'León','🐘':'Elefante','🐻':'Oso','🐂':'Toro','🐺':'Lobo' };
     var animalText = u.animal ? (ANIMAL_NOMBRE[u.animal] || u.animal.replace(/\p{Emoji}/gu, '').trim() || '—') : '—';
@@ -201,6 +204,8 @@ function adminAbrirEditar(id) {
   set('admin-edit-ea-password', u.ea_password || '');
   var eaPassBlock = document.getElementById('admin-edit-ea-password-block');
   if (eaPassBlock) eaPassBlock.style.display = u.tiene_ea ? 'block' : 'none';
+  var eaSyncEl = document.getElementById('admin-edit-ea-sync-estado');
+  if (eaSyncEl) eaSyncEl.innerHTML = _adminRenderEaSyncEstado(u);
   set('admin-edit-sl-edge', u.sl_edge || 11);
   set('admin-edit-sl-aire', u.sl_aire || 25);
   set('admin-edit-sl-limite', u.sl_limite || 50);
@@ -247,6 +252,47 @@ function adminCerrarModal() {
 function adminToggleEaPasswordBlock(checked) {
   var b = document.getElementById('admin-edit-ea-password-block');
   if (b) b.style.display = checked ? 'block' : 'none';
+}
+
+// Estado de sincronización EA (ver sql_ea_auth_sync.sql, pendiente #29 de
+// PENDIENTES_AUDITORIA_260826.md) — detecta de un vistazo si el Token o el
+// ea_password que tiene pegado el EA real ya no coincide con Supabase, sin
+// esperar a que falte un trade para notarlo.
+function _adminEaDesincronizado(u) {
+  if (!u.ea_ultimo_intento_en) return false; // nunca ha intentado, nada que comparar
+  return u.ea_token_match === false || u.ea_password_match === false;
+}
+
+function _adminTiempoRelativo(iso) {
+  var d = new Date(iso);
+  if (isNaN(d.getTime())) return '—';
+  var mins = Math.floor((new Date() - d) / 60000);
+  if (mins < 1) return 'hace un momento';
+  if (mins < 60) return 'hace ' + mins + ' min';
+  var horas = Math.floor(mins / 60);
+  if (horas < 24) return 'hace ' + horas + (horas === 1 ? ' hora' : ' horas');
+  var dias = Math.floor(horas / 24);
+  return 'hace ' + dias + (dias === 1 ? ' día' : ' días');
+}
+
+function _adminRenderEaSyncEstado(u) {
+  if (!u.ea_ultimo_intento_en) {
+    return '<span style="color:var(--text-muted);">Sin intentos de autenticación registrados todavía.</span>';
+  }
+  var okStyle  = 'color:var(--green);';
+  var badStyle = 'color:var(--red);';
+  var tokenOk = u.ea_token_match !== false; // null/true = ok, false = mismatch
+  var passOk  = u.ea_password_match !== false;
+  var html = '<div style="color:var(--text-muted);margin-bottom:.4rem;">Último intento del EA: ' + _adminTiempoRelativo(u.ea_ultimo_intento_en) + '</div>';
+  html += '<div>Token compartido: <span style="' + (tokenOk ? okStyle : badStyle) + '">' + (tokenOk ? '✅ coincide' : '❌ NO coincide') + '</span></div>';
+  html += '<div style="margin-top:.3rem;">ea_password: <span style="' + (passOk ? okStyle : badStyle) + '">' + (passOk ? '✅ coincide' : '❌ NO coincide') + '</span></div>';
+  if (!passOk) {
+    html += '<div style="margin-top:.3rem;font-family:monospace;font-size:11px;background:var(--bg);padding:.5rem .6rem;border:1px solid var(--border);">' +
+      '<div style="color:var(--text-muted);">Esperado (Supabase):&nbsp;&nbsp;' + (u.ea_password || '(sin generar)') + '</div>' +
+      '<div style="color:var(--text-muted);">Último recibido del EA:&nbsp;' + (u.ea_password_ultimo_recibido || '(vacío)') + '</div>' +
+    '</div>';
+  }
+  return html;
 }
 
 async function adminGenerarEaPassword() {

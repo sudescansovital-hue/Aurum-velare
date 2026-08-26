@@ -47,6 +47,22 @@ async function _patch(table, params, body) {
   return { ok: r.ok, status: r.status, body: text };
 }
 
+// Detección de desfase Token/ea_password (ver sql_ea_auth_sync.sql y
+// PENDIENTES_AUDITORIA_260826.md, pendiente #29). Registra el resultado del
+// último intento de autenticación del EA por usuario — éxito o fallo — para
+// que el panel admin pueda mostrar "esperado vs. último recibido" sin
+// esperar a que falte un trade. Best-effort: nunca debe romper el flujo de
+// autenticación real, solo se loguea si falla.
+async function _recordEaSync(email, patch) {
+  if (!email) return;
+  try {
+    await _patch('usuarios_aurum', `email=eq.${encodeURIComponent(email)}`,
+      Object.assign({ ea_ultimo_intento_en: new Date().toISOString() }, patch));
+  } catch (err) {
+    console.warn('[trade-mt5] no se pudo registrar estado de sincronización EA:', err.message);
+  }
+}
+
 // ── Handlers por evento ───────────────────────────────────────────────────────
 
 async function handleOpen(body, email, cuentaNumero, cuentaNombre) {
@@ -401,6 +417,11 @@ module.exports = async function handler(req, res) {
   const { event, email, cuenta_numero, token } = req.body || {};
 
   if (token !== EA_SHARED_SECRET) {
+    // Antes esto era un 401 mudo, sin log — indistinguible en Vercel de
+    // cualquier otro rechazo. email/cuenta_numero ya están disponibles aquí
+    // aunque el token esté mal, así que se loguean igual.
+    console.error('[trade-mt5] Token: rechazado — email:', email || '(sin email)', '| cuenta:', cuenta_numero || '(sin cuenta)');
+    await _recordEaSync(email, { ea_token_match: false });
     return res.status(401).json({ error: 'Token inválido o ausente' });
   }
 
@@ -435,7 +456,13 @@ module.exports = async function handler(req, res) {
   // usuario con tiene_ea=true y EA activo de verdad (Roderas) ya tiene
   // ea_password puesta y confirmada en su EA real.
   const eaPasswordRecibida = req.body.ea_password;
-  if (!user.ea_password || eaPasswordRecibida !== user.ea_password) {
+  const eaPasswordMatch = !!user.ea_password && eaPasswordRecibida === user.ea_password;
+  await _recordEaSync(email, {
+    ea_token_match: true, // si llegamos aquí, el Token ya pasó arriba
+    ea_password_match: eaPasswordMatch,
+    ea_password_ultimo_recibido: eaPasswordRecibida != null ? eaPasswordRecibida : null
+  });
+  if (!eaPasswordMatch) {
     console.error('[trade-mt5] ea_password: rechazado para', email, '— no coincide o falta');
     return res.status(401).json({ error: 'ea_password inválida o ausente' });
   }
