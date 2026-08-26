@@ -103,10 +103,14 @@ function calcTipos(trades) {
   var intra = trades.filter(function(t){ return t.dur_min >= 30 && t.dur_min < 240; });
   var swing = trades.filter(function(t){ return t.dur_min >= 240 && t.dur_min < 1440; });
   var multi = trades.filter(function(t){ return t.dur_min >= 1440; });
+  // FIX (26/08): reutiliza calcMetricas() en vez de recalcular wr/pnl a mano
+  // — mismo motivo que el resto del "corazón de datos" (una sola fuente de
+  // cálculo). Además suma rr/esp por tipo, que antes no existían aquí, para
+  // poder rankear "más consistente" (buildTradeRecord, gestion.js) en vez de
+  // solo por conteo o por WR aislado.
   function tm(arr, label, col) {
-    var w = arr.filter(function(t){ return t.ganadora; }).length;
-    var p = arr.reduce(function(s,t){ return s + (t.beneficio||0); }, 0);
-    return { l:label, t:arr.length, wr:arr.length>0?Math.round(w/arr.length*1000)/10:null, pnl:Math.round(p*100)/100, col:col };
+    var m = calcMetricas(arr);
+    return { l:label, t:m.total, wr:m.wr, pnl:m.pnl, rr:m.rr, esp:m.esp, col:col };
   }
   return [
     tm(scalp, 'Scalping <30min',  '#6A8AEE44'),

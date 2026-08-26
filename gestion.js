@@ -141,6 +141,16 @@ function buildTradeRecord() {
         '<div style="font-size:11px;color:var(--text-muted);margin-bottom:.2rem;letter-spacing:.1em;text-transform:uppercase;">Peor WR</div>' +
         '<div style="font-size:15px;color:var(--red);">'+peorWR.l+'</div>' +
         '<div style="font-size:12px;color:var(--text-muted);">'+peorWR.wr+'% · '+peorWR.t+' trades</div></div>';
+      // FIX (26/08): "dominante" es por conteo y "Mejor/Peor WR" es por WR
+      // aislado — ninguno de los dos combina WR+R/R. Se añade este tercero
+      // rankeado por esperanza (misma fórmula ya usada en toda la app,
+      // calcMetricas: wr-ponderado sobre puntos ganados/perdidos), sin
+      // quitar los dos anteriores.
+      var mejorEsp = tiposConDatos.reduce(function(a,b){ return b.esp > a.esp ? b : a; });
+      verdHtml += '<div style="padding:.6rem 1rem;border:1px solid #C9A84C44;background:#C9A84C08;">' +
+        '<div style="font-size:11px;color:var(--text-muted);margin-bottom:.2rem;letter-spacing:.1em;text-transform:uppercase;">Tipo más consistente</div>' +
+        '<div style="font-size:15px;color:var(--gold);">'+mejorEsp.l+'</div>' +
+        '<div style="font-size:12px;color:var(--text-muted);">Esperanza '+(mejorEsp.esp>=0?'+':'')+mejorEsp.esp+' pts/trade</div></div>';
     }
     verdHtml += '</div>';
     if (verd) { verd.innerHTML = verdHtml; }

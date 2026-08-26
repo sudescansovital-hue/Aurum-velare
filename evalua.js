@@ -174,6 +174,13 @@ function mostrarResultados(trades, m, nombreArchivo) {
   const res = document.getElementById('evalua-resultados');
   res.style.display = 'block';
 
+  // FIX (26/08): etapaRec llegaba a 6 con el array de solo 6 índices (0-5) —
+  // la rejilla de abajo nunca resaltaba ninguna celda para el mejor caso
+  // posible (wr>=60 && rr>=1.8), y el párrafo usaba un offset -1 que la
+  // rejilla no usaba, dando nombres de etapa distintos en la misma pantalla
+  // para el mismo resultado. Se recortan los 2 umbrales más altos al mismo
+  // índice (5, "✦ Oro") y se quita el offset del párrafo — un solo índice,
+  // sin desfase, en los dos sitios que lo leen.
   const etapas = ['Inicio','Disciplina','Despertar','Simulador','Rentable','✦ Oro'];
   let etapaRec = 0;
   if (m.wr>=45&&m.rr>=1.0) etapaRec=1;
@@ -181,7 +188,7 @@ function mostrarResultados(trades, m, nombreArchivo) {
   if (m.wr>=52&&m.rr>=1.3) etapaRec=3;
   if (m.wr>=55&&m.rr>=1.5) etapaRec=4;
   if (m.wr>=58&&m.rr>=1.6) etapaRec=5;
-  if (m.wr>=60&&m.rr>=1.8) etapaRec=6;
+  if (m.wr>=60&&m.rr>=1.8) etapaRec=5;
 
   // Equity SVG
   const minE = Math.min(...m.equity), maxE = Math.max(...m.equity), rng = maxE-minE||1;
@@ -283,7 +290,7 @@ function mostrarResultados(trades, m, nombreArchivo) {
         </div>
         <div style="font-size:16px;color:var(--text-muted);line-height:1.7;">
           Con <strong style="color:var(--text);">${m.wr.toFixed(1)}%</strong> de win rate y R/R <strong style="color:var(--text);">${m.rr.toFixed(2)}</strong>, 
-          tus datos encajan en la etapa <strong style="color:var(--gold-bright);">${etapas[Math.max(0,etapaRec-1)] || 'Inicio'}</strong> del proceso Aurum.
+          tus datos encajan en la etapa <strong style="color:var(--gold-bright);">${etapas[etapaRec] || 'Inicio'}</strong> del proceso Aurum.
         </div>
       </div>
 
