@@ -6,3 +6,7 @@ node_modules
 # máquina donde corre MT5, nunca en git. Ver CargarAuthDeArchivo() en
 # EA_Aurum_Tracker_FIX.mq5. El archivo real vive en MT5\...\Common\Files\.
 aurum_auth_*.txt
+
+# Binarios compilados de MQL5 — se generan con F7 en MetaEditor desde el .mq5.
+# Nunca en git: se recompilan en cada máquina y confunden con versiones viejas.
+*.ex5
