@@ -1115,6 +1115,8 @@ int OnInit() {
    // Precarga SL de posiciones abiertas (seguro en OnInit, sin WebRequest)
    PopulateSlMap();
 
+   CrearBotonEnviarAhora();
+
    EventSetTimer(5); // Sync inicial en 5 segundos via OnTimer
 
    Print("══════════════════════════════════════════════════");
@@ -1135,10 +1137,40 @@ int OnInit() {
 
 void OnDeinit(const int reason) {
    EventKillTimer();
+   ObjectDelete(0, "AurumBtnEnviarAhora");
    Print("[AURUM] EA detenido | razón:", reason,
          " | eventos pendientes: ", ArraySize(g_cola),
          " | eventos línea de tiempo pendientes: ", ArraySize(g_cola_eventos),
          " (guardados en disco, se recuperan al reiniciar)");
+}
+
+//+------------------------------------------------------------------+
+//| BOTÓN MANUAL "ENVIAR AHORA" — fuerza el vaciado de las dos colas |
+//| (g_cola y g_cola_eventos) sin esperar a IntervaloEnvioSegundos.  |
+//+------------------------------------------------------------------+
+void CrearBotonEnviarAhora() {
+   string nombre = "AurumBtnEnviarAhora";
+   if(ObjectFind(0, nombre) >= 0) return;
+   ObjectCreate(0, nombre, OBJ_BUTTON, 0, 0, 0);
+   ObjectSetInteger(0, nombre, OBJPROP_CORNER, CORNER_LEFT_LOWER);
+   ObjectSetInteger(0, nombre, OBJPROP_XDISTANCE, 10);
+   ObjectSetInteger(0, nombre, OBJPROP_YDISTANCE, 10);
+   ObjectSetInteger(0, nombre, OBJPROP_XSIZE, 140);
+   ObjectSetInteger(0, nombre, OBJPROP_YSIZE, 26);
+   ObjectSetString(0, nombre, OBJPROP_TEXT, "Aurum: Enviar ahora");
+   ObjectSetInteger(0, nombre, OBJPROP_COLOR, clrWhite);
+   ObjectSetInteger(0, nombre, OBJPROP_BGCOLOR, clrDarkGoldenrod);
+   ObjectSetInteger(0, nombre, OBJPROP_SELECTABLE, false);
+}
+
+void OnChartEvent(const int id, const long &lparam, const double &dparam, const string &sparam) {
+   if(id == CHARTEVENT_OBJECT_CLICK && sparam == "AurumBtnEnviarAhora") {
+      Print("[AURUM] Botón pulsado — enviando ", ArraySize(g_cola), " trade(s) y ",
+            ArraySize(g_cola_eventos), " evento(s) de línea de tiempo pendientes, ahora");
+      ProcessRetryQueue();
+      ProcessRetryQueueEventos();
+      ObjectSetInteger(0, "AurumBtnEnviarAhora", OBJPROP_STATE, false);
+   }
 }
 
 void OnTradeTransaction(const MqlTradeTransaction &trans,
