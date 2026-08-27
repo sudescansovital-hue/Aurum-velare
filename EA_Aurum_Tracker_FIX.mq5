@@ -4,7 +4,10 @@
 //+------------------------------------------------------------------+
 #property copyright "Aurum Velare"
 #property link      "https://aurumvelare.com"
-#property version   "1.01"
+#property version   "1.02"
+// 1.02 (27/08): mapa de volumen por posición -> clasificación fiable parcial vs
+//   cierre total (antes un parcial podía pisar precio_cierre). SL movido se
+//   parte en breakeven/sl_protegido/sl_ajustado. Cierre distingue TP/SL/manual.
 
 //--- Inputs
 // Email lleva valor por defecto real: si el EA se reinicia por cualquier
@@ -40,6 +43,15 @@ double g_sl_values[];
 //--- Mapa TP (arrays paralelos, espejo del mapa SL)
 ulong  g_tp_pos_ids[];
 double g_tp_values[];
+
+//--- Mapa VOLUMEN (arrays paralelos, espejo del mapa SL) — FIX 27/08.
+// Sin esto el EA no podía distinguir un cierre parcial (volumen baja pero
+// sigue > 0) de un cierre total (volumen llega a 0): si PositionSelectByTicket
+// fallaba en el instante exacto de un deal OUT parcial, ese parcial se
+// archivaba como EL cierre y su precio pisaba precio_cierre de la operación
+// (caso real fp=2026.08.27_21978908).
+ulong  g_vol_pos_ids[];
+double g_vol_values[];
 
 //--- Cola de reintentos
 struct PendingEvent {
@@ -235,6 +247,48 @@ void TpMapRemove(ulong pos_id) {
 }
 
 //+------------------------------------------------------------------+
+//| MAPA VOLUMEN (espejo exacto del mapa SL) — FIX 27/08              |
+//+------------------------------------------------------------------+
+// Registra el volumen abierto de cada posición para que HandleDealClose
+// clasifique un deal OUT como PARCIAL (queda volumen) o CIERRE TOTAL (volumen
+// 0) por aritmética (vol_prev - vol_deal), sin depender de que
+// PositionSelectByTicket gane la carrera de milisegundos.
+
+void VolMapSet(ulong pos_id, double vol) {
+   int n = ArraySize(g_vol_pos_ids);
+   for(int i = 0; i < n; i++) {
+      if(g_vol_pos_ids[i] == pos_id) { g_vol_values[i] = vol; return; }
+   }
+   ArrayResize(g_vol_pos_ids, n + 1);
+   ArrayResize(g_vol_values,  n + 1);
+   g_vol_pos_ids[n] = pos_id;
+   g_vol_values[n]  = vol;
+}
+
+// Devuelve -1.0 si la posición no está en el mapa
+double VolMapGet(ulong pos_id) {
+   int n = ArraySize(g_vol_pos_ids);
+   for(int i = 0; i < n; i++)
+      if(g_vol_pos_ids[i] == pos_id) return g_vol_values[i];
+   return -1.0;
+}
+
+void VolMapRemove(ulong pos_id) {
+   int n = ArraySize(g_vol_pos_ids);
+   for(int i = 0; i < n; i++) {
+      if(g_vol_pos_ids[i] == pos_id) {
+         for(int j = i; j < n - 1; j++) {
+            g_vol_pos_ids[j] = g_vol_pos_ids[j + 1];
+            g_vol_values[j]  = g_vol_values[j + 1];
+         }
+         ArrayResize(g_vol_pos_ids, n - 1);
+         ArrayResize(g_vol_values,  n - 1);
+         return;
+      }
+   }
+}
+
+//+------------------------------------------------------------------+
 //| CAPTURA DE ORIGINALES PENDIENTES (bug #1)                        |
 //+------------------------------------------------------------------+
 // FIX corazón de datos (06/07): cuando abres a mercado sin SL/TP puesto
@@ -410,8 +464,11 @@ string BuildPartialCloseJson(ulong pos_id, ulong deal_id, double vol,
         + "}";
 }
 
+// FIX 27/08: + volumen_restante. HandleDealClose solo llama aquí en cierre
+// TOTAL, así que siempre 0 — pero se manda explícito para que trade-mt5.js
+// pueda ignorar (red doble) cualquier 'close' que llegara con volumen abierto.
 string BuildCloseJson(ulong pos_id, ulong deal_id, double precio_cierre,
-                      double beneficio_total, datetime t) {
+                      double beneficio_total, datetime t, double vol_restante = 0.0) {
    return "{\"event\":\"close\""
         + ",\"email\":\""           + g_email                    + "\""
         + ",\"cuenta_numero\":\""   + g_cuenta_numero          + "\""
@@ -421,6 +478,7 @@ string BuildCloseJson(ulong pos_id, ulong deal_id, double precio_cierre,
         + ",\"deal_id\":\""         + IntegerToString(deal_id) + "\""
         + ",\"precio_cierre\":"     + DoubleToString(precio_cierre,   5)
         + ",\"beneficio_total\":"   + DoubleToString(beneficio_total, 2)
+        + ",\"volumen_restante\":"  + DoubleToString(vol_restante,    2)
         + ",\"timestamp\":\""       + DatetimeToISO(t)         + "\""
         + "}";
 }
@@ -429,10 +487,13 @@ string BuildCloseJson(ulong pos_id, ulong deal_id, double precio_cierre,
 //| CONSTRUCTORES JSON — /api/trade-evento (FASE 3, brief linea de   |
 //| tiempo Diario). Payload esperado por api/trade-evento.js: token, |
 //| email, cuenta_numero, ea_password, fp, tipo_evento,              |
-//| puntos_desde_entrada, precio, volumen_afectado, timestamp.       |
+//| puntos_desde_entrada, precio, volumen_afectado, volumen_restante,|
+//| beneficio, timestamp.                                            |
 //+------------------------------------------------------------------+
 
-string BuildEntradaEventoJson(string fp, double precio_entrada, datetime t) {
+// FIX 27/08: + volumen_restante (= volumen de entrada completo) para que la
+// timeline arranque con el tamaño de la posición.
+string BuildEntradaEventoJson(string fp, double precio_entrada, double vol_entrada, datetime t) {
    return "{\"tipo_evento\":\"entrada\""
         + ",\"email\":\""              + g_email                     + "\""
         + ",\"cuenta_numero\":\""      + g_cuenta_numero           + "\""
@@ -442,29 +503,44 @@ string BuildEntradaEventoJson(string fp, double precio_entrada, datetime t) {
         + ",\"precio\":"               + DoubleToString(precio_entrada, 5)
         + ",\"puntos_desde_entrada\":null"
         + ",\"volumen_afectado\":null"
+        + ",\"volumen_restante\":"     + DoubleToString(vol_entrada, 2)
+        + ",\"beneficio\":null"
         + ",\"timestamp\":\""          + DatetimeToISO(t)           + "\""
         + "}";
 }
 
-// tipo_evento='breakeven': se manda cada vez que se detecta un cambio real
-// de SL (mismo punto donde ya se manda sl_change a trade-mt5) — confirmado
-// con el usuario que este EA no distingue "breakeven escalonado" de otros
-// ajustes de SL, así que todo cambio de SL detectado cuenta como este evento.
-string BuildBreakevenEventoJson(string fp, double puntos_desde_entrada, double sl_nuevo, datetime t) {
-   return "{\"tipo_evento\":\"breakeven\""
+// FIX 27/08: antes era BuildBreakevenEventoJson y TODO cambio de SL se mandaba
+// como 'breakeven'. Ahora quien llama (HandlePositionModified) decide el
+// tipo_evento según la distancia CON SIGNO de la entrada al nuevo SL:
+//   |dist| <= 3 pts    -> 'breakeven'
+//   dist  >  3 a favor -> 'sl_protegido'
+//   dist  >  3 en contra -> 'sl_ajustado'
+// puntos_desde_entrada va CON SIGNO (+ a favor, - en contra).
+// volumen_restante = volumen abierto de la posición en ese instante.
+string BuildSlMoveEventoJson(string fp, string tipo_evento, double puntos_con_signo,
+                             double sl_nuevo, double vol_restante, datetime t) {
+   return "{\"tipo_evento\":\"" + tipo_evento + "\""
         + ",\"email\":\""              + g_email                     + "\""
         + ",\"cuenta_numero\":\""      + g_cuenta_numero           + "\""
         + ",\"ea_password\":\""        + g_ea_password                 + "\""
         + ",\"token\":\""              + g_token                      + "\""
         + ",\"fp\":\""                 + fp                          + "\""
         + ",\"precio\":"               + DoubleToString(sl_nuevo, 5)
-        + ",\"puntos_desde_entrada\":" + DoubleToString(puntos_desde_entrada, 2)
+        + ",\"puntos_desde_entrada\":" + DoubleToString(puntos_con_signo, 2)
         + ",\"volumen_afectado\":null"
+        + ",\"volumen_restante\":"     + DoubleToString(vol_restante, 2)
+        + ",\"beneficio\":null"
         + ",\"timestamp\":\""          + DatetimeToISO(t)           + "\""
         + "}";
 }
 
-string BuildParcialEventoJson(string fp, double volumen, double precio, datetime t) {
+// FIX 27/08: + volumen_restante (lo que queda abierto tras el parcial) y
+// + beneficio (realizado del deal, copiado tal cual — el front NO lo deriva
+// del resultado final del trade). puntos_desde_entrada pasa a ir informado y
+// CON SIGNO.
+string BuildParcialEventoJson(string fp, double vol_cerrado, double vol_restante,
+                              double precio, double beneficio, double puntos_con_signo,
+                              datetime t) {
    return "{\"tipo_evento\":\"parcial\""
         + ",\"email\":\""              + g_email                     + "\""
         + ",\"cuenta_numero\":\""      + g_cuenta_numero           + "\""
@@ -472,14 +548,21 @@ string BuildParcialEventoJson(string fp, double volumen, double precio, datetime
         + ",\"token\":\""              + g_token                      + "\""
         + ",\"fp\":\""                 + fp                          + "\""
         + ",\"precio\":"               + DoubleToString(precio, 5)
-        + ",\"puntos_desde_entrada\":null"
-        + ",\"volumen_afectado\":"     + DoubleToString(volumen, 2)
+        + ",\"puntos_desde_entrada\":" + DoubleToString(puntos_con_signo, 2)
+        + ",\"volumen_afectado\":"     + DoubleToString(vol_cerrado, 2)
+        + ",\"volumen_restante\":"     + DoubleToString(vol_restante, 2)
+        + ",\"beneficio\":"            + DoubleToString(beneficio, 2)
         + ",\"timestamp\":\""          + DatetimeToISO(t)           + "\""
         + "}";
 }
 
-string BuildCierreEventoJson(string fp, double precio_cierre, datetime t) {
-   return "{\"tipo_evento\":\"cierre\""
+// FIX 27/08: tipo_evento refleja el motivo real del cierre
+// ('cierre_tp' / 'cierre_sl' / 'cierre_manual', decidido por quien llama a
+// partir de DEAL_REASON del deal de cierre). Se mantiene 'cierre' genérico
+// para el fallback de SyncHistory48h. volumen_restante siempre 0.
+string BuildCierreEventoJson(string fp, string tipo_evento, double precio_cierre,
+                             double vol_ultimo_deal, datetime t) {
+   return "{\"tipo_evento\":\"" + tipo_evento + "\""
         + ",\"email\":\""              + g_email                     + "\""
         + ",\"cuenta_numero\":\""      + g_cuenta_numero           + "\""
         + ",\"ea_password\":\""        + g_ea_password                 + "\""
@@ -487,7 +570,9 @@ string BuildCierreEventoJson(string fp, double precio_cierre, datetime t) {
         + ",\"fp\":\""                 + fp                          + "\""
         + ",\"precio\":"               + DoubleToString(precio_cierre, 5)
         + ",\"puntos_desde_entrada\":null"
-        + ",\"volumen_afectado\":null"
+        + ",\"volumen_afectado\":"     + DoubleToString(vol_ultimo_deal, 2)
+        + ",\"volumen_restante\":0"
+        + ",\"beneficio\":null"
         + ",\"timestamp\":\""          + DatetimeToISO(t)           + "\""
         + "}";
 }
@@ -760,6 +845,7 @@ void PopulateSlMap() {
       if(ticket == 0 || !PositionSelectByTicket(ticket)) continue;
       if(!EsXauusd(PositionGetString(POSITION_SYMBOL))) continue;
       SlMapSet(ticket, PositionGetDouble(POSITION_SL));
+      VolMapSet(ticket, PositionGetDouble(POSITION_VOLUME)); // FIX 27/08: mapa de volumen
    }
 }
 
@@ -785,6 +871,7 @@ void SyncOpenPositions() {
 
       SlMapSet(pos_id, sl);
       TpMapSet(pos_id, tp);
+      VolMapSet(pos_id, vol); // FIX 27/08: mapa de volumen
       PendienteAgregar(pos_id, sl != 0.0, tp != 0.0); // FIX 06/07: vigilar si falta SL/TP original
       string json = BuildOpenJson(pos_id, BuildFp(open_time, pos_id),
                                   tipo_str, vol, pe, sl, tp, puntos_sl, estrategia_open, open_time);
@@ -951,10 +1038,11 @@ void HandleDealOpen(const MqlTradeTransaction &trans) {
    string   tipo_str   = (HistoryDealGetInteger(trans.deal, DEAL_TYPE) == DEAL_TYPE_BUY)
                          ? "buy" : "sell";
 
-   double sl = 0.0, tp = 0.0;
+   double sl = 0.0, tp = 0.0, vol_pos = vol; // vol_pos: total abierto tras este deal
    if(PositionSelectByTicket(pos_id)) {
-      sl = PositionGetDouble(POSITION_SL);
-      tp = PositionGetDouble(POSITION_TP);
+      sl      = PositionGetDouble(POSITION_SL);
+      tp      = PositionGetDouble(POSITION_TP);
+      vol_pos = PositionGetDouble(POSITION_VOLUME); // FIX 27/08: cubre scaling-in (suma total)
    }
 
    double puntos_sl = (sl != 0.0) ? MathAbs(pe - sl) : 0.0;
@@ -966,6 +1054,7 @@ void HandleDealOpen(const MqlTradeTransaction &trans) {
    string estrategia_open = (sl != 0.0) ? ClasificarEstrategia(puntos_sl) : "";
    SlMapSet(pos_id, sl);
    TpMapSet(pos_id, tp);
+   VolMapSet(pos_id, vol_pos); // FIX 27/08: mapa de volumen para clasificar parcial vs cierre total
    PendienteAgregar(pos_id, sl != 0.0, tp != 0.0); // FIX 06/07: vigilar si falta SL/TP original
 
    string fp   = BuildFp(entry_time, pos_id);
@@ -980,7 +1069,7 @@ void HandleDealOpen(const MqlTradeTransaction &trans) {
    // FASE 3 (brief linea de tiempo Diario): evento 'entrada' en paralelo,
    // después del SendEvent existente (orden a propósito, ver confirmación
    // dada al usuario antes de este cambio).
-   SendTradeEvento(BuildEntradaEventoJson(fp, pe, entry_time));
+   SendTradeEvento(BuildEntradaEventoJson(fp, pe, vol_pos, entry_time));
 }
 
 void HandleDealClose(const MqlTradeTransaction &trans) {
@@ -990,47 +1079,99 @@ void HandleDealClose(const MqlTradeTransaction &trans) {
       return;
 
    double   price   = HistoryDealGetDouble(deal_id, DEAL_PRICE);
-   double   vol     = HistoryDealGetDouble(deal_id, DEAL_VOLUME);
+   double   vol      = HistoryDealGetDouble(deal_id, DEAL_VOLUME); // volumen cerrado por ESTE deal
    datetime dtime   = (datetime)HistoryDealGetInteger(deal_id, DEAL_TIME);
-   bool     es_sl   = (HistoryDealGetInteger(deal_id, DEAL_REASON) == DEAL_REASON_SL);
+   long     reason  = HistoryDealGetInteger(deal_id, DEAL_REASON);
+   bool     es_sl   = (reason == DEAL_REASON_SL);
    double   profit  = HistoryDealGetDouble(deal_id, DEAL_PROFIT)
                     + HistoryDealGetDouble(deal_id, DEAL_COMMISSION)
                     + HistoryDealGetDouble(deal_id, DEAL_SWAP);
 
-   bool is_partial = PositionSelectByTicket(pos_id);
+   // FIX 27/08: clasificar PARCIAL vs CIERRE TOTAL por ARITMÉTICA DE VOLUMEN,
+   // no por si PositionSelectByTicket gana la carrera. Antes, si esa llamada
+   // fallaba en el instante exacto de un deal OUT parcial, el parcial se
+   // archivaba como el cierre total y su precio pisaba precio_cierre.
+   bool   sel      = PositionSelectByTicket(pos_id);
+   double vol_prev = VolMapGet(pos_id); // -1.0 si no está en el mapa
+   double vol_restante;
+   if(vol_prev >= 0.0) {
+      vol_restante = vol_prev - vol;
+      if(vol_restante < 0.0) vol_restante = 0.0;
+   } else if(sel) {
+      vol_restante = PositionGetDouble(POSITION_VOLUME); // fallback fiable
+   } else {
+      vol_restante = 0.0; // fallback ambiguo — SyncHistory48h lo corrige al reiniciar
+      Print("[AURUM] ⚠ HandleDealClose sin volumen previo y posición no seleccionable",
+            " — se asume CIERRE TOTAL — pos:", pos_id, " deal:", deal_id);
+   }
+   bool es_parcial = (vol_restante > 0.00001);
 
-   if(is_partial) {
+   // Precio de entrada + dirección, para puntos_desde_entrada CON SIGNO.
+   double pe_ref = 0.0;
+   bool   es_buy = true;
+   if(sel) {
+      pe_ref = PositionGetDouble(POSITION_PRICE_OPEN);
+      es_buy = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY);
+   } else if(HistorySelectByPosition(pos_id)) {
+      int nd0 = HistoryDealsTotal();
+      for(int k = 0; k < nd0; k++) {
+         ulong d0 = HistoryDealGetTicket(k);
+         if((ENUM_DEAL_ENTRY)HistoryDealGetInteger(d0, DEAL_ENTRY) == DEAL_ENTRY_IN) {
+            pe_ref = HistoryDealGetDouble(d0, DEAL_PRICE);
+            es_buy = (HistoryDealGetInteger(d0, DEAL_TYPE) == DEAL_TYPE_BUY);
+            break;
+         }
+      }
+   }
+   double puntos_evt = (pe_ref != 0.0)
+                     ? (es_buy ? (price - pe_ref) : (pe_ref - price))
+                     : 0.0;
+
+   if(es_parcial) {
+      // --- PARCIAL: NUNCA escribe precio_cierre de la operación ---
       string json = BuildPartialCloseJson(pos_id, deal_id, vol, price, profit, dtime, es_sl);
       Print("[AURUM] Parcial — pos:", pos_id,
             " | deal:", deal_id,
-            " | vol:", DoubleToString(vol, 2),
+            " | vol_cerrado:", DoubleToString(vol, 2),
+            " | vol_restante:", DoubleToString(vol_restante, 2),
             " | price:", DoubleToString(price, 5),
             " | ben:", DoubleToString(profit, 2));
       SendEvent(json);
 
-      // FASE 3: evento 'parcial'. La posición sigue seleccionada aquí
-      // (is_partial = PositionSelectByTicket ya tuvo éxito), así que
-      // POSITION_TIME da la hora de apertura sin necesidad de historial.
-      datetime entry_time = (datetime)PositionGetInteger(POSITION_TIME);
+      datetime entry_time = sel ? (datetime)PositionGetInteger(POSITION_TIME)
+                                : GetEntryTimeForPosition(pos_id);
       string   fp         = BuildFp(entry_time, pos_id);
-      SendTradeEvento(BuildParcialEventoJson(fp, vol, price, dtime));
+      SendTradeEvento(BuildParcialEventoJson(fp, vol, vol_restante, price, profit, puntos_evt, dtime));
+
+      VolMapSet(pos_id, vol_restante); // la posición sigue viva
    } else {
+      // --- CIERRE TOTAL: única vía que escribe precio_cierre ---
+      double tp_ref = TpMapGet(pos_id); // capturar antes de TpMapRemove (desempate de motivo)
       double beneficio_total = GetBeneficioTotalPos(pos_id);
-      string json = BuildCloseJson(pos_id, deal_id, price, beneficio_total, dtime);
+      string json = BuildCloseJson(pos_id, deal_id, price, beneficio_total, dtime, 0.0);
       Print("[AURUM] Cierre — pos:", pos_id,
             " | deal:", deal_id,
+            " | motivo:", reason,
             " | price:", DoubleToString(price, 5),
             " | ben_total:", DoubleToString(beneficio_total, 2));
       SendEvent(json);
-      SlMapRemove(pos_id);
-      TpMapRemove(pos_id);
-      PendienteQuitarPorPosId(pos_id); // FIX 06/07: ya no hace falta vigilar una posición cerrada
 
-      // FASE 3: evento 'cierre'. Aquí la posición YA NO está seleccionable
-      // (cerró del todo) — la hora de apertura se recupera del historial.
+      // Motivo real del cierre: DEAL_REASON como fuente principal; si el bróker
+      // devuelve CLIENT/EXPERT/… para todo, desempate por cercanía a tp_actual.
+      string tipo_cierre;
+      if(reason == DEAL_REASON_TP)                                        tipo_cierre = "cierre_tp";
+      else if(reason == DEAL_REASON_SL)                                   tipo_cierre = "cierre_sl";
+      else if(tp_ref > 0.0 && MathAbs(price - tp_ref) <= 1.0)             tipo_cierre = "cierre_tp";
+      else                                                               tipo_cierre = "cierre_manual";
+
       datetime entry_time = GetEntryTimeForPosition(pos_id);
       string   fp         = BuildFp(entry_time, pos_id);
-      SendTradeEvento(BuildCierreEventoJson(fp, price, dtime));
+      SendTradeEvento(BuildCierreEventoJson(fp, tipo_cierre, price, vol, dtime));
+
+      SlMapRemove(pos_id);
+      TpMapRemove(pos_id);
+      VolMapRemove(pos_id);
+      PendienteQuitarPorPosId(pos_id); // FIX 06/07: ya no hace falta vigilar una posición cerrada
    }
 }
 
@@ -1060,15 +1201,27 @@ void HandlePositionModified(const MqlTradeTransaction &trans) {
          SlMapSet(pos_id, sl_nuevo);
          SendEvent(json);
 
-         // FASE 3: todo cambio de SL detectado cuenta como 'breakeven' en la
-         // línea de tiempo (confirmado con el usuario — este EA no distingue
-         // "breakeven escalonado" de otros ajustes de SL). La posición sigue
-         // seleccionada aquí (PositionSelectByTicket ya tuvo éxito arriba).
-         double   precio_entrada    = PositionGetDouble(POSITION_PRICE_OPEN);
-         datetime entry_time        = (datetime)PositionGetInteger(POSITION_TIME);
-         string   fp                = BuildFp(entry_time, pos_id);
-         double   puntos_desde_ent  = MathAbs(sl_nuevo - precio_entrada);
-         SendTradeEvento(BuildBreakevenEventoJson(fp, puntos_desde_ent, sl_nuevo, now));
+         // FIX 27/08: el evento de línea de tiempo ya NO es siempre 'breakeven'.
+         // Se decide por la distancia CON SIGNO de la entrada al nuevo SL:
+         //   |dist| <= 3 pts      -> 'breakeven'
+         //   dist  >  3 a favor   -> 'sl_protegido'
+         //   dist  >  3 en contra -> 'sl_ajustado'
+         // La posición sigue seleccionada aquí (PositionSelectByTicket OK arriba).
+         double   precio_entrada = PositionGetDouble(POSITION_PRICE_OPEN);
+         bool     es_buy         = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY);
+         datetime entry_time     = (datetime)PositionGetInteger(POSITION_TIME);
+         string   fp             = BuildFp(entry_time, pos_id);
+         double   vol_restante   = PositionGetDouble(POSITION_VOLUME);
+         double   dist_favor     = es_buy ? (sl_nuevo - precio_entrada)
+                                          : (precio_entrada - sl_nuevo); // + a favor, - en contra
+
+         string tipo_sl;
+         if(MathAbs(dist_favor) <= 3.0) tipo_sl = "breakeven";
+         else if(dist_favor > 3.0)      tipo_sl = "sl_protegido";
+         else                           tipo_sl = "sl_ajustado";
+
+         VolMapSet(pos_id, vol_restante); // mantener el mapa de volumen fresco
+         SendTradeEvento(BuildSlMoveEventoJson(fp, tipo_sl, dist_favor, sl_nuevo, vol_restante, now));
       }
    }
 
