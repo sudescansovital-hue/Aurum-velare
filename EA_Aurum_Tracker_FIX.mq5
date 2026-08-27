@@ -4,12 +4,19 @@
 //+------------------------------------------------------------------+
 #property copyright "Aurum Velare"
 #property link      "https://aurumvelare.com"
-#property version   "1.00"
+#property version   "1.01"
 
 //--- Inputs
-input string Email          = "";
-input string EaPassword     = "";
-input string Token          = "";
+// Email lleva valor por defecto real: si el EA se reinicia por cualquier
+// motivo (recompilar, REASON_PARAMETERS, etc.) no se queda sin email.
+input string InEmail       = "roderastrader@gmail.com";
+// Token y EaPassword NO se hardcodean aquí (este archivo está en git). Si
+// se dejan vacíos, OnInit los autorrellena desde el archivo local
+// Common\Files\aurum_auth_<cuenta>.txt (ver CargarAuthDeArchivo) — ese
+// archivo está en .gitignore y nunca se commitea. Rellenar el input tiene
+// prioridad sobre el archivo.
+input string InEaPassword  = "";
+input string InToken       = "";
 input string EndpointURL    = "https://aurumvelare.com/api/trade-mt5";
 input string EventoEndpointURL = "https://aurumvelare.com/api/trade-evento"; // FASE 3 (brief linea de tiempo Diario): entrada/breakeven/parcial/cierre
 input int    AvisarCadaXIntentos = 10; // FIX 06/07: ya no se descarta nunca; esto solo controla cada cuántos intentos fallidos se avisa en el log
@@ -19,6 +26,12 @@ input int    HorasSync      = 48;
 //--- Globales
 string g_cuenta_numero = "";
 bool   g_sync_done     = false;
+
+// Credenciales EFECTIVAS que usan los constructores JSON. Se resuelven en
+// OnInit: input si está puesto, si no, archivo local aurum_auth_<cuenta>.txt.
+string g_email        = "";
+string g_token        = "";
+string g_ea_password  = "";
 
 //--- Mapa SL (arrays paralelos)
 ulong  g_sl_pos_ids[];
@@ -58,6 +71,52 @@ string ColaFileName() {
 // colas en disco.
 string ColaEventosFileName() {
    return "aurum_cola_eventos_" + g_cuenta_numero + ".txt";
+}
+
+// Archivo local de credenciales (Common\Files\). NO está en git (.gitignore)
+// — vive solo en esta máquina. Red de seguridad: si el EA se reinicia con
+// los inputs InToken/InEaPassword vacíos, CargarAuthDeArchivo() los rellena
+// desde aquí en vez de dejar el EA sin autenticar o con valores viejos.
+// Formato: una "clave=valor" por línea (lineas '#' = comentario):
+//   email=roderastrader@gmail.com
+//   ea_password=...
+//   token=...
+string AuthFileName() {
+   return "aurum_auth_" + g_cuenta_numero + ".txt";
+}
+
+// Rellena SOLO los g_* que sigan vacíos tras leer los inputs. El input
+// siempre gana sobre el archivo. Best-effort: si el archivo no existe o no
+// se puede leer, se sigue con lo que haya en los inputs (y OnInit decide si
+// eso basta para arrancar).
+void CargarAuthDeArchivo() {
+   string fname = AuthFileName();
+   if(!FileIsExist(fname, FILE_COMMON)) {
+      Print("[AURUM] Sin archivo de auth local (", fname, ") — se usan solo los inputs");
+      return;
+   }
+   int fh = FileOpen(fname, FILE_READ | FILE_TXT | FILE_ANSI | FILE_COMMON);
+   if(fh == INVALID_HANDLE) {
+      Print("[AURUM] ERROR: no se pudo leer ", fname, " | error:", GetLastError());
+      return;
+   }
+   int rellenados = 0;
+   while(!FileIsEnding(fh)) {
+      string linea = FileReadString(fh);
+      StringTrimLeft(linea); StringTrimRight(linea);
+      if(StringLen(linea) == 0 || StringGetCharacter(linea, 0) == '#') continue;
+      int eq = StringFind(linea, "=");
+      if(eq <= 0) continue;
+      string clave = StringSubstr(linea, 0, eq);
+      string valor = StringSubstr(linea, eq + 1);
+      StringTrimLeft(clave); StringTrimRight(clave);
+      StringTrimLeft(valor); StringTrimRight(valor);
+      if(clave == "email"       && g_email == "")       { g_email = valor;       rellenados++; }
+      if(clave == "token"       && g_token == "")       { g_token = valor;       rellenados++; }
+      if(clave == "ea_password" && g_ea_password == "") { g_ea_password = valor; rellenados++; }
+   }
+   FileClose(fh);
+   Print("[AURUM] Auth local: ", rellenados, " campo(s) rellenado(s) desde ", fname);
 }
 
 //+------------------------------------------------------------------+
@@ -246,10 +305,10 @@ string BuildOpenJson(ulong pos_id, string fp, string tipo, double vol,
    string tp_str  = (tp != 0.0) ? DoubleToString(tp, 5) : "null";
    string est_str = (estrategia != "") ? ("\"" + estrategia + "\"") : "null";
    return "{\"event\":\"open\""
-        + ",\"email\":\""         + Email                        + "\""
+        + ",\"email\":\""         + g_email                        + "\""
         + ",\"cuenta_numero\":\"" + g_cuenta_numero              + "\""
-        + ",\"ea_password\":\""   + EaPassword                   + "\""
-        + ",\"token\":\""         + Token                        + "\""
+        + ",\"ea_password\":\""   + g_ea_password                   + "\""
+        + ",\"token\":\""         + g_token                        + "\""
         + ",\"position_id\":\""   + IntegerToString(pos_id)      + "\""
         + ",\"fp\":\""            + fp                           + "\""
         + ",\"tipo\":\""          + tipo                         + "\""
@@ -266,10 +325,10 @@ string BuildOpenJson(ulong pos_id, string fp, string tipo, double vol,
 string BuildSlChangeJson(ulong pos_id, double sl_ant, double sl_new, datetime t) {
    string ant_str = (sl_ant > 0.0) ? DoubleToString(sl_ant, 5) : "null";
    return "{\"event\":\"sl_change\""
-        + ",\"email\":\""         + Email                   + "\""
+        + ",\"email\":\""         + g_email                   + "\""
         + ",\"cuenta_numero\":\"" + g_cuenta_numero         + "\""
-        + ",\"ea_password\":\""   + EaPassword               + "\""
-        + ",\"token\":\""         + Token                    + "\""
+        + ",\"ea_password\":\""   + g_ea_password               + "\""
+        + ",\"token\":\""         + g_token                    + "\""
         + ",\"position_id\":\""   + IntegerToString(pos_id) + "\""
         + ",\"sl_anterior\":"     + ant_str
         + ",\"sl_nuevo\":"        + DoubleToString(sl_new, 5)
@@ -282,10 +341,10 @@ string BuildSlChangeJson(ulong pos_id, double sl_ant, double sl_new, datetime t)
 string BuildTpChangeJson(ulong pos_id, double tp_ant, double tp_new, datetime t) {
    string ant_str = (tp_ant > 0.0) ? DoubleToString(tp_ant, 5) : "null";
    return "{\"event\":\"tp_change\""
-        + ",\"email\":\""         + Email                   + "\""
+        + ",\"email\":\""         + g_email                   + "\""
         + ",\"cuenta_numero\":\"" + g_cuenta_numero         + "\""
-        + ",\"ea_password\":\""   + EaPassword               + "\""
-        + ",\"token\":\""         + Token                    + "\""
+        + ",\"ea_password\":\""   + g_ea_password               + "\""
+        + ",\"token\":\""         + g_token                    + "\""
         + ",\"position_id\":\""   + IntegerToString(pos_id) + "\""
         + ",\"tp_anterior\":"     + ant_str
         + ",\"tp_nuevo\":"        + DoubleToString(tp_new, 5)
@@ -321,10 +380,10 @@ string BuildOriginalCaptureJson(ulong pos_id, double sl, double tp, string estra
    string tp_str  = (tp != 0.0) ? DoubleToString(tp, 5) : "null";
    string est_str = (estrategia != "") ? ("\"" + estrategia + "\"") : "null";
    return "{\"event\":\"original_capture\""
-        + ",\"email\":\""         + Email                   + "\""
+        + ",\"email\":\""         + g_email                   + "\""
         + ",\"cuenta_numero\":\"" + g_cuenta_numero         + "\""
-        + ",\"ea_password\":\""   + EaPassword               + "\""
-        + ",\"token\":\""         + Token                    + "\""
+        + ",\"ea_password\":\""   + g_ea_password               + "\""
+        + ",\"token\":\""         + g_token                    + "\""
         + ",\"position_id\":\""   + IntegerToString(pos_id) + "\""
         + ",\"sl\":"              + sl_str
         + ",\"tp\":"              + tp_str
@@ -337,10 +396,10 @@ string BuildPartialCloseJson(ulong pos_id, ulong deal_id, double vol,
                               double precio, double beneficio,
                               datetime t, bool es_sl) {
    return "{\"event\":\"partial_close\""
-        + ",\"email\":\""         + Email                    + "\""
+        + ",\"email\":\""         + g_email                    + "\""
         + ",\"cuenta_numero\":\"" + g_cuenta_numero          + "\""
-        + ",\"ea_password\":\""   + EaPassword                + "\""
-        + ",\"token\":\""         + Token                     + "\""
+        + ",\"ea_password\":\""   + g_ea_password                + "\""
+        + ",\"token\":\""         + g_token                     + "\""
         + ",\"position_id\":\""   + IntegerToString(pos_id)  + "\""
         + ",\"deal_id\":\""       + IntegerToString(deal_id) + "\""
         + ",\"volumen\":"         + DoubleToString(vol, 2)
@@ -354,10 +413,10 @@ string BuildPartialCloseJson(ulong pos_id, ulong deal_id, double vol,
 string BuildCloseJson(ulong pos_id, ulong deal_id, double precio_cierre,
                       double beneficio_total, datetime t) {
    return "{\"event\":\"close\""
-        + ",\"email\":\""           + Email                    + "\""
+        + ",\"email\":\""           + g_email                    + "\""
         + ",\"cuenta_numero\":\""   + g_cuenta_numero          + "\""
-        + ",\"ea_password\":\""     + EaPassword                + "\""
-        + ",\"token\":\""           + Token                     + "\""
+        + ",\"ea_password\":\""     + g_ea_password                + "\""
+        + ",\"token\":\""           + g_token                     + "\""
         + ",\"position_id\":\""     + IntegerToString(pos_id)  + "\""
         + ",\"deal_id\":\""         + IntegerToString(deal_id) + "\""
         + ",\"precio_cierre\":"     + DoubleToString(precio_cierre,   5)
@@ -375,10 +434,10 @@ string BuildCloseJson(ulong pos_id, ulong deal_id, double precio_cierre,
 
 string BuildEntradaEventoJson(string fp, double precio_entrada, datetime t) {
    return "{\"tipo_evento\":\"entrada\""
-        + ",\"email\":\""              + Email                     + "\""
+        + ",\"email\":\""              + g_email                     + "\""
         + ",\"cuenta_numero\":\""      + g_cuenta_numero           + "\""
-        + ",\"ea_password\":\""        + EaPassword                 + "\""
-        + ",\"token\":\""              + Token                      + "\""
+        + ",\"ea_password\":\""        + g_ea_password                 + "\""
+        + ",\"token\":\""              + g_token                      + "\""
         + ",\"fp\":\""                 + fp                          + "\""
         + ",\"precio\":"               + DoubleToString(precio_entrada, 5)
         + ",\"puntos_desde_entrada\":null"
@@ -393,10 +452,10 @@ string BuildEntradaEventoJson(string fp, double precio_entrada, datetime t) {
 // ajustes de SL, así que todo cambio de SL detectado cuenta como este evento.
 string BuildBreakevenEventoJson(string fp, double puntos_desde_entrada, double sl_nuevo, datetime t) {
    return "{\"tipo_evento\":\"breakeven\""
-        + ",\"email\":\""              + Email                     + "\""
+        + ",\"email\":\""              + g_email                     + "\""
         + ",\"cuenta_numero\":\""      + g_cuenta_numero           + "\""
-        + ",\"ea_password\":\""        + EaPassword                 + "\""
-        + ",\"token\":\""              + Token                      + "\""
+        + ",\"ea_password\":\""        + g_ea_password                 + "\""
+        + ",\"token\":\""              + g_token                      + "\""
         + ",\"fp\":\""                 + fp                          + "\""
         + ",\"precio\":"               + DoubleToString(sl_nuevo, 5)
         + ",\"puntos_desde_entrada\":" + DoubleToString(puntos_desde_entrada, 2)
@@ -407,10 +466,10 @@ string BuildBreakevenEventoJson(string fp, double puntos_desde_entrada, double s
 
 string BuildParcialEventoJson(string fp, double volumen, double precio, datetime t) {
    return "{\"tipo_evento\":\"parcial\""
-        + ",\"email\":\""              + Email                     + "\""
+        + ",\"email\":\""              + g_email                     + "\""
         + ",\"cuenta_numero\":\""      + g_cuenta_numero           + "\""
-        + ",\"ea_password\":\""        + EaPassword                 + "\""
-        + ",\"token\":\""              + Token                      + "\""
+        + ",\"ea_password\":\""        + g_ea_password                 + "\""
+        + ",\"token\":\""              + g_token                      + "\""
         + ",\"fp\":\""                 + fp                          + "\""
         + ",\"precio\":"               + DoubleToString(precio, 5)
         + ",\"puntos_desde_entrada\":null"
@@ -421,10 +480,10 @@ string BuildParcialEventoJson(string fp, double volumen, double precio, datetime
 
 string BuildCierreEventoJson(string fp, double precio_cierre, datetime t) {
    return "{\"tipo_evento\":\"cierre\""
-        + ",\"email\":\""              + Email                     + "\""
+        + ",\"email\":\""              + g_email                     + "\""
         + ",\"cuenta_numero\":\""      + g_cuenta_numero           + "\""
-        + ",\"ea_password\":\""        + EaPassword                 + "\""
-        + ",\"token\":\""              + Token                      + "\""
+        + ",\"ea_password\":\""        + g_ea_password                 + "\""
+        + ",\"token\":\""              + g_token                      + "\""
         + ",\"fp\":\""                 + fp                          + "\""
         + ",\"precio\":"               + DoubleToString(precio_cierre, 5)
         + ",\"puntos_desde_entrada\":null"
@@ -1095,13 +1154,26 @@ void CheckOriginalesPendientes() {
 //+------------------------------------------------------------------+
 
 int OnInit() {
-   if(Email == "") {
-      Print("[AURUM] ERROR: introduce tu email Aurum en el input 'Email' y reactiva el EA");
-      return INIT_FAILED;
-   }
-
    g_cuenta_numero = IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN));
    g_sync_done     = false;
+
+   // Resolver credenciales efectivas: input si está puesto; los que queden
+   // vacíos se rellenan desde el archivo local aurum_auth_<cuenta>.txt.
+   // Necesita g_cuenta_numero ya fijado (arriba) para el nombre del archivo.
+   g_email       = InEmail;
+   g_token       = InToken;
+   g_ea_password = InEaPassword;
+   if(g_email == "" || g_token == "" || g_ea_password == "")
+      CargarAuthDeArchivo();
+
+   if(g_email == "" || g_token == "" || g_ea_password == "") {
+      Print("[AURUM] ERROR: faltan credenciales — rellena los inputs (Email/Token/EaPassword) ",
+            "o crea Common\\Files\\", AuthFileName(),
+            " | estado: email=", (g_email == "" ? "VACÍO" : "ok"),
+            " token=", (g_token == "" ? "VACÍO" : "ok"),
+            " ea_password=", (g_ea_password == "" ? "VACÍO" : "ok"));
+      return INIT_FAILED;
+   }
 
    // FIX 06/07: recuperar eventos pendientes de una sesión anterior ANTES
    // de nada más — si el EA se reinició con la cola llena, esto los trae
@@ -1122,7 +1194,12 @@ int OnInit() {
    Print("══════════════════════════════════════════════════");
    Print("[AURUM] EA_Aurum_Tracker iniciado");
    Print("[AURUM] Cuenta  : ", g_cuenta_numero);
-   Print("[AURUM] Email   : ", Email);
+   Print("[AURUM] Email   : ", g_email,
+         " (", (InEmail != "" ? "input" : "archivo local"), ")");
+   Print("[AURUM] Auth    : token+ea_password ",
+         ((InToken != "" && InEaPassword != "") ? "desde inputs"
+          : (InToken == "" && InEaPassword == "") ? "desde archivo local"
+          : "mezcla input+archivo"));
    Print("[AURUM] Endpoint: ", EndpointURL);
    Print("[AURUM] Endpoint eventos (línea de tiempo): ", EventoEndpointURL);
    Print("[AURUM] ⚠ Añade la URL a la lista blanca si no está:");

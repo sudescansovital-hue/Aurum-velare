@@ -1,3 +1,8 @@
 .vercel
 .env*
 node_modules
+
+# Archivo local de credenciales del EA (Email/Token/EaPassword) — solo en la
+# máquina donde corre MT5, nunca en git. Ver CargarAuthDeArchivo() en
+# EA_Aurum_Tracker_FIX.mq5. El archivo real vive en MT5\...\Common\Files\.
+aurum_auth_*.txt
