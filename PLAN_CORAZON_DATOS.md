@@ -2027,3 +2027,100 @@ construir desde cero.
 **Importante:** esta función **no está en ninguno de los archivos del
 proyecto cargados en el chat de Claude** — hay que **buscarla en el repo
 real** antes de tocar nada.
+
+# Sesión 27/08 — Botón "Enviar ahora" en el EA, timer a 60s, rotación de Token y limpieza de colas atascadas
+
+Sesión operativa sobre el EA y su autenticación. Sin cambios en la web;
+los cambios de EA son en `EA_Aurum_Tracker_FIX.mq5` (variante en uso en
+MT5, no la copia del repo — ver punto 1).
+
+## 1. Botón "Aurum: Enviar ahora" en el gráfico del EA — ✅ en producción
+
+Añadido a `EA_Aurum_Tracker_FIX.mq5` un botón en el gráfico
+(`CrearBotonEnviarAhora()` llamado desde `OnInit`, más handler
+`OnChartEvent`) que **fuerza el vaciado inmediato de las dos colas**
+(`g_cola` → `/api/trade-mt5` y `g_cola_eventos` → `/api/trade-evento`)
+sin esperar a la pasada del timer. Objeto de gráfico
+`AurumBtnEnviarAhora`, esquina inferior izquierda.
+
+**Confirmado funcionando**: en el log del EA (27/08 19:15:45) el clic
+dispara `[AURUM] Botón pulsado — enviando N trade(s) y M evento(s)…` y
+llama a `ProcessRetryQueue()` + `ProcessRetryQueueEventos()`.
+
+Notas:
+- La versión que corre MT5 es una **variante escrita a mano**, distinta de
+  la que se editó en el repo (`C:\Users\boli-\aurum-web-base\`): nombres
+  `CrearBotonEnviarAhora` / `AurumBtnEnviarAhora`, `#property version
+  "1.00"`, sin el flush de cola en `OnDeinit`. Las dos copias están
+  **desincronizadas** — pendiente decidir cuál es la buena y unificar.
+- `CrearBotonEnviarAhora()` no instrumenta el resultado (`ObjectCreate`
+  sin comprobar retorno ni `GetLastError`, sin `ChartRedraw`), así que un
+  fallo de creación es mudo. El botón puede además no listarse en Ctrl+B
+  por `OBJPROP_SELECTABLE=false` aunque sí esté en el gráfico y funcione.
+  Mejoras posibles si se retoma: instrumentar, `ChartRedraw`, recrear en
+  `CHARTEVENT_CHART_CHANGE`, y borrar-y-crear en vez del guard
+  `if(ObjectFind(...) >= 0) return;`.
+
+## 2. `IntervaloEnvioSegundos`: 3600 → 60
+
+El input del EA que controla cada cuánto se procesa la cola pasa de 1h a
+**1 minuto**. Reduce a ~60s la ventana en la que un evento vive solo en
+memoria + disco antes de intentar enviarse. Combinado con el botón del
+punto 1 (envío bajo demanda), la exposición a "se apaga el PC antes del
+envío" queda mínima.
+
+## 3. Rotación de `EA_SHARED_SECRET` (Token) en Vercel producción
+
+El panel admin mostraba "Token compartido: NO coincide" para Roderas: su
+EA tenía puesto un valor **antiguo** de `EA_SHARED_SECRET`. Como el valor
+en Vercel es "Sensitive" (irrecuperable), se **rotó** por uno nuevo
+(`vercel env rm` + `vercel env add` con `printf '%s'` para no meter `\n`
+final, + `vercel redeploy` del deployment de producción). Verificado por
+curl: token nuevo → 400 "Campos requeridos" (pasa la puerta), token de
+control → 401. Roderas pegó el valor nuevo en el input `Token` de su EA y
+el panel pasó a **"Token compartido: ✅ coincide"**.
+
+Recordatorio de arquitectura: `EA_SHARED_SECRET` es una **única clave
+global** compartida por todos los usuarios y por los dos endpoints
+(`trade-mt5` y `trade-evento`) — no es por usuario. La capa por usuario es
+`ea_password`. Willian y Mara **no tenían EA activo**, así que no hizo
+falta avisarles; si reactivan el EA en el futuro necesitarán este Token
+nuevo (el valor no se documenta aquí por ser secreto). Es el 5º incidente
+del mismo patrón — sigue sin causa raíz (ver `PENDIENTES_AUDITORIA_260826.md`
+pendiente #29).
+
+## 4. Limpieza de colas viejas atascadas en disco
+
+En `MQL5/Files` (carpeta común) había dos archivos de cola de Roderas con
+el **token antiguo/vacío incrustado** dentro de cada JSON, que
+`ProcessRetryQueue*` reenviaba en bucle dando `401` en cada ciclo:
+- `aurum_cola_176821.txt` — 34 líneas, todas `"token":""`, ~31 además con
+  la `ea_password` vieja, con duplicación masiva (pos 21739480 ×9).
+- `aurum_cola_eventos_176821.txt` — 3 líneas (`entrada` + `breakeven` de
+  la pos **21872062**, `entrada` de la pos **21890309**, todas del 26/08).
+
+Se hizo **backup** de los dos (`.bak_20260827`, checksums verificados
+idénticos) y luego se borraron. Al reiniciar el EA, `SyncOpenPositions()`
++ `SyncHistory48h()` re-encolan `open`/`close` frescos de las últimas 48h
+con el token nuevo — confirmado en el log que la cola de trades se vació
+sin 401.
+
+**Posible hueco a verificar:** los eventos de **línea de tiempo**
+(`trade_eventos`) **no tienen resync en el EA** — solo `open`/`close` se
+regeneran. Los 3 eventos borrados llevaban 20+ intentos fallidos (401) sin
+éxito justo hasta el borrado, así que desde este EA nunca se entregaron.
+Puede que sí estén en `trade_eventos` del reenvío manual del 26/08 (idem-
+potente por `fp`+`tipo_evento`+`timestamp`), pero no está confirmado.
+**Pendiente:** revisar en Historial Externo / "Auditoría EA - Línea de
+tiempo por trade" si a las posiciones 21872062 y 21890309 les falta la
+`entrada`/`breakeven`; si falta, reconstruir a mano desde el `.bak_20260827`
+con el token + `ea_password` corregidos.
+
+## 5. Pendiente de UX (anotar, no construir aún) — "Auditoría EA - Línea de tiempo por trade"
+
+Dos mejoras visuales para esa función en Mi Gestión:
+- **Destacar más** el resumen de puntos / € de cada trade (ahora queda
+  poco visible frente al detalle de eventos).
+- **Mostrar el `position_id`** (ticket de apertura — es fijo aunque el
+  trade tenga parciales con `deal_id` distintos) en la cabecera de cada
+  trade, para poder cruzarlo con `ea_trades`/`trades` y con el log del EA.
