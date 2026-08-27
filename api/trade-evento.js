@@ -8,7 +8,16 @@ const SUPA_URL = process.env.SUPABASE_URL || 'https://rsrbxcvlnbwpiyhumqmt.supab
 const SUPA_KEY = process.env.SUPABASE_SERVICE_KEY;
 const EA_SHARED_SECRET = process.env.EA_SHARED_SECRET;
 
-const TIPOS_VALIDOS = ['entrada', 'breakeven', 'parcial', 'cierre'];
+// FIX 27/08: tipos ampliados. 'breakeven' se divide en 3 (breakeven /
+// sl_protegido / sl_ajustado, decididos por el EA según distancia con signo a
+// la entrada) y 'cierre' en 4 (cierre genérico de fallback + cierre_tp /
+// cierre_sl / cierre_manual por DEAL_REASON). Ver sql_trade_eventos_v2_volumen_tipos.sql.
+const TIPOS_VALIDOS = [
+  'entrada',
+  'breakeven', 'sl_protegido', 'sl_ajustado',
+  'parcial',
+  'cierre', 'cierre_tp', 'cierre_sl', 'cierre_manual'
+];
 
 function _headers(prefer) {
   const h = {
@@ -73,7 +82,8 @@ module.exports = async function handler(req, res) {
 
   const {
     token, email, cuenta_numero, ea_password,
-    fp, tipo_evento, puntos_desde_entrada, precio, volumen_afectado, timestamp
+    fp, tipo_evento, puntos_desde_entrada, precio, volumen_afectado,
+    volumen_restante, beneficio, timestamp
   } = req.body || {};
 
   if (token !== EA_SHARED_SECRET) {
@@ -146,6 +156,8 @@ module.exports = async function handler(req, res) {
     puntos_desde_entrada: puntos_desde_entrada != null ? puntos_desde_entrada : null,
     precio:               precio               != null ? precio               : null,
     volumen_afectado:     volumen_afectado      != null ? volumen_afectado     : null,
+    volumen_restante:     volumen_restante      != null ? volumen_restante     : null,
+    beneficio:            beneficio             != null ? beneficio            : null,
     timestamp
   };
 

@@ -294,10 +294,22 @@ async function handlePartialClose(body, email, cuentaNumero, cuentaNombre) {
 // Supabase con getUTCHours()/getUTCDay() coincide exacta con la hora del
 // terminal MT5, igual que hace parser.js con los históricos. Sin desfase.
 async function handleClose(body, email, cuentaNumero, cuentaNombre) {
-  const { position_id, precio_cierre, beneficio_total, timestamp } = body;
+  const { position_id, precio_cierre, beneficio_total, timestamp, volumen_restante } = body;
 
   if (!position_id || precio_cierre == null || !timestamp) {
     return { status: 400, json: { error: 'close: faltan position_id, precio_cierre o timestamp' } };
+  }
+
+  // Red doble (27/08): un evento 'close' solo debe llegar en CIERRE TOTAL. El EA
+  // ya clasifica parcial vs cierre por aritmética de volumen (ver HandleDealClose
+  // en el .mq5) y manda volumen_restante. Si por lo que sea llega un 'close' con
+  // volumen aún abierto, NO se escribe precio_cierre/beneficio ni se upsertea a
+  // trades — eso es lo que dejaba el precio de un parcial intermedio pisando
+  // precio_cierre (bug fp=2026.08.27_21978908).
+  if (volumen_restante != null && Number(volumen_restante) > 0) {
+    console.warn('[trade-mt5] close IGNORADO — volumen_restante > 0:', volumen_restante,
+      '| position_id:', position_id);
+    return { status: 200, json: { ok: true, event: 'close', position_id, skipped: 'volumen_restante>0' } };
   }
 
   // 1. Cerrar en ea_trades (igual que antes)
