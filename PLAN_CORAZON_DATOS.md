@@ -1948,3 +1948,82 @@ descartados por no ser del tema de hoy). El resto de hallazgos de la
 auditoría del 09/08 (#2-#8 en la rama) tampoco se revisaron — estado
 actual desconocido, no asumir resueltos ni vigentes sin comprobar contra
 código real primero.
+
+# Sesión 24/08 (continuación análisis) — Puntos pendientes de la sesión de anoche (solo documentación, sin tocar código)
+
+Esta entrada recoge lo hablado anoche que quedó sin anotar. No se ha
+tocado código en esta sesión: son análisis y decisiones de qué construir
+después, en qué orden y qué revisar antes.
+
+## 1. Análisis de trading — contexto, NO un bug de código
+
+En **Scalping (<30min)** Roderas tiene un win rate razonable (52-57%)
+pero P&L negativo en las dos cuentas:
+- Maestra: **-3.703 $**
+- Prueba: **-629 $**
+
+En cambio, en **Swing (4h-24h)** tiene **76,5% WR** y **+9.068 $**.
+
+**Patrón identificado:** en las operaciones perdedoras deja correr el
+precio hasta el SL / edge definido (11-25 pts), pero en las ganadoras
+mueve a breakeven pronto y cierra a mano antes del TP "por sensación".
+Esa asimetría (pérdidas completas vs. ganancias recortadas) explica el
+**R/R bajo (0,57 global)** pese al buen win rate. Es un tema operativo /
+de disciplina, no de la web ni del EA.
+
+## 2. PRIORIDAD MÁXIMA para la próxima construcción — dos puntos, en este orden
+
+### PUNTO 1 (más simple, hacer primero) — capturar MFE y MAE por trade
+
+Registrar en cada trade, mientras está abierto, el **máximo a favor
+(MFE)** y el **máximo en contra (MAE)** que ve el EA.
+
+- Las columnas `mfe_price` / `mfe_puntos` **ya existen** en Supabase.
+- **Faltan** las columnas equivalentes de MAE.
+
+**Objetivo:** saber con datos reales qué SL y qué TP son estadísticamente
+óptimos — ¿de verdad hacen falta 11 pts de SL o sobra margen?, ¿cuánto se
+está dejando sobre la mesa al cerrar antes del TP?
+
+### PUNTO 2 (más complejo, después) — "trade fantasma" tras cierre manual
+
+Cuando Roderas cierra un trade **a mano antes de TP/SL**, que el EA siga
+vigilando el precio como un "trade fantasma" durante un tiempo limitado,
+para registrar si habría llegado al TP o al SL después del cierre manual.
+
+- Requiere **tabla nueva** y lógica de seguimiento post-cierre.
+- Con **límite de tiempo por definir**.
+
+### Requisito común a los dos puntos
+
+Ambos necesitan el **EA corriendo sin cortes (VPS)** para no perder
+datos, especialmente el Punto 2.
+
+### Fase futura — solo anotar la visión, NO es tarea inmediata
+
+Con datos de los Puntos 1 y 2 ya acumulados, más captura de indicadores
+por trade (EMAs / RSI / ATR), **valorar en el futuro un bot**. Pero solo
+tras **meses de datos limpios**, no ahora.
+
+## 3. DUDA A REVISAR ANTES DE CONSTRUIR NADA NUEVO — "Auditoría EA · Línea de tiempo por trade"
+
+En **Mi Gestión** existe la función **"Auditoría EA - Línea de tiempo por
+trade"** (eventos Entrada / Breakeven / Cierre por cada trade). Antes de
+construir el Punto 1 hay que entender qué significa exactamente cada
+evento **"Breakeven"** y si el cálculo de dirección (a favor / en contra)
+es correcto para trades **sell** y **buy**.
+
+**Ejemplo dudoso revisado:** trade **buy** del 20/08 23:18, entrada
+**4528,20**, con dos eventos "Breakeven" en **4518,00** y **4517,18**
+(ambos por debajo de la entrada → en contra en un buy), cierre en
+**4522,45**, resultado **-115 $**.
+
+**Hipótesis:** "Breakeven" no marca la acción de mover el SL, sino
+**puntos de control del precio por el camino** (a favor o en contra). Si
+es así, esta función **ya está capturando algo parecido al MFE/MAE del
+Punto 1** — habría que valorar **reutilizarla / ampliarla** en vez de
+construir desde cero.
+
+**Importante:** esta función **no está en ninguno de los archivos del
+proyecto cargados en el chat de Claude** — hay que **buscarla en el repo
+real** antes de tocar nada.
