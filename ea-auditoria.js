@@ -18,6 +18,14 @@
 
 var _eaAuditoriaUltimoLen = -1;
 
+// XAUUSD: 1.00 de movimiento de precio × 1.0 lote = 100 USD (contract size 100 oz).
+// Verificado contra trade real 2026.08.27_21978908: 4.035 pts × 100 × 0.2 = 80.70 $.
+// El módulo entero es XAU-only (filtro fuente='ea' + brief), así que la constante
+// es válida. FIX 27/08: sustituye el $/punto que antes se derivaba de
+// precio_cierre/beneficio del trade (frágil, se disparaba si precio_cierre estaba
+// corrupto por un parcial mal clasificado).
+var VALOR_PUNTO_XAUUSD = 100;
+
 // Mismo criterio que usa buildCumplimiento en gestion.js para "dentro del
 // método" (t.puntos <= limAire || SL protegido en breakeven+). Duplicado
 // aquí a propósito, no compartido — ver comentario de cabecera.
@@ -36,29 +44,48 @@ function _eaAuditoriaFechaDesdeFp(fp) {
   return new Date(+m[1], +m[2] - 1, +m[3]);
 }
 
-function _eaAuditoriaTipoLabel(tipoEvento, dolares) {
-  if (tipoEvento === 'breakeven' && dolares != null) {
-    if (dolares > 3) return 'SL protegido';
-    if (dolares < -3) return 'SL ajustado';
-    return 'Breakeven';
-  }
-  return { entrada: 'Entrada', breakeven: 'Breakeven', parcial: 'Parcial', cierre: 'Cierre' }[tipoEvento] || tipoEvento;
+// FIX 27/08: el label depende del tipo_evento explícito que llega de BD, ya no
+// del signo/tamaño del $ calculado en el front. El EA decide breakeven /
+// sl_protegido / sl_ajustado (distancia con signo a la entrada) y
+// cierre_tp / cierre_sl / cierre_manual (DEAL_REASON). 'breakeven' y 'cierre'
+// a secas siguen apareciendo en filas anteriores a la migración.
+function _eaAuditoriaTipoLabel(tipoEvento) {
+  return {
+    entrada:       'Entrada',
+    breakeven:     'Breakeven',
+    sl_protegido:  'SL protegido',
+    sl_ajustado:   'SL ajustado',
+    parcial:       'Parcial',
+    cierre:        'Cierre',
+    cierre_tp:     'Cierre (TP)',
+    cierre_sl:     'Cierre (SL)',
+    cierre_manual: 'Cierre (manual)'
+  }[tipoEvento] || tipoEvento;
 }
 
-// Deriva el valor en $ de un movimiento de SL sin depender de una constante
-// de valor-por-punto (que varía por bróker/instrumento): usa el propio
-// resultado final del trade (t.beneficio) y su movimiento total de precio
-// (precio_cierre - precio_entrada) para obtener el $/punto real de ESE
-// trade y volumen, y lo aplica a los puntos ya ganados en el momento del
-// evento. Solo válido si el trade cerró completo (sin parciales) y sin
-// eso, devuelve null y el label cae al valor por defecto ('Breakeven').
+// FIX 27/08: el $ de cada evento sale de SUS PROPIOS datos, nunca del resultado
+// final del trade (precio_cierre/beneficio) — que es justo lo que se corrompía.
+//   1) parcial con beneficio real del deal -> exacto
+//   2) movimiento de SL -> $ nocional bloqueado = puntos(con signo) × valor_punto
+//      × volumen abierto en ese momento
+//   3) parcial sin beneficio (fila anterior a la migración) -> estima con
+//      precio/volumen del propio evento
 function _eaAuditoriaDolaresEvento(t, ev) {
-  if (ev.tipo_evento !== 'breakeven' || ev.puntos_desde_entrada == null) return null;
-  if (t.beneficio == null || t.precio_cierre == null || t.precio_entrada == null) return null;
-  var movTotal = Math.abs(t.precio_cierre - t.precio_entrada);
-  if (!movTotal) return null;
-  var valorPorPunto = t.beneficio / movTotal;
-  return Math.round(parseFloat(ev.puntos_desde_entrada) * valorPorPunto * 100) / 100;
+  if (ev.tipo_evento === 'parcial' && ev.beneficio != null) {
+    return Math.round(parseFloat(ev.beneficio) * 100) / 100;
+  }
+  if (['breakeven', 'sl_protegido', 'sl_ajustado'].indexOf(ev.tipo_evento) !== -1
+      && ev.puntos_desde_entrada != null && ev.volumen_restante != null) {
+    return Math.round(parseFloat(ev.puntos_desde_entrada)
+                    * VALOR_PUNTO_XAUUSD
+                    * parseFloat(ev.volumen_restante) * 100) / 100;
+  }
+  if (ev.tipo_evento === 'parcial' && ev.precio != null && ev.volumen_afectado != null
+      && t.precio_entrada != null && t.tipo) {
+    var d = t.tipo === 'sell' ? (t.precio_entrada - ev.precio) : (ev.precio - t.precio_entrada);
+    return Math.round(d * VALOR_PUNTO_XAUUSD * parseFloat(ev.volumen_afectado) * 100) / 100;
+  }
+  return null;
 }
 
 function _eaAuditoriaFormatHora(ts) {
@@ -69,9 +96,18 @@ function _eaAuditoriaFormatHora(ts) {
 
 function _eaAuditoriaDetalleEvento(ev) {
   var partes = [];
-  if (ev.puntos_desde_entrada != null) partes.push(Math.round(parseFloat(ev.puntos_desde_entrada) * 10) / 10 + ' pts');
+  if (ev.puntos_desde_entrada != null) {
+    var pts = Math.round(parseFloat(ev.puntos_desde_entrada) * 10) / 10;
+    partes.push((pts >= 0 ? '+' : '') + pts + ' pts'); // FIX 27/08: puntos con signo
+  }
   if (ev.precio != null) partes.push(parseFloat(ev.precio).toFixed(2));
-  if (ev.tipo_evento === 'parcial' && ev.volumen_afectado != null) partes.push(parseFloat(ev.volumen_afectado) + ' lotes');
+  if (ev.tipo_evento === 'entrada' && ev.volumen_restante != null) {
+    partes.push(parseFloat(ev.volumen_restante) + ' lotes');
+  }
+  if (ev.tipo_evento === 'parcial') {
+    if (ev.volumen_afectado != null) partes.push('cerró ' + parseFloat(ev.volumen_afectado));
+    if (ev.volumen_restante != null) partes.push('quedan ' + parseFloat(ev.volumen_restante));
+  }
   return partes.length ? partes.join(' · ') : '—';
 }
 
@@ -88,9 +124,10 @@ function _eaAuditoriaCrearFila(t, eventos, limAire) {
   var cabecera = document.createElement('div');
   cabecera.style.cssText = 'display:flex;justify-content:space-between;align-items:center;cursor:pointer;gap:1rem;flex-wrap:wrap;';
 
+  var volEntrada = t.volumen != null ? ' · ' + t.volumen + ' lot' : ''; // FIX 27/08: volumen de entrada en la cabecera
   var izq = document.createElement('div');
   izq.innerHTML =
-    '<span style="font-size:13px;color:var(--text-dim);">' + fechaStr + (t.tipo ? ' · ' + t.tipo : '') + '</span>' +
+    '<span style="font-size:13px;color:var(--text-dim);">' + fechaStr + (t.tipo ? ' · ' + t.tipo : '') + volEntrada + '</span>' +
     '<span style="font-size:11px;padding:.15rem .6rem;letter-spacing:.1em;text-transform:uppercase;margin-left:.6rem;border:1px solid ' +
       (dentro ? '#3AAA6A44' : '#CC554444') + ';background:' + (dentro ? '#3AAA6A14' : '#CC554414') + ';color:' +
       (dentro ? 'var(--green)' : 'var(--red)') + ';">' + (dentro ? 'Dentro del método' : 'Fuera del método') + '</span>';
@@ -116,7 +153,7 @@ function _eaAuditoriaCrearFila(t, eventos, limAire) {
     var dolaresEv = _eaAuditoriaDolaresEvento(t, ev);
     rowEv.innerHTML =
       '<span style="width:110px;color:var(--text-muted);flex-shrink:0;">' + _eaAuditoriaFormatHora(ev.timestamp) + '</span>' +
-      '<span style="width:110px;color:var(--gold-dim);flex-shrink:0;">' + _eaAuditoriaTipoLabel(ev.tipo_evento, dolaresEv) + '</span>' +
+      '<span style="width:130px;color:var(--gold-dim);flex-shrink:0;">' + _eaAuditoriaTipoLabel(ev.tipo_evento) + '</span>' +
       '<span>' + _eaAuditoriaDetalleEvento(ev) + (dolaresEv != null ? ' · ' + (dolaresEv >= 0 ? '+' : '') + dolaresEv + '$' : '') + '</span>';
     timeline.appendChild(rowEv);
   });
