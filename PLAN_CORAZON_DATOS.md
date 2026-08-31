@@ -2124,3 +2124,216 @@ Dos mejoras visuales para esa función en Mi Gestión:
 - **Mostrar el `position_id`** (ticket de apertura — es fijo aunque el
   trade tenga parciales con `deal_id` distintos) en la cabecera de cada
   trade, para poder cruzarlo con `ea_trades`/`trades` y con el log del EA.
+
+---
+
+# Sesión 31/08 — Rotación de Token (6ª de la racha), cola en RAM del EA, eventos "zombis" y esquema de `trade_eventos`
+
+Sesión operativa sobre el EA de la cuenta **7747760** (Roderas, Maestra) y
+su autenticación. Sin cambios en la web. Los cambios de EA son solo de
+configuración (input `Token` vacío + archivo de auth local), NO de código
+`EA_Aurum_Tracker_FIX.mq5`. Una migración SQL aplicada en Supabase. Las
+referencias `:NNN` a `EA_Aurum_Tracker_FIX.mq5` son sobre la copia del
+repo — recordar que la variante que corre en MT5 está desincronizada de
+ella (ver sesión 27/08, punto 1).
+
+## 1. `EA_SHARED_SECRET` rotado otra vez — el anterior quedó expuesto en el chat
+
+El valor anterior se pegó en texto plano durante la propia sesión (y
+además estaba en cleartext dentro de `aurum_cola_7747760.txt` en disco),
+así que se quemó y hubo que rotarlo. 6º incidente de la misma racha
+(01/08, 05/08, 08/08, 26/08, 27/08, 31/08), sigue sin causa raíz.
+
+Rotación **automatizada de punta a punta**, sin que el usuario copiara el
+secreto a mano en ningún sitio (las erratas de transcripción manual
+fueron causa de 2 de los incidentes anteriores):
+
+- `SECRET=$(openssl rand -hex 32)` en una variable de shell, nunca
+  impresa. Fichero temporal **sin newline final** (`printf '%s'`) — el
+  `\n` de más era sospechoso de mismatch en rotaciones previas.
+- Vercel: `vercel env rm EA_SHARED_SECRET production --yes` +
+  `vercel env add EA_SHARED_SECRET production --sensitive --yes < tmp`
+  (lee el valor de stdin, sin prompt). **El CLI v54.9.1 NO sobrescribe**:
+  `add` sobre una var existente devuelve
+  `{"reason":"branch_not_found","message":"... already exists ..."}` — hay
+  que hacer `rm` primero siempre.
+- Se añadió `EA_SHARED_SECRET_SHA256` (variable **no** sensible) con el
+  SHA-256 del valor nuevo, para poder verificar en el futuro sin exponer
+  el secreto. **Ojo:** `vercel env pull` en este proyecto NO devuelve el
+  valor de ninguna env var de proyecto (política de "todas sensibles" a
+  nivel de equipo, probablemente) — el hash solo se lee/compara desde el
+  dashboard de Vercel, no por CLI.
+- `vercel redeploy <url-prod> --scope aurum-velare-s-projects` para
+  aplicar. **Tarda >2 min a veces** (espera el build) — con timeout corto
+  se corta a media faena; reintentar es idempotente (crea otro deployment
+  más, sin daño).
+- Temporales del secreto borrados tras aplicar.
+
+**El input `Token` del EA se dejó vacío**: el EA lo autorrellena desde
+`Common\Files\aurum_auth_7747760.txt` (fallback, ver
+`CargarAuthDeArchivo()` `:104`). Ese archivo lo escribió Claude
+directamente (CRLF, 3 líneas `email=` / `ea_password=` / `token=`) con el
+valor nuevo — así el secreto no pasó por el input a mano. Backup del
+anterior en scratchpad.
+
+**Verificado en vivo, cuenta 7747760, de punta a punta:** curl a
+`https://aurumvelare.com/api/trade-mt5` con el token leído del archivo de
+auth → `400 "Campos requeridos"` (pasa la puerta de auth); token de
+control falso → `401 "Token inválido o ausente"`. Y **trade real
+`6407117`** (`fp 2026.08.31_6407117`) confirmado por el usuario en
+Supabase: `precio_entrada 4456.61`, `precio_cierre 4456.78`,
+`sl_original 4444`, fecha correcta.
+
+SHA-256 del token nuevo (esto es el hash, no el secreto — sirve para
+verificar contra el dashboard):
+`e8cdec09915da5616fbb8678ba90b27fcdc8522871179a76e5de6813367d298f`.
+
+## 2. Bug real: la cola vive en RAM además del `.txt` — vaciar el archivo con el EA corriendo NO sirve
+
+Síntoma: se vació `aurum_cola_7747760.txt` a 0 bytes varias veces con el
+EA corriendo, y ~1 ciclo de `OnTimer` después (≈60s) el archivo volvía a
+tener las mismas líneas.
+
+Causa, confirmada en `EA_Aurum_Tracker_FIX.mq5`:
+
+- La cola vive en el array global `g_cola` (y `g_cola_eventos` para la
+  cola separada de `/api/trade-evento`). El `.txt` es solo un **espejo de
+  persistencia**.
+- `PersistirCola()` (`:643`) reescribe el archivo **entero** desde
+  `g_cola` tras cualquier cambio de la cola — al final de cada pasada de
+  `ProcessRetryQueue()` (`if(huboCambios)`), desde `EncolarEvento()`
+  (`:749`), etc.
+- `CargarColaPersistida()` (`:658`) solo se ejecuta **una vez, en
+  `OnInit`**: hace `ArrayResize(g_cola, 0)` y luego lee el archivo.
+
+Conclusión: editar el `.txt` con el EA vivo es inútil — la próxima
+`PersistirCola()` lo sobrescribe desde memoria. **Para limpiar de verdad
+la cola de una cuenta:**
+
+1. Quitar el EA del gráfico (o parar el terminal).
+2. Con el EA parado, vaciar/borrar `Common\Files\aurum_cola_<cuenta>.txt`
+   (y/o `aurum_cola_eventos_<cuenta>.txt`).
+3. Volver a poner el EA. `CargarColaPersistida()` arranca con `g_cola`
+   vacío y lee el archivo vacío → cola realmente limpia.
+
+Hecho así en esta sesión para la 7747760: EA quitado → archivo a 0 bytes
+(confirmado estable, mtime sin avanzar) → EA repuesto → el log muestra
+`Cola recuperada tras reinicio` con 0 y los `401` en bucle desaparecen.
+
+## 3. Eventos "zombis": el token se congela en el JSON al construirlo, y no se descarta nunca
+
+Los 2 eventos atascados (pos `6402934`, `open`+`close`, timestamps
+`2026-08-31T00:37:08` / `01:04:28`) llevaban el token
+`0a2e16f9df8c4be04a6269e2c5573846ff228413922ef57c1903ce9bedacf21` — **63
+caracteres** (uno menos de 64: malformado), un valor viejo que estuvo un
+rato configurado esa mañana. Comparado carácter a carácter con el token
+real: **62 de 64 posiciones difieren**; no es un truncado del bueno, es
+otro valor distinto.
+
+Mecanismo (confirmado en `EA_Aurum_Tracker_FIX.mq5`):
+
+- `g_token` se resuelve una vez en `OnInit` (`:1317` `g_token = InToken;`;
+  si queda vacío → `CargarAuthDeArchivo()`, que solo rellena **si
+  `g_token == ""`** — el input siempre gana, `:127`).
+- Cada `BuildXxxJson()` **concatena `g_token` dentro del string JSON en el
+  instante en que se construye el evento** (`:365` y ss. para trades,
+  `:495`+ para eventos de línea de tiempo).
+- `EncolarEvento()` (`:749`) guarda ese string ya montado tal cual en
+  `g_cola` y lo persiste.
+- `ProcessRetryQueue()` (`:779`), ante un fallo, solo hace
+  `g_cola[i].reintentos++` y reenvía `g_cola[i].json_body` **sin tocar** —
+  nunca re-inyecta `g_token`.
+- `AvisarCadaXIntentos = 10` (`:25`) — comentario explícito *"ya no se
+  descarta nunca"*: cada 10 fallos solo imprime un aviso con el JSON
+  completo. **No hay descarte por número de reintentos. Un evento
+  envenenado reintenta para siempre.**
+
+Implicación operativa: **rotar el token (Vercel / archivo / input) NO
+arregla eventos ya encolados** — solo afecta a los que se construyan
+*después* de la rotación. Los ya encolados con token viejo hay que
+purgarlos con el procedimiento del punto 2. Los datos de la pos 6402934
+estaban ya a salvo en Supabase (`fecha_cierre` y `precio_cierre`
+guardados), así que se purgó sin pérdida.
+
+## 4. Bug de esquema en `trade_eventos` (tabla de la línea de tiempo del Diario, FASE 3)
+
+Todos los eventos de `/api/trade-evento` de la 7747760 fallaban con
+`HTTP 500` / `PGRST204: Could not find the 'beneficio' column of
+'trade_eventos' in the schema cache`.
+
+Diagnóstico (contra `api/trade-evento.js` + los `.sql` del repo):
+
+- `api/trade-evento.js` (L153-162) inserta la fila con:
+  `fp, tipo_evento, puntos_desde_entrada, precio, volumen_afectado,
+  volumen_restante, beneficio, timestamp`. `token`/`email`/`cuenta_numero`
+  /`ea_password` se usan solo para auth, no se insertan.
+- La tabla en producción tenía solo el esquema de **FASE 1**
+  (`sql_trade_eventos.sql`): `id, fp, tipo_evento, puntos_desde_entrada,
+  precio, volumen_afectado, timestamp, creado_en`, con
+  `CHECK (tipo_evento IN ('entrada','breakeven','parcial','cierre'))`.
+- **Nunca se aplicó `sql_trade_eventos_v2_volumen_tipos.sql`** (existe en
+  el repo desde el 27/08): faltaban las columnas `beneficio` y
+  `volumen_restante` (ambas `NUMERIC`), y el `CHECK` de `tipo_evento` no
+  incluía los tipos reales que ya genera el EA: `sl_protegido`,
+  `sl_ajustado`, `breakeven` (redefinido), `cierre_tp`, `cierre_sl`,
+  `cierre_manual`. El `PGRST204` solo nombra `beneficio` porque PostgREST
+  corta en la primera clave desconocida; `volumen_restante` faltaba
+  igual, y los tipos nuevos habrían dado violación de `CHECK` (23514) en
+  cuanto se arreglaran las columnas.
+
+**Migración aplicada** (= contenido de
+`sql_trade_eventos_v2_volumen_tipos.sql`, ya en el repo): `DROP`/`ADD` del
+constraint `trade_eventos_tipo_evento_check` con los 9 tipos, `ADD COLUMN
+IF NOT EXISTS volumen_restante NUMERIC`, `ADD COLUMN IF NOT EXISTS
+beneficio NUMERIC`. Retrocompatible e idempotente; no toca datos ni el
+índice único `(fp, tipo_evento, timestamp)` ni las RLS. No es problema de
+RLS: el endpoint usa `SUPABASE_SERVICE_KEY` (service role, salta RLS).
+
+## 5. `NOTIFY pgrst, 'reload schema'` no siempre llega a PostgREST — forzar recarga desde el dashboard
+
+Tras aplicar la migración, el `PGRST204` siguió un rato: el `NOTIFY pgrst,
+'reload schema'` por SQL **puede quedarse en el pooler y no llegar a
+PostgREST**.
+
+**Cuando vuelva a pasar (esquema cambiado pero PostgREST sigue con el
+cache viejo):** forzar la recarga real desde el dashboard de Supabase →
+**Project Settings → Data API → Settings → "Exposed tables"**: desactivar
+y reactivar una tabla expuesta y **Guardar**. Eso sí dispara la recarga
+del schema cache.
+
+Confirmado en el log del EA: 13:59:00 último `HTTP:500`; 13:59:57 el ciclo
+de `[AURUM EVENTO]` procesó los 4 eventos pendientes **sin ninguna línea
+`HTTP:` detrás**, y `aurum_cola_eventos_7747760.txt` quedó a 0 bytes 3s
+después. Clave para leer el log: **la cola de eventos solo imprime en
+fallo** — `DoWebRequestEventos()` (`:614`) hace `if(code == 200) return
+true;` sin `Print`; `ProcessRetryQueueEventos()` (`:811`) solo imprime
+`Procesando cola — N` al entrar y el aviso cada 10 fallos. Un ciclo
+`Procesando cola — N` **sin `HTTP:` detrás = éxito**. El silencio
+posterior del log (10+ min) es el estado sano: las dos colas vacías,
+`OnTimer` sale por el `if(ArraySize(...) == 0) return;` sin imprimir.
+
+## 6. Confirmado con datos reales: los 4 eventos de auditoría se capturan y guardan bien
+
+Trade `6407117` (`fp 2026.08.31_6407117`), tras arreglar el esquema: los 4
+eventos de la línea de tiempo —`entrada`, `sl_ajustado`, `breakeven`,
+`cierre_sl`— entran correctamente en `trade_eventos`.
+
+`beneficio` **solo se rellena en eventos `parcial`** (cierre parcial de
+volumen — `BuildParcialEventoJson()` `:548` es el único builder que manda
+`beneficio` con valor; el resto manda `beneficio:null`). En cierres
+totales `beneficio` queda `NULL` **por diseño**, no es un bug — el
+beneficio total del trade vive en `trades.beneficio`, no en el evento de
+cierre.
+
+## Pendiente
+
+- **Probar un cierre parcial real** en la 7747760 para confirmar que
+  `beneficio` se rellena bien en el evento `parcial` (único caso donde va
+  con valor — no verificado con datos reales todavía).
+- **Replicar `Common\Files\aurum_auth_<cuenta>.txt`** (fallback de
+  credenciales del EA) en las cuentas **176821** y **178497** (WSF), con
+  su `email` / `ea_password` / `token` correctos.
+- Sigue sin causa raíz la racha de desincronización de `EA_SHARED_SECRET`
+  (6º incidente) — ver `PENDIENTES_AUDITORIA_260826.md` #29.
+- Las dos copias de `EA_Aurum_Tracker_FIX.mq5` (repo vs. la que corre en
+  MT5) siguen desincronizadas — pendiente desde la sesión 27/08.

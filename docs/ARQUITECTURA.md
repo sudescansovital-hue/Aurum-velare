@@ -1,6 +1,6 @@
 # AURUM VELARE — Arquitectura Web
 > Documento vivo. Se actualiza con el proyecto.  
-> Última actualización: 26 de agosto de 2026  
+> Última actualización: 31 de agosto de 2026  
 > Para uso interno — contexto de desarrollo y nuevas sesiones de trabajo.
 
 ---
@@ -18,6 +18,70 @@ retoma la entrada por sesión aquí; para el detalle técnico completo de
 cada una, `PLAN_CORAZON_DATOS.md` sigue siendo el brief de referencia (ver
 regla #2 de mantenimiento, arriba) — este archivo se queda como índice/
 resumen de alto nivel.
+
+---
+
+## Estado sesión 31 Ago 2026 — Rotación de Token (6ª), cola en RAM del EA, esquema de `trade_eventos`
+
+> Detalle completo, paso a paso, en `PLAN_CORAZON_DATOS.md` → "Sesión
+> 31/08". Resumen y notas de arquitectura aquí. (Las sesiones 27/08–30/08
+> también están solo en `PLAN_CORAZON_DATOS.md`.)
+
+Sesión operativa sobre el EA de la cuenta **7747760** (Roderas). Sin
+cambios en la web ni en el código del EA; solo configuración del EA y una
+migración SQL en Supabase.
+
+**`EA_SHARED_SECRET` rotado de nuevo (6º incidente de la racha 01/08 →
+31/08, sin causa raíz confirmada).** El valor anterior quedó expuesto en
+texto plano. Rotación **automatizada por CLI** (`openssl rand -hex 32` →
+`vercel env rm` + `vercel env add --sensitive` leyendo el valor de stdin →
+`vercel redeploy --scope aurum-velare-s-projects`), sin pegar el secreto a
+mano en ningún sitio. El token del EA se distribuye por el archivo
+fallback `Common\Files\aurum_auth_<cuenta>.txt` (lo lee
+`CargarAuthDeArchivo()` cuando el input `Token` está vacío), no por el
+input. Añadida `EA_SHARED_SECRET_SHA256` (env var **no** sensible) para
+verificación futura vía dashboard — `vercel env pull` no devuelve el valor
+de las env vars de proyecto de este proyecto. Verificado end-to-end con
+trade real `6407117` confirmado en Supabase.
+
+**Bug de arquitectura del EA — la cola vive en RAM (`g_cola` /
+`g_cola_eventos`); el `.txt` es solo espejo de persistencia.**
+`PersistirCola()` reescribe el archivo desde memoria en cada pasada de
+`ProcessRetryQueue()`; `CargarColaPersistida()` solo lee el archivo una
+vez, en `OnInit`. Por tanto **vaciar `aurum_cola_<cuenta>.txt` con el EA
+corriendo no sirve** — se vuelve a escribir en ~60s. Procedimiento
+correcto para limpiar una cola: quitar el EA del gráfico → vaciar el
+archivo → volver a ponerlo.
+
+**Eventos "zombis".** El token se concatena dentro del JSON del evento en
+el momento de construirlo y queda congelado en el string;
+`ProcessRetryQueue()` lo reenvía tal cual indefinidamente
+(`AvisarCadaXIntentos=10` solo avisa cada 10 fallos, nunca descarta).
+Rotar el token no arregla eventos ya encolados — hay que purgarlos con el
+procedimiento de arriba.
+
+**Esquema de `trade_eventos` (tabla FASE 3 / línea de tiempo del Diario)
+corregido.** Faltaban las columnas `beneficio` y `volumen_restante`, y el
+`CHECK` de `tipo_evento` no incluía los tipos reales del EA
+(`sl_protegido`, `sl_ajustado`, `cierre_tp`, `cierre_sl`, `cierre_manual`,
+`breakeven`). Aplicada `sql_trade_eventos_v2_volumen_tipos.sql` (ya en el
+repo desde el 27/08, nunca ejecutada). Nota: `NOTIFY pgrst, 'reload
+schema'` no siempre llega a PostgREST (se queda en el pooler) — forzar la
+recarga desde el dashboard → Project Settings → Data API → Settings →
+toggle de una tabla en "Exposed tables" → Guardar. Confirmado con datos
+reales: `entrada`, `sl_ajustado`, `breakeven`, `cierre_sl` del trade
+6407117 entran bien. `beneficio` solo se rellena en eventos `parcial`; en
+cierres totales es `NULL` por diseño.
+
+**Corrección a la entrada "Estado sesión 02 Jul 2026" (más abajo):** el EA
+ya **no** procesa la cola "cada 1 hora" — `IntervaloEnvioSegundos` está en
+**60 s** desde la sesión 27/08; y la persistencia de la cola en disco
+(`aurum_cola_<cuenta>.txt`) **sí está aplicada** (no "preparada pero no
+aplicada" como decía aquella entrada).
+
+**Pendiente:** probar un cierre parcial real (confirmar que `beneficio` se
+rellena en eventos `parcial`); replicar `aurum_auth_<cuenta>.txt` en las
+cuentas **176821** y **178497** (WSF).
 
 ---
 
