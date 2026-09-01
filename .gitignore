@@ -10,3 +10,8 @@ aurum_auth_*.txt
 # Binarios compilados de MQL5 — se generan con F7 en MetaEditor desde el .mq5.
 # Nunca en git: se recompilan en cada máquina y confunden con versiones viejas.
 *.ex5
+
+# Presets de inputs del EA exportados desde el terminal (.set). Contienen
+# Email/EaPassword/Token en claro y se quedan obsoletos en cada rotación de
+# EA_SHARED_SECRET — plantilla local, nunca en git.
+*.set
