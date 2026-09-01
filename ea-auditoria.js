@@ -85,6 +85,13 @@ function _eaAuditoriaDolaresEvento(t, ev) {
     var d = t.tipo === 'sell' ? (t.precio_entrada - ev.precio) : (ev.precio - t.precio_entrada);
     return Math.round(d * VALOR_PUNTO_XAUUSD * parseFloat(ev.volumen_afectado) * 100) / 100;
   }
+  // FIX 01/09: cierre total -> el $ del evento es el beneficio total del trade
+  // (trades.beneficio, el mismo que la cabecera). En trade_eventos el evento de
+  // cierre lleva beneficio NULL por diseño, así que se toma de t.
+  if (['cierre', 'cierre_tp', 'cierre_sl', 'cierre_manual'].indexOf(ev.tipo_evento) !== -1
+      && t.beneficio != null) {
+    return Math.round(parseFloat(t.beneficio) * 100) / 100;
+  }
   return null;
 }
 
@@ -114,8 +121,8 @@ function _eaAuditoriaDetalleEvento(ev) {
     partes.push(parseFloat(ev.volumen_restante) + ' lotes');
   }
   if (ev.tipo_evento === 'parcial') {
-    if (ev.volumen_afectado != null) partes.push('cerró ' + parseFloat(ev.volumen_afectado));
-    if (ev.volumen_restante != null) partes.push('quedan ' + parseFloat(ev.volumen_restante));
+    if (ev.volumen_afectado != null) partes.push('cerró ' + parseFloat(ev.volumen_afectado).toFixed(2));
+    if (ev.volumen_restante != null) partes.push('quedan ' + parseFloat(ev.volumen_restante).toFixed(2));
   }
   return partes.length ? partes.join(' · ') : '—';
 }
