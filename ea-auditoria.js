@@ -91,7 +91,16 @@ function _eaAuditoriaDolaresEvento(t, ev) {
 function _eaAuditoriaFormatHora(ts) {
   var d = new Date(ts);
   if (isNaN(d.getTime())) return '—';
-  return d.toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  // FIX 01/09: el EA (DatetimeToISO) manda la hora de pared local SIN offset y
+  // Postgres la fija como +00 en el timestamptz. Sin timeZone aquí,
+  // toLocaleString volvía a proyectar ese instante a la zona del navegador y
+  // sumaba el offset una segunda vez (+2h en CEST) — verificado con datos
+  // reales, position_id 6421549. Renderizamos en UTC = misma hora de pared
+  // que hay en Supabase y en el EA.
+  return d.toLocaleString('es-ES', {
+    day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+    timeZone: 'UTC'
+  });
 }
 
 function _eaAuditoriaDetalleEvento(ev) {
