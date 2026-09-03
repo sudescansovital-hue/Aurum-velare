@@ -87,14 +87,24 @@ async function handleOpen(body, email, cuentaNumero, cuentaNombre) {
     // Posición ya registrada (p.ej. llegó de la sync OnInit pero ya estaba en ea_trades).
     // Solo actualizamos sl_actual/tp_actual — sl_original, tp_original y fecha_entrada quedan intactos.
     // FIX corazón de datos (06/07): antes esta rama ignoraba el TP por completo.
-    const r = await _patch(
-      'ea_trades',
-      `position_id=eq.${encodeURIComponent(position_id)}`,
-      { sl_actual: sl != null ? sl : null, tp_actual: tp != null ? tp : null }
-    );
-    if (!r.ok) {
-      console.error('[trade-mt5] open (update sl_actual) error:', r.status, r.body);
-      return { status: 500, json: { error: 'Error actualizando sl_actual en open duplicado', detail: r.body } };
+    // FIX 03/09: no pisar con null. SyncHistory48h reenvía 'open' con sl/tp=null
+    // para entradas a mercado cuyo SL/TP se puso después (ORDER_SL/ORDER_TP de la
+    // orden de apertura = 0); el PATCH incondicional anterior borraba el valor
+    // real ya fijado por sl_change/tp_change y arrastraba null + puntos mal
+    // recalculados hasta 'trades' vía handleClose.
+    const patch = {};
+    if (sl != null) patch.sl_actual = sl;
+    if (tp != null) patch.tp_actual = tp;
+    if (Object.keys(patch).length) {
+      const r = await _patch(
+        'ea_trades',
+        `position_id=eq.${encodeURIComponent(position_id)}`,
+        patch
+      );
+      if (!r.ok) {
+        console.error('[trade-mt5] open (update sl_actual) error:', r.status, r.body);
+        return { status: 500, json: { error: 'Error actualizando sl_actual en open duplicado', detail: r.body } };
+      }
     }
     console.log('[trade-mt5] open duplicado — solo sl_actual actualizado | position_id:', position_id);
     return { status: 200, json: { ok: true, event: 'open', position_id, action: 'updated_sl_actual' } };
