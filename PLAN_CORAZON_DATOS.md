@@ -2325,11 +2325,88 @@ totales `beneficio` queda `NULL` **por diseño**, no es un bug — el
 beneficio total del trade vive en `trades.beneficio`, no en el evento de
 cierre.
 
+## 7. Sesión 01/09 — Verificación completa de un trade real (6421549): nada se pierde, sospecha inicial descartada
+
+Contexto: al empezar la sesión, comparando el log del EA visible en
+pantalla contra lo que se tenía a mano del backend, se sospechó que el
+evento `tp_change` no tenía dónde guardarse — sospecha nacida de una
+copia de `api/trade-mt5.js` desactualizada (Project Knowledge), sin
+`handleTpChange`. Al subir el archivo real de producción, resultó que sí
+existe — completo, con tabla propia `ea_tp_changes`, campo `tp_actual` en
+`ea_trades`, evento `original_capture` para SL/TP puesto después del
+open, clasificación de estrategia, y capa `ea_password` — todo ya
+documentado en sesiones anteriores (26/08, 31/08) pero invisible desde la
+copia vieja que se estaba comparando. **Lección operativa:** no
+diagnosticar contra Project Knowledge cuando hay sospecha de desfase —
+pedir el archivo real primero, tal como ya dice la regla de la casa.
+
+Verificado con datos reales, `position_id 6421549`, cuenta 7747760:
+
+| Tabla | Esperado (trozo de log revisado) | Encontrado en Supabase |
+|---|---|---|
+| `ea_sl_changes` | 6 cambios visibles | **10 filas** — las 6 coinciden exactas; las 4 restantes son anteriores al trozo de log mirado |
+| `ea_tp_changes` | 1 cambio visible (4278.15→4291.80) | **5 filas** — coincide exacto; las 4 restantes son anteriores |
+| `trade_parciales` | 1 parcial visible (0.07 lotes, 245.77€) | **2 filas** — incluye un parcial anterior de 0.01 lotes, 18.24€ |
+| `ea_trades` (estado final) | sl 4327.87, cierre 4327.88, ben_total 355.81 | `sl_actual` 4327.87 ✅ · `tp_actual` 4291.8 ✅ · `beneficio` 355.81 ✅ · `estado` closed ✅ · `estrategia` "estructura" ✅ |
+
+El único evento fallido del log (`HTTP:1003 | error:5203`,
+`ERR_WEBREQUEST_REQUEST_FAILED` — fallo genérico de red, no de URL ni
+timeout) ocurrió procesando una cola de 4 eventos tras una doble recarga
+del EA. El siguiente ciclo de `ProcessRetryQueue()` la bajó de 4 a 1 sin
+más errores — confirmado que no se perdió nada por ese fallo puntual.
+
+**No se tocó código ni SQL en esta sesión** — verificación pura, según la
+regla de confirmar con datos reales antes de dar nada por bueno.
+Conclusión: para este trade, el corazón de datos capturó el 100% de lo
+que pasó.
+
+**✅ Cerrado en la misma sesión — `trade_eventos` verificada, pendiente del
+31/08 confirmado.** Se localizó el archivo que pinta este timeline
+(`ea-auditoria.js`, no está en gestion.js/app.js/evalua.js/visitas.js/
+index.html — ausente de Project Knowledge por completo) y se consultó
+`trade_eventos` directamente para `fp = '2026.09.01_6421549'`: **14 filas**,
+todas coinciden con lo ya verificado en `ea_sl_changes`/`trade_parciales`
+(mismos timestamps, mismos precios). Confirmado con datos reales lo que
+el 31/08 quedó como pendiente: `beneficio` solo viene relleno en las 2
+filas `tipo_evento='parcial'` (18.24€ y 245.77€) — NULL en el resto,
+incluida `cierre_sl` (por diseño: el beneficio total del trade vive en
+`trades.beneficio`, no en el evento de cierre).
+
+**Dos bugs de presentación encontrados y arreglados en `ea-auditoria.js`
+durante la revisión de esta captura** (mismo archivo, sin tocar Supabase):
+
+1. **Desfase de +2h en todas las horas del timeline** — `_eaAuditoriaFormatHora()`
+   llamaba a `toLocaleString('es-ES', {...})` sin `timeZone`, que reproyecta
+   un instante ya en UTC a la zona del navegador y le suma el offset una
+   segunda vez (+2h en CEST, sería +1h en invierno — no es DST mal
+   calculado, es una doble conversión). Fix: añadir `timeZone: 'UTC'`.
+   Cambio incondicional — afecta a todas las filas del timeline por igual,
+   incluida "Entrada" (que también tenía el mismo bug, no solo las de
+   `trade_eventos`/`trade_parciales` como se pensó al principio).
+2. **Volumen restante sin decimales fijos** ("quedan 0.1" en vez de
+   "quedan 0.10", generaba confusión visual junto a "cerró 0.01") y **fila
+   de cierre sin importe** (solo mostraba el precio, sin el "+X$" que sí
+   llevan "SL protegido"/"Parcial"). Fix: `.toFixed(2)` en volumen
+   afectado/restante de las filas `parcial`; para las filas de cierre
+   (`cierre`, `cierre_tp`, `cierre_sl`, `cierre_manual`), se pinta
+   `t.beneficio` (el mismo campo que ya usa la cabecera del trade) cuando
+   `ev.beneficio` es NULL — no un recálculo aproximado por precio×volumen.
+
+Ambos fixes son mecanismo, no parche puntual para este trade: no
+referencian `6421549` ni ningún dato específico en ningún sitio, aplican
+igual al siguiente trade que se cierre.
+
+Con esto, las 5 tablas relevantes (`ea_sl_changes`, `ea_tp_changes`,
+`trade_parciales`, `trade_eventos`, `ea_trades`) quedan cruzadas entre sí
+y contra la web, sin nada suelto. Sesión de verificación cerrada.
+
 ## Pendiente
 
 - **Probar un cierre parcial real** en la 7747760 para confirmar que
-  `beneficio` se rellena bien en el evento `parcial` (único caso donde va
-  con valor — no verificado con datos reales todavía).
+  `beneficio` se rellena bien en el evento `parcial` de `trade_eventos`
+  (único caso donde va con valor — no verificado con datos reales
+  todavía; el 01/09 se verificaron `ea_tp_changes`/`ea_sl_changes`/
+  `trade_parciales`/`ea_trades`, pero no `trade_eventos`).
 - **Replicar `Common\Files\aurum_auth_<cuenta>.txt`** (fallback de
   credenciales del EA) en las cuentas **176821** y **178497** (WSF), con
   su `email` / `ea_password` / `token` correctos.
@@ -2337,3 +2414,99 @@ cierre.
   (6º incidente) — ver `PENDIENTES_AUDITORIA_260826.md` #29.
 - Las dos copias de `EA_Aurum_Tracker_FIX.mq5` (repo vs. la que corre en
   MT5) siguen desincronizadas — pendiente desde la sesión 27/08.
+
+---
+
+# Sesión 03/09 — Bug `puntos_sl` congelado en `original_capture`: fix + backfill de 155 filas
+
+Encontrado investigando `ea_trades` del `position_id 22273566` (cuenta
+**179003**, abierta 03/09 02:13:46, cerrada 05:05:16). Un cambio en un
+solo archivo (`api/trade-mt5.js`), dos commits en producción, más un
+backfill directo en Supabase. Sin tocar `EA_Aurum_Tracker_FIX.mq5`.
+
+## 1. Bug `puntos_sl = 0` — CERRADO
+
+**Síntoma:** cuando una posición abre a mercado **sin SL** y el SL real
+llega después vía el evento `original_capture`, `sl_original` se
+actualizaba bien pero `puntos_sl` se quedaba **congelado en el `0` del
+INSERT inicial** de `handleOpen` — `0` era correcto en ese instante
+(todavía no había SL), pero incorrecto una vez que llega el SL real.
+
+**Causa raíz:** `handleOriginalCapture()` en `api/trade-mt5.js` nunca
+calculaba ni escribía `puntos_sl` — solo tocaba
+`sl_original`/`sl_actual`/`tp_original`/`tp_actual`/`estrategia`.
+`puntos_sl` se escribía en un único sitio de todo el backend: el INSERT
+de `handleOpen`. Ni la rama "open duplicado", ni `handleSlChange`, ni
+`handleClose` lo tocaban; el `.mq5` (`CheckOriginalesPendientes` /
+`BuildOriginalCaptureJson`) tampoco manda el campo.
+
+**Fix:** `handleOriginalCapture()`, dentro del bloque `if (sl != null)`
+que ya fija `sl_original`, lee `precio_entrada` de la fila que ya creó el
+evento `open` y añade al mismo PATCH
+`puntos_sl = round(|precio_entrada − sl|, 2)` — mismo criterio que el
+`.mq5` (`MathAbs(pe − sl)`), redondeado a 2 decimales. Si la fila aún no
+existe, se omite (sin regresión).
+
+**Dos commits en producción** (rama `main`, deploy Vercel):
+- `4173f10` — `fix: no pisar sl_actual/tp_actual con null en open
+  duplicado` (cambio que ya estaba sin commitear y desplegado desde el
+  deploy de las 01:50; se separó en su propio commit).
+- `41672e0` — `fix: calcular puntos_sl en original_capture` (el fix de
+  este bug).
+
+**Verificado en vivo** con `position_id 22273566` (cuenta 179003):
+`|4390.64 − 4380| = 10.64`.
+
+## 2. Backfill histórico — 155 filas corregidas en Supabase
+
+155 filas de `ea_trades` tenían `sl_original` correcto pero `puntos_sl`
+en `0`/`NULL` (mismo patrón). Corregidas con `UPDATE` directo, fórmula
+`round(abs(precio_entrada - sl_original)::numeric, 2)`. Verificado con
+`count(*)` del filtro `sl_original <> 0 AND (puntos_sl IS NULL OR
+puntos_sl = 0)` **antes (155) y después (0)**.
+
+Reparto por cuenta:
+
+| Cuenta | Filas |
+|---|---|
+| 152034 | 47 |
+| 176821 | 34 |
+| 167807 | 31 |
+| 7747760 | 30 |
+| 174645 | 6 |
+| 7754620 | 5 |
+| 179003 | 2 |
+| **Total** | **155** |
+
+## Nuevos pendientes
+
+- **Identificar qué son las cuentas 167807, 174645 y 7754620.**
+  Aparecieron en el backfill de `puntos_sl` con datos reales (31, 6 y 5
+  filas respectivamente) pero no están en la lista de cuentas conocidas
+  del sistema (Roderas: 7747760 / 152034 / 176821 / 178497; Willian;
+  Mara). Confirmar si son cuentas fondeadas adicionales de Roderas u otra
+  cosa a investigar. *(167807 ya figura en este documento — cabecera de
+  la sesión 20/07, "Cuenta Retos 167807" — así que probablemente es de
+  Roderas; falta cruzar 174645 y 7754620.)*
+- **`sl_original = 943` en `ea_trades`** para `position_id 22271656`
+  (cuenta 179003, apertura 03/09 00:27:31) — valor imposible para XAUUSD.
+  El log de `EA_SYNC` para esa misma posición mostró `sl_orig:0.00000`,
+  así que el 943 no vino de ese evento. Origen sin identificar todavía.
+  Sospecha: podría venir de otro camino de inserción distinto a
+  `handleOpen`/`original_capture`. Pendiente de investigar.
+- **Nueva cuenta 179003** (WSFmarkets-Server, "Cuenta Demo Hedge")
+  detectada en uso — confirmar con Roderas si añadirla a la lista oficial
+  de cuentas del sistema.
+- **Captura de MFE (Maximum Favorable Excursion).** Confirmado con caso
+  real (2026-09-03, posición abierta 17:09, 0.05 lot): el precio llegó a
+  +11 puntos favorables pero Roderas no cerró/parcializó ahí; el SL se
+  fue subiendo pegado al precio y la operación acabó cerrando en solo
+  +2.6 pts / +13.2 $. Ni el `.mq5` ni `trade-mt5.js` calculan ni envían
+  `mfe_price`/`mfe_puntos` — las columnas existen en `ea_trades` pero
+  están siempre vacías. Sin esto no hay forma de saber cuánto beneficio
+  se dejó sin capturar en una operación. Requiere: seguimiento del precio
+  máximo/mínimo alcanzado mientras la posición está abierta (vía
+  `OnTimer` u `OnTick`), envío del dato al cierre o periódicamente, y
+  actualización del backend para guardarlo. No se puede reconstruir para
+  trades ya cerrados/importados — solo aplica hacia adelante desde que se
+  implemente.
