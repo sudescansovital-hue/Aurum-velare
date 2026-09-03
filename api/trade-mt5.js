@@ -218,7 +218,21 @@ async function handleOriginalCapture(body, email, cuentaNumero) {
   }
 
   const patch = {};
-  if (sl != null) { patch.sl_original = sl; patch.sl_actual = sl; }
+  if (sl != null) {
+    patch.sl_original = sl;
+    patch.sl_actual = sl;
+    // FIX 03/09: puntos_sl quedó congelado en el valor del INSERT inicial de
+    // handleOpen (0, correcto entonces porque se abrió a mercado sin SL). Ahora
+    // que llega el primer SL real hay que recalcularlo — mismo criterio que el
+    // .mq5: MathAbs(precio_entrada - sl). precio_entrada se lee de la fila que
+    // ya creó el evento 'open'; si aún no existe, se omite y el PATCH de abajo
+    // tampoco afecta a ninguna fila.
+    const eaRows = await _get('ea_trades', `position_id=eq.${encodeURIComponent(position_id)}&select=precio_entrada`);
+    const precioEntrada = Array.isArray(eaRows) && eaRows.length ? eaRows[0].precio_entrada : null;
+    if (precioEntrada != null) {
+      patch.puntos_sl = Math.round(Math.abs(precioEntrada - sl) * 100) / 100;
+    }
+  }
   if (tp != null) { patch.tp_original = tp; patch.tp_actual = tp; }
   // El EA la calcula UNA sola vez, con el primer SL real — si el SL está
   // fuera de rango (zona Límite/fuera de método) manda estrategia=null y
