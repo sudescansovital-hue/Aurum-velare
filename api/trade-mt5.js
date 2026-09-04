@@ -318,7 +318,12 @@ async function handlePartialClose(body, email, cuentaNumero, cuentaNombre) {
 // Supabase con getUTCHours()/getUTCDay() coincide exacta con la hora del
 // terminal MT5, igual que hace parser.js con los históricos. Sin desfase.
 async function handleClose(body, email, cuentaNumero, cuentaNombre) {
-  const { position_id, precio_cierre, beneficio_total, timestamp, volumen_restante } = body;
+  const {
+    position_id, precio_cierre, beneficio_total, timestamp, volumen_restante,
+    // MFE/MAE (04/09): el EA los manda siempre en un cierre total (null si la
+    // posición nunca llegó a muestrearse — ver ExtremoMapGetMax/Min en el .mq5).
+    mfe_price, mfe_puntos, mae_price, mae_puntos
+  } = body;
 
   if (!position_id || precio_cierre == null || !timestamp) {
     return { status: 400, json: { error: 'close: faltan position_id, precio_cierre o timestamp' } };
@@ -341,7 +346,13 @@ async function handleClose(body, email, cuentaNumero, cuentaNombre) {
     estado:       'closed',
     precio_cierre,
     beneficio:    beneficio_total != null ? beneficio_total : null,
-    fecha_cierre: timestamp
+    fecha_cierre: timestamp,
+    // MFE/MAE (04/09): mismo patrón que 'beneficio' arriba — se guarda tal
+    // cual venga, null incluido (posición nunca muestreada por el EA).
+    mfe_price:    mfe_price   != null ? mfe_price   : null,
+    mfe_puntos:   mfe_puntos  != null ? mfe_puntos  : null,
+    mae_price:    mae_price   != null ? mae_price   : null,
+    mae_puntos:   mae_puntos  != null ? mae_puntos  : null
   });
 
   if (!r.ok) {
