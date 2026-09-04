@@ -4,10 +4,15 @@
 //+------------------------------------------------------------------+
 #property copyright "Aurum Velare"
 #property link      "https://aurumvelare.com"
-#property version   "1.02"
+#property version   "1.03"
 // 1.02 (27/08): mapa de volumen por posición -> clasificación fiable parcial vs
 //   cierre total (antes un parcial podía pisar precio_cierre). SL movido se
 //   parte en breakeven/sl_protegido/sl_ajustado. Cierre distingue TP/SL/manual.
+// 1.03 (04/09): captura MFE/MAE (máximo favorable/adverso) por posición.
+//   Muestreo throttled en OnTick (ver IntervaloExtremosSegundos), persistido
+//   en aurum_extremos_<cuenta>.txt igual que la cola. Solo toca OnTick,
+//   OnInit, HandleDealClose y BuildCloseJson (parámetros opcionales — no
+//   afecta a la llamada ya existente en SyncHistory48h).
 
 //--- Inputs
 // Email lleva valor por defecto real: si el EA se reinicia por cualquier
@@ -25,6 +30,7 @@ input string EventoEndpointURL = "https://aurumvelare.com/api/trade-evento"; // 
 input int    AvisarCadaXIntentos = 10; // FIX 06/07: ya no se descarta nunca; esto solo controla cada cuántos intentos fallidos se avisa en el log
 input int    IntervaloEnvioSegundos = 3600; // cada cuánto se procesa la cola (por defecto 1h)
 input int    HorasSync      = 48;
+input int    IntervaloExtremosSegundos = 2; // MFE/MAE (04/09): cada cuánto se muestrea Bid/Ask de posiciones abiertas en OnTick. Independiente de IntervaloEnvioSegundos (ese solo vacía la cola, corre cada 1h por defecto).
 
 //--- Globales
 string g_cuenta_numero = "";
@@ -52,6 +58,16 @@ double g_tp_values[];
 // (caso real fp=2026.08.27_21978908).
 ulong  g_vol_pos_ids[];
 double g_vol_values[];
+
+//--- Mapa EXTREMOS (máx/mín de precio por posición) — MFE/MAE (04/09).
+// A diferencia de los mapas SL/TP/Vol, aquí interesa el precio más
+// favorable y el más adverso vistos desde la apertura, no solo el último
+// valor. Se siembra con el precio de entrada real (PositionGetDouble),
+// nunca con el precio del primer tick visto — así funciona igual si el EA
+// lleva la posición desde el open o si se reinició a media operación.
+ulong  g_ext_pos_ids[];
+double g_ext_max[];
+double g_ext_min[];
 
 //--- Cola de reintentos
 struct PendingEvent {
@@ -95,6 +111,13 @@ string ColaEventosFileName() {
 //   token=...
 string AuthFileName() {
    return "aurum_auth_" + g_cuenta_numero + ".txt";
+}
+
+// Archivo de persistencia para el mapa de extremos (MFE/MAE, 04/09) —
+// mismo patrón que ColaFileName/ColaEventosFileName: un archivo por cuenta
+// en Common\Files\, reescrito entero en cada cambio (ver PersistirExtremos).
+string ExtremosFileName() {
+   return "aurum_extremos_" + g_cuenta_numero + ".txt";
 }
 
 // Rellena SOLO los g_* que sigan vacíos tras leer los inputs. El input
@@ -289,6 +312,72 @@ void VolMapRemove(ulong pos_id) {
 }
 
 //+------------------------------------------------------------------+
+//| MAPA EXTREMOS (MFE/MAE) — máximo/mínimo de precio por posición    |
+//+------------------------------------------------------------------+
+// MFE/MAE (04/09): registra, mientras la posición sigue abierta, el precio
+// más alto y más bajo vistos (Bid para buy, Ask para sell — ver
+// ActualizarExtremosAbiertas). Al cierre total, HandleDealClose traduce
+// estos dos extremos en mfe_price/mae_price según la dirección del trade.
+
+// Devuelve true si el máximo o el mínimo cambiaron (o si la posición es
+// nueva en el mapa) — lo usa ActualizarExtremosAbiertas() para decidir si
+// hace falta reescribir el archivo de persistencia.
+bool ExtremoMapActualizar(ulong pos_id, double precio_entrada, double precio_actual) {
+   int n = ArraySize(g_ext_pos_ids);
+   for(int i = 0; i < n; i++) {
+      if(g_ext_pos_ids[i] == pos_id) {
+         bool cambio = false;
+         if(precio_actual > g_ext_max[i]) { g_ext_max[i] = precio_actual; cambio = true; }
+         if(precio_actual < g_ext_min[i]) { g_ext_min[i] = precio_actual; cambio = true; }
+         return cambio;
+      }
+   }
+   // Primera vez que se ve esta posición: sembrar con el precio de ENTRADA,
+   // no con precio_actual — el precio de entrada es el mismo sin importar
+   // cuándo el EA la ve por primera vez (recién abierta o tras un reinicio).
+   ArrayResize(g_ext_pos_ids, n + 1);
+   ArrayResize(g_ext_max,     n + 1);
+   ArrayResize(g_ext_min,     n + 1);
+   g_ext_pos_ids[n] = pos_id;
+   g_ext_max[n]     = MathMax(precio_entrada, precio_actual);
+   g_ext_min[n]     = MathMin(precio_entrada, precio_actual);
+   return true;
+}
+
+// Devuelven -1.0 si la posición no está en el mapa (nunca se llegó a
+// muestrear — p.ej. abrió y cerró en menos de IntervaloExtremosSegundos).
+double ExtremoMapGetMax(ulong pos_id) {
+   int n = ArraySize(g_ext_pos_ids);
+   for(int i = 0; i < n; i++)
+      if(g_ext_pos_ids[i] == pos_id) return g_ext_max[i];
+   return -1.0;
+}
+
+double ExtremoMapGetMin(ulong pos_id) {
+   int n = ArraySize(g_ext_pos_ids);
+   for(int i = 0; i < n; i++)
+      if(g_ext_pos_ids[i] == pos_id) return g_ext_min[i];
+   return -1.0;
+}
+
+void ExtremoMapRemove(ulong pos_id) {
+   int n = ArraySize(g_ext_pos_ids);
+   for(int i = 0; i < n; i++) {
+      if(g_ext_pos_ids[i] == pos_id) {
+         for(int j = i; j < n - 1; j++) {
+            g_ext_pos_ids[j] = g_ext_pos_ids[j + 1];
+            g_ext_max[j]     = g_ext_max[j + 1];
+            g_ext_min[j]     = g_ext_min[j + 1];
+         }
+         ArrayResize(g_ext_pos_ids, n - 1);
+         ArrayResize(g_ext_max,     n - 1);
+         ArrayResize(g_ext_min,     n - 1);
+         return;
+      }
+   }
+}
+
+//+------------------------------------------------------------------+
 //| CAPTURA DE ORIGINALES PENDIENTES (bug #1)                        |
 //+------------------------------------------------------------------+
 // FIX corazón de datos (06/07): cuando abres a mercado sin SL/TP puesto
@@ -467,8 +556,18 @@ string BuildPartialCloseJson(ulong pos_id, ulong deal_id, double vol,
 // FIX 27/08: + volumen_restante. HandleDealClose solo llama aquí en cierre
 // TOTAL, así que siempre 0 — pero se manda explícito para que trade-mt5.js
 // pueda ignorar (red doble) cualquier 'close' que llegara con volumen abierto.
+// MFE/MAE (04/09): + mfe_price/mfe_puntos/mae_price/mae_puntos, todos con
+// default -1.0 -> "null". El default deja intacta la llamada que ya existe
+// en SyncHistory48h (reconstrucción de histórico, sin datos en vivo que
+// trackear) sin tener que tocar esa función.
 string BuildCloseJson(ulong pos_id, ulong deal_id, double precio_cierre,
-                      double beneficio_total, datetime t, double vol_restante = 0.0) {
+                      double beneficio_total, datetime t, double vol_restante = 0.0,
+                      double mfe_price = -1.0, double mfe_puntos = -1.0,
+                      double mae_price = -1.0, double mae_puntos = -1.0) {
+   string mfe_price_str  = (mfe_price  >= 0.0) ? DoubleToString(mfe_price, 5)  : "null";
+   string mfe_puntos_str = (mfe_puntos >= 0.0) ? DoubleToString(mfe_puntos, 2) : "null";
+   string mae_price_str  = (mae_price  >= 0.0) ? DoubleToString(mae_price, 5)  : "null";
+   string mae_puntos_str = (mae_puntos >= 0.0) ? DoubleToString(mae_puntos, 2) : "null";
    return "{\"event\":\"close\""
         + ",\"email\":\""           + g_email                    + "\""
         + ",\"cuenta_numero\":\""   + g_cuenta_numero          + "\""
@@ -479,6 +578,10 @@ string BuildCloseJson(ulong pos_id, ulong deal_id, double precio_cierre,
         + ",\"precio_cierre\":"     + DoubleToString(precio_cierre,   5)
         + ",\"beneficio_total\":"   + DoubleToString(beneficio_total, 2)
         + ",\"volumen_restante\":"  + DoubleToString(vol_restante,    2)
+        + ",\"mfe_price\":"         + mfe_price_str
+        + ",\"mfe_puntos\":"        + mfe_puntos_str
+        + ",\"mae_price\":"         + mae_price_str
+        + ",\"mae_puntos\":"        + mae_puntos_str
         + ",\"timestamp\":\""       + DatetimeToISO(t)         + "\""
         + "}";
 }
@@ -741,6 +844,72 @@ void CargarColaEventosPersistida() {
             " eventos pendientes de una sesión anterior, se reintentarán ahora");
 }
 
+// Reescribe el archivo de extremos completo con el estado actual del mapa
+// g_ext_*. Formato: una línea por posición abierta, "pos_id;max;min".
+// Igual que PersistirCola, se llama tras cualquier cambio real (ver
+// ExtremoMapActualizar) para que el archivo nunca quede desincronizado.
+void PersistirExtremos() {
+   int fh = FileOpen(ExtremosFileName(), FILE_WRITE | FILE_TXT | FILE_ANSI | FILE_COMMON);
+   if(fh == INVALID_HANDLE) {
+      Print("[AURUM EXTREMOS] ERROR: no se pudo escribir ", ExtremosFileName(),
+            " | error:", GetLastError());
+      return;
+   }
+   for(int i = 0; i < ArraySize(g_ext_pos_ids); i++) {
+      FileWriteString(fh, IntegerToString(g_ext_pos_ids[i]) + ";"
+                         + DoubleToString(g_ext_max[i], 5) + ";"
+                         + DoubleToString(g_ext_min[i], 5) + "\r\n");
+   }
+   FileClose(fh);
+}
+
+// Se llama una sola vez en OnInit, junto a CargarColaPersistida(). Recupera
+// el mapa de extremos de una sesión anterior — si el EA se reinició a media
+// operación, esto evita perder el máximo/mínimo ya observado hasta ese
+// punto. PurgeExtremosCerrados() (llamada justo después en OnInit) limpia
+// las posiciones que ya cerraron mientras el EA estaba parado.
+void CargarExtremosPersistidos() {
+   string fname = ExtremosFileName();
+   ArrayResize(g_ext_pos_ids, 0);
+   ArrayResize(g_ext_max,     0);
+   ArrayResize(g_ext_min,     0);
+
+   if(!FileIsExist(fname, FILE_COMMON)) return;
+
+   int fh = FileOpen(fname, FILE_READ | FILE_TXT | FILE_ANSI | FILE_COMMON);
+   if(fh == INVALID_HANDLE) {
+      Print("[AURUM EXTREMOS] ERROR: no se pudo leer ", fname, " | error:", GetLastError());
+      return;
+   }
+
+   int recuperados = 0;
+   while(!FileIsEnding(fh)) {
+      string linea = FileReadString(fh);
+      if(StringLen(linea) == 0) continue;
+      int p1 = StringFind(linea, ";");
+      int p2 = (p1 >= 0) ? StringFind(linea, ";", p1 + 1) : -1;
+      if(p1 <= 0 || p2 <= p1) continue; // línea corrupta — se descarta, no se aborta la carga
+
+      ulong  pos_id = (ulong)StringToInteger(StringSubstr(linea, 0, p1));
+      double vmax   = StringToDouble(StringSubstr(linea, p1 + 1, p2 - p1 - 1));
+      double vmin   = StringToDouble(StringSubstr(linea, p2 + 1));
+
+      int sz = ArraySize(g_ext_pos_ids);
+      ArrayResize(g_ext_pos_ids, sz + 1);
+      ArrayResize(g_ext_max,     sz + 1);
+      ArrayResize(g_ext_min,     sz + 1);
+      g_ext_pos_ids[sz] = pos_id;
+      g_ext_max[sz]     = vmax;
+      g_ext_min[sz]     = vmin;
+      recuperados++;
+   }
+   FileClose(fh);
+
+   if(recuperados > 0)
+      Print("[AURUM EXTREMOS] Mapa recuperado tras reinicio — ", recuperados,
+            " posición(es) con MFE/MAE de una sesión anterior");
+}
+
 // IMPORTANTE: SendEvent NUNCA llama a DoWebRequest directamente.
 // Antes se intentaba un envío síncrono aquí mismo, dentro de OnTradeTransaction,
 // con timeout de 10s — eso es lo que congelaba el terminal en cada cambio de SL
@@ -846,6 +1015,43 @@ void PopulateSlMap() {
       if(!EsXauusd(PositionGetString(POSITION_SYMBOL))) continue;
       SlMapSet(ticket, PositionGetDouble(POSITION_SL));
       VolMapSet(ticket, PositionGetDouble(POSITION_VOLUME)); // FIX 27/08: mapa de volumen
+   }
+}
+
+// Se llama una sola vez en OnInit, justo después de CargarExtremosPersistidos().
+// Si el archivo traía posiciones que ya cerraron mientras el EA estaba
+// parado (nunca van a pasar por HandleDealClose en esta sesión, así que
+// ExtremoMapRemove no las habría limpiado), esto las quita para no
+// acumular basura indefinidamente en el archivo/mapa.
+void PurgeExtremosCerrados() {
+   int total = ArraySize(g_ext_pos_ids);
+   if(total == 0) return;
+
+   ulong abiertas[];
+   ArrayResize(abiertas, PositionsTotal());
+   int nAbiertas = 0;
+   for(int i = 0; i < PositionsTotal(); i++) {
+      ulong ticket = PositionGetTicket(i);
+      if(ticket != 0) abiertas[nAbiertas++] = ticket;
+   }
+
+   int purgadas = 0;
+   int i = 0;
+   while(i < ArraySize(g_ext_pos_ids)) {
+      bool sigueAbierta = false;
+      for(int j = 0; j < nAbiertas; j++) {
+         if(abiertas[j] == g_ext_pos_ids[i]) { sigueAbierta = true; break; }
+      }
+      if(sigueAbierta) { i++; continue; }
+      ExtremoMapRemove(g_ext_pos_ids[i]);
+      purgadas++;
+      // no incrementar i: ExtremoMapRemove desplazó el array un puesto
+   }
+
+   if(purgadas > 0) {
+      Print("[AURUM EXTREMOS] ", purgadas, " posición(es) cerradas mientras el EA ",
+            "estaba parado — purgadas del mapa de extremos");
+      PersistirExtremos();
    }
 }
 
@@ -1148,12 +1354,31 @@ void HandleDealClose(const MqlTradeTransaction &trans) {
       // --- CIERRE TOTAL: única vía que escribe precio_cierre ---
       double tp_ref = TpMapGet(pos_id); // capturar antes de TpMapRemove (desempate de motivo)
       double beneficio_total = GetBeneficioTotalPos(pos_id);
-      string json = BuildCloseJson(pos_id, deal_id, price, beneficio_total, dtime, 0.0);
+
+      // MFE/MAE (04/09): traducir máx/mín en bruto a favorable/adverso según
+      // dirección (pe_ref/es_buy ya calculados arriba, antes del if(es_parcial)).
+      // Sentinela -1.0 (nunca se muestreó — p.ej. open+close en menos de
+      // IntervaloExtremosSegundos) se propaga tal cual; BuildCloseJson lo
+      // convierte en null, nunca en un valor inventado.
+      double ext_max    = ExtremoMapGetMax(pos_id);
+      double ext_min    = ExtremoMapGetMin(pos_id);
+      double mfe_price = -1.0, mfe_puntos = -1.0, mae_price = -1.0, mae_puntos = -1.0;
+      if(ext_max >= 0.0 && ext_min >= 0.0) {
+         mfe_price  = es_buy ? ext_max : ext_min;
+         mae_price  = es_buy ? ext_min : ext_max;
+         mfe_puntos = MathAbs(mfe_price - pe_ref);
+         mae_puntos = MathAbs(mae_price - pe_ref);
+      }
+
+      string json = BuildCloseJson(pos_id, deal_id, price, beneficio_total, dtime, 0.0,
+                                   mfe_price, mfe_puntos, mae_price, mae_puntos);
       Print("[AURUM] Cierre — pos:", pos_id,
             " | deal:", deal_id,
             " | motivo:", reason,
             " | price:", DoubleToString(price, 5),
-            " | ben_total:", DoubleToString(beneficio_total, 2));
+            " | ben_total:", DoubleToString(beneficio_total, 2),
+            " | mfe_pts:", (mfe_price >= 0.0 ? DoubleToString(mfe_puntos, 2) : "n/d"),
+            " | mae_pts:", (mae_price >= 0.0 ? DoubleToString(mae_puntos, 2) : "n/d"));
       SendEvent(json);
 
       // Motivo real del cierre: DEAL_REASON como fuente principal; si el bróker
@@ -1171,6 +1396,8 @@ void HandleDealClose(const MqlTradeTransaction &trans) {
       SlMapRemove(pos_id);
       TpMapRemove(pos_id);
       VolMapRemove(pos_id);
+      ExtremoMapRemove(pos_id); // MFE/MAE (04/09): ya no hace falta seguir esta posición
+      PersistirExtremos();      // reflejar la baja en disco inmediatamente, no esperar al próximo tick
       PendienteQuitarPorPosId(pos_id); // FIX 06/07: ya no hace falta vigilar una posición cerrada
    }
 }
@@ -1303,6 +1530,35 @@ void CheckOriginalesPendientes() {
 }
 
 //+------------------------------------------------------------------+
+//| MUESTREO MFE/MAE — throttled en OnTick (04/09)                    |
+//+------------------------------------------------------------------+
+// Recorre las posiciones abiertas (mismo filtro EsXauusd que el resto del
+// EA) y actualiza el mapa de extremos con el precio de salida real de cada
+// una: Bid para buy (te cierran vendiendo), Ask para sell (te cierran
+// comprando) — así el extremo refleja lo que de verdad se podría haber
+// cerrado en ese instante, no un precio genérico que ignora el spread.
+void ActualizarExtremosAbiertas() {
+   bool huboCambios = false;
+   int total = PositionsTotal();
+   for(int i = 0; i < total; i++) {
+      ulong ticket = PositionGetTicket(i);
+      if(ticket == 0 || !PositionSelectByTicket(ticket)) continue;
+      string sym = PositionGetString(POSITION_SYMBOL);
+      if(!EsXauusd(sym)) continue;
+
+      bool   es_buy         = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY);
+      double precio_entrada = PositionGetDouble(POSITION_PRICE_OPEN);
+      double precio_actual  = es_buy ? SymbolInfoDouble(sym, SYMBOL_BID)
+                                      : SymbolInfoDouble(sym, SYMBOL_ASK);
+      if(precio_actual <= 0.0) continue; // símbolo sin cotización válida en este tick
+
+      if(ExtremoMapActualizar(ticket, precio_entrada, precio_actual))
+         huboCambios = true;
+   }
+   if(huboCambios) PersistirExtremos();
+}
+
+//+------------------------------------------------------------------+
 //| EVENTOS PRINCIPALES                                               |
 //+------------------------------------------------------------------+
 
@@ -1336,6 +1592,13 @@ int OnInit() {
    // FASE 3: mismo mecanismo, cola separada. Va después de la existente
    // a propósito (ver confirmación dada al usuario sobre orden de llamadas).
    CargarColaEventosPersistida();
+
+   // MFE/MAE (04/09): recupera el mapa de extremos de una sesión anterior, y
+   // purga cualquier posición que ya haya cerrado mientras el EA estaba
+   // parado (su MFE/MAE de esa sesión perdida no se puede reconstruir — se
+   // pierde, no se inventa).
+   CargarExtremosPersistidos();
+   PurgeExtremosCerrados();
 
    // Precarga SL de posiciones abiertas (seguro en OnInit, sin WebRequest)
    PopulateSlMap();
@@ -1457,10 +1720,18 @@ void OnTimer() {
 // timer — MQL5 solo permite un EventSetTimer activo por EA, y ese ya lo
 // usa IntervaloEnvioSegundos para la cola.
 datetime g_ultimoCheckOriginales = 0;
+datetime g_ultimoCheckExtremos   = 0; // MFE/MAE (04/09)
 
 void OnTick() {
-   if(ArraySize(g_pend_pos_ids) == 0) return; // nada que vigilar, no perder tiempo
-   if(TimeCurrent() - g_ultimoCheckOriginales < 10) return;
-   g_ultimoCheckOriginales = TimeCurrent();
-   CheckOriginalesPendientes();
+   if(ArraySize(g_pend_pos_ids) > 0 && TimeCurrent() - g_ultimoCheckOriginales >= 10) {
+      g_ultimoCheckOriginales = TimeCurrent();
+      CheckOriginalesPendientes();
+   }
+
+   // MFE/MAE (04/09): throttle independiente del de arriba — tiene que
+   // correr aunque no haya ninguna posición "pendiente" de SL/TP original.
+   if(TimeCurrent() - g_ultimoCheckExtremos >= IntervaloExtremosSegundos) {
+      g_ultimoCheckExtremos = TimeCurrent();
+      ActualizarExtremosAbiertas();
+   }
 }
