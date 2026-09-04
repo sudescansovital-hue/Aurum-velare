@@ -1275,7 +1275,7 @@ void HandleDealOpen(const MqlTradeTransaction &trans) {
    // FASE 3 (brief linea de tiempo Diario): evento 'entrada' en paralelo,
    // después del SendEvent existente (orden a propósito, ver confirmación
    // dada al usuario antes de este cambio).
-   SendTradeEvento(BuildEntradaEventoJson(fp, pe, vol_pos, entry_time));
+   //SendTradeEvento(BuildEntradaEventoJson(fp, pe, vol_pos, entry_time)); // [FASE3-OFF 2026-08-29] /api/trade-evento no existe aún — reactivar quitando el //
 }
 
 void HandleDealClose(const MqlTradeTransaction &trans) {
@@ -1347,7 +1347,7 @@ void HandleDealClose(const MqlTradeTransaction &trans) {
       datetime entry_time = sel ? (datetime)PositionGetInteger(POSITION_TIME)
                                 : GetEntryTimeForPosition(pos_id);
       string   fp         = BuildFp(entry_time, pos_id);
-      SendTradeEvento(BuildParcialEventoJson(fp, vol, vol_restante, price, profit, puntos_evt, dtime));
+      //SendTradeEvento(BuildParcialEventoJson(fp, vol, vol_restante, price, profit, puntos_evt, dtime)); // [FASE3-OFF 2026-08-29] /api/trade-evento no existe aún — reactivar quitando el //
 
       VolMapSet(pos_id, vol_restante); // la posición sigue viva
    } else {
@@ -1391,7 +1391,7 @@ void HandleDealClose(const MqlTradeTransaction &trans) {
 
       datetime entry_time = GetEntryTimeForPosition(pos_id);
       string   fp         = BuildFp(entry_time, pos_id);
-      SendTradeEvento(BuildCierreEventoJson(fp, tipo_cierre, price, vol, dtime));
+      //SendTradeEvento(BuildCierreEventoJson(fp, tipo_cierre, price, vol, dtime)); // [FASE3-OFF 2026-08-29] /api/trade-evento no existe aún — reactivar quitando el //
 
       SlMapRemove(pos_id);
       TpMapRemove(pos_id);
@@ -1448,7 +1448,7 @@ void HandlePositionModified(const MqlTradeTransaction &trans) {
          else                           tipo_sl = "sl_ajustado";
 
          VolMapSet(pos_id, vol_restante); // mantener el mapa de volumen fresco
-         SendTradeEvento(BuildSlMoveEventoJson(fp, tipo_sl, dist_favor, sl_nuevo, vol_restante, now));
+         //SendTradeEvento(BuildSlMoveEventoJson(fp, tipo_sl, dist_favor, sl_nuevo, vol_restante, now)); // [FASE3-OFF 2026-08-29] /api/trade-evento no existe aún — reactivar quitando el //
       }
    }
 
@@ -1689,18 +1689,8 @@ void OnTimer() {
    if(!g_sync_done) {
       g_sync_done = true;
 
-      // Guard extra: si el EA se recarga dos veces seguidas (p.ej. al
-      // recompilar con el chart abierto), esto evita repetir la
-      // sincronización de historial dentro de una ventana de 30s.
-      string gv = "AURUM_LAST_SYNC_" + g_cuenta_numero;
-      double ultimoSync = GlobalVariableCheck(gv) ? GlobalVariableGet(gv) : 0;
-      if(TimeCurrent() - (datetime)ultimoSync < 30) {
-         Print("[AURUM] Sync inicial omitida — ya se hizo hace <30s (doble recarga detectada)");
-      } else {
-         GlobalVariableSet(gv, (double)TimeCurrent());
-         SyncOpenPositions();
-         SyncHistory48h();
-      }
+      SyncOpenPositions();
+      SyncHistory48h();
 
       EventKillTimer();
       EventSetTimer(IntervaloEnvioSegundos); // p.ej. cada hora, procesa la cola entera
