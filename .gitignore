@@ -21,3 +21,6 @@ aurum_auth_*.txt
 tools/post_cierre/data/
 tools/post_cierre/salida/
 tools/post_cierre/.venv/
+
+# Caché de Python
+__pycache__/
