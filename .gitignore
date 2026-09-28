@@ -15,3 +15,9 @@ aurum_auth_*.txt
 # Email/EaPassword/Token en claro y se quedan obsoletos en cada rotación de
 # EA_SHARED_SECRET — plantilla local, nunca en git.
 *.set
+
+# Análisis post-cierre (feature/post-cierre) — exports de Supabase y salida
+# generada, nunca en git: son datos de trading reales, no código.
+tools/post_cierre/data/
+tools/post_cierre/salida/
+tools/post_cierre/.venv/
