@@ -2146,7 +2146,32 @@
     <div id="gpanel-diario" style="display:none;padding:91px 2rem 1.5rem;">
 
       <div style="font-family:'Cormorant Garamond',serif;font-size:28px;color:var(--gold-bright);margin-bottom:.3rem;">Diario del proceso</div>
+      <div style="font-size:14px;color:var(--text-muted);margin-bottom:1.5rem;">Tus anotaciones. Solo las ves tú.</div>
 
+      <!-- Nueva entrada -->
+      <div style="border:1px solid var(--border-gold);background:var(--bg2);padding:1.5rem;position:relative;margin-bottom:1.5rem;">
+        <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>
+        <div style="font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--gold);margin-bottom:1rem;">+ Nueva entrada</div>
+        <textarea
+          id="diario-input"
+          placeholder="¿Qué pasó hoy en el proceso? Un trade, una reflexión, un patrón que notaste, algo que quieres recordar..."
+          rows="4"
+          style="width:100%;background:#060810;border:1px solid var(--border);padding:1rem;font-size:15px;color:var(--text);font-family:'Outfit',sans-serif;outline:none;resize:none;line-height:1.7;transition:border-color .3s;margin-bottom:1rem;"
+          onfocus="this.style.borderColor='var(--gold)'"
+          onblur="this.style.borderColor='var(--border)'"
+        ></textarea>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div style="font-size:13px;color:var(--text-muted);" id="diario-fecha-hoy"></div>
+          <div onclick="guardarEntradaDiario()" class="btn-outline" style="font-size:13px;padding:.6rem 1.5rem;">Guardar entrada →</div>
+        </div>
+        <div id="diario-msg" style="font-size:13px;color:var(--green);margin-top:.6rem;min-height:18px;"></div>
+      </div>
+
+      <!-- Entradas anteriores -->
+      <div style="font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--text-muted);margin-bottom:1rem;">Entradas anteriores</div>
+      <div style="display:flex;flex-direction:column;gap:1px;background:var(--border);" id="diario-entradas">
+
+      </div>
     </div>
 
     <!-- ===== HISTORIAL EXTERNO ===== -->
@@ -2225,32 +2250,6 @@
         <div id="hist-msg" style="font-size:13px;text-align:center;min-height:18px;margin-top:.8rem;"></div>
       </div>
     </div>
-      <div style="font-size:14px;color:var(--text-muted);margin-bottom:1.5rem;">Tus anotaciones. Solo las ves tú.</div>
-
-      <!-- Nueva entrada -->
-      <div style="border:1px solid var(--border-gold);background:var(--bg2);padding:1.5rem;position:relative;margin-bottom:1.5rem;">
-        <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>
-        <div style="font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--gold);margin-bottom:1rem;">+ Nueva entrada</div>
-        <textarea
-          id="diario-input"
-          placeholder="¿Qué pasó hoy en el proceso? Un trade, una reflexión, un patrón que notaste, algo que quieres recordar..."
-          rows="4"
-          style="width:100%;background:#060810;border:1px solid var(--border);padding:1rem;font-size:15px;color:var(--text);font-family:'Outfit',sans-serif;outline:none;resize:none;line-height:1.7;transition:border-color .3s;margin-bottom:1rem;"
-          onfocus="this.style.borderColor='var(--gold)'"
-          onblur="this.style.borderColor='var(--border)'"
-        ></textarea>
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <div style="font-size:13px;color:var(--text-muted);" id="diario-fecha-hoy"></div>
-          <div onclick="guardarEntradaDiario()" class="btn-outline" style="font-size:13px;padding:.6rem 1.5rem;">Guardar entrada →</div>
-        </div>
-        <div id="diario-msg" style="font-size:13px;color:var(--green);margin-top:.6rem;min-height:18px;"></div>
-      </div>
-
-      <!-- Entradas anteriores -->
-      <div style="font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--text-muted);margin-bottom:1rem;">Entradas anteriores</div>
-      <div style="display:flex;flex-direction:column;gap:1px;background:var(--border);" id="diario-entradas">
-
-      </div>
     </div>
 
   </div>
