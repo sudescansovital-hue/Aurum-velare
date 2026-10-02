@@ -1,8 +1,35 @@
 # Estado — análisis post-cierre: FASE 1 (examen de la EA) + FASE 2 (Diario web)
 
-> Actualizado 02/10/2026. **FASE 2 en producción** (`main` = `cdede9a`,
-> deploy `aurum-velare-cw5la96zd`; el anterior, para rollback, era
-> `aurum-velare-9hp3r9l3q`). FASE 1 terminada el 29/09 (298 trades, en seco).
+> Actualizado 02/10/2026. **FASE 2 en producción** (primer deploy `cdede9a` /
+> `aurum-velare-cw5la96zd`; el anterior a la FASE 2, para rollback, era
+> `aurum-velare-9hp3r9l3q`). Criterios de análisis hoy: **v6**. FASE 1
+> terminada el 29/09 (298 trades, en seco).
+
+---
+
+## ⚠️ SIGUIENTE GRAN PASO — PRIORIDAD MÁXIMA en la próxima sesión
+
+**Que el análisis post-cierre funcione para cualquier usuario solo con la
+EA**, sin depender de `post_cierre.py` en el PC de Roderas con MT5 abierto
+(hoy el endpoint solo trabaja con `POST_CIERRE_EMAIL` y las velas salen del
+terminal local). Pedido el 02/10, sin hacer. Orden:
+
+1. **Sincronizar la EA real de MT5 con la del repo** (`EA_Aurum_Tracker_FIX.mq5`):
+   la copia del repo y la que corre en los terminales están desincronizadas
+   (ya anotado en `PLAN_CORAZON_DATOS.md`, 27/08). Nada de lo siguiente se
+   toca antes de esto.
+2. **Arreglar sus 4 fallos conocidos** (sección "Fallos de la EA" más abajo):
+   MFE/MAE nulos, duplicados en `ea_sl_changes`/`ea_tp_changes`, 'breakeven'
+   mal etiquetado, clasificación `cierre_tp`/`cierre_sl`.
+3. **Que la EA envíe, tras cada cierre y pasada la ventana post-cierre (4 h de
+   mercado), las velas M1 del trade al endpoint** (desde la vela de entrada
+   hasta el fin de la ventana; mismo formato/criterio de hora de servidor que
+   usa hoy el script).
+4. **Mover el análisis de `post_cierre.py` al servidor** (que el endpoint, al
+   recibir las velas, calcule y guarde `post_cierre_analisis` /
+   `post_cierre_velas` con los mismos criterios v6), para cualquier usuario con
+   EA, no solo `POST_CIERRE_EMAIL`. Validar con regresión contra lo que hoy da
+   el script (300 trades).
 
 ---
 
@@ -12,7 +39,7 @@ Se acabaron los CSV a mano. Flujo:
 
 1. `post_cierre.py` pide a `api/post-cierre.js` (`GET ?accion=pendientes`) los
    trades de la EA cerrados sin análisis, con `ventana_completa=false` o con
-   `criterios_version` menor que `CRITERIOS_VERSION` (hoy 5, desde el 02/10).
+   `criterios_version` menor que `CRITERIOS_VERSION` (hoy 6, desde el 02/10).
 2. Los analiza con velas M1 del MT5 local con **los mismos criterios** de abajo.
 3. Con `--subir`, manda análisis + velas del gráfico (`POST ?accion=resultados`,
    lotes de 25) a `post_cierre_analisis` / `post_cierre_velas` (`sql_post_cierre.sql`,
@@ -151,6 +178,38 @@ tarde antes de su entrada, en la misma cuenta.
   Retos −2.782). Entradas seguidas 144 (WR 49%, −38 $/trade, −0,96 pts) vs
   esperando 149 (WR 55%, −9 $/trade, −0,72 pts).
 - 300/300 recalculados con v5, segunda pasada 0 pendientes.
+
+**Criterios v6 (02/10): "BE antes de TP1" (hecho), error de regla.** El SL se
+movió a proteger la entrada (±1 pt o mejor) con el trade abierto antes de que
+el precio llegara a +TP1 (`TP1_PTS_POR_ESTRATEGIA`: estructura 11,
+rechazo_rsi 7; sin clasificar no se evalúa). Mismo minuto que el TP1 → no se
+marca (orden desconocido); si el trade nació con el SL protegido, tampoco.
+Columnas `be_antes_tp1`, `be_antes_tp1_en`, `be_antes_tp1_favor_pts` (máximo a
+favor antes de proteger; NULL = protegido en el primer minuto, "nada más
+entrar") — `sql_post_cierre_v6_be_antes_tp1.sql`, ejecutado. En el Diario:
+insignia roja (cuenta como error para la marca de fila y el filtro), frase en
+el veredicto, sección en el bloque "Reglas del TP1" (junto a TP1 no asegurado)
+y columna por estrategia. Histórico: 49 de 146 evaluados (estructura 34 de
+91, rechazo_rsi 15 de 55); de esos 49, 22 salieron en BE y en 25 el precio
+llegó después al TP1; media +4,7 pts a favor al proteger, 7 nada más entrar.
+300/300 recalculados, 0 pendientes. En la subida hubo dos timeouts de red
+(`WinError 10060`, sin respuesta de aurumvelare.com) que cortaron el script a
+mitad; repetir `--subir` completó los 150 restantes sin duplicar (upsert).
+Ojo: el reintento automático solo cubre HTTP 5xx, no los fallos de conexión.
+
+**Zona de capturas (02/10, hecho, `capturas-test.js`).** La carpeta no se
+perdía al cerrar sesión (`signOut` no toca IndexedDB): al recargar, Chrome
+conserva el handle pero el permiso vuelve a "prompt" y solo se puede pedir con
+un clic, y la zona lo mostraba como "Permiso denegado, vuelve a elegir".
+Ahora: "Carpeta «X» recordada" + botón **Reconectar** (`requestPermission`);
+"denegado" solo si lo está de verdad; carpeta y ruta guardadas **por usuario**
+en IndexedDB (`carpeta:<email>`, `ruta:<email>`; migra la clave antigua
+`carpeta`, común a todo el navegador); valor guardado corrupto → "Sin carpeta".
+Campo **"Ruta en mi PC"** a mano (el navegador no expone la ruta completa): solo
+en este navegador, va al JSON de cada captura (`ruta_pc`, `carpeta`) y al aviso
+"Guardado en …". Probado en Chrome sin interfaz (migración, 4 estados,
+Reconectar, ruta tras reabrir el navegador); falta probar a mano el diálogo
+real de permiso con una carpeta de verdad.
 
 **Fuera de esta versión:** incubadora de estrategias e informe diario.
 
