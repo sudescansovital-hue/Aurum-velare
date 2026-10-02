@@ -177,6 +177,19 @@ FASE 2 hecha (ver arriba). Pendiente:
   columnas a `post_cierre_analisis` y subir `CRITERIOS_VERSION` para
   recalcular todo. La distancia se mide desde la **entrada**, no desde el
   cierre como el resto del post-cierre.
+- **Mejora futura — detectar "vuelta de posición":** un trade en dirección
+  contraria abierto en la misma cuenta dentro de los X minutos siguientes
+  (p. ej. 15) a cerrar otro con pérdida o a mano. Marcarlo en los dos trades
+  (el cerrado y el nuevo) y mostrar en "Tu semana" cuántas vueltas hubo y su
+  resultado conjunto (P&L de los dos trades juntos). Umbral X por decidir.
+  Pedido el 02/10, sin hacer todavía.
+  Notas para construirlo: no necesita velas ni MT5. Sale de cruzar
+  `fecha_cierre` del primero con `fecha_entrada` del siguiente, más
+  `direccion` y `cuenta_numero`, todo ya en `post_cierre_analisis`. El P&L sale
+  de `trades`, como el resto del Diario. Se puede calcular en el front
+  (`diario-analisis.js`) sin tocar el script ni subir `CRITERIOS_VERSION`.
+  "Con pérdida o a mano" = `tipo_cierre_detallado` en
+  (`sl_original_o_ajustado_perdida`, `manual`), o P&L < 0 en `trades`.
 - Siguientes versiones: incubadora de estrategias e informe diario.
 - Pendiente menor del script: desglose "¿cambia tu gestión con el lote?" en
 `resumen.md` (el volumen ya viaja en `resultados.csv`, falta agregarlo).
