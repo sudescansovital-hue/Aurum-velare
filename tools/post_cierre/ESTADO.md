@@ -164,6 +164,19 @@ FASE 2 hecha (ver arriba). Pendiente:
   bloques "Tus decisiones de gestión" y la tabla por estrategia con TODOS los
   trades analizados juntos, tanto en Global como por cuenta (respetando los
   chips de cuenta). Pedido el 02/10, sin hacer todavía.
+- **Siguiente mejora — detectar "entrada prematura":** en trades cerrados con
+  pérdida o en breakeven, comprobar si en las horas siguientes al cierre el
+  precio llegó a ir a favor de la dirección del trade una distancia relevante
+  medida desde la entrada. Umbrales por decidir: ventana (p. ej. 8 h de
+  mercado) y distancia (p. ej. ≥ 1R o ≥ 10 pts). Mostrarlo en el veredicto de
+  cada trade y como bloque nuevo en "Tu semana" ("la idea era buena, la
+  entrada fue pronto"). Pedido el 02/10, sin hacer todavía.
+  Notas para construirlo: la ventana post-cierre actual es de 4 h (240 velas M1
+  en `post_cierre_velas`), así que hará falta ampliar el análisis (el script ya
+  pide 5 días de calendario a MT5, de sobra para 8 h de mercado), añadir
+  columnas a `post_cierre_analisis` y subir `CRITERIOS_VERSION` para
+  recalcular todo. La distancia se mide desde la **entrada**, no desde el
+  cierre como el resto del post-cierre.
 - Siguientes versiones: incubadora de estrategias e informe diario.
 - Pendiente menor del script: desglose "¿cambia tu gestión con el lote?" en
 `resumen.md` (el volumen ya viaja en `resultados.csv`, falta agregarlo).
