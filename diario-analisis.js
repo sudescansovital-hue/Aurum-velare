@@ -21,7 +21,7 @@ var _daDatos = null;          // filas de post_cierre_analisis
 var _daCargando = false;
 var _daSemana = null;         // ms del lunes 00:00 de la semana elegida
 var _daHistorico = false;     // true = "Todo el histórico" (todas las semanas juntas)
-var _daCuenta = 'global';     // 'global' | cuenta_numero
+var _daCuenta = 'global';     // 'global' | 'maestra' | 'prueba' | 'retos'
 var _daEstrategia = 'todas';  // filtro de la lista de trades
 var _daAbierto = null;        // fp desplegado
 
@@ -102,9 +102,28 @@ function _daTradesPorFp() {
   return m;
 }
 
+// Pestañas de cuenta = las 3 asignadas al usuario desde el admin
+// (usuarios_aurum.cuenta_maestra / cuenta_prueba / cuenta_retos, cargadas en
+// usuarioActual por app.js), igual que el resto de Mi gestión. Se resuelven en
+// cada pintado, así que un cambio de cuenta en el admin se refleja solo.
+// Las demás cuentas son historial: sin pestaña, pero cuentan en Global.
+var DA_PESTANAS = [
+  { clave: 'maestra', nombre: 'Maestra', campo: 'cuenta_maestra' },
+  { clave: 'prueba',  nombre: 'Prueba',  campo: 'cuenta_prueba' },
+  { clave: 'retos',   nombre: 'Retos',   campo: 'cuenta_retos' }
+];
+
+function _daNumeroPestana(clave) {
+  var u = window.usuarioActual || {};
+  var p = DA_PESTANAS.filter(function(x) { return x.clave === clave; })[0];
+  return p && u[p.campo] ? String(u[p.campo]) : null;
+}
+
 function _daFiltrarCuenta(filas) {
   if (_daCuenta === 'global') return filas;
-  return filas.filter(function(r) { return String(r.cuenta_numero) === String(_daCuenta); });
+  var num = _daNumeroPestana(_daCuenta);
+  if (!num) return [];
+  return filas.filter(function(r) { return String(r.cuenta_numero) === num; });
 }
 
 function _daDeSemana(filas, lunesMs) {
@@ -209,8 +228,8 @@ function _daChip(texto, activo, onclick) {
 function _daPintar() {
   var cont = document.getElementById('diario-analisis-bloque');
   if (!cont) return;
-  var cuentas = [];
-  _daDatos.forEach(function(r) { if (cuentas.indexOf(String(r.cuenta_numero)) === -1) cuentas.push(String(r.cuenta_numero)); });
+  // Si la cuenta de la pestaña elegida se ha quitado en el admin, volver a Global.
+  if (_daCuenta !== 'global' && !_daNumeroPestana(_daCuenta)) _daCuenta = 'global';
 
   var filas = _daFiltrarCuenta(_daDatos);
   var semana = _daDeSemana(filas, _daSemana);
@@ -236,7 +255,11 @@ function _daPintar() {
           '</div>';
   html += '<div style="display:flex;flex-wrap:wrap;gap:0;border-bottom:1px solid var(--border);margin-bottom:1.5rem;">' +
             _daChip('Global', _daCuenta === 'global', "_daElegirCuenta('global')") +
-            cuentas.map(function(c) { return _daChip(_daNombreCuenta(c), _daCuenta === c, "_daElegirCuenta('" + c + "')"); }).join('') +
+            DA_PESTANAS.filter(function(p) { return _daNumeroPestana(p.clave); }).map(function(p) {
+              return '<button class="tab' + (_daCuenta === p.clave ? ' active' : '') + '" style="padding:.45rem .9rem;font-size:12px;line-height:1.25;" ' +
+                     'onclick="_daElegirCuenta(\'' + p.clave + '\')">' + p.nombre +
+                     '<span style="display:block;font-size:10px;color:var(--text-muted);letter-spacing:.05em;">' + _daEsc(_daNumeroPestana(p.clave)) + '</span></button>';
+            }).join('') +
           '</div>';
 
   html += _daHtmlSemana(periodo, filas);

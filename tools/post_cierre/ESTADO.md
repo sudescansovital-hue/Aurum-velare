@@ -77,6 +77,15 @@ Probado en Node con los 300 resultados v2: Global 300 trades · 160 a mano ·
 47% pronto · 89 BE (19 te salvó, 16 mixto); 178497: 69 · 29 · 31% · 28 (8, 4),
 igual que el cálculo independiente en Python.
 
+**Pestañas de cuenta del Diario (02/10):** solo Global, Maestra, Prueba y
+Retos, como el resto de Mi gestión. El número de cada una sale de
+`usuarioActual.cuenta_maestra / cuenta_prueba / cuenta_retos` (lo que se
+configura en el admin, `usuarios_aurum`), resuelto en cada pintado: si cambia la
+cuenta en el admin, el Diario la sigue sin tocar código. Una pestaña sin cuenta
+asignada no aparece. Las demás cuentas (historial) no tienen pestaña pero
+cuentan en Global. Hoy: Maestra 7747760 (64 trades), Prueba 178497 (69),
+Retos 179003 (29), Global 300.
+
 **Fuera de esta versión:** incubadora de estrategias e informe diario.
 
 ---
