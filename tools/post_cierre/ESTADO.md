@@ -190,6 +190,35 @@ FASE 2 hecha (ver arriba). Pendiente:
   (`diario-analisis.js`) sin tocar el script ni subir `CRITERIOS_VERSION`.
   "Con pérdida o a mano" = `tipo_cierre_detallado` en
   (`sl_original_o_ajustado_perdida`, `manual`), o P&L < 0 en `trades`.
+- **Mejora futura — "ganador devuelto":** trades con MFE durante el trade
+  ≥ 10 pts que terminaron en pérdida o en breakeven. Mostrarlo en el veredicto
+  del trade ("llegaste a ir +X a favor") y contarlo en "Tu semana". Pedido el
+  02/10, sin hacer todavía.
+  Notas para construirlo: `mfe_puntos` ya está en `post_cierre_analisis`, así
+  que se puede hacer solo en el front, sin script ni `CRITERIOS_VERSION`.
+  "Pérdida o breakeven" = `tipo_cierre_detallado` en
+  (`sl_original_o_ajustado_perdida`, `sl_breakeven`) o P&L ≤ 0 en `trades`
+  (para incluir cierres a mano en pérdida). Umbral de 10 pts como constante.
+- **Mejora futura — simulador de gestión:** re-simular TODOS los trades con
+  reglas alternativas y comparar resultado total (pts y $), win rate y peor
+  racha: (a) gestión real, (b) BE a +5 / +10 / +15, (c) parcial 50% a +10 y el
+  resto con BE, (d) SL 11 / TP 33 fijos sin intervenir. Tabla global y por
+  estrategia. El informe debe avisar de que es una simulación con velas M1.
+  Pedido el 02/10, sin hacer todavía.
+  Notas para construirlo:
+  - Mejor en `post_cierre.py` con velas M1 de MT5 que con `post_cierre_velas`:
+    las velas guardadas se agrupan cuando el trade dura > 240 min
+    (`tf_durante_min` > 1) y solo cubren 4 h tras el cierre, y con SL/TP fijos
+    o BE el trade simulado puede seguir vivo después del cierre real. Hará
+    falta una ventana máxima por trade (p. ej. hasta tocar SL/TP o fin de sesión).
+  - Vela M1 que toca a la vez el nivel de BE/parcial y el SL: no se sabe el
+    orden. Elegir criterio conservador (primero el SL) y contar cuántos casos
+    hay, igual que `ambiguo_misma_vela`.
+  - $ = pts × 100 × volumen (`VALOR_PUNTO_XAUUSD`); la parcial necesita el
+    volumen del trade (ya viene en `volumen`). Win rate y peor racha por orden
+    de `fecha_entrada`; global y por estrategia, y si se quiere, por cuenta.
+  - Resultado como informe aparte (p. ej. `salida/simulador.md`) y/o tabla nueva
+    en Supabase si se quiere ver en el Diario.
 - Siguientes versiones: incubadora de estrategias e informe diario.
 - Pendiente menor del script: desglose "¿cambia tu gestión con el lote?" en
 `resumen.md` (el volumen ya viaja en `resultados.csv`, falta agregarlo).
