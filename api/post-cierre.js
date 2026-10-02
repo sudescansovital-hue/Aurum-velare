@@ -45,6 +45,8 @@ const COLUMNAS_ANALISIS = [
   'velas_post_disponibles', 'ventana_completa',
   'decision_cierre_manual', 'pts_favor_antes_sl',
   'tp1_pts', 'tp1_alcanzado', 'tp1_alcanzado_en', 'tp1_volvio_en', 'tp1_no_asegurado',
+  'sl_desprotegido', 'sl_n_desprotecciones', 'sl_protegido_en', 'sl_nivel_protegido',
+  'sl_desprotegido_en', 'sl_nivel_desprotegido', 'sl_protegido_habria_salido',
   'entrada_en_vela', 'cierre_en_vela', 'notas', 'simbolo_velas', 'broker_velas',
   'criterios_version'
 ];

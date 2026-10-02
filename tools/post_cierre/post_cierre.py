@@ -113,7 +113,7 @@ FECHA_CORTE_SEPTIEMBRE = datetime(2026, 9, 1)
 # ── FASE 2: web ──
 # Sube si cambia cualquier criterio/umbral de arriba: el endpoint devuelve
 # entonces como pendientes todos los trades con una version anterior.
-CRITERIOS_VERSION = 3   # v2 (02/10): be_efecto mixto · v3 (02/10): TP1 no asegurado + velas del grafico en hora de servidor
+CRITERIOS_VERSION = 4   # v2 (02/10): be_efecto mixto · v3: TP1 no asegurado + velas en hora de servidor · v4: SL desprotegido
 BASE_URL_DEFAULT = "https://aurumvelare.com"
 TOKEN_PATH = BASE_DIR / ".post_cierre_token"   # lineas token=... y opcional bypass=...
 LOTE_SUBIDA = 25                               # = MAX_RESULTADOS_POR_LOTE del endpoint
@@ -219,6 +219,15 @@ class ResultadoTrade:
     tp1_alcanzado_en: str
     tp1_volvio_en: str
     tp1_no_asegurado: str
+
+    # SL desprotegido (v4): SL movido a proteger la entrada y luego alejado sin protegerla
+    sl_desprotegido: str
+    sl_n_desprotecciones: str
+    sl_protegido_en: str
+    sl_nivel_protegido: str
+    sl_desprotegido_en: str
+    sl_nivel_desprotegido: str
+    sl_protegido_habria_salido: str
 
     notas: str
 
@@ -641,6 +650,52 @@ def evaluar_tp1(trade: Trade, velas_intra: list, sl_original) -> Optional[dict]:
             "volvio_en": velas_intra[j].time, "no_asegurado": not (hubo_parcial or protegido)}
 
 
+# ── SL desprotegido (criterios v4) ──────────────────────────────────────
+
+def _sl_protege(trade: Trade, sl) -> bool:
+    """Mismo criterio que el TP1: SL a la entrada (±BE_TOLERANCIA_PTS) o mejor."""
+    if sl is None:
+        return False
+    if trade.direccion == "buy":
+        return sl >= trade.precio_entrada - BE_TOLERANCIA_PTS
+    return sl <= trade.precio_entrada + BE_TOLERANCIA_PTS
+
+
+def evaluar_sl_desprotegido(trade: Trade, velas_intra: list, sl_original) -> dict:
+    """Recorre los cambios de SL (ea_sl_changes, sin dedazos) hasta el cierre.
+    Desproteccion = el SL protegia la entrada y un cambio posterior lo aleja sin
+    protegerla, con el trade abierto. Se guarda el primer episodio y cuantos hubo.
+    habria_salido: tras desproteger, el precio llego al nivel protegido antes
+    del cierre (con el SL protegido habria salido en BE o mejor)."""
+    sl = sl_original
+    protegido = _sl_protege(trade, sl)
+    protegido_en = None
+    nivel_protegido = sl if protegido else None
+    episodios = []
+    for ts, val in trade.cambios_sl:
+        if ts > trade.fecha_cierre:
+            break
+        if val is None or abs(val - trade.precio_entrada) > DEDAZO_MAX_DIST:
+            continue
+        ahora = _sl_protege(trade, val)
+        if ahora and not protegido:
+            protegido_en, nivel_protegido = ts, val
+        elif ahora:
+            nivel_protegido = val  # sigue protegido (p. ej. trailing): ultimo nivel protegido
+        elif protegido and ts >= trade.fecha_entrada:
+            episodios.append((protegido_en, nivel_protegido, ts, val))
+        protegido, sl = ahora, val
+    if not episodios:
+        return {"desprotegido": False, "n": 0, "protegido_en": None, "nivel_protegido": None,
+                "desprotegido_en": None, "nivel_desprotegido": None, "habria_salido": None}
+    p_en, p_nivel, d_en, d_nivel = episodios[0]
+    desde = d_en.replace(second=0, microsecond=0) + timedelta(minutes=1)  # velas enteras tras el cambio
+    compra = trade.direccion == "buy"
+    habria = any((v.low <= p_nivel if compra else v.high >= p_nivel) for v in velas_intra if v.time >= desde)
+    return {"desprotegido": True, "n": len(episodios), "protegido_en": p_en, "nivel_protegido": p_nivel,
+            "desprotegido_en": d_en, "nivel_desprotegido": d_nivel, "habria_salido": habria}
+
+
 # ── Analisis por trade ───────────────────────────────────────────────────
 
 def analizar_trade(mt5, simbolo: str, trade: Trade, velas_out: Optional[dict] = None) -> ResultadoTrade:
@@ -756,6 +811,7 @@ def analizar_trade(mt5, simbolo: str, trade: Trade, velas_out: Optional[dict] = 
             decision_manual = "indeterminado"
 
     tp1 = evaluar_tp1(trade, velas_intra, sl_original)
+    desp = evaluar_sl_desprotegido(trade, velas_intra, sl_original)
 
     return ResultadoTrade(
         position_id=trade.position_id,
@@ -808,6 +864,13 @@ def analizar_trade(mt5, simbolo: str, trade: Trade, velas_out: Optional[dict] = 
         tp1_alcanzado_en=tp1["alcanzado_en"].isoformat() if tp1 and tp1["alcanzado_en"] else "",
         tp1_volvio_en=tp1["volvio_en"].isoformat() if tp1 and tp1["volvio_en"] else "",
         tp1_no_asegurado=str(tp1["no_asegurado"]) if tp1 else "",
+        sl_desprotegido=str(desp["desprotegido"]),
+        sl_n_desprotecciones=str(desp["n"]),
+        sl_protegido_en=desp["protegido_en"].isoformat() if desp["protegido_en"] else "",
+        sl_nivel_protegido=str(desp["nivel_protegido"]) if desp["nivel_protegido"] is not None else "",
+        sl_desprotegido_en=desp["desprotegido_en"].isoformat() if desp["desprotegido_en"] else "",
+        sl_nivel_desprotegido=str(desp["nivel_desprotegido"]) if desp["nivel_desprotegido"] is not None else "",
+        sl_protegido_habria_salido=str(desp["habria_salido"]) if desp["habria_salido"] is not None else "",
         notas="; ".join(notas),
     )
 
@@ -1035,6 +1098,13 @@ def resultado_a_fila(r: ResultadoTrade, trade: Trade, simbolo: str, broker: str)
         "tp1_alcanzado_en": iso(r.tp1_alcanzado_en),
         "tp1_volvio_en": iso(r.tp1_volvio_en),
         "tp1_no_asegurado": booleano(r.tp1_no_asegurado),
+        "sl_desprotegido": booleano(r.sl_desprotegido),
+        "sl_n_desprotecciones": ent(r.sl_n_desprotecciones),
+        "sl_protegido_en": iso(r.sl_protegido_en),
+        "sl_nivel_protegido": num(r.sl_nivel_protegido),
+        "sl_desprotegido_en": iso(r.sl_desprotegido_en),
+        "sl_nivel_desprotegido": num(r.sl_nivel_desprotegido),
+        "sl_protegido_habria_salido": booleano(r.sl_protegido_habria_salido),
         "entrada_en_vela": booleano(r.entrada_dentro_de_vela),
         "cierre_en_vela": booleano(r.cierre_dentro_de_vela),
         "notas": r.notas or None,

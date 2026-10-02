@@ -154,6 +154,15 @@ function _daFrase(r) {
          (r.mfe_puntos != null ? ' (máximo +' + _daNum(r.mfe_puntos, 1) + ')' : '') +
          ' y no aseguraste: volvió a la entrada sin parcial ni SL protegido.';
   }
+  // SL desprotegido (criterios v4)
+  if (r.sl_desprotegido) {
+    var hh = function(iso) { return _daHora(iso).slice(-5); };
+    f += ' Protegiste la entrada' + (r.sl_protegido_en ? ' a las ' + hh(r.sl_protegido_en) : '') +
+         ' (SL ' + _daNum(r.sl_nivel_protegido, 2) + ') y a las ' + hh(r.sl_desprotegido_en) +
+         ' volviste a alejar el SL a ' + _daNum(r.sl_nivel_desprotegido, 2) +
+         (r.sl_n_desprotecciones > 1 ? ' (' + r.sl_n_desprotecciones + ' veces en este trade)' : '') +
+         (r.sl_protegido_habria_salido ? ': con el SL protegido habrías salido en BE o mejor.' : '.');
+  }
   return f;
 }
 
@@ -375,6 +384,7 @@ function _daHtmlSemana(semana, filasCuenta) {
       _daLineaConteo('Trailing (beneficio)', cs.sl_beneficio_trailing || 0, sl.length, 'var(--green)') +
     '</div>' +
     _daHtmlTp1(semana) +
+    _daHtmlSlDesprotegido(semana, porFp) +
   '</div>';
 
   // Por estrategia
@@ -382,7 +392,7 @@ function _daHtmlSemana(semana, filasCuenta) {
        '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;min-width:520px;">' +
        '<thead><tr style="color:var(--text-muted);text-align:right;">' +
        '<th style="text-align:left;font-weight:400;padding:.3rem 0;">Estrategia</th><th style="font-weight:400;">Trades</th><th style="font-weight:400;">P&amp;L</th>' +
-       '<th style="font-weight:400;">A mano</th><th style="font-weight:400;">Bien</th><th style="font-weight:400;">Mixto</th><th style="font-weight:400;">Pronto</th><th style="font-weight:400;">Correcto</th><th style="font-weight:400;">TP1 no aseg.</th></tr></thead><tbody>';
+       '<th style="font-weight:400;">A mano</th><th style="font-weight:400;">Bien</th><th style="font-weight:400;">Mixto</th><th style="font-weight:400;">Pronto</th><th style="font-weight:400;">Correcto</th><th style="font-weight:400;">TP1 no aseg.</th><th style="font-weight:400;">SL desprot.</th></tr></thead><tbody>';
   DA_ESTRATEGIAS.forEach(function(e) {
     var g = semana.filter(function(r) { return (r.estrategia || null) === e; });
     if (!g.length) return;
@@ -397,7 +407,8 @@ function _daHtmlSemana(semana, filasCuenta) {
          '<td>' + (c.pronto || 0) + '</td><td>' + (c.correcto || 0) + '</td>' +
          '<td>' + (g.some(function(r) { return r.tp1_pts != null; })
                    ? g.filter(function(r) { return r.tp1_no_asegurado; }).length + ' de ' + g.filter(function(r) { return r.tp1_alcanzado; }).length
-                   : '—') + '</td></tr>';
+                   : '—') + '</td>' +
+         '<td>' + g.filter(function(r) { return r.sl_desprotegido; }).length + '</td></tr>';
   });
   h += '</tbody></table></div></div>';
 
@@ -421,6 +432,24 @@ function _daHtmlTp1(filas) {
     h += '<div style="font-size:12px;color:var(--text-muted);margin-top:.3rem;">' + e + ' (TP1 +' + _daNum(g[0].tp1_pts, 0) + '): ' +
          g.filter(function(r) { return r.tp1_no_asegurado; }).length + ' de ' + g.length + ' sin asegurar</div>';
   });
+  return h + '</div>';
+}
+
+// Bloque "SL desprotegido": trades en los que el SL protegió la entrada y
+// después se alejó sin protegerla. Cruce con el resultado: cuántas veces el
+// SL protegido habría saltado y P&L conjunto de esos trades.
+function _daHtmlSlDesprotegido(filas, porFp) {
+  var d = filas.filter(function(r) { return r.sl_desprotegido; });
+  var h = '<div class="cell"><div class="tag" style="display:block;margin-bottom:1rem;">SL desprotegido · ' + d.length + '</div>';
+  if (!d.length) return h + '<div style="font-size:13px;color:var(--text-muted);">No volviste a alejar el SL después de proteger la entrada.</div></div>';
+  var habria = d.filter(function(r) { return r.sl_protegido_habria_salido; }).length;
+  var pnl = 0, conPnl = 0;
+  d.forEach(function(r) { var t = porFp[r.fp]; if (t && t.beneficio != null) { pnl += parseFloat(t.beneficio); conPnl++; } });
+  h += _daLineaConteo('…y el SL protegido habría saltado', habria, d.length, 'var(--red)') +
+       '<div style="font-size:13px;color:var(--text-dim);margin-top:.4rem;">P&amp;L de esos trades: <span style="color:' + (pnl >= 0 ? 'var(--green)' : 'var(--red)') + ';">' +
+       (conPnl ? (pnl >= 0 ? '+' : '') + _daNum(pnl, 0) + '$' : '—') + '</span></div>';
+  var varias = d.filter(function(r) { return r.sl_n_desprotecciones > 1; }).length;
+  if (varias) h += '<div style="font-size:12px;color:var(--text-muted);margin-top:.3rem;">' + varias + ' con más de una desprotección</div>';
   return h + '</div>';
 }
 
@@ -523,6 +552,7 @@ function _daHtmlTrades(semana) {
                ' <span style="color:var(--text-muted);font-size:12px;">· ' + _daEsc(r.estrategia || 'sin clasificar') + '</span></span>' +
              '<span style="display:flex;gap:.4rem;flex-wrap:wrap;justify-content:flex-end;">' + _daBadgeDecision(r) +
                (r.tp1_no_asegurado ? '<span style="font-size:12px;color:var(--red);border:1px solid var(--border);padding:.15rem .5rem;white-space:nowrap;">TP1 no asegurado</span>' : '') +
+               (r.sl_desprotegido ? '<span style="font-size:12px;color:var(--red);border:1px solid var(--border);padding:.15rem .5rem;white-space:nowrap;">SL desprotegido</span>' : '') +
              '</span>' +
              '<span style="font-size:14px;min-width:70px;text-align:right;color:' + (ben == null ? 'var(--text-muted)' : ben >= 0 ? 'var(--green)' : 'var(--red)') + ';">' +
                (ben == null ? '—' : (ben >= 0 ? '+' : '') + _daNum(ben, 2) + '$') + '</span>' +
