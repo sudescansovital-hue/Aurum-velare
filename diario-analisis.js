@@ -245,9 +245,23 @@ function _daChip(texto, activo, onclick) {
          _daEsc(texto) + '</button>';
 }
 
+// Rejillas de bloques: flex que reparte cada fila y estira los de la última
+// hasta el ancho completo, así nunca queda a la vista el fondo gris (el gap
+// de 1px sobre var(--border) hace de línea separadora). --da-base fija el
+// máximo por fila (p. ej. 33.333% = 3) y el mínimo en px para móvil.
+function _daEstilos() {
+  if (document.getElementById('da-estilos')) return;
+  var s = document.createElement('style');
+  s.id = 'da-estilos';
+  s.textContent = '.da-rejilla{display:flex;flex-wrap:wrap;gap:1px;background:var(--border);}' +
+                  '.da-rejilla>*{flex:1 1 var(--da-base);min-width:0;box-sizing:border-box;}';
+  document.head.appendChild(s);
+}
+
 function _daPintar() {
   var cont = document.getElementById('diario-analisis-bloque');
   if (!cont) return;
+  _daEstilos();
   // Si la cuenta de la pestaña elegida se ha quitado en el admin, volver a Global.
   if (_daCuenta !== 'global' && !_daNumeroPestana(_daCuenta)) _daCuenta = 'global';
 
@@ -345,7 +359,7 @@ function _daHtmlSemana(semana, filasCuenta) {
   var dejados = semana.filter(function(r) { return r.decision_cierre_manual === 'pronto' && r.favor_post_puntos != null; })
                       .reduce(function(s, r) { return s + parseFloat(r.favor_post_puntos); }, 0);
 
-  var h = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1px;background:var(--border);margin-bottom:1px;">' +
+  var h = '<div class="da-rejilla" style="--da-base:max(140px, calc(16.666% - 1px));margin-bottom:1px;">' +
     _daStat('Trades', semana.length, 'cerrados por la EA', 'white') +
     _daStat('P&amp;L', conPnl ? (pnl >= 0 ? '+' : '') + _daNum(pnl, 0) + '$' : '—', conPnl < semana.length ? conPnl + ' con P&amp;L' : '', pnl >= 0 ? 'green' : 'red') +
     _daStat('Win rate', conPnl ? Math.round(ganadoras / conPnl * 100) + '%' : '—', ganadoras + ' de ' + conPnl, 'green') +
@@ -364,7 +378,7 @@ function _daHtmlSemana(semana, filasCuenta) {
   var mixBe = be.filter(function(r) { return r.be_efecto === 'mixto_te_saco_de_un_recorrido' && r.pts_favor_antes_sl != null; });
   var mediaMixBe = mixBe.length ? mixBe.reduce(function(s, r) { return s + parseFloat(r.pts_favor_antes_sl); }, 0) / mixBe.length : null;
 
-  h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1px;background:var(--border);margin-bottom:1px;">' +
+  h += '<div class="da-rejilla" style="--da-base:max(240px, calc(33.333% - 1px));margin-bottom:1px;">' +
     '<div class="cell"><div class="tag" style="display:block;margin-bottom:1rem;">Cierres a mano · ' + manuales.length + '</div>' +
       _daLineaConteo('Bien cerrado', cm.bien_cerrado || 0, manuales.length, 'var(--green)') +
       _daLineaConteo('Mixto · te saliste con poco', cm.mixto_te_saliste_con_poco || 0, manuales.length, '#8A6A2A') +
@@ -606,7 +620,7 @@ async function _daAbrirDetalle(fp) {
          '<span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#E2D9C8;margin-right:.4rem;"></span>Cierre ' + _daNum(r.precio_cierre, 2) + '</span>' +
        '</div>';
 
-  h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--border);margin-bottom:1rem;">' +
+  h += '<div class="da-rejilla" style="--da-base:max(150px, calc(25% - 1px));margin-bottom:1rem;">' +
          _daMini('MFE durante', r.mfe_puntos, 'a favor desde la entrada') +
          _daMini('MAE durante', r.mae_puntos, 'en contra desde la entrada') +
          _daMini('A favor después', r.favor_post_puntos, 'hasta SL/TP o 4 h') +
