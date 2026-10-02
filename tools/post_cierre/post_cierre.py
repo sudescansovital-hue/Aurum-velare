@@ -50,6 +50,7 @@ import json
 import math
 import statistics
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -970,7 +971,17 @@ def subir_resultados(cliente: ClienteWeb, filas: list) -> tuple:
     guardados = 0
     rechazados = []
     for i in range(0, len(filas), LOTE_SUBIDA):
-        resp = cliente.subir(filas[i:i + LOTE_SUBIDA])
+        # Un 5xx suelto de Vercel (visto el 02/10: "Internal Server Error (Vercel)")
+        # no debe cortar la subida: el upsert es idempotente, se reintenta el lote.
+        for intento in range(1, 4):
+            try:
+                resp = cliente.subir(filas[i:i + LOTE_SUBIDA])
+                break
+            except RuntimeError as e:
+                if " HTTP 5" not in str(e) or intento == 3:
+                    raise
+                print(f"    lote {i // LOTE_SUBIDA + 1}: {e} - reintento {intento}/2 en 5 s")
+                time.sleep(5)
         guardados += resp.get("guardados", 0)
         rechazados += resp.get("rechazados", [])
         print(f"    lote {i // LOTE_SUBIDA + 1}: {resp.get('guardados', 0)} guardados, "

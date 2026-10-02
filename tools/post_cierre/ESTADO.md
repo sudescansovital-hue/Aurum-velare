@@ -12,7 +12,7 @@ Se acabaron los CSV a mano. Flujo:
 
 1. `post_cierre.py` pide a `api/post-cierre.js` (`GET ?accion=pendientes`) los
    trades de la EA cerrados sin análisis, con `ventana_completa=false` o con
-   `criterios_version` menor que `CRITERIOS_VERSION` (hoy 1).
+   `criterios_version` menor que `CRITERIOS_VERSION` (hoy 2, desde el 02/10).
 2. Los analiza con velas M1 del MT5 local con **los mismos criterios** de abajo.
 3. Con `--subir`, manda análisis + velas del gráfico (`POST ?accion=resultados`,
    lotes de 25) a `post_cierre_analisis` / `post_cierre_velas` (`sql_post_cierre.sql`,
@@ -50,6 +50,23 @@ movidas dentro de `gpanel-diario` + contenedor nuevo) y `diario-analisis.js`.
 **Diferencias con FASE 1:** la web devuelve 300 trades (10 nuevos del 29/09 al
 01/10, cuenta 178497) y no devuelve 8 del CSV (6 de la 7754620 del 03–05/08 y
 2 del 30/06 de 152034 y 7747760): sin análisis, decidido dejarlos así.
+
+**Criterios v2 del breakeven (02/10):** CHECK ampliado con
+`sql_post_cierre_v2_be_mixto.sql` (ejecutado por el usuario), `CRITERIOS_VERSION`
+2, 300/300 recalculados y subidos a producción, segunda pasada 0 pendientes.
+Solo cambia `be_efecto` (y `pts_favor_antes_sl` en los mixtos de BE); el resto de
+columnas, idénticas a v1. Antes → después, 89 trades con BE real (300 trades):
+
+| Vista | te_salvo | mixto_te_saco_de_un_recorrido | te_saco_de_un_ganador | sin_efecto |
+|---|---|---|---|---|
+| Todo | 35 → 19 | 0 → 16 (media 8,4 pts antes del SL) | 13 → 14 | 41 → 40 |
+| Solo sept (+oct) | 19 → 12 | 0 → 7 | 7 → 8 | 23 → 22 |
+
+16 pasan de `te_salvo` a mixto y 1 de `sin_efecto` a `te_saco_de_un_ganador`
+(15/09 02:17, 178497, +5,83 pts: con v1 no llegaba al 0,5× de la distancia al SL).
+En la primera subida un lote recibió un 500 de la plataforma Vercel (no del
+endpoint); se completó repitiendo y el script ahora reintenta solo los 5xx
+(hasta 2 veces, el upsert es idempotente).
 
 **Fuera de esta versión:** incubadora de estrategias e informe diario.
 
@@ -93,8 +110,19 @@ cd tools\post_cierre
   - toca TP primero, o 5+ pts a favor sin tocar SL → `pronto`
   - resto → `correcto`; SL y TP en la misma vela → `indeterminado`
 - **Breakeven:** real si SL a ±1 pt de la entrada (`puntos_desde_entrada`),
-  nunca por tiempo. Tras salida en BE: si luego toca SL original →
-  `te_salvo`; si va a favor > 0.5× distancia entrada→SL → `te_saco_de_un_ganador`.
+  nunca por tiempo. **Criterios v2 (02/10)** — tras salir en BE, misma lógica
+  que los cierres a mano (umbral `UMBRAL_FAVOR_MANUAL_PTS` = 5 pts, misma ventana):
+  - toca SL original sin haber ido 5+ pts a favor desde la salida → `te_salvo`
+  - toca SL original tras ir 5+ pts a favor → `mixto_te_saco_de_un_recorrido`
+    (pts en `pts_favor_antes_sl`, la misma columna que los cierres a mano mixtos)
+  - 5+ pts a favor sin tocar SL, o toca TP → `te_saco_de_un_ganador`
+  - resto → `sin_efecto`
+  - Con BE real pero salida distinta de BE no cambia: `te_salvo` si el SL
+    original se habría tocado durante el trade tras el BE, si no `sin_efecto`.
+  - (v1, hasta el 02/10: toca SL → `te_salvo` siempre; > 0.5× distancia
+    entrada→SL a favor → `te_saco_de_un_ganador`. Ejemplo que lo motivó:
+    01/10 13:01, compra 178497, salió en BE, fue +15,2 y luego tocó el SL 4165:
+    v1 decía `te_salvo`, v2 dice mixto.)
 - **Resumen como en la web:** vista GLOBAL (todas las cuentas, también las
   que ya no se usan) como principal + desglose por cuenta con los mismos bloques.
 - Periodos: septiembre = fiable; agosto = secundario; junio/julio entran en
@@ -113,7 +141,8 @@ completa en todos).
 | pronto | 76 (media 23,0 pts dejados, mediana 18,7; total 1744) | 52 | 17 (media 18,7) |
 | correcto | 8 | 6 | 3 |
 
-- Breakeven real (85 trades): te_salvo 32 · te_saco_de_un_ganador 12 · sin_efecto 41.
+- Breakeven real (85 trades): te_salvo 32 · te_saco_de_un_ganador 12 · sin_efecto 41
+  (criterios v1; los números v2 están en la sección FASE 2).
 - Salidas por SL: pérdida 50 · breakeven 53 · beneficio (trailing) 31.
 - Tendencia: los `pronto` bajan en septiembre, sobre todo desde W38
   (W39: 9 bien_cerrado, 2 pronto).
