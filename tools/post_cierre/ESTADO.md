@@ -12,7 +12,7 @@ Se acabaron los CSV a mano. Flujo:
 
 1. `post_cierre.py` pide a `api/post-cierre.js` (`GET ?accion=pendientes`) los
    trades de la EA cerrados sin análisis, con `ventana_completa=false` o con
-   `criterios_version` menor que `CRITERIOS_VERSION` (hoy 4, desde el 02/10).
+   `criterios_version` menor que `CRITERIOS_VERSION` (hoy 5, desde el 02/10).
 2. Los analiza con velas M1 del MT5 local con **los mismos criterios** de abajo.
 3. Con `--subir`, manda análisis + velas del gráfico (`POST ?accion=resultados`,
    lotes de 25) a `post_cierre_analisis` / `post_cierre_velas` (`sql_post_cierre.sql`,
@@ -122,6 +122,35 @@ Histórico: 26 trades, en 21 habría saltado el SL protegido, 4 con más de un
 episodio (estructura 7, rechazo_rsi 4, sin clasificar 15). Ejemplo 01/10
 12:36, 178497: protegido 4165,15 a las 10:43 → 4176,5 a las 11:08, habría
 salido. 300/300 recalculados, segunda pasada 0 pendientes.
+
+**Insignias y errores de la lista (02/10, hecho).** El veredicto de cierre es
+una insignia neutra "Cierre: bien / pronto / BE, te salvó…" (solo habla del
+momento de cerrar). Los errores van delante: TP1 no asegurado y SL desprotegido
+en rojo, Vuelta en naranja; si hay alguno, la fila lleva una marca roja a la
+izquierda (`_daErrores` en `diario-analisis.js`; "Vuelta" cuenta como error).
+Filtro "Solo con errores" junto a los de estrategia (se combinan). Filas en
+flex con wrap: en móvil las insignias y el P&L bajan a una segunda línea.
+
+**Vueltas y entradas seguidas (02/10, hecho; criterios v5).** Se calculan en
+el front sobre todos los trades cargados (`_daMarcarSecuencias`), parámetro
+`DA_MINUTOS_SECUENCIA = 15`. El "anterior" de un trade es el que cerró más
+tarde antes de su entrada, en la misma cuenta.
+- Entrada seguida: abierta < 15 min tras cerrar el anterior. Se compara con
+  las abiertas tras esperar ≥ 15 min (WR, $ medio, esperanza en pts =
+  beneficio / (100 × lotes)); los primeros trades de cada cuenta, fuera.
+- Vuelta: seguida + dirección contraria + el anterior cerró a mano o con
+  pérdida (pts reales < 0). Insignia naranja en los dos. Real = P&L de los
+  dos trades; "si hubieras mantenido el primero" = desde su cierre hasta su
+  SL o TP original en la ventana post-cierre (4 h de mercado), y si no toca
+  ninguno, a `precio_fin_ventana` (columna nueva v5,
+  `sql_post_cierre_v5_fin_ventana.sql`, ejecutado); vela ambigua → SL; si ya
+  cerró en su SL original, = lo real. $ con el volumen inicial del primero
+  (sin descontar parciales). Cada trade solo es "primero" de una vuelta.
+- Histórico 02/10: 92 vueltas (59 abiertas en < 1 min): real −16.846 $ vs
+  mantener el primero −14.768 $ → −2.078 $ (Maestra +120, Prueba +784,
+  Retos −2.782). Entradas seguidas 144 (WR 49%, −38 $/trade, −0,96 pts) vs
+  esperando 149 (WR 55%, −9 $/trade, −0,72 pts).
+- 300/300 recalculados con v5, segunda pasada 0 pendientes.
 
 **Fuera de esta versión:** incubadora de estrategias e informe diario.
 
@@ -256,19 +285,6 @@ FASE 2 hecha (ver arriba). Pendiente:
   columnas a `post_cierre_analisis` y subir `CRITERIOS_VERSION` para
   recalcular todo. La distancia se mide desde la **entrada**, no desde el
   cierre como el resto del post-cierre.
-- **Mejora futura — detectar "vuelta de posición":** un trade en dirección
-  contraria abierto en la misma cuenta dentro de los X minutos siguientes
-  (p. ej. 15) a cerrar otro con pérdida o a mano. Marcarlo en los dos trades
-  (el cerrado y el nuevo) y mostrar en "Tu semana" cuántas vueltas hubo y su
-  resultado conjunto (P&L de los dos trades juntos). Umbral X por decidir.
-  Pedido el 02/10, sin hacer todavía.
-  Notas para construirlo: no necesita velas ni MT5. Sale de cruzar
-  `fecha_cierre` del primero con `fecha_entrada` del siguiente, más
-  `direccion` y `cuenta_numero`, todo ya en `post_cierre_analisis`. El P&L sale
-  de `trades`, como el resto del Diario. Se puede calcular en el front
-  (`diario-analisis.js`) sin tocar el script ni subir `CRITERIOS_VERSION`.
-  "Con pérdida o a mano" = `tipo_cierre_detallado` en
-  (`sl_original_o_ajustado_perdida`, `manual`), o P&L < 0 en `trades`.
 - **Mejora futura — "ganador devuelto":** trades con MFE durante el trade
   ≥ 10 pts que terminaron en pérdida o en breakeven. Mostrarlo en el veredicto
   del trade ("llegaste a ir +X a favor") y contarlo en "Tu semana". Pedido el
