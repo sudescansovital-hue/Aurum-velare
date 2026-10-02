@@ -113,7 +113,7 @@ FECHA_CORTE_SEPTIEMBRE = datetime(2026, 9, 1)
 # ── FASE 2: web ──
 # Sube si cambia cualquier criterio/umbral de arriba: el endpoint devuelve
 # entonces como pendientes todos los trades con una version anterior.
-CRITERIOS_VERSION = 4   # v2 (02/10): be_efecto mixto · v3: TP1 no asegurado + velas en hora de servidor · v4: SL desprotegido
+CRITERIOS_VERSION = 5   # v2 (02/10): be_efecto mixto · v3: TP1 no asegurado + velas en hora de servidor · v4: SL desprotegido · v5: precio_fin_ventana
 BASE_URL_DEFAULT = "https://aurumvelare.com"
 TOKEN_PATH = BASE_DIR / ".post_cierre_token"   # lineas token=... y opcional bypass=...
 LOTE_SUBIDA = 25                               # = MAX_RESULTADOS_POR_LOTE del endpoint
@@ -209,6 +209,9 @@ class ResultadoTrade:
     recorrido_favor_1h_puntos: str
     recorrido_favor_4h_puntos: str
     velas_post_cierre_disponibles: int
+    # v5: cierre de la ultima vela de la ventana post-cierre (para "si hubieras
+    # mantenido el trade" cuando no toca SL ni TP: vuelta de posicion en el Diario)
+    precio_fin_ventana: str
 
     decision_cierre_manual: str  # bien_cerrado / mixto_te_saliste_con_poco / pronto / correcto / indeterminado
     pts_favor_antes_sl: str      # cierre a mano mixto o salida en BE mixto: pts a favor antes del SL original
@@ -857,6 +860,7 @@ def analizar_trade(mt5, simbolo: str, trade: Trade, velas_out: Optional[dict] = 
         recorrido_favor_1h_puntos=str(favor_fijo[60]) if favor_fijo[60] is not None else "",
         recorrido_favor_4h_puntos=str(favor_fijo[240]) if favor_fijo[240] is not None else "",
         velas_post_cierre_disponibles=len(velas_post),
+        precio_fin_ventana=str(velas_post[-1].close) if velas_post else "",
         decision_cierre_manual=decision_manual,
         pts_favor_antes_sl=str(pts_favor_antes_sl) if pts_favor_antes_sl is not None else "",
         tp1_pts=str(tp1["pts"]) if tp1 else "",
@@ -1094,6 +1098,7 @@ def resultado_a_fila(r: ResultadoTrade, trade: Trade, simbolo: str, broker: str)
         "favor_1h_puntos": num(r.recorrido_favor_1h_puntos),
         "favor_4h_puntos": num(r.recorrido_favor_4h_puntos),
         "velas_post_disponibles": r.velas_post_cierre_disponibles,
+        "precio_fin_ventana": num(r.precio_fin_ventana),
         "ventana_completa": ventana_completa,
         "decision_cierre_manual": r.decision_cierre_manual,
         "pts_favor_antes_sl": num(r.pts_favor_antes_sl),

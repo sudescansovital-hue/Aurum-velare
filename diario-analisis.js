@@ -24,6 +24,12 @@ var _daHistorico = false;     // true = "Todo el histórico" (todas las semanas 
 var _daCuenta = 'global';     // 'global' | 'maestra' | 'prueba' | 'retos'
 var _daEstrategia = 'todas';  // filtro de la lista de trades
 var _daAbierto = null;        // fp desplegado
+var _daSoloErrores = false;   // filtro "Solo con errores" de la lista de trades
+
+// Vuelta de posición / entradas seguidas: minutos entre el cierre de un trade
+// y la apertura del siguiente en la misma cuenta. Cambiar aquí.
+var DA_MINUTOS_SECUENCIA = 15;
+var DA_NARANJA = '#E8873A';
 
 var DA_MS_DIA = 86400000;
 var DA_DECISIONES = ['bien_cerrado', 'mixto_te_saliste_con_poco', 'pronto', 'correcto'];
@@ -227,6 +233,7 @@ async function _daCargar() {
   _daCargando = false;
   if (r.error || !Array.isArray(r.data)) { console.error('[diario-analisis] error al cargar', r.error); return; }
   _daDatos = r.data;
+  _daMarcarSecuencias(_daDatos);
   if (_daDatos.length && _daSemana == null) _daSemana = _daLunes(_daDatos[0].fecha_cierre);
 }
 
@@ -399,6 +406,7 @@ function _daHtmlSemana(semana, filasCuenta) {
     '</div>' +
     _daHtmlTp1(semana) +
     _daHtmlSlDesprotegido(semana, porFp) +
+    _daHtmlSecuencias(semana, porFp) +
   '</div>';
 
   // Por estrategia
@@ -528,20 +536,157 @@ function _daPintarEvolucion(filasCuenta) {
 
 // ── B) Lista de trades ───────────────────────────────────────────────────
 
+// Insignia del veredicto de cierre: neutra y discreta, "Cierre: …", porque solo
+// habla del momento de cerrar. Los errores van aparte, en color y delante.
+var DA_CIERRE_CORTO = {
+  bien_cerrado: 'bien', mixto_te_saliste_con_poco: 'mixto', pronto: 'pronto', correcto: 'correcto',
+  indeterminado: 'sin veredicto', te_salvo: 'BE, te salvó', mixto_te_saco_de_un_recorrido: 'BE, mixto',
+  te_saco_de_un_ganador: 'BE, te sacó', sin_efecto: 'BE, sin efecto', sl_breakeven: 'BE',
+  sl_original_o_ajustado_perdida: 'SL con pérdida', sl_beneficio_trailing: 'trailing', tp: 'TP', desconocido: '—'
+};
+
 function _daBadgeDecision(r) {
   var k = r.tipo_cierre_detallado === 'manual' ? r.decision_cierre_manual
         : r.tipo_cierre_detallado === 'sl_breakeven' && r.be_efecto !== 'na' ? r.be_efecto
         : r.tipo_cierre_detallado;
-  var col = { bien_cerrado: 'var(--green)', te_salvo: 'var(--green)', sl_beneficio_trailing: 'var(--green)', tp: 'var(--green)',
-              pronto: 'var(--gold-bright)', te_saco_de_un_ganador: 'var(--gold-bright)', mixto_te_saliste_con_poco: 'var(--gold)',
-              mixto_te_saco_de_un_recorrido: 'var(--gold)',
-              sl_original_o_ajustado_perdida: 'var(--red)' }[k] || 'var(--text-muted)';
-  return '<span style="font-size:12px;color:' + col + ';border:1px solid var(--border);padding:.15rem .5rem;white-space:nowrap;">' + _daEsc(DA_TXT[k] || k) + '</span>';
+  return '<span style="font-size:11px;color:var(--text-muted);border:1px solid var(--border);padding:.12rem .45rem;white-space:nowrap;">Cierre: ' +
+         _daEsc(DA_CIERRE_CORTO[k] || k) + '</span>';
+}
+
+// Errores del trade, en el orden en que se muestran (a la izquierda del cierre).
+function _daErrores(r) {
+  var e = [];
+  if (r.tp1_no_asegurado) e.push({ txt: 'TP1 no asegurado', color: 'var(--red)' });
+  if (r.sl_desprotegido)  e.push({ txt: 'SL desprotegido', color: 'var(--red)' });
+  if (r._vueltaA || r._vueltaDe) e.push({ txt: 'Vuelta', color: DA_NARANJA });
+  return e;
+}
+
+function _daBadgesErrores(r) {
+  return _daErrores(r).map(function(e) {
+    return '<span style="font-size:12px;color:' + e.color + ';border:1px solid ' + (e.color === DA_NARANJA ? DA_NARANJA + '66' : '#CC443366') +
+           ';padding:.15rem .5rem;white-space:nowrap;">' + _daEsc(e.txt) + '</span>';
+  }).join('');
+}
+
+// ── Vuelta de posición / entradas seguidas ─────────────────────────────────
+// Se calcula en el front sobre todos los trades cargados (necesita el trade
+// anterior aunque sea de otra semana). Por cada trade, el anterior es el que
+// cerró más tarde antes de su entrada, en la misma cuenta.
+//   _gapMin: minutos desde ese cierre hasta la entrada (null si no hay anterior)
+//   _seguida: _gapMin < DA_MINUTOS_SECUENCIA
+//   vuelta: seguida + dirección contraria + el anterior cerró a mano o con
+//   pérdida → _vueltaDe (en el segundo) / _vueltaA (en el primero)
+function _daMarcarSecuencias(filas) {
+  var porCuenta = {};
+  filas.forEach(function(r) {
+    r._gapMin = null; r._seguida = false; r._vueltaDe = null; r._vueltaA = null;
+    (porCuenta[r.cuenta_numero] = porCuenta[r.cuenta_numero] || []).push(r);
+  });
+  Object.keys(porCuenta).forEach(function(c) {
+    var lista = porCuenta[c].slice().sort(function(a, b) { return _daFecha(a.fecha_entrada) - _daFecha(b.fecha_entrada); });
+    lista.forEach(function(b) {
+      var ent = _daFecha(b.fecha_entrada), prev = null;
+      lista.forEach(function(a) {
+        if (a !== b && _daFecha(a.fecha_cierre) <= ent && (!prev || _daFecha(a.fecha_cierre) > _daFecha(prev.fecha_cierre))) prev = a;
+      });
+      if (!prev) return;
+      b._gapMin = (ent - _daFecha(prev.fecha_cierre)) / 60000;
+      b._seguida = b._gapMin < DA_MINUTOS_SECUENCIA;
+      var perdio = _daPtsReales(prev) < 0;
+      if (b._seguida && prev.direccion !== b.direccion && (prev.tipo_cierre_detallado === 'manual' || perdio) && !prev._vueltaA) {
+        b._vueltaDe = prev.fp; prev._vueltaA = b.fp;
+      }
+    });
+  });
+}
+
+function _daPtsReales(r) {
+  var d = r.direccion === 'buy' ? 1 : -1;
+  return (parseFloat(r.precio_cierre) - parseFloat(r.precio_entrada)) * d;
+}
+
+// "Si hubieras mantenido el primero": desde su cierre real hasta su SL o TP
+// original, máximo 4 h de mercado (la ventana post-cierre ya analizada). Si no
+// toca ninguno, a precio_fin_ventana. Vela ambigua → SL (conservador). Si ya
+// cerró en su SL original, mantener = lo real. Devuelve pts desde la entrada o null.
+function _daMantenerPts(r) {
+  var d = r.direccion === 'buy' ? 1 : -1, e = parseFloat(r.precio_entrada);
+  if (r.sl_original != null && Math.abs(parseFloat(r.precio_cierre) - parseFloat(r.sl_original)) <= 0.5) return _daPtsReales(r);
+  if ((r.resultado_post_cierre === 'fue_a_sl' || r.resultado_post_cierre === 'ambiguo_misma_vela') && r.sl_original != null) {
+    return (parseFloat(r.sl_original) - e) * d;
+  }
+  if (r.resultado_post_cierre === 'fue_a_tp' && r.tp_original != null) return (parseFloat(r.tp_original) - e) * d;
+  if (r.resultado_post_cierre === 'ninguno_en_ventana' && r.precio_fin_ventana != null) return (parseFloat(r.precio_fin_ventana) - e) * d;
+  return null;
+}
+
+function _daResumenGrupo(g, porFp) {
+  var con = g.filter(function(r) { var t = porFp[r.fp]; return t && t.beneficio != null; });
+  if (!con.length) return null;
+  var ben = con.map(function(r) { return parseFloat(porFp[r.fp].beneficio); });
+  var pts = con.map(function(r) {
+    var v = parseFloat(r.volumen);
+    return v > 0 ? parseFloat(porFp[r.fp].beneficio) / (VALOR_PUNTO_XAUUSD * v) : _daPtsReales(r);
+  });
+  var suma = function(a) { return a.reduce(function(s, x) { return s + x; }, 0); };
+  return { n: con.length, wr: Math.round(ben.filter(function(x) { return x > 0; }).length / con.length * 100),
+           medio: suma(ben) / con.length, total: suma(ben), esp: suma(pts) / con.length };
+}
+
+function _daHtmlSecuencias(filas, porFp) {
+  var fmtD = function(v) { return v == null ? '—' : (v >= 0 ? '+' : '') + _daNum(v, 0) + '$'; };
+  var col = function(v) { return v == null ? 'var(--text-muted)' : v >= 0 ? 'var(--green)' : 'var(--red)'; };
+  var h = '<div class="cell"><div class="tag" style="display:block;margin-bottom:1rem;">Vueltas y entradas seguidas · ' + DA_MINUTOS_SECUENCIA + ' min</div>';
+
+  // Vueltas: la pareja cuenta en el periodo del primer trade
+  var todos = {};
+  (_daDatos || []).forEach(function(r) { todos[r.fp] = r; });
+  var pares = filas.filter(function(r) { return r._vueltaA && todos[r._vueltaA]; });
+  var real = 0, conReal = 0, mant = 0, conMant = 0;
+  pares.forEach(function(a) {
+    var b = todos[a._vueltaA], ta = porFp[a.fp], tb = porFp[b.fp];
+    if (ta && tb && ta.beneficio != null && tb.beneficio != null) {
+      var p = _daMantenerPts(a), v = parseFloat(a.volumen);
+      if (p != null && v > 0) {
+        real += parseFloat(ta.beneficio) + parseFloat(tb.beneficio); conReal++;
+        mant += p * VALOR_PUNTO_XAUUSD * v; conMant++;
+      }
+    }
+  });
+  h += '<div style="font-size:14px;color:var(--text-dim);margin-bottom:.3rem;">Vueltas de posición: <span style="color:' + DA_NARANJA + ';">' + pares.length + '</span></div>';
+  if (pares.length) {
+    h += '<div style="font-size:13px;color:var(--text-muted);line-height:1.7;">' +
+         (conReal
+           ? 'Resultado real (los dos trades): <span style="color:' + col(real) + ';">' + fmtD(real) + '</span>' +
+             '<br>Si hubieras mantenido el primero: <span style="color:' + col(mant) + ';">' + fmtD(mant) + '</span>' +
+             ' · diferencia <span style="color:' + col(real - mant) + ';">' + fmtD(real - mant) + '</span>'
+           : 'Sin datos para comparar.') +
+         (conReal < pares.length ? '<br><span style="font-size:12px;">' + (pares.length - conReal) + ' sin dato de P&amp;L o de "mantener", fuera de la comparación</span>' : '') +
+         '</div>';
+  }
+
+  // Entradas seguidas vs esperando (los primeros trades de cada cuenta no tienen anterior: fuera)
+  var seg = _daResumenGrupo(filas.filter(function(r) { return r._seguida; }), porFp);
+  var esp = _daResumenGrupo(filas.filter(function(r) { return r._gapMin != null && !r._seguida; }), porFp);
+  var linea = function(t, g) {
+    return '<tr style="border-top:1px solid var(--border);"><td style="padding:.35rem 0;color:var(--text-dim);">' + t + '</td>' +
+           '<td style="text-align:right;">' + (g ? g.n : 0) + '</td><td style="text-align:right;">' + (g ? g.wr + '%' : '—') + '</td>' +
+           '<td style="text-align:right;color:' + col(g ? g.medio : null) + ';">' + fmtD(g ? g.medio : null) + '</td>' +
+           '<td style="text-align:right;">' + (g ? (g.esp >= 0 ? '+' : '') + _daNum(g.esp, 2) : '—') + '</td></tr>';
+  };
+  h += '<div style="font-size:14px;color:var(--text-dim);margin:1rem 0 .3rem;">Entradas seguidas (&lt; ' + DA_MINUTOS_SECUENCIA + ' min tras cerrar el anterior)</div>' +
+       '<table style="width:100%;border-collapse:collapse;font-size:12px;color:var(--text-muted);"><thead><tr>' +
+       '<th style="text-align:left;font-weight:400;"></th><th style="text-align:right;font-weight:400;">n</th><th style="text-align:right;font-weight:400;">WR</th>' +
+       '<th style="text-align:right;font-weight:400;">$ medio</th><th style="text-align:right;font-weight:400;">Esp. pts</th></tr></thead><tbody>' +
+       linea('Seguidas', seg) + linea('Si hubieras esperado (≥ ' + DA_MINUTOS_SECUENCIA + ' min)', esp) + '</tbody></table>';
+  return h + '</div>';
 }
 
 function _daHtmlTrades(semana) {
   var lista = semana.filter(function(r) {
-    return _daEstrategia === 'todas' || (r.estrategia || 'sin_clasificar') === _daEstrategia;
+    return (_daEstrategia === 'todas' || (r.estrategia || 'sin_clasificar') === _daEstrategia) &&
+           (!_daSoloErrores || _daErrores(r).length);
   }).sort(function(a, b) { return _daFecha(b.fecha_cierre) - _daFecha(a.fecha_cierre); });
   var porFp = _daTradesPorFp();
 
@@ -552,6 +697,10 @@ function _daHtmlTrades(semana) {
               _daChip('rechazo_rsi', _daEstrategia === 'rechazo_rsi', "_daElegirEstrategia('rechazo_rsi')") +
               _daChip('estructura', _daEstrategia === 'estructura', "_daElegirEstrategia('estructura')") +
               _daChip('sin clasificar', _daEstrategia === 'sin_clasificar', "_daElegirEstrategia('sin_clasificar')") +
+              '<span style="width:1px;background:var(--border);margin:0 .4rem;"></span>' +
+              '<button class="tab' + (_daSoloErrores ? ' active' : '') + '" style="padding:.45rem .9rem;font-size:12px;' +
+                (_daSoloErrores ? 'color:var(--red);border-bottom-color:var(--red);' : '') + '" ' +
+                'onclick="_daSoloErrores=!_daSoloErrores;_daAbierto=null;_daPintar();">Solo con errores</button>' +
             '</div></div>';
   if (!lista.length) return h + '<div class="cell" style="color:var(--text-muted);font-size:14px;margin-bottom:1.5rem;">Sin trades con este filtro.</div>';
 
@@ -559,17 +708,19 @@ function _daHtmlTrades(semana) {
   lista.forEach(function(r) {
     var t = porFp[r.fp];
     var ben = t && t.beneficio != null ? parseFloat(t.beneficio) : null;
-    h += '<div style="background:var(--bg2);">' +
-           '<div onclick="_daToggle(\'' + _daEsc(r.fp) + '\')" style="display:grid;grid-template-columns:110px 1fr auto auto;gap:1rem;align-items:center;padding:.8rem 1.2rem;cursor:pointer;">' +
-             '<span style="font-size:13px;color:var(--gold-dim);">' + _daHora(r.fecha_cierre) + '</span>' +
-             '<span style="font-size:14px;color:var(--text-dim);">' + (r.direccion === 'buy' ? 'Compra' : 'Venta') + ' · ' + _daEsc(_daNombreCuenta(r.cuenta_numero)) +
+    var conError = _daErrores(r).length > 0;
+    h += '<div style="background:var(--bg2);' + (conError ? 'box-shadow:inset 3px 0 0 #CC4433B3;' : '') + '">' +
+           // Flex con wrap: en pantallas estrechas las insignias y el P&L bajan a
+           // una segunda línea (alineadas a la derecha) en vez de aplastar el texto.
+           '<div onclick="_daToggle(\'' + _daEsc(r.fp) + '\')" style="display:flex;flex-wrap:wrap;gap:.5rem 1rem;align-items:center;padding:.8rem 1.2rem;cursor:pointer;">' +
+             '<span style="font-size:13px;color:var(--gold-dim);flex:0 0 88px;">' + _daHora(r.fecha_cierre) + '</span>' +
+             '<span style="font-size:14px;color:var(--text-dim);flex:1 1 180px;min-width:0;">' + (r.direccion === 'buy' ? 'Compra' : 'Venta') + ' · ' + _daEsc(_daNombreCuenta(r.cuenta_numero)) +
                ' <span style="color:var(--text-muted);font-size:12px;">· ' + _daEsc(r.estrategia || 'sin clasificar') + '</span></span>' +
-             '<span style="display:flex;gap:.4rem;flex-wrap:wrap;justify-content:flex-end;">' + _daBadgeDecision(r) +
-               (r.tp1_no_asegurado ? '<span style="font-size:12px;color:var(--red);border:1px solid var(--border);padding:.15rem .5rem;white-space:nowrap;">TP1 no asegurado</span>' : '') +
-               (r.sl_desprotegido ? '<span style="font-size:12px;color:var(--red);border:1px solid var(--border);padding:.15rem .5rem;white-space:nowrap;">SL desprotegido</span>' : '') +
+             '<span style="display:flex;gap:.4rem 1rem;flex-wrap:wrap;justify-content:flex-end;align-items:center;margin-left:auto;">' +
+               '<span style="display:flex;gap:.4rem;flex-wrap:wrap;justify-content:flex-end;">' + _daBadgesErrores(r) + _daBadgeDecision(r) + '</span>' +
+               '<span style="font-size:14px;min-width:70px;text-align:right;color:' + (ben == null ? 'var(--text-muted)' : ben >= 0 ? 'var(--green)' : 'var(--red)') + ';">' +
+                 (ben == null ? '—' : (ben >= 0 ? '+' : '') + _daNum(ben, 2) + '$') + '</span>' +
              '</span>' +
-             '<span style="font-size:14px;min-width:70px;text-align:right;color:' + (ben == null ? 'var(--text-muted)' : ben >= 0 ? 'var(--green)' : 'var(--red)') + ';">' +
-               (ben == null ? '—' : (ben >= 0 ? '+' : '') + _daNum(ben, 2) + '$') + '</span>' +
            '</div>' +
            '<div id="da-det-' + _daEsc(r.fp) + '" style="display:none;padding:0 1.2rem 1.2rem;"></div>' +
          '</div>';
