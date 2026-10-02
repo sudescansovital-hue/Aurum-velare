@@ -147,6 +147,17 @@ function _daPctPronto(filas) {
 // ── Veredicto en una frase (se genera aquí, no se guarda: así se puede
 // cambiar la redacción sin re-analizar con MT5) ─────────────────────────
 function _daFrase(r) {
+  var f = _daFraseCierre(r);
+  // TP1 no asegurado (criterios v3): se añade a la frase de cómo se cerró.
+  if (r.tp1_no_asegurado) {
+    f += ' Además, llegó a tu TP1 de +' + _daNum(r.tp1_pts, 0) + ' pts' +
+         (r.mfe_puntos != null ? ' (máximo +' + _daNum(r.mfe_puntos, 1) + ')' : '') +
+         ' y no aseguraste: volvió a la entrada sin parcial ni SL protegido.';
+  }
+  return f;
+}
+
+function _daFraseCierre(r) {
   var min = r.minutos_hasta_resultado != null ? r.minutos_hasta_resultado + ' min' : null;
   var favor = r.favor_post_puntos != null ? _daNum(r.favor_post_puntos, 1) + ' pts' : null;
   var d = r.tipo_cierre_detallado;
@@ -363,6 +374,7 @@ function _daHtmlSemana(semana, filasCuenta) {
       _daLineaConteo('Breakeven', cs.sl_breakeven || 0, sl.length, 'var(--text-muted)') +
       _daLineaConteo('Trailing (beneficio)', cs.sl_beneficio_trailing || 0, sl.length, 'var(--green)') +
     '</div>' +
+    _daHtmlTp1(semana) +
   '</div>';
 
   // Por estrategia
@@ -370,7 +382,7 @@ function _daHtmlSemana(semana, filasCuenta) {
        '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;min-width:520px;">' +
        '<thead><tr style="color:var(--text-muted);text-align:right;">' +
        '<th style="text-align:left;font-weight:400;padding:.3rem 0;">Estrategia</th><th style="font-weight:400;">Trades</th><th style="font-weight:400;">P&amp;L</th>' +
-       '<th style="font-weight:400;">A mano</th><th style="font-weight:400;">Bien</th><th style="font-weight:400;">Mixto</th><th style="font-weight:400;">Pronto</th><th style="font-weight:400;">Correcto</th></tr></thead><tbody>';
+       '<th style="font-weight:400;">A mano</th><th style="font-weight:400;">Bien</th><th style="font-weight:400;">Mixto</th><th style="font-weight:400;">Pronto</th><th style="font-weight:400;">Correcto</th><th style="font-weight:400;">TP1 no aseg.</th></tr></thead><tbody>';
   DA_ESTRATEGIAS.forEach(function(e) {
     var g = semana.filter(function(r) { return (r.estrategia || null) === e; });
     if (!g.length) return;
@@ -382,11 +394,34 @@ function _daHtmlSemana(semana, filasCuenta) {
          '<td style="text-align:left;padding:.45rem 0;">' + (e ? _daEsc(e) : 'sin clasificar') + '</td><td>' + g.length + '</td>' +
          '<td style="color:' + (gp >= 0 ? 'var(--green)' : 'var(--red)') + ';">' + (gc ? (gp >= 0 ? '+' : '') + _daNum(gp, 0) + '$' : '—') + '</td>' +
          '<td>' + gm.length + '</td><td>' + (c.bien_cerrado || 0) + '</td><td>' + (c.mixto_te_saliste_con_poco || 0) + '</td>' +
-         '<td>' + (c.pronto || 0) + '</td><td>' + (c.correcto || 0) + '</td></tr>';
+         '<td>' + (c.pronto || 0) + '</td><td>' + (c.correcto || 0) + '</td>' +
+         '<td>' + (g.some(function(r) { return r.tp1_pts != null; })
+                   ? g.filter(function(r) { return r.tp1_no_asegurado; }).length + ' de ' + g.filter(function(r) { return r.tp1_alcanzado; }).length
+                   : '—') + '</td></tr>';
   });
   h += '</tbody></table></div></div>';
 
   return h + _daHtmlEvolucionContenedor();
+}
+
+// Bloque "TP1 no asegurado": de los trades con TP1 definido (estructura,
+// rechazo_rsi), cuántos llegaron a +TP1 y cuántos de esos volvieron a la
+// entrada sin asegurar. Mismo bloque en Semana y en Todo el histórico.
+function _daHtmlTp1(filas) {
+  var ev = filas.filter(function(r) { return r.tp1_pts != null; });
+  var alc = ev.filter(function(r) { return r.tp1_alcanzado; });
+  var na = alc.filter(function(r) { return r.tp1_no_asegurado; });
+  var h = '<div class="cell"><div class="tag" style="display:block;margin-bottom:1rem;">TP1 no asegurado · ' + na.length + '</div>';
+  if (!ev.length) return h + '<div style="font-size:13px;color:var(--text-muted);">Sin trades con TP1 definido (estructura / rechazo_rsi).</div></div>';
+  h += _daLineaConteo('Llegaron a TP1', alc.length, ev.length, 'var(--gold)') +
+       _daLineaConteo('…y volvieron sin asegurar', na.length, alc.length, 'var(--red)');
+  ['estructura', 'rechazo_rsi'].forEach(function(e) {
+    var g = alc.filter(function(r) { return r.estrategia === e; });
+    if (!g.length) return;
+    h += '<div style="font-size:12px;color:var(--text-muted);margin-top:.3rem;">' + e + ' (TP1 +' + _daNum(g[0].tp1_pts, 0) + '): ' +
+         g.filter(function(r) { return r.tp1_no_asegurado; }).length + ' de ' + g.length + ' sin asegurar</div>';
+  });
+  return h + '</div>';
 }
 
 function _daHtmlEvolucionContenedor() {
@@ -486,7 +521,9 @@ function _daHtmlTrades(semana) {
              '<span style="font-size:13px;color:var(--gold-dim);">' + _daHora(r.fecha_cierre) + '</span>' +
              '<span style="font-size:14px;color:var(--text-dim);">' + (r.direccion === 'buy' ? 'Compra' : 'Venta') + ' · ' + _daEsc(_daNombreCuenta(r.cuenta_numero)) +
                ' <span style="color:var(--text-muted);font-size:12px;">· ' + _daEsc(r.estrategia || 'sin clasificar') + '</span></span>' +
-             _daBadgeDecision(r) +
+             '<span style="display:flex;gap:.4rem;flex-wrap:wrap;justify-content:flex-end;">' + _daBadgeDecision(r) +
+               (r.tp1_no_asegurado ? '<span style="font-size:12px;color:var(--red);border:1px solid var(--border);padding:.15rem .5rem;white-space:nowrap;">TP1 no asegurado</span>' : '') +
+             '</span>' +
              '<span style="font-size:14px;min-width:70px;text-align:right;color:' + (ben == null ? 'var(--text-muted)' : ben >= 0 ? 'var(--green)' : 'var(--red)') + ';">' +
                (ben == null ? '—' : (ben >= 0 ? '+' : '') + _daNum(ben, 2) + '$') + '</span>' +
            '</div>' +

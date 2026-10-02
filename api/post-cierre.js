@@ -44,6 +44,7 @@ const COLUMNAS_ANALISIS = [
   'favor_post_puntos', 'contra_post_puntos', 'favor_1h_puntos', 'favor_4h_puntos',
   'velas_post_disponibles', 'ventana_completa',
   'decision_cierre_manual', 'pts_favor_antes_sl',
+  'tp1_pts', 'tp1_alcanzado', 'tp1_alcanzado_en', 'tp1_volvio_en', 'tp1_no_asegurado',
   'entrada_en_vela', 'cierre_en_vela', 'notas', 'simbolo_velas', 'broker_velas',
   'criterios_version'
 ];

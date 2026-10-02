@@ -56,7 +56,7 @@ import urllib.parse
 import urllib.request
 from collections import defaultdict
 from dataclasses import dataclass, field, fields
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -113,13 +113,17 @@ FECHA_CORTE_SEPTIEMBRE = datetime(2026, 9, 1)
 # ── FASE 2: web ──
 # Sube si cambia cualquier criterio/umbral de arriba: el endpoint devuelve
 # entonces como pendientes todos los trades con una version anterior.
-CRITERIOS_VERSION = 2   # v2 (02/10): be_efecto con mixto_te_saco_de_un_recorrido
+CRITERIOS_VERSION = 3   # v2 (02/10): be_efecto mixto · v3 (02/10): TP1 no asegurado + velas del grafico en hora de servidor
 BASE_URL_DEFAULT = "https://aurumvelare.com"
 TOKEN_PATH = BASE_DIR / ".post_cierre_token"   # lineas token=... y opcional bypass=...
 LOTE_SUBIDA = 25                               # = MAX_RESULTADOS_POR_LOTE del endpoint
 # Grafico del trade: velas de contexto antes de la entrada y maximo de puntos
 # para el tramo del trade (si dura mas, se agrupan velas M1 consecutivas).
 VELAS_ANTES_ENTRADA = 10
+
+# "TP1 no asegurado" (criterios v3): TP1 en pts desde la entrada, por estrategia.
+# Estrategias que no esten aqui (incluido sin clasificar = None) no se evaluan.
+TP1_PTS_POR_ESTRATEGIA = {"estructura": 11.0, "rechazo_rsi": 7.0}
 MAX_VELAS_DURANTE = 240
 
 COLUMNA_ORDEN_RESULTADOS = None  # se rellena al final con los nombres de ResultadoTrade
@@ -149,6 +153,7 @@ class Trade:
     cambios_sl: list = field(default_factory=list)   # [(timestamp, valor_nuevo), ...] ordenado
     cambios_tp: list = field(default_factory=list)
     eventos_be_ea: list = field(default_factory=list)  # [(tipo_evento, timestamp, sl_en_evento, puntos_desde_entrada)]
+    parciales: list = field(default_factory=list)      # [timestamp, ...] de trade_eventos 'parcial' (solo --fuente web)
 
 
 @dataclass
@@ -207,6 +212,13 @@ class ResultadoTrade:
 
     decision_cierre_manual: str  # bien_cerrado / mixto_te_saliste_con_poco / pronto / correcto / indeterminado
     pts_favor_antes_sl: str      # cierre a mano mixto o salida en BE mixto: pts a favor antes del SL original
+
+    # TP1 no asegurado (v3): llego a +TP1 y volvio a la entrada sin parcial ni SL protegido
+    tp1_pts: str
+    tp1_alcanzado: str
+    tp1_alcanzado_en: str
+    tp1_volvio_en: str
+    tp1_no_asegurado: str
 
     notas: str
 
@@ -490,7 +502,12 @@ def detectar_simbolo_oro(mt5, forzado: Optional[str] = None) -> str:
 
 
 def obtener_velas_m1(mt5, simbolo: str, desde: datetime, hasta: datetime) -> list:
-    rates = mt5.copy_rates_range(simbolo, mt5.TIMEFRAME_M1, desde, hasta)
+    """desde/hasta son hora de servidor MT5 (naive). El paquete MetaTrader5 toma
+    un datetime naive como hora LOCAL del PC y lo pasa a UTC (en Espana, -2 h
+    en verano): se marcan como UTC para que el epoch coincida con el de las
+    velas, que vienen en hora de servidor. Fix v3 (02/10)."""
+    rates = mt5.copy_rates_range(simbolo, mt5.TIMEFRAME_M1,
+                                 desde.replace(tzinfo=timezone.utc), hasta.replace(tzinfo=timezone.utc))
     if rates is None:
         return []
     return [Vela(datetime.utcfromtimestamp(int(r["time"])), float(r["open"]), float(r["high"]),
@@ -579,6 +596,51 @@ def precio_dentro_de_vela(vela: Optional[Vela], precio: float, margen: float = 0
     return (vela.low - margen) <= precio <= (vela.high + margen)
 
 
+# ── TP1 no asegurado (criterios v3) ─────────────────────────────────────
+
+def sl_en_vigor(trade: Trade, sl_original, instante: datetime):
+    """SL puesto en 'instante': SL original y, encima, el ultimo cambio de
+    ea_sl_changes anterior. Los valores con dedazo (> DEDAZO_MAX_DIST de la
+    entrada) se ignoran."""
+    sl = sl_original
+    for ts, val in trade.cambios_sl:
+        if ts >= instante:
+            break
+        if val is not None and abs(val - trade.precio_entrada) <= DEDAZO_MAX_DIST:
+            sl = val
+    return sl
+
+
+def evaluar_tp1(trade: Trade, velas_intra: list, sl_original) -> Optional[dict]:
+    """Llego el precio a +TP1 desde la entrada y despues volvio a la entrada
+    sin haber asegurado? Asegurado = hubo parcial, o el SL puesto en ese
+    momento protegia la entrada (a +-BE_TOLERANCIA_PTS o mejor). Se mira el SL
+    en vigor al volver, no si hubo algun BE: un BE que luego se deshace no
+    cuenta (ej. 01/10 12:36, 178497). Devuelve None si la estrategia no tiene TP1."""
+    tp1 = TP1_PTS_POR_ESTRATEGIA.get(trade.estrategia)
+    if tp1 is None:
+        return None
+    compra = trade.direccion == "buy"
+    objetivo = trade.precio_entrada + tp1 if compra else trade.precio_entrada - tp1
+    i1 = next((i for i, v in enumerate(velas_intra)
+               if (v.high >= objetivo if compra else v.low <= objetivo)), None)
+    if i1 is None:
+        return {"pts": tp1, "alcanzado": False, "alcanzado_en": None, "volvio_en": None, "no_asegurado": False}
+    j = next((k for k in range(i1 + 1, len(velas_intra))
+              if (velas_intra[k].low <= trade.precio_entrada if compra
+                  else velas_intra[k].high >= trade.precio_entrada)), None)
+    if j is None:  # no devolvio: nada que asegurar
+        return {"pts": tp1, "alcanzado": True, "alcanzado_en": velas_intra[i1].time, "volvio_en": None,
+                "no_asegurado": False}
+    limite = velas_intra[j].time + timedelta(minutes=1)  # lo hecho dentro del minuto de la vuelta cuenta
+    hubo_parcial = any(p < limite for p in trade.parciales)
+    sl = sl_en_vigor(trade, sl_original, limite)
+    protegido = sl is not None and (sl >= trade.precio_entrada - BE_TOLERANCIA_PTS if compra
+                                    else sl <= trade.precio_entrada + BE_TOLERANCIA_PTS)
+    return {"pts": tp1, "alcanzado": True, "alcanzado_en": velas_intra[i1].time,
+            "volvio_en": velas_intra[j].time, "no_asegurado": not (hubo_parcial or protegido)}
+
+
 # ── Analisis por trade ───────────────────────────────────────────────────
 
 def analizar_trade(mt5, simbolo: str, trade: Trade, velas_out: Optional[dict] = None) -> ResultadoTrade:
@@ -610,7 +672,8 @@ def analizar_trade(mt5, simbolo: str, trade: Trade, velas_out: Optional[dict] = 
     # Velas desde la entrada hasta cierre + VENTANA_BUSQUEDA_DIAS de calendario,
     # en una sola llamada a MT5; la ventana post-cierre se corta despues en
     # velas M1 existentes = minutos de mercado abierto (salta fines de semana).
-    desde = trade.fecha_entrada
+    # Desde el minuto de la entrada (incluye su vela, para entrada_dentro_de_vela).
+    desde = trade.fecha_entrada.replace(second=0, microsecond=0)
     hasta = trade.fecha_cierre + timedelta(days=VENTANA_BUSQUEDA_DIAS)
     velas = obtener_velas_m1(mt5, simbolo, desde, hasta)
     velas_intra = [v for v in velas if trade.fecha_entrada <= v.time <= trade.fecha_cierre]
@@ -692,6 +755,8 @@ def analizar_trade(mt5, simbolo: str, trade: Trade, velas_out: Optional[dict] = 
         else:  # ambiguo_misma_vela / datos_insuficientes
             decision_manual = "indeterminado"
 
+    tp1 = evaluar_tp1(trade, velas_intra, sl_original)
+
     return ResultadoTrade(
         position_id=trade.position_id,
         fp=trade.fp,
@@ -738,6 +803,11 @@ def analizar_trade(mt5, simbolo: str, trade: Trade, velas_out: Optional[dict] = 
         velas_post_cierre_disponibles=len(velas_post),
         decision_cierre_manual=decision_manual,
         pts_favor_antes_sl=str(pts_favor_antes_sl) if pts_favor_antes_sl is not None else "",
+        tp1_pts=str(tp1["pts"]) if tp1 else "",
+        tp1_alcanzado=str(tp1["alcanzado"]) if tp1 else "",
+        tp1_alcanzado_en=tp1["alcanzado_en"].isoformat() if tp1 and tp1["alcanzado_en"] else "",
+        tp1_volvio_en=tp1["volvio_en"].isoformat() if tp1 and tp1["volvio_en"] else "",
+        tp1_no_asegurado=str(tp1["no_asegurado"]) if tp1 else "",
         notas="; ".join(notas),
     )
 
@@ -862,6 +932,7 @@ def cargar_desde_web(pendientes: list) -> tuple:
             destino.sort(key=lambda z: z[0])
         t.eventos_be_ea = [(e["tipo_evento"], _ts_web(e["timestamp"]), _fl(e["precio"]), _fl(e["puntos_desde_entrada"]))
                            for e in eventos if e["tipo_evento"] in ("breakeven", "sl_protegido", "sl_ajustado")]
+        t.parciales = [_ts_web(e["timestamp"]) for e in eventos if e["tipo_evento"] == "parcial"]
         trades[t.fp] = t
     return trades, {"total_filas": total, "filas_unicas": len(vistos), "duplicados": duplicados}
 
@@ -878,7 +949,8 @@ def preparar_velas_grafico(velas_antes: list, velas: list, trade: Trade, velas_p
     """Formato de post_cierre_velas: [[min_desde_inicio, o, h, l, c], ...] con
     VELAS_ANTES_ENTRADA de contexto + el trade (agrupado si pasa de
     MAX_VELAS_DURANTE) + la ventana post-cierre en M1 tal cual se analizo."""
-    durante = [v for v in velas if v.time <= trade.fecha_cierre]
+    minuto_entrada = trade.fecha_entrada.replace(second=0, microsecond=0)
+    durante = [v for v in velas if minuto_entrada <= v.time <= trade.fecha_cierre]
     primera = durante[0].time if durante else trade.fecha_entrada
     antes = [v for v in velas_antes if v.time < primera][-VELAS_ANTES_ENTRADA:]
     k = max(1, math.ceil(len(durante) / MAX_VELAS_DURANTE))
@@ -958,6 +1030,11 @@ def resultado_a_fila(r: ResultadoTrade, trade: Trade, simbolo: str, broker: str)
         "ventana_completa": ventana_completa,
         "decision_cierre_manual": r.decision_cierre_manual,
         "pts_favor_antes_sl": num(r.pts_favor_antes_sl),
+        "tp1_pts": num(r.tp1_pts),
+        "tp1_alcanzado": booleano(r.tp1_alcanzado),
+        "tp1_alcanzado_en": iso(r.tp1_alcanzado_en),
+        "tp1_volvio_en": iso(r.tp1_volvio_en),
+        "tp1_no_asegurado": booleano(r.tp1_no_asegurado),
         "entrada_en_vela": booleano(r.entrada_dentro_de_vela),
         "cierre_en_vela": booleano(r.cierre_dentro_de_vela),
         "notas": r.notas or None,
