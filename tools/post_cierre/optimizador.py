@@ -210,7 +210,9 @@ def main():
     simbolo = pc.detectar_simbolo_oro(mt5)
     eurusd = args.eurusd
     if eurusd is None:
-        tick = mt5.symbol_info_tick("EURUSD") if mt5.symbol_info("EURUSD") else None
+        # El nombre lleva sufijo segun el broker (WSF: 'EURUSDc')
+        nombres = [s.name for s in mt5.symbols_get() if "EURUSD" in s.name.upper()]
+        tick = mt5.symbol_info_tick(nombres[0]) if nombres else None
         eurusd = float(tick.bid) if tick and tick.bid else None
     origen_cambio = "MT5 (EURUSD bid actual)" if eurusd and args.eurusd is None else "--eurusd" if args.eurusd else None
     if not eurusd:

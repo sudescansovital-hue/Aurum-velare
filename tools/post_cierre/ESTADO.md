@@ -298,17 +298,34 @@ FASE 2 hecha (ver arriba). Pendiente:
     de `fecha_entrada`; global y por estrategia, y si se quiere, por cuenta.
   - Resultado como informe aparte (p. ej. `salida/simulador.md`) y/o tabla nueva
     en Supabase si se quiere ver en el Diario.
-- **PRIORIDAD ALTA (después de las alertas) — optimizador de SL/TP:** rejilla
-  SL 7–25 pts × TP 7–50 pts, combinada con BE y parcial, re-simulando los
-  trades con velas M1. Resultado en $ de dos formas: con el volumen real de
-  cada trade y con riesgo fijo (~126 € por trade). Métricas: win rate,
-  esperanza, peor racha y días que rompen 500 $. Por estrategia y global.
-  Validado fuera de muestra: optimizar con los trades hasta el 31/08 y
-  comprobar el resultado en septiembre–octubre. Pedido el 02/10, sin hacer.
-  Comparte base con el "simulador de gestión" de arriba (mismas notas: velas
-  M1 desde MT5 en el script, no `post_cierre_velas`; vela que toca dos
-  niveles → primero el SL; $ = pts × 100 × volumen). El riesgo fijo en €
-  necesita el tipo de cambio EUR/USD.
+- **Optimizador de SL/TP — HECHO (02/10):** `tools/post_cierre/optimizador.py`
+  (con MT5 abierto: `.venv\Scripts\python.exe optimizador.py`; opciones
+  `--hasta`, `--riesgo-eur`, `--eurusd`). Lee todos los trades por
+  `GET ?accion=trades` (nuevo, solo lectura; el payload trae ahora `beneficio`),
+  re-simula con velas M1 y deja `salida/optimizador.md` (informe) y
+  `salida/optimizador_rejilla.csv` (toda la rejilla, en y fuera de muestra).
+  Supuestos (constantes al principio del archivo): rejilla SL 7–25 × TP 7–50 de
+  1 en 1 × 5 gestiones (sin gestión, BE +5/+10/+15, parcial 50% a +10 + BE);
+  entrada real; hasta 24 h de mercado y si no toca nada, cierre a mercado; vela
+  que toca dos niveles → lo peor (primero SL; tras BE, salida en BE); sin
+  spread ni comisión; riesgo fijo 126 € al EUR/USD de MT5 (`EURUSDc`); "día
+  que rompe 500 $" = una cuenta pierde ≥ 500 $ ese día; se elige por esperanza
+  con riesgo fijo en muestra (≥ 8 trades). Gestión real = `beneficio` real.
+  Verificado: 9 casos sintéticos OK; los 20 trades que cerraron en su SL
+  original, simulados con ese SL, lo tocan en el mismo minuto que el cierre real.
+  **Primer resultado (02/10, en muestra hasta 31/08: 171 trades; fuera: 129):**
+  - Global: la mejor en muestra (SL 7 / TP 31 sin gestión, +20 $/trade con
+    riesgo fijo) **no aguanta fuera de muestra** (−16 $/trade, puesto 2.843 de
+    3.857): sobreajuste. La gestión real pierde en los dos periodos (−8 y
+    −18 $/trade). SL 11 / TP 33 pierde en muestra (−12) y gana fuera (+21):
+    ninguna regla fija es mejor en los dos periodos.
+  - rechazo_rsi: SL 9 / TP 50 sin gestión, elegida con solo 13 trades, aguanta
+    fuera (+107 $/trade, 42 trades, puesto 10; gestión real −23), pero con WR
+    29% y 6 pérdidas seguidas. Prometedor, muestra pequeña.
+  - estructura: 11 trades en muestra; la elegida falla fuera de muestra.
+  - Las estrategias solo existen desde el 26/08: en muestra casi todo es "sin
+    clasificar". Repetir cuando haya más meses clasificados (p. ej. optimizar
+    sept, validar oct–nov con `--hasta`).
 - Siguientes versiones: incubadora de estrategias e informe diario.
 - Pendiente menor del script: desglose "¿cambia tu gestión con el lote?" en
 `resumen.md` (el volumen ya viaja en `resultados.csv`, falta agregarlo).
