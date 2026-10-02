@@ -772,9 +772,9 @@ class ClienteWeb:
         except urllib.error.HTTPError as e:
             # Solo codigo + cuerpo de la respuesta: nunca las cabeceras de la peticion.
             cuerpo_err = e.read().decode("utf-8", "replace")[:300]
-            if "Vercel Authentication" in cuerpo_err:
-                cuerpo_err = "deployment protegido por Vercel (falta bypass= en el archivo de token)"
-            raise RuntimeError(f"{metodo} {accion}: HTTP {e.code} — {cuerpo_err}") from None
+            if "Vercel Authentication" in cuerpo_err or "Protected deployment" in cuerpo_err:
+                cuerpo_err = "deployment protegido por Vercel (falta o no vale bypass= en el archivo de token)"
+            raise RuntimeError(f"{metodo} {accion}: HTTP {e.code} - {cuerpo_err}") from None
         except urllib.error.URLError as e:
             raise RuntimeError(f"{metodo} {accion}: sin conexion con {self.base_url} ({e.reason})") from None
 
