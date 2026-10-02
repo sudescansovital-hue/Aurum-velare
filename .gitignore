@@ -24,3 +24,7 @@ tools/post_cierre/.venv/
 
 # Caché de Python
 __pycache__/
+
+# Token del script post_cierre.py para api/post-cierre.js (POST_CIERRE_TOKEN
+# en Vercel). Solo en la máquina donde corre MT5, nunca en git.
+tools/post_cierre/.post_cierre_token
