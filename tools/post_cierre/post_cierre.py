@@ -20,14 +20,22 @@ mt5.initialize() se sobrescriben esas funciones para que lancen una
 excepcion si alguna vez se llaman por error, en vez de confiar solo en
 este comentario.
 
-Este script NO escribe en Supabase, NO modifica el EA, NO modifica ninguna
-tabla. Solo lee CSVs locales (exportados a mano por el usuario) y velas M1
-del terminal MT5, y escribe ficheros nuevos dentro de tools/post_cierre/salida/.
+Este script NO modifica el EA ni ninguna tabla existente. Lee los trades de
+la EA pendientes de analisis desde api/post-cierre.js (FASE 2) o, con
+--fuente csv, desde los CSV exportados a mano (FASE 1); lee velas M1 del
+terminal MT5, y escribe ficheros nuevos dentro de tools/post_cierre/salida/.
+Solo con --subir escribe en Supabase, y solo a traves de api/post-cierre.js
+en las tablas post_cierre_analisis / post_cierre_velas (nunca con la service key).
+
+El token del endpoint vive en tools/post_cierre/.post_cierre_token (ignorado
+por git). Este script NUNCA lo imprime, ni en errores.
 ============================================================================
 
 Uso:
-    .venv\\Scripts\\python.exe post_cierre.py --limit 5      # prueba
-    .venv\\Scripts\\python.exe post_cierre.py                # todos los trades
+    .venv\\Scripts\\python.exe post_cierre.py                 # pendientes de la web, en seco
+    .venv\\Scripts\\python.exe post_cierre.py --subir         # ... y subirlos
+    .venv\\Scripts\\python.exe post_cierre.py --limit 5       # prueba
+    .venv\\Scripts\\python.exe post_cierre.py --fuente csv    # FASE 1, CSVs de data/
 
 Requiere el terminal MT5 abierto (ruta fija en MT5_TERMINAL_PATH). Sus velas
 XAUUSD se usan para los trades de TODAS las cuentas, que cuentan todas igual.
@@ -38,8 +46,13 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
+import math
 import statistics
 import sys
+import urllib.error
+import urllib.parse
+import urllib.request
 from collections import defaultdict
 from dataclasses import dataclass, field, fields
 from datetime import datetime, timedelta
@@ -94,6 +107,18 @@ UMBRAL_PRONTO_FACTOR = 0.5
 
 # Fecha a partir de la cual el periodo se considera "fiable" (EA afinada).
 FECHA_CORTE_SEPTIEMBRE = datetime(2026, 9, 1)
+
+# ── FASE 2: web ──
+# Sube si cambia cualquier criterio/umbral de arriba: el endpoint devuelve
+# entonces como pendientes todos los trades con una version anterior.
+CRITERIOS_VERSION = 1
+BASE_URL_DEFAULT = "https://aurumvelare.com"
+TOKEN_PATH = BASE_DIR / ".post_cierre_token"   # lineas token=... y opcional bypass=...
+LOTE_SUBIDA = 25                               # = MAX_RESULTADOS_POR_LOTE del endpoint
+# Grafico del trade: velas de contexto antes de la entrada y maximo de puntos
+# para el tramo del trade (si dura mas, se agrupan velas M1 consecutivas).
+VELAS_ANTES_ENTRADA = 10
+MAX_VELAS_DURANTE = 240
 
 COLUMNA_ORDEN_RESULTADOS = None  # se rellena al final con los nombres de ResultadoTrade
 
@@ -554,7 +579,9 @@ def precio_dentro_de_vela(vela: Optional[Vela], precio: float, margen: float = 0
 
 # ── Analisis por trade ───────────────────────────────────────────────────
 
-def analizar_trade(mt5, simbolo: str, trade: Trade) -> ResultadoTrade:
+def analizar_trade(mt5, simbolo: str, trade: Trade, velas_out: Optional[dict] = None) -> ResultadoTrade:
+    """velas_out (FASE 2): si se pasa un dict, se rellena con las velas para el
+    grafico de la web (ver preparar_velas_grafico). No cambia ningun calculo."""
     notas = []
 
     periodo = ("septiembre" if trade.fecha_cierre >= FECHA_CORTE_SEPTIEMBRE
@@ -592,6 +619,11 @@ def analizar_trade(mt5, simbolo: str, trade: Trade) -> ResultadoTrade:
 
     if not velas_intra:
         notas.append("Sin velas M1 durante el trade (broker sin historico en esa ventana, o trade < 1 min)")
+
+    if velas_out is not None:
+        velas_antes = obtener_velas_m1(mt5, simbolo, trade.fecha_entrada - timedelta(days=VENTANA_BUSQUEDA_DIAS),
+                                       trade.fecha_entrada)
+        velas_out["velas"] = preparar_velas_grafico(velas_antes, velas, trade, velas_post)
 
     mfe_calc, mfe_en, mae_calc, mae_en = extremos(velas_intra, trade.direccion, trade.precio_entrada)
 
@@ -701,6 +733,243 @@ def analizar_trade(mt5, simbolo: str, trade: Trade) -> ResultadoTrade:
         pts_favor_antes_sl=str(pts_favor_antes_sl) if pts_favor_antes_sl is not None else "",
         notas="; ".join(notas),
     )
+
+
+# ── FASE 2: endpoint api/post-cierre.js ─────────────────────────────────
+
+def leer_credenciales(path: Path = TOKEN_PATH) -> dict:
+    """Lee token= (obligatorio) y bypass= (opcional, Protection Bypass de
+    Vercel para previews). Nunca imprime los valores."""
+    if not path.exists():
+        sys.exit(f"Falta el archivo de token {path} (ignorado por git). Pide que lo regeneren; "
+                 f"no pegues el token en la terminal.")
+    cred = {}
+    for linea in path.read_text(encoding="utf-8").splitlines():
+        if "=" in linea:
+            k, v = linea.split("=", 1)
+            cred[k.strip()] = v.strip()
+    if not cred.get("token"):
+        sys.exit(f"El archivo {path} no tiene una linea token=...")
+    return cred
+
+
+class ClienteWeb:
+    def __init__(self, base_url: str, cred: dict):
+        self.base_url = base_url.rstrip("/")
+        self._cred = cred
+
+    def _peticion(self, metodo: str, accion: str, params: Optional[dict] = None, cuerpo=None):
+        query = urllib.parse.urlencode(dict(params or {}, accion=accion))
+        cabeceras = {"Authorization": "Bearer " + self._cred["token"], "Content-Type": "application/json"}
+        if self._cred.get("bypass"):
+            cabeceras["x-vercel-protection-bypass"] = self._cred["bypass"]
+        datos = json.dumps(cuerpo).encode("utf-8") if cuerpo is not None else None
+        req = urllib.request.Request(f"{self.base_url}/api/post-cierre?{query}", data=datos,
+                                     headers=cabeceras, method=metodo)
+        try:
+            with urllib.request.urlopen(req, timeout=120) as r:
+                return json.loads(r.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            # Solo codigo + cuerpo de la respuesta: nunca las cabeceras de la peticion.
+            cuerpo_err = e.read().decode("utf-8", "replace")[:300]
+            if "Vercel Authentication" in cuerpo_err:
+                cuerpo_err = "deployment protegido por Vercel (falta bypass= en el archivo de token)"
+            raise RuntimeError(f"{metodo} {accion}: HTTP {e.code} — {cuerpo_err}") from None
+        except urllib.error.URLError as e:
+            raise RuntimeError(f"{metodo} {accion}: sin conexion con {self.base_url} ({e.reason})") from None
+
+    def ping(self):
+        return self._peticion("GET", "ping")
+
+    def pendientes(self, version: int):
+        return self._peticion("GET", "pendientes", {"version": version})
+
+    def subir(self, lote: list):
+        return self._peticion("POST", "resultados", cuerpo={"criterios_version": CRITERIOS_VERSION,
+                                                            "resultados": lote})
+
+
+def _ts_web(v: Optional[str]) -> Optional[datetime]:
+    """'2026-10-01T15:15:06+00:00' -> naive, misma convencion que _ts()."""
+    if v is None:
+        return None
+    return datetime.fromisoformat(v).replace(tzinfo=None)
+
+
+def _fl(v) -> Optional[float]:
+    return float(v) if v is not None else None
+
+
+def _cascada_original(columna, cambios: list) -> Optional[float]:
+    """Misma cascada que la exportacion de FASE 1 (sl/tp_original_reconstruido):
+    columna -> valor_anterior del primer cambio -> valor_nuevo del primer cambio.
+    Verificado 02/10 igual al CSV en los 290 trades comunes."""
+    if columna is not None:
+        return float(columna)
+    if cambios:
+        if cambios[0]["valor_anterior"] is not None:
+            return float(cambios[0]["valor_anterior"])
+        return float(cambios[0]["valor_nuevo"])
+    return None
+
+
+def cargar_desde_web(pendientes: list) -> tuple:
+    """Construye los mismos Trade que cargar_trades + cargar_volumen +
+    cargar_sl_tp_changes + cargar_eventos_sl, a partir de la respuesta de
+    ?accion=pendientes. Devuelve (trades, dedup_stats)."""
+    trades: dict[str, Trade] = {}
+    vistos = set()
+    duplicados = []
+    total = 0
+    for x in pendientes:
+        eventos = sorted(x["eventos"], key=lambda e: e["timestamp"])
+        cierres = [e["tipo_evento"] for e in eventos if e["tipo_evento"].startswith("cierre")]
+        t = Trade(
+            position_id=int(x["position_id"]),
+            fp=x["fp"],
+            cuenta_numero=str(x["cuenta_numero"]),
+            estrategia=x["estrategia"],
+            direccion=(x["tipo"] or "").lower(),
+            precio_entrada=_fl(x["precio_entrada"]),
+            fecha_entrada=_ts_web(x["fecha_entrada"]),
+            precio_cierre=_fl(x["precio_cierre"]),
+            fecha_cierre=_ts_web(x["fecha_cierre"]),
+            sl_col=_cascada_original(x["sl_original"], x["sl_changes"]),
+            tp_col=_cascada_original(x["tp_original"], x["tp_changes"]),
+            sl_actual=_fl(x["sl_actual"]),
+            tp_actual=_fl(x["tp_actual"]),
+            tipo_cierre_evento=cierres[-1] if cierres else None,
+            n_breakeven_ea=sum(1 for e in eventos if e["tipo_evento"] == "breakeven"),
+            volumen=_fl(x["volumen"]),
+        )
+        for tipo, clave, destino in (("sl", "sl_changes", t.cambios_sl), ("tp", "tp_changes", t.cambios_tp)):
+            for c in x[clave]:
+                total += 1
+                ts = _ts_web(c["timestamp"])
+                key = (tipo, t.position_id, _fl(c["valor_anterior"]), _fl(c["valor_nuevo"]), ts)
+                if key in vistos:
+                    duplicados.append(key)
+                    continue
+                vistos.add(key)
+                destino.append((ts, _fl(c["valor_nuevo"])))
+            destino.sort(key=lambda z: z[0])
+        t.eventos_be_ea = [(e["tipo_evento"], _ts_web(e["timestamp"]), _fl(e["precio"]), _fl(e["puntos_desde_entrada"]))
+                           for e in eventos if e["tipo_evento"] in ("breakeven", "sl_protegido", "sl_ajustado")]
+        trades[t.fp] = t
+    return trades, {"total_filas": total, "filas_unicas": len(vistos), "duplicados": duplicados}
+
+
+def _agrupar_velas(velas: list, k: int) -> list:
+    out = []
+    for i in range(0, len(velas), k):
+        g = velas[i:i + k]
+        out.append(Vela(g[0].time, g[0].open, max(v.high for v in g), min(v.low for v in g), g[-1].close))
+    return out
+
+
+def preparar_velas_grafico(velas_antes: list, velas: list, trade: Trade, velas_post: list) -> Optional[dict]:
+    """Formato de post_cierre_velas: [[min_desde_inicio, o, h, l, c], ...] con
+    VELAS_ANTES_ENTRADA de contexto + el trade (agrupado si pasa de
+    MAX_VELAS_DURANTE) + la ventana post-cierre en M1 tal cual se analizo."""
+    durante = [v for v in velas if v.time <= trade.fecha_cierre]
+    primera = durante[0].time if durante else trade.fecha_entrada
+    antes = [v for v in velas_antes if v.time < primera][-VELAS_ANTES_ENTRADA:]
+    k = max(1, math.ceil(len(durante) / MAX_VELAS_DURANTE))
+    if k > 1:
+        durante = _agrupar_velas(durante, k)
+    serie = antes + durante + velas_post
+    if not serie:
+        return None
+    inicio = serie[0].time
+    return {
+        "inicio": inicio.isoformat() + "+00:00",
+        "velas": [[int((v.time - inicio).total_seconds() // 60),
+                   round(v.open, 2), round(v.high, 2), round(v.low, 2), round(v.close, 2)] for v in serie],
+        "tf_durante_min": k,
+        "idx_entrada": len(antes),
+        "idx_cierre": len(antes) + len(durante),
+    }
+
+
+def resultado_a_fila(r: ResultadoTrade, trade: Trade, simbolo: str, broker: str) -> dict:
+    """ResultadoTrade (strings, como el CSV) -> columnas de post_cierre_analisis."""
+    def num(s):
+        return float(s) if s not in ("", None) else None
+
+    def ent(s):
+        return int(s) if s not in ("", None) else None
+
+    def booleano(s):
+        return {"True": True, "False": False}.get(s)
+
+    def iso(s):
+        return s + "+00:00" if s else None
+
+    # Ventana cerrada: el veredicto ya no puede cambiar si toco SL/TP, si hay
+    # 4 h de mercado completas, o si el cierre es tan antiguo que no van a
+    # llegar mas velas (datos_insuficientes de junio/julio no se re-analizan).
+    ventana_completa = (r.resultado_post_cierre in ("fue_a_sl", "fue_a_tp", "ambiguo_misma_vela")
+                        or r.velas_post_cierre_disponibles >= VENTANA_POST_CIERRE_MIN_MERCADO
+                        or datetime.utcnow() - trade.fecha_cierre > timedelta(days=VENTANA_BUSQUEDA_DIAS))
+    return {
+        "fp": r.fp,
+        "position_id": r.position_id,
+        "cuenta_numero": r.cuenta_numero,
+        "estrategia": None if r.estrategia == "sin_clasificar" else r.estrategia,
+        "direccion": r.direccion,
+        "volumen": num(r.volumen),
+        "fecha_entrada": iso(r.fecha_entrada),
+        "precio_entrada": r.precio_entrada,
+        "fecha_cierre": iso(r.fecha_cierre),
+        "precio_cierre": r.precio_cierre,
+        "sl_original": num(r.sl_original_usado),
+        "sl_original_origen": r.sl_original_origen,
+        "tp_original": num(r.tp_original_usado),
+        "tp_original_origen": r.tp_original_origen,
+        "sl_final": trade.sl_actual,
+        "tp_final": trade.tp_actual,
+        "tipo_cierre_guardado": r.tipo_cierre_guardado or None,
+        "tipo_cierre_deducido": r.tipo_cierre_deducido_por_precio,
+        "tipo_cierre_discrepancia": r.tipo_cierre_discrepancia == "True",
+        "tipo_cierre_detallado": r.tipo_cierre_detallado,
+        "mfe_puntos": num(r.mfe_calc_puntos),
+        "mfe_en": iso(r.mfe_calc_en),
+        "mae_puntos": num(r.mae_calc_puntos),
+        "mae_en": iso(r.mae_calc_en),
+        "n_be_ea": r.n_be_eventos_ea,
+        "n_be_reales": r.n_be_reales,
+        "be_real_en": iso(r.be_real_ts),
+        "be_real_nivel": num(r.be_real_nivel),
+        "be_efecto": r.be_efecto,
+        "resultado_post_cierre": r.resultado_post_cierre,
+        "minutos_hasta_resultado": ent(r.tiempo_mercado_hasta_resultado_min),
+        "favor_post_puntos": num(r.recorrido_favor_post_cierre_puntos),
+        "contra_post_puntos": num(r.recorrido_contra_post_cierre_puntos),
+        "favor_1h_puntos": num(r.recorrido_favor_1h_puntos),
+        "favor_4h_puntos": num(r.recorrido_favor_4h_puntos),
+        "velas_post_disponibles": r.velas_post_cierre_disponibles,
+        "ventana_completa": ventana_completa,
+        "decision_cierre_manual": r.decision_cierre_manual,
+        "pts_favor_antes_sl": num(r.pts_favor_antes_sl),
+        "entrada_en_vela": booleano(r.entrada_dentro_de_vela),
+        "cierre_en_vela": booleano(r.cierre_dentro_de_vela),
+        "notas": r.notas or None,
+        "simbolo_velas": simbolo,
+        "broker_velas": broker,
+        "criterios_version": CRITERIOS_VERSION,
+    }
+
+
+def subir_resultados(cliente: ClienteWeb, filas: list) -> tuple:
+    guardados = 0
+    rechazados = []
+    for i in range(0, len(filas), LOTE_SUBIDA):
+        resp = cliente.subir(filas[i:i + LOTE_SUBIDA])
+        guardados += resp.get("guardados", 0)
+        rechazados += resp.get("rechazados", [])
+        print(f"    lote {i // LOTE_SUBIDA + 1}: {resp.get('guardados', 0)} guardados, "
+              f"{len(resp.get('rechazados', []))} rechazados")
+    return guardados, rechazados
 
 
 # ── Escritura de salidas ────────────────────────────────────────────────
@@ -990,18 +1259,41 @@ def main():
     ap.add_argument("--cuenta", type=str, default=None,
                     help="Analizar solo esta cuenta_numero (por defecto: todas, con las velas del terminal abierto)")
     ap.add_argument("--simbolo", type=str, default=None, help="Forzar el nombre exacto del símbolo de oro")
+    ap.add_argument("--fuente", choices=("web", "csv"), default="web",
+                    help="web: pendientes de api/post-cierre.js (FASE 2) · csv: CSVs de data/ (FASE 1)")
+    ap.add_argument("--subir", action="store_true",
+                    help="Subir los resultados a la web (sin esto no se escribe nada fuera de salida/)")
+    ap.add_argument("--base-url", type=str, default=BASE_URL_DEFAULT,
+                    help="URL de la web; para probar, la del preview de Vercel")
     args = ap.parse_args()
+    if args.subir and args.fuente != "web":
+        sys.exit("--subir solo funciona con --fuente web.")
 
     args.out_dir.mkdir(parents=True, exist_ok=True)
 
-    print("[1/6] Cargando CSVs...")
-    trades = cargar_trades(args.data_dir)
-    cargar_volumen(args.data_dir, trades)
-    trades_por_pos = defaultdict(list)
-    for t in trades.values():
-        trades_por_pos[t.position_id].append(t)
-    dedup_stats = cargar_sl_tp_changes(args.data_dir, trades_por_pos)
-    cargar_eventos_sl(args.data_dir, trades)
+    cliente = None
+    if args.fuente == "web":
+        print(f"[1/6] Pidiendo trades pendientes a {args.base_url} ...")
+        cliente = ClienteWeb(args.base_url, leer_credenciales())
+        try:
+            resp = cliente.pendientes(CRITERIOS_VERSION)
+        except RuntimeError as e:
+            sys.exit(f"    Error: {e}")
+        trades, dedup_stats = cargar_desde_web(resp["pendientes"])
+        print(f"    {resp['total_ea']} trades EA cerrados en la web · {len(trades)} pendientes de análisis "
+              f"(criterios v{CRITERIOS_VERSION}).")
+        if not trades:
+            print("    Nada que analizar.")
+            return
+    else:
+        print("[1/6] Cargando CSVs...")
+        trades = cargar_trades(args.data_dir)
+        cargar_volumen(args.data_dir, trades)
+        trades_por_pos = defaultdict(list)
+        for t in trades.values():
+            trades_por_pos[t.position_id].append(t)
+        dedup_stats = cargar_sl_tp_changes(args.data_dir, trades_por_pos)
+        cargar_eventos_sl(args.data_dir, trades)
     print(f"    {len(trades)} trades cerrados cargados. "
           f"sl_tp_changes: {dedup_stats['total_filas']} filas -> {dedup_stats['filas_unicas']} únicas "
           f"({len(dedup_stats['duplicados'])} duplicados descartados).")
@@ -1033,9 +1325,15 @@ def main():
 
     print(f"[4/6] Descargando velas M1 y analizando {len(lista)} trade(s)...")
     resultados = []
+    filas_web = []
     for i, t in enumerate(lista, 1):
         print(f"    ({i}/{len(lista)}) {t.fp} ...")
-        resultados.append(analizar_trade(mt5, simbolo, t))
+        velas_out = {} if args.subir else None
+        r = analizar_trade(mt5, simbolo, t, velas_out)
+        resultados.append(r)
+        if args.subir:
+            filas_web.append({"analisis": resultado_a_fila(r, t, simbolo, broker_velas),
+                              "velas": velas_out.get("velas")})
 
     mt5.shutdown()
 
@@ -1043,11 +1341,21 @@ def main():
     p1 = escribir_resultados_csv(resultados, args.out_dir)
     p2 = escribir_resumen_md(resultados, args.out_dir, args.cuenta, broker_velas)
     p3 = escribir_examen_ea_md(resultados, dedup_stats, args.out_dir)
-
-    print("[6/6] Listo.")
     print(f"    {p1}")
     print(f"    {p2}")
     print(f"    {p3}")
+
+    if args.subir:
+        print(f"[6/6] Subiendo {len(filas_web)} resultado(s) a {args.base_url} ...")
+        try:
+            guardados, rechazados = subir_resultados(cliente, filas_web)
+        except RuntimeError as e:
+            sys.exit(f"    Error: {e}")
+        print(f"    {guardados} guardados · {len(rechazados)} rechazados")
+        for rr in rechazados[:20]:
+            print(f"      - {rr.get('fp')}: {rr.get('motivo')}")
+    else:
+        print("[6/6] Listo (en seco: no se ha subido nada; usa --subir).")
 
 
 if __name__ == "__main__":

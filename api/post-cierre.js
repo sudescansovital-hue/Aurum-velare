@@ -219,12 +219,15 @@ async function resultados(body) {
       }
     }
     if (!Number.isInteger(a.criterios_version)) { rechazados.push({ fp, motivo: 'criterios_version inválido' }); return; }
-    const errVelas = _validarVelas(r.velas);
+    // velas = null es válido: trade sin histórico M1 (datos_insuficientes),
+    // se guarda el análisis sin gráfico.
+    const errVelas = r.velas == null ? null : _validarVelas(r.velas);
     if (errVelas) { rechazados.push({ fp, motivo: errVelas }); return; }
 
     const fila = { usuario_email: POST_CIERRE_EMAIL, calculado_en: new Date().toISOString() };
     COLUMNAS_ANALISIS.forEach(k => { fila[k] = a[k] !== undefined ? a[k] : null; });
     filasAnalisis.push(fila);
+    if (r.velas == null) return;
     filasVelas.push({
       usuario_email:  POST_CIERRE_EMAIL,
       fp,
@@ -244,7 +247,7 @@ async function resultados(body) {
     console.error('[post-cierre] upsert analisis error:', r1.status, r1.body);
     return { status: 500, json: { error: 'Error guardando análisis', detail: r1.body, rechazados } };
   }
-  const r2 = await _upsert('post_cierre_velas', 'usuario_email,fp', filasVelas);
+  const r2 = filasVelas.length ? await _upsert('post_cierre_velas', 'usuario_email,fp', filasVelas) : { ok: true };
   if (!r2.ok) {
     console.error('[post-cierre] upsert velas error:', r2.status, r2.body);
     return { status: 500, json: { error: 'Análisis guardado pero fallaron las velas', detail: r2.body, rechazados } };
