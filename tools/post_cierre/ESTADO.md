@@ -12,7 +12,7 @@ Se acabaron los CSV a mano. Flujo:
 
 1. `post_cierre.py` pide a `api/post-cierre.js` (`GET ?accion=pendientes`) los
    trades de la EA cerrados sin análisis, con `ventana_completa=false` o con
-   `criterios_version` menor que `CRITERIOS_VERSION` (hoy 2, desde el 02/10).
+   `criterios_version` menor que `CRITERIOS_VERSION` (hoy 3, desde el 02/10).
 2. Los analiza con velas M1 del MT5 local con **los mismos criterios** de abajo.
 3. Con `--subir`, manda análisis + velas del gráfico (`POST ?accion=resultados`,
    lotes de 25) a `post_cierre_analisis` / `post_cierre_velas` (`sql_post_cierre.sql`,
@@ -85,6 +85,29 @@ cuenta en el admin, el Diario la sigue sin tocar código. Una pestaña sin cuent
 asignada no aparece. Las demás cuentas (historial) no tienen pestaña pero
 cuentan en Global. Hoy: Maestra 7747760 (64 trades), Prueba 178497 (69),
 Retos 179003 (29), Global 300.
+
+**Criterios v3 (02/10): "TP1 no asegurado" + fix de horas del gráfico.**
+- TP1 por estrategia en `TP1_PTS_POR_ESTRATEGIA` (estructura 11, rechazo_rsi 7;
+  sin clasificar no se evalúa). Se marca si el precio llega a +TP1 desde la
+  entrada y después vuelve a la entrada sin parcial y con un SL que en ese
+  momento no protege la entrada (±1 pt o mejor). Se mira el SL en vigor al
+  volver, no si hubo algún BE (01/10 12:36, 178497: SL protegido a las 10:43,
+  devuelto a 4176,5 a las 11:08, llegó a +11 a las 10:20 y volvió a las 12:26
+  → marcado). Cuenta aunque el trade acabe cerrando en BE (decidido 02/10).
+  Columnas `tp1_*` (`sql_post_cierre_v3_tp1.sql`, ejecutado). En el Diario:
+  frase del veredicto, insignia, bloque en Tu semana / Todo el histórico y
+  columna en la tabla por estrategia. Histórico: 146 evaluados, 49 llegan a
+  TP1, 8 no asegurados (estructura 2 de 22, rechazo_rsi 6 de 27).
+- Fix de horas: el paquete `MetaTrader5` toma los `datetime` naive como hora
+  local del PC (UTC+2) → `copy_rates_range` devolvía velas 2 h antes y el
+  gráfico metía esas 2 h como "durante el trade" (gráfico desde 07:58 con
+  entrada real 10:07). La hora buena siempre fue la de `ea_trades` /
+  `trade_eventos` (hora de servidor MT5, confirmada con `history_deals_get`).
+  Ahora `obtener_velas_m1` pasa las fechas como UTC (= epoch de las velas) y
+  "durante" se filtra desde la vela de entrada. El análisis no estaba
+  afectado (filtraba por hora real): regresión idéntica en los 300 trades.
+- 300/300 recalculados y subidos (velas del gráfico regeneradas), segunda
+  pasada 0 pendientes.
 
 **Fuera de esta versión:** incubadora de estrategias e informe diario.
 
@@ -261,6 +284,18 @@ FASE 2 hecha (ver arriba). Pendiente:
     de `fecha_entrada`; global y por estrategia, y si se quiere, por cuenta.
   - Resultado como informe aparte (p. ej. `salida/simulador.md`) y/o tabla nueva
     en Supabase si se quiere ver en el Diario.
+- **Mejora futura — "SL desprotegido":** detectar cuando se mueve el SL a
+  proteger la entrada y después se vuelve a alejar sin protegerla, con el
+  trade todavía abierto (ej. 01/10 12:36, 178497: protegido a 4165,15 a las
+  10:43, desprotegido a 4176,5 a las 11:08). Marcarlo en el veredicto del
+  trade y contarlo en Tu semana / Todo el histórico. Pedido el 02/10, sin
+  hacer todavía.
+  Notas para construirlo: sale de la secuencia de `ea_sl_changes`
+  (`trade.cambios_sl`, ya deduplicada y sin dedazos) con el mismo criterio de
+  "protegido" que el TP1 (±`BE_TOLERANCIA_PTS` o mejor). Es lógica del script:
+  columnas nuevas (p. ej. `sl_desprotegido`, `sl_protegido_en`,
+  `sl_desprotegido_en`) + SQL + subir `CRITERIOS_VERSION`. Interesante cruzarlo
+  con el resultado: qué pasó después de desproteger.
 - Siguientes versiones: incubadora de estrategias e informe diario.
 - Pendiente menor del script: desglose "¿cambia tu gestión con el lote?" en
 `resumen.md` (el volumen ya viaja en `resultados.csv`, falta agregarlo).
