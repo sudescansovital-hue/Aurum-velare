@@ -68,6 +68,15 @@ En la primera subida un lote recibió un 500 de la plataforma Vercel (no del
 endpoint); se completó repitiendo y el script ahora reintenta solo los 5xx
 (hasta 2 veces, el upsert es idempotente).
 
+**"Todo el histórico" (02/10, hecho):** junto a las flechas de semana, chips
+"Semana" / "Todo el histórico". En histórico, los KPIs, los bloques de decisiones
+y la tabla por estrategia usan todos los trades analizados de la cuenta elegida
+(Global o una cuenta); las barras del % "pronto" abarcan todas las semanas con
+datos; la lista de trades sigue siendo semanal (aviso para volver a Semana).
+Probado en Node con los 300 resultados v2: Global 300 trades · 160 a mano ·
+47% pronto · 89 BE (19 te salvó, 16 mixto); 178497: 69 · 29 · 31% · 28 (8, 4),
+igual que el cálculo independiente en Python.
+
 **Fuera de esta versión:** incubadora de estrategias e informe diario.
 
 ---
@@ -188,11 +197,6 @@ FASE 2 hecha (ver arriba). Pendiente:
 - **Revisión visual del Diario en producción con sesión iniciada** (02/10 solo
   se pudo verificar por HTTP: archivos, sintaxis de los 15 scripts, endpoint y
   colocación en el DOM; sin navegador no se pudo entrar con la cuenta).
-- **Siguiente mejora del Diario — "Todo el histórico":** junto a las flechas
-  ‹ › de semana, una opción "Todo el histórico" que muestre los KPIs, los
-  bloques "Tus decisiones de gestión" y la tabla por estrategia con TODOS los
-  trades analizados juntos, tanto en Global como por cuenta (respetando los
-  chips de cuenta). Pedido el 02/10, sin hacer todavía.
 - **Siguiente mejora — detectar "entrada prematura":** en trades cerrados con
   pérdida o en breakeven, comprobar si en las horas siguientes al cierre el
   precio llegó a ir a favor de la dirección del trade una distancia relevante

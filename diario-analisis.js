@@ -20,6 +20,7 @@
 var _daDatos = null;          // filas de post_cierre_analisis
 var _daCargando = false;
 var _daSemana = null;         // ms del lunes 00:00 de la semana elegida
+var _daHistorico = false;     // true = "Todo el histórico" (todas las semanas juntas)
 var _daCuenta = 'global';     // 'global' | cuenta_numero
 var _daEstrategia = 'todas';  // filtro de la lista de trades
 var _daAbierto = null;        // fp desplegado
@@ -213,14 +214,24 @@ function _daPintar() {
 
   var filas = _daFiltrarCuenta(_daDatos);
   var semana = _daDeSemana(filas, _daSemana);
+  // "Todo el histórico": mismos bloques con todos los trades de la cuenta elegida.
+  var periodo = _daHistorico ? filas : semana;
+
+  var selector = _daHistorico
+    ? '<span style="font-size:14px;color:var(--gold-bright);min-width:180px;text-align:center;">' + _daEtiquetaHistorico(filas) + '</span>'
+    : '<button class="tab" style="padding:.3rem .7rem;" onclick="_daMoverSemana(-1)" aria-label="Semana anterior">‹</button>' +
+      '<span style="font-size:14px;color:var(--gold-bright);min-width:180px;text-align:center;">' + _daEtiquetaSemana(_daSemana) + '</span>' +
+      '<button class="tab" style="padding:.3rem .7rem;" onclick="_daMoverSemana(1)" aria-label="Semana siguiente">›</button>';
 
   var html = '';
   html += '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;margin:1.5rem 0 1rem;">' +
             '<div class="tag" style="display:block;">Análisis de tus trades · EA</div>' +
-            '<div style="display:flex;align-items:center;gap:.6rem;">' +
-              '<button class="tab" style="padding:.3rem .7rem;" onclick="_daMoverSemana(-1)" aria-label="Semana anterior">‹</button>' +
-              '<span style="font-size:14px;color:var(--gold-bright);min-width:180px;text-align:center;">' + _daEtiquetaSemana(_daSemana) + '</span>' +
-              '<button class="tab" style="padding:.3rem .7rem;" onclick="_daMoverSemana(1)" aria-label="Semana siguiente">›</button>' +
+            '<div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;">' +
+              selector +
+              '<span style="display:flex;margin-left:.4rem;">' +
+                _daChip('Semana', !_daHistorico, '_daVerHistorico(false)') +
+                _daChip('Todo el histórico', _daHistorico, '_daVerHistorico(true)') +
+              '</span>' +
             '</div>' +
           '</div>';
   html += '<div style="display:flex;flex-wrap:wrap;gap:0;border-bottom:1px solid var(--border);margin-bottom:1.5rem;">' +
@@ -228,8 +239,11 @@ function _daPintar() {
             cuentas.map(function(c) { return _daChip(_daNombreCuenta(c), _daCuenta === c, "_daElegirCuenta('" + c + "')"); }).join('') +
           '</div>';
 
-  html += _daHtmlSemana(semana, filas);
-  html += _daHtmlTrades(semana);
+  html += _daHtmlSemana(periodo, filas);
+  html += _daHistorico
+    ? '<div class="cell" style="margin-bottom:2rem;color:var(--text-muted);font-size:14px;">La lista de trades va por semanas: ' +
+      '<span style="color:var(--gold);cursor:pointer;" onclick="_daVerHistorico(false)">vuelve a Semana</span> y elige una con las flechas.</div>'
+    : _daHtmlTrades(semana);
   cont.innerHTML = html;
   _daPintarEvolucion(filas);
   if (_daAbierto) _daAbrirDetalle(_daAbierto);
@@ -239,6 +253,17 @@ function _daMoverSemana(delta) {
   _daSemana += delta * 7 * DA_MS_DIA;
   _daAbierto = null;
   _daPintar();
+}
+
+function _daVerHistorico(si) { _daHistorico = si; _daAbierto = null; _daPintar(); }
+
+function _daEtiquetaHistorico(filas) {
+  if (!filas.length) return 'Todo el histórico';
+  var f = function(iso) {
+    return _daFecha(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+  };
+  // filas viene ordenado por fecha_cierre desc (consulta de _daCargar)
+  return 'Todo el histórico · ' + f(filas[filas.length - 1].fecha_cierre) + ' – ' + f(filas[0].fecha_cierre);
 }
 
 function _daElegirCuenta(c) { _daCuenta = c; _daAbierto = null; _daPintar(); }
@@ -262,7 +287,8 @@ function _daLineaConteo(texto, n, total, color) {
 
 function _daHtmlSemana(semana, filasCuenta) {
   if (!semana.length) {
-    return '<div class="cell" style="margin-bottom:1.5rem;color:var(--text-muted);font-size:14px;">Sin trades de la EA cerrados esta semana' +
+    return '<div class="cell" style="margin-bottom:1.5rem;color:var(--text-muted);font-size:14px;">Sin trades de la EA cerrados ' +
+           (_daHistorico ? 'todavía' : 'esta semana') +
            (_daCuenta === 'global' ? '' : ' en esta cuenta') + '.</div>' + _daHtmlEvolucionContenedor();
   }
   var porFp = _daTradesPorFp();
@@ -342,7 +368,9 @@ function _daHtmlSemana(semana, filasCuenta) {
 
 function _daHtmlEvolucionContenedor() {
   return '<div class="cell" style="margin-bottom:1.5rem;"><div class="tag" style="display:block;margin-bottom:.4rem;">% de cierres a mano "pronto" · semana a semana</div>' +
-         '<div style="font-size:12px;color:var(--text-muted);margin-bottom:.8rem;">Últimas 12 semanas hasta la elegida · número = cierres a mano con veredicto</div>' +
+         '<div style="font-size:12px;color:var(--text-muted);margin-bottom:.8rem;">' +
+           (_daHistorico ? 'Todas las semanas con trades analizados' : 'Últimas 12 semanas hasta la elegida') +
+           ' · número = cierres a mano con veredicto</div>' +
          '<div id="da-evolucion" style="position:relative;"></div></div>';
 }
 
@@ -351,7 +379,13 @@ function _daPintarEvolucion(filasCuenta) {
   var cont = document.getElementById('da-evolucion');
   if (!cont) return;
   var semanas = [];
-  for (var i = 11; i >= 0; i--) semanas.push(_daSemana - i * 7 * DA_MS_DIA);
+  if (_daHistorico) {
+    if (!filasCuenta.length) { cont.innerHTML = ''; return; }
+    var primera = _daLunes(filasCuenta[filasCuenta.length - 1].fecha_cierre);
+    for (var s = _daLunes(filasCuenta[0].fecha_cierre); s >= primera; s -= 7 * DA_MS_DIA) semanas.unshift(s);
+  } else {
+    for (var i = 11; i >= 0; i--) semanas.push(_daSemana - i * 7 * DA_MS_DIA);
+  }
   var datos = semanas.map(function(s) { return { s: s, p: _daPctPronto(_daDeSemana(filasCuenta, s)) }; });
   var W = Math.max(cont.clientWidth, 300), H = 150, base = H - 34, alto = base - 14;
   var paso = W / semanas.length, ancho = Math.min(28, paso * 0.55);
@@ -363,14 +397,17 @@ function _daPintarEvolucion(filasCuenta) {
   });
   datos.forEach(function(d, i) {
     var x = i * paso + (paso - ancho) / 2;
-    var elegida = d.s === _daSemana;
+    var elegida = !_daHistorico && d.s === _daSemana;
+    var conEtiqueta = paso >= 30 || i % 2 === (datos.length - 1) % 2; // con muchas semanas, una de cada dos
     if (d.p) {
       var h = Math.max(2, alto * d.p.pct / 100);
-      svg += '<path d="M' + x + ',' + base + ' V' + (base - h + 4) + ' q0,-4 4,-4 H' + (x + ancho - 4) + ' q4,0 4,4 V' + base + ' Z" fill="' + (elegida ? '#E8C870' : '#C9A84C') + '" fill-opacity="' + (elegida ? 1 : 0.55) + '"/>';
+      svg += '<path d="M' + x + ',' + base + ' V' + (base - h + 4) + ' q0,-4 4,-4 H' + (x + ancho - 4) + ' q4,0 4,4 V' + base + ' Z" fill="' + (elegida ? '#E8C870' : '#C9A84C') + '" fill-opacity="' + (elegida || _daHistorico ? 1 : 0.55) + '"/>';
     }
-    svg += '<text x="' + (x + ancho / 2) + '" y="' + (base + 14) + '" text-anchor="middle" fill="' + (elegida ? '#E8C870' : '#AAB0C4') + '" font-size="10">W' + _daSemanaIso(d.s) + '</text>' +
-           '<text x="' + (x + ancho / 2) + '" y="' + (base + 27) + '" text-anchor="middle" fill="#AAB0C4" font-size="10">' + (d.p ? d.p.n : '—') + '</text>' +
-           '<rect x="' + (i * paso) + '" y="0" width="' + paso + '" height="' + H + '" fill="transparent" data-i="' + i + '"/>';
+    if (conEtiqueta) {
+      svg += '<text x="' + (x + ancho / 2) + '" y="' + (base + 14) + '" text-anchor="middle" fill="' + (elegida ? '#E8C870' : '#AAB0C4') + '" font-size="10">W' + _daSemanaIso(d.s) + '</text>' +
+             '<text x="' + (x + ancho / 2) + '" y="' + (base + 27) + '" text-anchor="middle" fill="#AAB0C4" font-size="10">' + (d.p ? d.p.n : '—') + '</text>';
+    }
+    svg += '<rect x="' + (i * paso) + '" y="0" width="' + paso + '" height="' + H + '" fill="transparent" data-i="' + i + '"/>';
   });
   svg += '</svg>';
   cont.innerHTML = svg + '<div id="da-evol-tip" style="display:none;position:absolute;pointer-events:none;background:#060810;border:1px solid var(--border-gold);padding:.4rem .6rem;font-size:12px;color:var(--text);white-space:nowrap;"></div>';
