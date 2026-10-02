@@ -36,6 +36,7 @@ var DA_TXT = {
   correcto: 'Correcto',
   indeterminado: 'Indeterminado',
   te_salvo: 'Te salvó',
+  mixto_te_saco_de_un_recorrido: 'Mixto (BE)',
   te_saco_de_un_ganador: 'Te sacó',
   sin_efecto: 'Sin efecto',
   sl_original_o_ajustado_perdida: 'Pérdida',
@@ -154,7 +155,16 @@ function _daFrase(r) {
   }
   if (d === 'sl_breakeven') {
     if (r.be_efecto === 'te_salvo') return 'Saliste en breakeven y después el precio tocó tu SL original: el breakeven te salvó.';
-    if (r.be_efecto === 'te_saco_de_un_ganador') return 'Saliste en breakeven y después fue ' + (favor || 'mucho') + ' a tu favor: el breakeven te sacó de un ganador.';
+    if (r.be_efecto === 'mixto_te_saco_de_un_recorrido') {
+      return 'Saliste en breakeven; después fue ' + _daNum(r.pts_favor_antes_sl, 1) +
+             ' pts a tu favor pero acabó tocando tu SL original' + (min ? ' a los ' + min : '') +
+             ': el breakeven te sacó de un recorrido.';
+    }
+    if (r.be_efecto === 'te_saco_de_un_ganador') {
+      return r.resultado_post_cierre === 'fue_a_tp'
+        ? 'Saliste en breakeven y después el precio llegó a tu TP' + (min ? ' en ' + min : '') + ': el breakeven te sacó de un ganador.'
+        : 'Saliste en breakeven y después fue ' + (favor || 'mucho') + ' a tu favor sin tocar tu SL: el breakeven te sacó de un ganador.';
+    }
     return 'Saliste en breakeven y después el precio no hizo nada relevante: sin efecto.';
   }
   if (d === 'sl_original_o_ajustado_perdida') {
@@ -282,6 +292,8 @@ function _daHtmlSemana(semana, filasCuenta) {
   var sl = semana.filter(function(r) { return String(r.tipo_cierre_detallado).indexOf('sl_') === 0; });
   var cs = _daContar(sl, 'tipo_cierre_detallado');
   var mediaPronto = cm.pronto ? dejados / cm.pronto : null;
+  var mixBe = be.filter(function(r) { return r.be_efecto === 'mixto_te_saco_de_un_recorrido' && r.pts_favor_antes_sl != null; });
+  var mediaMixBe = mixBe.length ? mixBe.reduce(function(s, r) { return s + parseFloat(r.pts_favor_antes_sl); }, 0) / mixBe.length : null;
 
   h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1px;background:var(--border);margin-bottom:1px;">' +
     '<div class="cell"><div class="tag" style="display:block;margin-bottom:1rem;">Cierres a mano · ' + manuales.length + '</div>' +
@@ -293,6 +305,7 @@ function _daHtmlSemana(semana, filasCuenta) {
     '</div>' +
     '<div class="cell"><div class="tag" style="display:block;margin-bottom:1rem;">Breakeven real · ' + be.length + '</div>' +
       _daLineaConteo('Te salvó', cb.te_salvo || 0, be.length, 'var(--green)') +
+      _daLineaConteo('Mixto · te sacó de un recorrido' + (mediaMixBe != null ? ' · media ' + _daNum(mediaMixBe, 1) + ' pts' : ''), cb.mixto_te_saco_de_un_recorrido || 0, be.length, '#8A6A2A') +
       _daLineaConteo('Te sacó de un ganador', cb.te_saco_de_un_ganador || 0, be.length, 'var(--gold)') +
       _daLineaConteo('Sin efecto', cb.sin_efecto || 0, be.length, 'var(--text-muted)') +
     '</div>' +
@@ -383,6 +396,7 @@ function _daBadgeDecision(r) {
         : r.tipo_cierre_detallado;
   var col = { bien_cerrado: 'var(--green)', te_salvo: 'var(--green)', sl_beneficio_trailing: 'var(--green)', tp: 'var(--green)',
               pronto: 'var(--gold-bright)', te_saco_de_un_ganador: 'var(--gold-bright)', mixto_te_saliste_con_poco: 'var(--gold)',
+              mixto_te_saco_de_un_recorrido: 'var(--gold)',
               sl_original_o_ajustado_perdida: 'var(--red)' }[k] || 'var(--text-muted)';
   return '<span style="font-size:12px;color:' + col + ';border:1px solid var(--border);padding:.15rem .5rem;white-space:nowrap;">' + _daEsc(DA_TXT[k] || k) + '</span>';
 }

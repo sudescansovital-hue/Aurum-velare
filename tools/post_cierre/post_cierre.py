@@ -100,10 +100,11 @@ VENTANA_BUSQUEDA_DIAS = 5
 # si luego acabo tocando el SL original. Cambiar aqui para afinar.
 UMBRAL_FAVOR_MANUAL_PTS = 5.0
 
-# Solo para salidas en breakeven (ya no para cierres a mano): si tras salir
-# en BE el precio fue a favor mas de esta fraccion de la distancia entrada→SL
-# original sin tocar el SL, se marca "te_saco_de_un_ganador".
-UMBRAL_PRONTO_FACTOR = 0.5
+# Salidas en breakeven (criterios v2, 02/10): mismo umbral que los cierres a
+# mano. Tras salir en BE: SL original sin ir UMBRAL_FAVOR_MANUAL_PTS a favor =
+# te_salvo; SL tras ir 5+ = mixto_te_saco_de_un_recorrido; 5+ sin tocar SL, o
+# TP = te_saco_de_un_ganador; resto = sin_efecto. (Sustituye a la fraccion
+# 0.5x distancia entrada->SL de la v1.)
 
 # Fecha a partir de la cual el periodo se considera "fiable" (EA afinada).
 FECHA_CORTE_SEPTIEMBRE = datetime(2026, 9, 1)
@@ -111,7 +112,7 @@ FECHA_CORTE_SEPTIEMBRE = datetime(2026, 9, 1)
 # ── FASE 2: web ──
 # Sube si cambia cualquier criterio/umbral de arriba: el endpoint devuelve
 # entonces como pendientes todos los trades con una version anterior.
-CRITERIOS_VERSION = 1
+CRITERIOS_VERSION = 2   # v2 (02/10): be_efecto con mixto_te_saco_de_un_recorrido
 BASE_URL_DEFAULT = "https://aurumvelare.com"
 TOKEN_PATH = BASE_DIR / ".post_cierre_token"   # lineas token=... y opcional bypass=...
 LOTE_SUBIDA = 25                               # = MAX_RESULTADOS_POR_LOTE del endpoint
@@ -204,7 +205,7 @@ class ResultadoTrade:
     velas_post_cierre_disponibles: int
 
     decision_cierre_manual: str  # bien_cerrado / mixto_te_saliste_con_poco / pronto / correcto / indeterminado
-    pts_favor_antes_sl: str      # solo si tras cerrar a mano acabo tocando el SL original
+    pts_favor_antes_sl: str      # cierre a mano mixto o salida en BE mixto: pts a favor antes del SL original
 
     notas: str
 
@@ -645,13 +646,19 @@ def analizar_trade(mt5, simbolo: str, trade: Trade, velas_out: Optional[dict] = 
 
     # Efecto del breakeven real (si lo hubo)
     be_efecto = "na"
+    # pts a favor antes de tocar el SL original tras salir: cierres a mano
+    # 'mixto' y salidas en BE 'mixto_te_saco_de_un_recorrido'.
+    pts_favor_antes_sl = None
     if hubo_be_real:
         salida_en_be = detallado == "sl_breakeven"
         if salida_en_be:
-            umbral_sacado = UMBRAL_PRONTO_FACTOR * abs(sl_original - trade.precio_entrada) if sl_original else 5.0
+            # Misma logica que los cierres a mano (criterios v2, 02/10)
+            fue_a_favor = favor_pc is not None and favor_pc >= UMBRAL_FAVOR_MANUAL_PTS
             if resultado_pc == "fue_a_sl":
-                be_efecto = "te_salvo"  # sin el BE habria salido en el SL original
-            elif favor_pc is not None and favor_pc > umbral_sacado:
+                be_efecto = "mixto_te_saco_de_un_recorrido" if fue_a_favor else "te_salvo"
+                if fue_a_favor:
+                    pts_favor_antes_sl = favor_pc
+            elif resultado_pc == "fue_a_tp" or (resultado_pc == "ninguno_en_ventana" and fue_a_favor):
                 be_efecto = "te_saco_de_un_ganador"
             else:
                 be_efecto = "sin_efecto"
@@ -672,7 +679,6 @@ def analizar_trade(mt5, simbolo: str, trade: Trade, velas_out: Optional[dict] = 
     # favor_pc = recorrido a favor desde el cierre hasta el toque (sin la vela
     # del toque) o hasta el fin de la ventana principal.
     decision_manual = "na"
-    pts_favor_antes_sl = None
     if detallado == "manual":
         fue_a_favor = favor_pc is not None and favor_pc >= UMBRAL_FAVOR_MANUAL_PTS
         if resultado_pc == "fue_a_sl":
@@ -1024,7 +1030,7 @@ def escribir_resumen_md(resultados: list, out_dir: Path, filtro_cuenta_conectada
                 lineas.append(f"- {texto}: total {round(sum(vals), 2)} · media {round(statistics.mean(vals), 2)} "
                               f"· mediana {round(statistics.median(vals), 2)}")
         lineas.append(f"\n**Breakeven real, efecto** ({len(be)} trades con BE real):")
-        for k in ("te_salvo", "te_saco_de_un_ganador", "sin_efecto"):
+        for k in ("te_salvo", "mixto_te_saco_de_un_recorrido", "te_saco_de_un_ganador", "sin_efecto"):
             lineas.append(f"- {k}: {cont_be[k]}")
         lineas.append(f"\n**Salidas por SL, detalle**:")
         for k in ("sl_original_o_ajustado_perdida", "sl_breakeven", "sl_beneficio_trailing"):
