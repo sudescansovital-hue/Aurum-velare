@@ -1,7 +1,57 @@
-# Estado — FASE 1 "Examen de la EA" + análisis post-cierre (en seco)
+# Estado — análisis post-cierre: FASE 1 (examen de la EA) + FASE 2 (Diario web)
 
-> Rama `feature/post-cierre` (no se ha tocado `main`). Actualizado 29/09/2026.
-> FASE 1 **terminada**: análisis ejecutado sobre los 298 trades.
+> Actualizado 02/10/2026. **FASE 2 en producción** (`main` = `cdede9a`,
+> deploy `aurum-velare-cw5la96zd`; el anterior, para rollback, era
+> `aurum-velare-9hp3r9l3q`). FASE 1 terminada el 29/09 (298 trades, en seco).
+
+---
+
+## FASE 2 — Diario de análisis en la web (02/10)
+
+Se acabaron los CSV a mano. Flujo:
+
+1. `post_cierre.py` pide a `api/post-cierre.js` (`GET ?accion=pendientes`) los
+   trades de la EA cerrados sin análisis, con `ventana_completa=false` o con
+   `criterios_version` menor que `CRITERIOS_VERSION` (hoy 1).
+2. Los analiza con velas M1 del MT5 local con **los mismos criterios** de abajo.
+3. Con `--subir`, manda análisis + velas del gráfico (`POST ?accion=resultados`,
+   lotes de 25) a `post_cierre_analisis` / `post_cierre_velas` (`sql_post_cierre.sql`,
+   aplicado en Supabase el 02/10; RLS solo SELECT, escribe solo el endpoint).
+4. El Diario (Mi gestión → Diario, `diario-analisis.js`) lee esas tablas con el
+   JWT del usuario: "Tu semana" (KPIs, decisiones de gestión, por estrategia,
+   % "pronto" semana a semana) + "Trades" (filtros cuenta/estrategia; al pulsar,
+   gráfico durante + 4 h después, frase del veredicto, MFE/MAE, línea de tiempo
+   de `trade_eventos`). Vista global + por cuenta; semana lunes–domingo en hora
+   de servidor MT5. Las frases se generan en el front (no se guardan).
+
+**Rutina:** con MT5 abierto, `.venv\Scripts\python.exe post_cierre.py --subir`.
+Una pasada sin nada nuevo dice "0 pendientes · Nada que analizar".
+
+**Auth del endpoint:** token propio `POST_CIERRE_TOKEN` (Vercel, sensible,
+Production + Preview de la rama `feature/post-cierre`) en cabecera
+`Authorization: Bearer`; email fijo `POST_CIERRE_EMAIL` (roderastrader@gmail.com),
+nunca viene del cliente. En local: `tools/post_cierre/.post_cierre_token`
+(ignorado por git), líneas `token=` y `bypass=`. `bypass=` es el secreto
+"Protection Bypass for Automation" del proyecto (lo creó `vercel curl` el
+02/10), solo hace falta contra previews (`--base-url <url del preview>`); el
+dominio aurumvelare.com no está protegido. El script nunca imprime ninguno.
+Rotar: `openssl rand -hex 32` → `vercel env rm` + `vercel env add ... --sensitive`
+(Preview exige la rama como 3er argumento con la CLI v54) → reescribir el archivo.
+
+**Si cambian umbrales o criterios:** subir `CRITERIOS_VERSION` en
+`post_cierre.py` y ejecutar `--subir`: todo se recalcula y se sobrescribe (upsert).
+
+**Verificado 02/10:** regresión `--fuente web` vs `--fuente csv` idéntica en
+todas las columnas de `resultados.csv` en los 290 trades comunes (y el CSV de
+hoy = FASE 1 del 29/09). Subidos 300/300 sin rechazos; segunda pasada 0
+pendientes. Producción: mismos JS byte a byte salvo `index.html` (notas
+movidas dentro de `gpanel-diario` + contenedor nuevo) y `diario-analisis.js`.
+
+**Diferencias con FASE 1:** la web devuelve 300 trades (10 nuevos del 29/09 al
+01/10, cuenta 178497) y no devuelve 8 del CSV (6 de la 7754620 del 03–05/08 y
+2 del 30/06 de 152034 y 7747760): sin análisis, decidido dejarlos así.
+
+**Fuera de esta versión:** incubadora de estrategias e informe diario.
 
 ---
 
@@ -9,9 +59,11 @@
 
 ```
 cd tools\post_cierre
-.venv\Scripts\python.exe post_cierre.py            # todos los trades
-.venv\Scripts\python.exe post_cierre.py --limit 5  # prueba
+.venv\Scripts\python.exe post_cierre.py --subir     # pendientes de la web -> analizar -> subir
+.venv\Scripts\python.exe post_cierre.py             # igual, en seco (solo salida/)
+.venv\Scripts\python.exe post_cierre.py --limit 5   # prueba
 .venv\Scripts\python.exe post_cierre.py --cuenta 178497
+.venv\Scripts\python.exe post_cierre.py --fuente csv  # FASE 1, CSVs de data/ (regresión)
 ```
 
 - Requiere MT5 abierto a mano. `mt5.initialize()` usa la ruta fija
@@ -22,7 +74,8 @@ cd tools\post_cierre
   para los trades de **todas** las cuentas. No hay separación por bróker:
   todas las cuentas cuentan igual. El encaje precio guardado ↔ vela M1 es de
   296/298 entradas y 297/298 cierres, así que las velas valen para todas.
-- Solo lectura: nada se escribe en Supabase ni en el EA. Salidas en
+- MT5 siempre en solo lectura. Sin `--subir` nada se escribe en Supabase;
+  con `--subir`, solo vía el endpoint y solo en `post_cierre_*`. Salidas en
   `salida/` (no va a git).
 
 ## Criterios en vigor (decididos en sesión 29/09)
@@ -101,11 +154,11 @@ Menores (no son de la EA): 5 SL y 6 TP originales con dedazo de tecleo
 
 ## Siguiente paso
 
-**Llevar el análisis post-cierre a la web**, con la misma lógica que el
-resumen: vista global de todas las cuentas como principal + desglose por
-cuenta. Diseño de partida en `docs/DISENO_POST_CIERRE.md` (dónde va en la
-web). Por decidir: cómo se alimenta (el cálculo necesita velas M1, que hoy
-salen del terminal MT5 local) y si los resultados se suben a Supabase.
+FASE 2 hecha (ver arriba). Pendiente:
 
-Pendiente menor del script: desglose "¿cambia tu gestión con el lote?" en
+- **Revisión visual del Diario en producción con sesión iniciada** (02/10 solo
+  se pudo verificar por HTTP: archivos, sintaxis de los 15 scripts, endpoint y
+  colocación en el DOM; sin navegador no se pudo entrar con la cuenta).
+- Siguientes versiones: incubadora de estrategias e informe diario.
+- Pendiente menor del script: desglose "¿cambia tu gestión con el lote?" en
 `resumen.md` (el volumen ya viaja en `resultados.csv`, falta agregarlo).
