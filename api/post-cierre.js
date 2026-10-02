@@ -14,6 +14,8 @@
 //
 // Rutas:
 //   GET  ?accion=ping                       -> { ok: true }
+//   GET  ?accion=trades                     -> TODOS los trades EA cerrados, mismo
+//        formato que pendientes (para tools/post_cierre/optimizador.py)
 //   GET  ?accion=pendientes&version=N       -> trades sin análisis, con
 //        ventana_completa=false o criterios_version < N, con todo lo que
 //        antes venía en los 4 CSV exportados a mano
@@ -125,20 +127,20 @@ function _tokenValido(req) {
 
 // ── GET ?accion=pendientes ───────────────────────────────────────────────────
 
-async function pendientes(version) {
+async function pendientes(version, todos) {
   const email = encodeURIComponent(POST_CIERRE_EMAIL);
 
   const trades = await _getTodo('ea_trades',
     `usuario_email=eq.${email}&estado=eq.closed&fecha_cierre=not.is.null` +
     `&select=position_id,fp,cuenta_numero,estrategia,tipo,volumen,precio_entrada,fecha_entrada,` +
-    `precio_cierre,fecha_cierre,sl_original,tp_original,sl_actual,tp_actual&order=fecha_cierre.asc`);
+    `precio_cierre,fecha_cierre,beneficio,sl_original,tp_original,sl_actual,tp_actual&order=fecha_cierre.asc`);
 
   const hechos = await _getTodo('post_cierre_analisis',
     `usuario_email=eq.${email}&select=fp,ventana_completa,criterios_version`);
   const porFp = {};
   hechos.forEach(h => { porFp[h.fp] = h; });
 
-  const lista = trades.filter(t => {
+  const lista = todos ? trades : trades.filter(t => {
     const h = porFp[t.fp];
     return !h || h.ventana_completa === false || h.criterios_version < version;
   });
@@ -283,6 +285,9 @@ module.exports = async function handler(req, res) {
         return res.status(400).json({ error: 'version requerida (entero >= 1)' });
       }
       return res.status(200).json(await pendientes(version));
+    }
+    if (req.method === 'GET' && accion === 'trades') {
+      return res.status(200).json(await pendientes(null, true));
     }
     if (req.method === 'POST' && accion === 'resultados') {
       const r = await resultados(req.body);

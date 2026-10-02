@@ -924,6 +924,10 @@ class ClienteWeb:
     def pendientes(self, version: int):
         return self._peticion("GET", "pendientes", {"version": version})
 
+    def trades(self):
+        """Todos los trades EA cerrados (mismo formato que pendientes). optimizador.py."""
+        return self._peticion("GET", "trades")
+
     def subir(self, lote: list):
         return self._peticion("POST", "resultados", cuerpo={"criterios_version": CRITERIOS_VERSION,
                                                             "resultados": lote})
