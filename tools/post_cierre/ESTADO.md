@@ -159,6 +159,11 @@ FASE 2 hecha (ver arriba). Pendiente:
 - **Revisión visual del Diario en producción con sesión iniciada** (02/10 solo
   se pudo verificar por HTTP: archivos, sintaxis de los 15 scripts, endpoint y
   colocación en el DOM; sin navegador no se pudo entrar con la cuenta).
+- **Siguiente mejora del Diario — "Todo el histórico":** junto a las flechas
+  ‹ › de semana, una opción "Todo el histórico" que muestre los KPIs, los
+  bloques "Tus decisiones de gestión" y la tabla por estrategia con TODOS los
+  trades analizados juntos, tanto en Global como por cuenta (respetando los
+  chips de cuenta). Pedido el 02/10, sin hacer todavía.
 - Siguientes versiones: incubadora de estrategias e informe diario.
 - Pendiente menor del script: desglose "¿cambia tu gestión con el lote?" en
 `resumen.md` (el volumen ya viaja en `resultados.csv`, falta agregarlo).
