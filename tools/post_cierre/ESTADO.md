@@ -31,6 +31,24 @@ terminal local). Pedido el 02/10, sin hacer. Orden:
    EA, no solo `POST_CIERRE_EMAIL`. Validar con regresión contra lo que hoy da
    el script (300 trades).
 
+**Junto a este paso (misma condición: EA sincronizada y arreglada antes de
+tocarla) — capturas automáticas desde la EA.** Pedido el 02/10, sin hacer. Al
+abrir y al cerrar cada trade, la EA guarda una captura del gráfico
+(`ChartScreenShot`) con nombre basado en el fp (p. ej.
+`2026.10.01_23703381_entrada.png` / `_cierre.png`) para que el Diario la asocie
+sola al trade. Por valorar cómo llegan al Diario:
+- **Leerlas de la carpeta local:** `ChartScreenShot` solo escribe dentro de la
+  carpeta de datos del terminal (`MQL5\Files\…`, sandbox de MT5); el Diario las
+  leería con la File System Access API si el usuario elige esa carpeta (como
+  hoy en la zona de capturas). Sin coste de almacenamiento, pero solo en ese PC
+  y con el permiso de carpeta.
+- **Subirlas:** p. ej. Supabase Storage. Tamaño orientativo 100–300 KB por PNG
+  (según resolución del gráfico) × 2 por trade; con unos 300 trades, del orden
+  de 60–180 MB. Subir binarios desde la EA por `WebRequest` es más delicado
+  (tamaño del cuerpo, reintentos, la cola en RAM ya ha dado problemas): mejor
+  un endpoint aparte que no comparta la cola de eventos del trade. Valorar
+  JPEG / menor resolución para reducir tamaño.
+
 ---
 
 ## FASE 2 — Diario de análisis en la web (02/10)
@@ -401,6 +419,20 @@ FASE 2 hecha (ver arriba). Pendiente:
   - Las estrategias solo existen desde el 26/08: en muestra casi todo es "sin
     clasificar". Repetir cuando haya más meses clasificados (p. ej. optimizar
     sept, validar oct–nov con `--hasta`).
+- **Mejora futura — vincular capturas a cada trade del Diario:** en el detalle de
+  cada trade, mostrar sus capturas; el botón "Capturar pantalla" debe asociar la
+  captura al trade seleccionado (por fp), y poder adjuntar una captura que ya
+  esté en la carpeta a un trade. Pedido el 02/10, sin hacer.
+  Notas para construirlo: hoy `capturas-test.js` guarda `captura_<ts>.jpg` +
+  `.json` (nota, fecha, carpeta, ruta_pc) en la carpeta local, sin vínculo a
+  ningún trade y fuera del detalle del trade. Opción sin Supabase: añadir `fp`
+  al JSON (o nombrar `<fp>_<ts>.jpg`) y, al abrir el detalle, listar la carpeta
+  (`handle.values()`, requiere el permiso / Reconectar) filtrando por fp.
+  Adjuntar una existente = `showOpenFilePicker` sobre la carpeta y escribir o
+  actualizar su JSON con el fp. Las imágenes siguen solo en el PC del usuario;
+  si se quieren ver desde otro dispositivo habría que subirlas (ver capturas
+  automáticas desde la EA, arriba). La zona de capturas solo está activa para
+  los packs senda / cima / vip.
 - Siguientes versiones: incubadora de estrategias e informe diario.
 - Pendiente menor del script: desglose "¿cambia tu gestión con el lote?" en
 `resumen.md` (el volumen ya viaja en `resultados.csv`, falta agregarlo).
