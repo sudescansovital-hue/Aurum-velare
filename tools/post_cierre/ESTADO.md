@@ -12,7 +12,7 @@ Se acabaron los CSV a mano. Flujo:
 
 1. `post_cierre.py` pide a `api/post-cierre.js` (`GET ?accion=pendientes`) los
    trades de la EA cerrados sin análisis, con `ventana_completa=false` o con
-   `criterios_version` menor que `CRITERIOS_VERSION` (hoy 3, desde el 02/10).
+   `criterios_version` menor que `CRITERIOS_VERSION` (hoy 4, desde el 02/10).
 2. Los analiza con velas M1 del MT5 local con **los mismos criterios** de abajo.
 3. Con `--subir`, manda análisis + velas del gráfico (`POST ?accion=resultados`,
    lotes de 25) a `post_cierre_analisis` / `post_cierre_velas` (`sql_post_cierre.sql`,
@@ -108,6 +108,20 @@ Retos 179003 (29), Global 300.
   afectado (filtraba por hora real): regresión idéntica en los 300 trades.
 - 300/300 recalculados y subidos (velas del gráfico regeneradas), segunda
   pasada 0 pendientes.
+
+**Criterios v4 (02/10): "SL desprotegido" (hecho).** El SL protegía la
+entrada (±1 pt o mejor, mismo criterio que el TP1) y un cambio posterior, con
+el trade abierto, lo alejó sin protegerla. Se guarda el primer episodio
+(`sl_protegido_en` / `sl_nivel_protegido` → `sl_desprotegido_en` /
+`sl_nivel_desprotegido`), el número de episodios y
+`sl_protegido_habria_salido` (tras desproteger, el precio llegó al nivel
+protegido antes del cierre). `sql_post_cierre_v4_sl_desprotegido.sql`
+ejecutado. En el Diario: frase del veredicto, insignia, bloque en Tu semana /
+Todo el histórico (con P&L de esos trades) y columna por estrategia.
+Histórico: 26 trades, en 21 habría saltado el SL protegido, 4 con más de un
+episodio (estructura 7, rechazo_rsi 4, sin clasificar 15). Ejemplo 01/10
+12:36, 178497: protegido 4165,15 a las 10:43 → 4176,5 a las 11:08, habría
+salido. 300/300 recalculados, segunda pasada 0 pendientes.
 
 **Fuera de esta versión:** incubadora de estrategias e informe diario.
 
@@ -284,18 +298,17 @@ FASE 2 hecha (ver arriba). Pendiente:
     de `fecha_entrada`; global y por estrategia, y si se quiere, por cuenta.
   - Resultado como informe aparte (p. ej. `salida/simulador.md`) y/o tabla nueva
     en Supabase si se quiere ver en el Diario.
-- **Mejora futura — "SL desprotegido":** detectar cuando se mueve el SL a
-  proteger la entrada y después se vuelve a alejar sin protegerla, con el
-  trade todavía abierto (ej. 01/10 12:36, 178497: protegido a 4165,15 a las
-  10:43, desprotegido a 4176,5 a las 11:08). Marcarlo en el veredicto del
-  trade y contarlo en Tu semana / Todo el histórico. Pedido el 02/10, sin
-  hacer todavía.
-  Notas para construirlo: sale de la secuencia de `ea_sl_changes`
-  (`trade.cambios_sl`, ya deduplicada y sin dedazos) con el mismo criterio de
-  "protegido" que el TP1 (±`BE_TOLERANCIA_PTS` o mejor). Es lógica del script:
-  columnas nuevas (p. ej. `sl_desprotegido`, `sl_protegido_en`,
-  `sl_desprotegido_en`) + SQL + subir `CRITERIOS_VERSION`. Interesante cruzarlo
-  con el resultado: qué pasó después de desproteger.
+- **PRIORIDAD ALTA (después de las alertas) — optimizador de SL/TP:** rejilla
+  SL 7–25 pts × TP 7–50 pts, combinada con BE y parcial, re-simulando los
+  trades con velas M1. Resultado en $ de dos formas: con el volumen real de
+  cada trade y con riesgo fijo (~126 € por trade). Métricas: win rate,
+  esperanza, peor racha y días que rompen 500 $. Por estrategia y global.
+  Validado fuera de muestra: optimizar con los trades hasta el 31/08 y
+  comprobar el resultado en septiembre–octubre. Pedido el 02/10, sin hacer.
+  Comparte base con el "simulador de gestión" de arriba (mismas notas: velas
+  M1 desde MT5 en el script, no `post_cierre_velas`; vela que toca dos
+  niveles → primero el SL; $ = pts × 100 × volumen). El riesgo fijo en €
+  necesita el tipo de cambio EUR/USD.
 - Siguientes versiones: incubadora de estrategias e informe diario.
 - Pendiente menor del script: desglose "¿cambia tu gestión con el lote?" en
 `resumen.md` (el volumen ya viaja en `resultados.csv`, falta agregarlo).
