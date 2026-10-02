@@ -48,41 +48,81 @@ function _capturasTestAbrirDB() {
   });
 }
 
-async function _capturasTestGuardarHandle(handle) {
+// Claves por usuario (antes había una sola 'carpeta' para todo el navegador:
+// otro usuario en el mismo PC veía la carpeta del anterior). Cerrar sesión no
+// borra IndexedDB (signOut solo quita la sesión de localStorage), así que la
+// carpeta y la ruta se recuerdan entre sesiones.
+function _capturasTestClave(tipo) {
+  var email = (window.usuarioActual && window.usuarioActual.email) || 'anonimo';
+  return tipo + ':' + email;
+}
+
+async function _capturasTestGuardarValor(clave, valor) {
   var db = await _capturasTestAbrirDB();
   return new Promise(function(resolve, reject) {
     var tx = db.transaction(CAPTURAS_TEST_STORE, 'readwrite');
-    tx.objectStore(CAPTURAS_TEST_STORE).put(handle, 'carpeta');
+    tx.objectStore(CAPTURAS_TEST_STORE).put(valor, clave);
     tx.oncomplete = function() { resolve(); };
     tx.onerror    = function() { reject(tx.error); };
   });
 }
 
-async function _capturasTestLeerHandle() {
+async function _capturasTestLeerValor(clave) {
   var db = await _capturasTestAbrirDB();
   return new Promise(function(resolve, reject) {
     var tx  = db.transaction(CAPTURAS_TEST_STORE, 'readonly');
-    var req = tx.objectStore(CAPTURAS_TEST_STORE).get('carpeta');
+    var req = tx.objectStore(CAPTURAS_TEST_STORE).get(clave);
     req.onsuccess = function() { resolve(req.result || null); };
     req.onerror   = function() { reject(req.error); };
   });
 }
 
+async function _capturasTestGuardarHandle(handle) {
+  return _capturasTestGuardarValor(_capturasTestClave('carpeta'), handle);
+}
+
+async function _capturasTestLeerHandle() {
+  var handle = await _capturasTestLeerValor(_capturasTestClave('carpeta'));
+  if (handle) return handle;
+  // Migración: carpeta guardada con la clave antigua (común a todo el navegador)
+  var antigua = await _capturasTestLeerValor('carpeta');
+  if (antigua) await _capturasTestGuardarHandle(antigua);
+  return antigua;
+}
+
 // ── Estado de carpeta ──
 
+// Estados del permiso (queryPermission):
+//   'granted' -> ok
+//   'prompt'  -> reconectar: la carpeta está recordada pero el permiso caduca
+//                al recargar / volver a entrar; Chrome solo deja pedirlo con un
+//                clic del usuario (botón Reconectar). Antes se mostraba como
+//                "Permiso denegado" y obligaba a elegir la carpeta otra vez.
+//   'denied'  -> permiso_denegado: hay que elegir carpeta de nuevo
 function _capturasTestPintarEstadoCarpeta(estado, nombre) {
   var el = document.getElementById('captura-test-estado-carpeta');
+  var btnReconectar = document.getElementById('captura-test-btn-reconectar');
+  var btnElegir = document.getElementById('captura-test-btn-elegir');
   if (!el) return;
+  if (btnReconectar) btnReconectar.style.display = estado === 'reconectar' ? 'inline-block' : 'none';
+  if (btnElegir) btnElegir.textContent = estado === 'sin_carpeta' ? 'Elegir carpeta de mis capturas' : 'Cambiar carpeta';
   if (estado === 'ok') {
     el.textContent = 'Carpeta: ' + nombre;
     el.style.color = 'var(--green)';
+  } else if (estado === 'reconectar') {
+    el.textContent = 'Carpeta «' + nombre + '» recordada · pulsa Reconectar para dar permiso en esta sesión';
+    el.style.color = 'var(--gold)';
   } else if (estado === 'permiso_denegado') {
-    el.textContent = 'Permiso denegado, vuelve a elegir';
+    el.textContent = 'Permiso denegado para «' + nombre + '» · vuelve a elegir la carpeta';
     el.style.color = 'var(--red)';
   } else {
     el.textContent = 'Sin carpeta';
     el.style.color = 'var(--text-muted)';
   }
+}
+
+function _capturasTestEstadoDesdePermiso(permiso) {
+  return permiso === 'granted' ? 'ok' : permiso === 'prompt' ? 'reconectar' : 'permiso_denegado';
 }
 
 async function _capturasTestRefrescarEstadoCarpeta() {
@@ -98,9 +138,50 @@ async function _capturasTestRefrescarEstadoCarpeta() {
     _capturasTestPintarEstadoCarpeta('sin_carpeta');
     return;
   }
-  var permiso = await handle.queryPermission({ mode: 'readwrite' });
+  var permiso;
+  try {
+    permiso = await handle.queryPermission({ mode: 'readwrite' });
+  } catch (e) {
+    // Valor guardado que no es una carpeta válida: como si no hubiera
+    _capturasTestCarpetaHandle = null;
+    _capturasTestPintarEstadoCarpeta('sin_carpeta');
+    return;
+  }
   _capturasTestCarpetaHandle = handle;
-  _capturasTestPintarEstadoCarpeta(permiso === 'granted' ? 'ok' : 'permiso_denegado', handle.name);
+  _capturasTestPintarEstadoCarpeta(_capturasTestEstadoDesdePermiso(permiso), handle.name);
+}
+
+// Botón Reconectar: pide el permiso de la carpeta recordada (requiere el clic).
+async function reconectarCarpetaCapturasTest() {
+  if (!_capturasTestCarpetaHandle) { elegirCarpetaCapturasTest(); return; }
+  try {
+    var permiso = await _capturasTestCarpetaHandle.requestPermission({ mode: 'readwrite' });
+    _capturasTestPintarEstadoCarpeta(_capturasTestEstadoDesdePermiso(permiso), _capturasTestCarpetaHandle.name);
+    _capturasTestMostrarMsg(permiso === 'granted' ? 'Carpeta reconectada.' : 'No se dio permiso a la carpeta.', permiso !== 'granted');
+  } catch (e) {
+    _capturasTestMostrarMsg('No se pudo reconectar: ' + e.message + ' · elige la carpeta de nuevo.', true);
+  }
+}
+
+// ── Ruta en mi PC ──
+// El navegador no expone la ruta completa de una carpeta (solo su nombre), así
+// que el usuario la apunta a mano para saber dónde quedan sus capturas. Solo
+// en este navegador (IndexedDB), por usuario; nunca va a Supabase.
+async function _capturasTestCargarRuta() {
+  var input = document.getElementById('captura-test-ruta');
+  if (!input) return;
+  try { input.value = (await _capturasTestLeerValor(_capturasTestClave('ruta'))) || ''; } catch (e) {}
+}
+
+async function _capturasTestGuardarRuta() {
+  var input = document.getElementById('captura-test-ruta');
+  if (!input) return;
+  try {
+    await _capturasTestGuardarValor(_capturasTestClave('ruta'), input.value.trim());
+    _capturasTestMostrarMsg('Ruta guardada.', false);
+  } catch (e) {
+    _capturasTestMostrarMsg('No se pudo guardar la ruta: ' + e.message, true);
+  }
 }
 
 async function elegirCarpetaCapturasTest() {
@@ -110,7 +191,7 @@ async function elegirCarpetaCapturasTest() {
     if (permiso !== 'granted') permiso = await handle.requestPermission({ mode: 'readwrite' });
     await _capturasTestGuardarHandle(handle);
     _capturasTestCarpetaHandle = handle;
-    _capturasTestPintarEstadoCarpeta(permiso === 'granted' ? 'ok' : 'permiso_denegado', handle.name);
+    _capturasTestPintarEstadoCarpeta(_capturasTestEstadoDesdePermiso(permiso), handle.name);
   } catch (e) {
     if (e.name !== 'AbortError') _capturasTestMostrarMsg('Error al elegir carpeta: ' + e.message, true);
   }
@@ -207,6 +288,7 @@ async function guardarCapturaEnCarpetaTest() {
     var nombreImg  = 'captura_' + ts + '.jpg';
     var nombreJson = 'captura_' + ts + '.json';
     var nota = (document.getElementById('captura-test-nota') || {}).value || '';
+    var ruta = ((document.getElementById('captura-test-ruta') || {}).value || '').trim();
 
     var fhImg = await _capturasTestCarpetaHandle.getFileHandle(nombreImg, { create: true });
     var wImg  = await fhImg.createWritable();
@@ -215,12 +297,14 @@ async function guardarCapturaEnCarpetaTest() {
 
     var fhJson = await _capturasTestCarpetaHandle.getFileHandle(nombreJson, { create: true });
     var wJson  = await fhJson.createWritable();
-    await wJson.write(JSON.stringify({ imagen: nombreImg, nota: nota, fecha: new Date(ts).toISOString() }, null, 2));
+    await wJson.write(JSON.stringify({ imagen: nombreImg, nota: nota, fecha: new Date(ts).toISOString(),
+                                       carpeta: _capturasTestCarpetaHandle.name, ruta_pc: ruta || null }, null, 2));
     await wJson.close();
 
     _capturasTestGuardadoBloqueado = true;
     _capturasTestActualizarBotonGuardar();
-    _capturasTestMostrarMsg('Guardado. Captura una nueva imagen para guardar otra.', false);
+    var donde = ruta ? ruta.replace(/[\\\/]+$/, '') + '\\' + nombreImg : '«' + _capturasTestCarpetaHandle.name + '» / ' + nombreImg;
+    _capturasTestMostrarMsg('Guardado en ' + donde + '. Captura una nueva imagen para guardar otra.', false);
   } catch (e) {
     _capturasTestMostrarMsg('Error al guardar: ' + e.message, true);
   }
@@ -252,9 +336,17 @@ function _capturasTestCrearZona() {
     '<div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>' +
     '<div style="font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--gold);margin-bottom:1rem;">Zona de pruebas — Capturas por trade (validación técnica, no es la función final)</div>' +
 
-    '<div style="display:flex;gap:1rem;align-items:center;margin-bottom:1.2rem;flex-wrap:wrap;">' +
-      '<div onclick="elegirCarpetaCapturasTest()" class="btn-outline" style="font-size:13px;padding:.6rem 1.5rem;">Elegir carpeta de mis capturas</div>' +
+    '<div style="display:flex;gap:1rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap;">' +
+      '<div id="captura-test-btn-elegir" onclick="elegirCarpetaCapturasTest()" class="btn-outline" style="font-size:13px;padding:.6rem 1.5rem;">Elegir carpeta de mis capturas</div>' +
+      '<div id="captura-test-btn-reconectar" onclick="reconectarCarpetaCapturasTest()" class="btn-gold" style="font-size:13px;padding:.6rem 1.5rem;display:none;cursor:pointer;">Reconectar</div>' +
       '<div id="captura-test-estado-carpeta" style="font-size:13px;color:var(--text-muted);">Sin carpeta</div>' +
+    '</div>' +
+
+    '<div style="margin-bottom:1.2rem;max-width:560px;">' +
+      '<label for="captura-test-ruta" style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:.4rem;">Ruta en mi PC</label>' +
+      '<input id="captura-test-ruta" type="text" placeholder="p. ej. C:\\Users\\tu-usuario\\Documents\\Capturas Aurum" ' +
+        'style="width:100%;box-sizing:border-box;background:#060810;border:1px solid var(--border);padding:.6rem .8rem;font-size:14px;color:var(--text);font-family:\'Outfit\',sans-serif;outline:none;">' +
+      '<div style="font-size:12px;color:var(--text-muted);margin-top:.35rem;line-height:1.5;">El navegador no deja ver la ruta completa de la carpeta: apúntala aquí para saber dónde quedan tus capturas. Solo se guarda en este navegador.</div>' +
     '</div>' +
 
     '<div style="margin-bottom:1.2rem;">' +
@@ -275,6 +367,9 @@ function _capturasTestCrearZona() {
     '</div>' +
 
     '<div id="captura-test-msg" style="font-size:13px;margin-top:.8rem;min-height:18px;"></div>';
+
+  var ruta = zona.querySelector('#captura-test-ruta');
+  if (ruta) ruta.addEventListener('change', _capturasTestGuardarRuta);
 
   var nota = zona.querySelector('#captura-test-nota');
   var preview = zona.querySelector('#captura-test-nota-preview');
@@ -300,9 +395,13 @@ function initZonaCapturasTest() {
 
   if (existente) {
     _capturasTestRefrescarEstadoCarpeta();
+    _capturasTestCargarRuta();
     return;
   }
 
   contenedor.appendChild(_capturasTestCrearZona());
-  if (_capturasTestNavegadorSoportado()) _capturasTestRefrescarEstadoCarpeta();
+  if (_capturasTestNavegadorSoportado()) {
+    _capturasTestRefrescarEstadoCarpeta();
+    _capturasTestCargarRuta();
+  }
 }
