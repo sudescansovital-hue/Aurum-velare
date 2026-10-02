@@ -45,6 +45,7 @@ const COLUMNAS_ANALISIS = [
   'resultado_post_cierre', 'minutos_hasta_resultado',
   'favor_post_puntos', 'contra_post_puntos', 'favor_1h_puntos', 'favor_4h_puntos',
   'velas_post_disponibles', 'ventana_completa', 'precio_fin_ventana',
+  'be_antes_tp1', 'be_antes_tp1_en', 'be_antes_tp1_favor_pts',
   'decision_cierre_manual', 'pts_favor_antes_sl',
   'tp1_pts', 'tp1_alcanzado', 'tp1_alcanzado_en', 'tp1_volvio_en', 'tp1_no_asegurado',
   'sl_desprotegido', 'sl_n_desprotecciones', 'sl_protegido_en', 'sl_nivel_protegido',

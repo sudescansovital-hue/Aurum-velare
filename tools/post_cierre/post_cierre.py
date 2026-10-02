@@ -113,7 +113,7 @@ FECHA_CORTE_SEPTIEMBRE = datetime(2026, 9, 1)
 # ── FASE 2: web ──
 # Sube si cambia cualquier criterio/umbral de arriba: el endpoint devuelve
 # entonces como pendientes todos los trades con una version anterior.
-CRITERIOS_VERSION = 5   # v2 (02/10): be_efecto mixto · v3: TP1 no asegurado + velas en hora de servidor · v4: SL desprotegido · v5: precio_fin_ventana
+CRITERIOS_VERSION = 6   # v2 (02/10): be_efecto mixto · v3: TP1 no asegurado + velas en hora de servidor · v4: SL desprotegido · v5: precio_fin_ventana · v6: BE antes de TP1
 BASE_URL_DEFAULT = "https://aurumvelare.com"
 TOKEN_PATH = BASE_DIR / ".post_cierre_token"   # lineas token=... y opcional bypass=...
 LOTE_SUBIDA = 25                               # = MAX_RESULTADOS_POR_LOTE del endpoint
@@ -212,6 +212,11 @@ class ResultadoTrade:
     # v5: cierre de la ultima vela de la ventana post-cierre (para "si hubieras
     # mantenido el trade" cuando no toca SL ni TP: vuelta de posicion en el Diario)
     precio_fin_ventana: str
+
+    # BE antes de TP1 (v6): SL movido a proteger la entrada antes de que el precio llegara a +TP1
+    be_antes_tp1: str
+    be_antes_tp1_en: str
+    be_antes_tp1_favor_pts: str
 
     decision_cierre_manual: str  # bien_cerrado / mixto_te_saliste_con_poco / pronto / correcto / indeterminado
     pts_favor_antes_sl: str      # cierre a mano mixto o salida en BE mixto: pts a favor antes del SL original
@@ -664,6 +669,39 @@ def _sl_protege(trade: Trade, sl) -> bool:
     return sl <= trade.precio_entrada + BE_TOLERANCIA_PTS
 
 
+def evaluar_be_antes_tp1(trade: Trade, velas_intra: list, sl_original, tp1: Optional[dict]) -> Optional[dict]:
+    """Error de regla: el SL se movio a proteger la entrada (mismo criterio que
+    TP1 / SL desprotegido: ±BE_TOLERANCIA_PTS o mejor) con el trade abierto,
+    antes de que el precio llegara a +TP1 desde la entrada (o sin llegar nunca).
+    Si se protege dentro del mismo minuto en que se alcanza el TP1 no se puede
+    saber el orden y no se marca. Devuelve None si la estrategia no tiene TP1.
+    favor_pts = maximo a favor alcanzado antes de proteger."""
+    if tp1 is None:
+        return None
+    if _sl_protege(trade, sl_original):
+        return {"marcado": False, "en": None, "favor": None}  # nacio protegido: no es un movimiento
+    protegido_en = None
+    for ts, val in trade.cambios_sl:
+        if ts > trade.fecha_cierre:
+            break
+        if ts < trade.fecha_entrada or val is None or abs(val - trade.precio_entrada) > DEDAZO_MAX_DIST:
+            continue
+        if _sl_protege(trade, val):
+            protegido_en = ts
+            break
+    if protegido_en is None:
+        return {"marcado": False, "en": None, "favor": None}
+    alcanzado = tp1["alcanzado_en"]  # minuto (inicio de vela) en que llego a +TP1, o None
+    if alcanzado is not None and protegido_en >= alcanzado:
+        return {"marcado": False, "en": protegido_en, "favor": None}  # mismo minuto o despues: correcto / indeterminado
+    previas = [v for v in velas_intra if v.time < protegido_en.replace(second=0, microsecond=0)]
+    compra = trade.direccion == "buy"
+    if not previas:  # protegido dentro del primer minuto: no hay vela completa para medir
+        return {"marcado": True, "en": protegido_en, "favor": None}
+    favor = max(((v.high - trade.precio_entrada) if compra else (trade.precio_entrada - v.low)) for v in previas)
+    return {"marcado": True, "en": protegido_en, "favor": round(max(0.0, favor), 2)}
+
+
 def evaluar_sl_desprotegido(trade: Trade, velas_intra: list, sl_original) -> dict:
     """Recorre los cambios de SL (ea_sl_changes, sin dedazos) hasta el cierre.
     Desproteccion = el SL protegia la entrada y un cambio posterior lo aleja sin
@@ -815,6 +853,7 @@ def analizar_trade(mt5, simbolo: str, trade: Trade, velas_out: Optional[dict] = 
 
     tp1 = evaluar_tp1(trade, velas_intra, sl_original)
     desp = evaluar_sl_desprotegido(trade, velas_intra, sl_original)
+    be_tp1 = evaluar_be_antes_tp1(trade, velas_intra, sl_original, tp1)
 
     return ResultadoTrade(
         position_id=trade.position_id,
@@ -861,6 +900,9 @@ def analizar_trade(mt5, simbolo: str, trade: Trade, velas_out: Optional[dict] = 
         recorrido_favor_4h_puntos=str(favor_fijo[240]) if favor_fijo[240] is not None else "",
         velas_post_cierre_disponibles=len(velas_post),
         precio_fin_ventana=str(velas_post[-1].close) if velas_post else "",
+        be_antes_tp1=str(be_tp1["marcado"]) if be_tp1 else "",
+        be_antes_tp1_en=be_tp1["en"].isoformat() if be_tp1 and be_tp1["marcado"] else "",
+        be_antes_tp1_favor_pts=str(be_tp1["favor"]) if be_tp1 and be_tp1["favor"] is not None else "",
         decision_cierre_manual=decision_manual,
         pts_favor_antes_sl=str(pts_favor_antes_sl) if pts_favor_antes_sl is not None else "",
         tp1_pts=str(tp1["pts"]) if tp1 else "",
@@ -1099,6 +1141,9 @@ def resultado_a_fila(r: ResultadoTrade, trade: Trade, simbolo: str, broker: str)
         "favor_4h_puntos": num(r.recorrido_favor_4h_puntos),
         "velas_post_disponibles": r.velas_post_cierre_disponibles,
         "precio_fin_ventana": num(r.precio_fin_ventana),
+        "be_antes_tp1": booleano(r.be_antes_tp1),
+        "be_antes_tp1_en": iso(r.be_antes_tp1_en),
+        "be_antes_tp1_favor_pts": num(r.be_antes_tp1_favor_pts),
         "ventana_completa": ventana_completa,
         "decision_cierre_manual": r.decision_cierre_manual,
         "pts_favor_antes_sl": num(r.pts_favor_antes_sl),

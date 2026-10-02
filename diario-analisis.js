@@ -160,6 +160,14 @@ function _daFrase(r) {
          (r.mfe_puntos != null ? ' (máximo +' + _daNum(r.mfe_puntos, 1) + ')' : '') +
          ' y no aseguraste: volvió a la entrada sin parcial ni SL protegido.';
   }
+  // BE antes de TP1 (criterios v6): error de regla
+  if (r.be_antes_tp1) {
+    f += ' Moviste el SL a breakeven' + (r.be_antes_tp1_en ? ' a las ' + _daHora(r.be_antes_tp1_en).slice(-5) : '') +
+         (r.be_antes_tp1_favor_pts != null ? ' con +' + _daNum(r.be_antes_tp1_favor_pts, 1) + ' pts a favor' : ' nada más entrar') +
+         ', antes de llegar a tu TP1 de +' + _daNum(r.tp1_pts, 0) + ' pts: rompe la regla' +
+         (r.tipo_cierre_detallado === 'sl_breakeven' ? ' y te sacó en breakeven' : '') +
+         (r.tp1_alcanzado ? ' (después el precio sí llegó al TP1).' : '.');
+  }
   // SL desprotegido (criterios v4)
   if (r.sl_desprotegido) {
     var hh = function(iso) { return _daHora(iso).slice(-5); };
@@ -414,7 +422,7 @@ function _daHtmlSemana(semana, filasCuenta) {
        '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;min-width:520px;">' +
        '<thead><tr style="color:var(--text-muted);text-align:right;">' +
        '<th style="text-align:left;font-weight:400;padding:.3rem 0;">Estrategia</th><th style="font-weight:400;">Trades</th><th style="font-weight:400;">P&amp;L</th>' +
-       '<th style="font-weight:400;">A mano</th><th style="font-weight:400;">Bien</th><th style="font-weight:400;">Mixto</th><th style="font-weight:400;">Pronto</th><th style="font-weight:400;">Correcto</th><th style="font-weight:400;">TP1 no aseg.</th><th style="font-weight:400;">SL desprot.</th></tr></thead><tbody>';
+       '<th style="font-weight:400;">A mano</th><th style="font-weight:400;">Bien</th><th style="font-weight:400;">Mixto</th><th style="font-weight:400;">Pronto</th><th style="font-weight:400;">Correcto</th><th style="font-weight:400;">TP1 no aseg.</th><th style="font-weight:400;">SL desprot.</th><th style="font-weight:400;">BE antes TP1</th></tr></thead><tbody>';
   DA_ESTRATEGIAS.forEach(function(e) {
     var g = semana.filter(function(r) { return (r.estrategia || null) === e; });
     if (!g.length) return;
@@ -430,7 +438,8 @@ function _daHtmlSemana(semana, filasCuenta) {
          '<td>' + (g.some(function(r) { return r.tp1_pts != null; })
                    ? g.filter(function(r) { return r.tp1_no_asegurado; }).length + ' de ' + g.filter(function(r) { return r.tp1_alcanzado; }).length
                    : '—') + '</td>' +
-         '<td>' + g.filter(function(r) { return r.sl_desprotegido; }).length + '</td></tr>';
+         '<td>' + g.filter(function(r) { return r.sl_desprotegido; }).length + '</td>' +
+         '<td>' + (g.some(function(r) { return r.be_antes_tp1 != null; }) ? g.filter(function(r) { return r.be_antes_tp1; }).length : '—') + '</td></tr>';
   });
   h += '</tbody></table></div></div>';
 
@@ -444,16 +453,34 @@ function _daHtmlTp1(filas) {
   var ev = filas.filter(function(r) { return r.tp1_pts != null; });
   var alc = ev.filter(function(r) { return r.tp1_alcanzado; });
   var na = alc.filter(function(r) { return r.tp1_no_asegurado; });
-  var h = '<div class="cell"><div class="tag" style="display:block;margin-bottom:1rem;">TP1 no asegurado · ' + na.length + '</div>';
+  var h = '<div class="cell"><div class="tag" style="display:block;margin-bottom:1rem;">Reglas del TP1</div>';
   if (!ev.length) return h + '<div style="font-size:13px;color:var(--text-muted);">Sin trades con TP1 definido (estructura / rechazo_rsi).</div></div>';
-  h += _daLineaConteo('Llegaron a TP1', alc.length, ev.length, 'var(--gold)') +
+  var sub = function(txt) { return '<div style="font-size:12px;color:var(--text-muted);margin-top:.3rem;">' + txt + '</div>'; };
+
+  h += '<div style="font-size:13px;color:var(--text-dim);margin-bottom:.6rem;">TP1 no asegurado · <span style="color:var(--red);">' + na.length + '</span></div>' +
+       _daLineaConteo('Llegaron a TP1', alc.length, ev.length, 'var(--gold)') +
        _daLineaConteo('…y volvieron sin asegurar', na.length, alc.length, 'var(--red)');
   ['estructura', 'rechazo_rsi'].forEach(function(e) {
     var g = alc.filter(function(r) { return r.estrategia === e; });
     if (!g.length) return;
-    h += '<div style="font-size:12px;color:var(--text-muted);margin-top:.3rem;">' + e + ' (TP1 +' + _daNum(g[0].tp1_pts, 0) + '): ' +
-         g.filter(function(r) { return r.tp1_no_asegurado; }).length + ' de ' + g.length + ' sin asegurar</div>';
+    h += sub(e + ' (TP1 +' + _daNum(g[0].tp1_pts, 0) + '): ' + g.filter(function(r) { return r.tp1_no_asegurado; }).length + ' de ' + g.length + ' sin asegurar');
   });
+
+  // BE antes de TP1 (criterios v6). Filas sin el dato (antes de recalcular) no cuentan.
+  var evBe = ev.filter(function(r) { return r.be_antes_tp1 != null; });
+  if (evBe.length) {
+    var be = evBe.filter(function(r) { return r.be_antes_tp1; });
+    h += '<div style="font-size:13px;color:var(--text-dim);margin:1.1rem 0 .6rem;">BE antes de TP1 · <span style="color:var(--red);">' + be.length + '</span></div>' +
+         _daLineaConteo('Moviste a BE antes de llegar a TP1', be.length, evBe.length, 'var(--red)') +
+         _daLineaConteo('…y te sacó en breakeven', be.filter(function(r) { return r.tipo_cierre_detallado === 'sl_breakeven'; }).length, be.length, 'var(--text-muted)');
+    var luego = be.filter(function(r) { return r.tp1_alcanzado; }).length;
+    if (be.length) h += sub('En ' + luego + ' de ' + be.length + ' el precio llegó después al TP1 durante el trade');
+    ['estructura', 'rechazo_rsi'].forEach(function(e) {
+      var g = evBe.filter(function(r) { return r.estrategia === e; });
+      if (!g.length) return;
+      h += sub(e + ': ' + g.filter(function(r) { return r.be_antes_tp1; }).length + ' de ' + g.length);
+    });
+  }
   return h + '</div>';
 }
 
@@ -558,6 +585,7 @@ function _daErrores(r) {
   var e = [];
   if (r.tp1_no_asegurado) e.push({ txt: 'TP1 no asegurado', color: 'var(--red)' });
   if (r.sl_desprotegido)  e.push({ txt: 'SL desprotegido', color: 'var(--red)' });
+  if (r.be_antes_tp1)     e.push({ txt: 'BE antes de TP1', color: 'var(--red)' });
   if (r._vueltaA || r._vueltaDe) e.push({ txt: 'Vuelta', color: DA_NARANJA });
   return e;
 }
