@@ -52,7 +52,7 @@ async function _activarSesion(email) {
   el = document.getElementById('hist-global-pnl');    if (el) el.textContent = '+0$';
 
   const packMap  = { umbral:'Pack Umbral', raiz:'Pack RaÃ­z', senda:'Pack Senda', cima:'Pack Cima', demo:'Pack Demo' };
-  const animalMap = { umbral:'ðŸ', raiz:'ðŸŒ±', senda:'ðŸ¦…', cima:'ðŸ¦', demo:'ðŸ‚' };
+  const animalMap = { umbral:'🐝', raiz:'🌱', senda:'🦅', cima:'🦁', demo:'🐂' };
 
   window.usuarioActual = usuarioActual = {
     email:      email,
