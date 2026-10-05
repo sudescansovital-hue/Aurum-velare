@@ -23,12 +23,18 @@ var _daSemana = null;         // ms del lunes 00:00 de la semana elegida
 var _daHistorico = false;     // true = "Todo el histórico" (todas las semanas juntas)
 var _daCuenta = 'global';     // 'global' | 'maestra' | 'prueba' | 'retos'
 var _daEstrategia = 'todas';  // filtro de la lista de trades
-var _daAbierto = null;        // fp desplegado
+var _daAbierto = null;        // trade desplegado: 'w:<fp>' (lista semanal) o 'd:<fp>' (panel del día)
 var _daSoloErrores = false;   // filtro "Solo con errores" de la lista de trades
+var _daMes = null;            // ms del día 1 00:00 del mes del calendario
+var _daDia = null;            // ms del día elegido en el calendario (null = ninguno)
 
 // Vuelta de posición / entradas seguidas: minutos entre el cierre de un trade
 // y la apertura del siguiente en la misma cuenta. Cambiar aquí.
 var DA_MINUTOS_SECUENCIA = 15;
+// Calendario: límite de pérdida diaria por cuenta ($, P&L realizado acumulado
+// en el día) y nº de vueltas a partir del cual se marca el día. Cambiar aquí.
+var DA_LIMITE_PERDIDA_DIA = 500;
+var DA_VUELTAS_AVISO = 3;
 var DA_NARANJA = '#E8873A';
 
 var DA_MS_DIA = 86400000;
@@ -243,6 +249,7 @@ async function _daCargar() {
   _daDatos = r.data;
   _daMarcarSecuencias(_daDatos);
   if (_daDatos.length && _daSemana == null) _daSemana = _daLunes(_daDatos[0].fecha_cierre);
+  if (_daDatos.length && _daMes == null) _daMes = _daMesDe(_daDatos[0].fecha_cierre);
 }
 
 async function buildDiarioAnalisis() {
@@ -269,7 +276,15 @@ function _daEstilos() {
   var s = document.createElement('style');
   s.id = 'da-estilos';
   s.textContent = '.da-rejilla{display:flex;flex-wrap:wrap;gap:1px;background:var(--border);}' +
-                  '.da-rejilla>*{flex:1 1 var(--da-base);min-width:0;box-sizing:border-box;}';
+                  '.da-rejilla>*{flex:1 1 var(--da-base);min-width:0;box-sizing:border-box;}' +
+                  // Calendario: 7 columnas iguales que se estrechan en móvil sin desbordar.
+                  '.da-cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:1px;background:var(--border);border:1px solid var(--border);}' +
+                  '.da-cal>div{background:var(--bg2);min-height:68px;padding:.35rem .45rem;box-sizing:border-box;min-width:0;overflow:hidden;}' +
+                  '.da-cal .da-cal-cab{min-height:0;padding:.35rem 0;text-align:center;font-size:11px;color:var(--text-muted);letter-spacing:.08em;}' +
+                  '.da-cal .da-cal-dia{cursor:pointer;display:flex;flex-direction:column;gap:.15rem;}' +
+                  '.da-cal .da-cal-dia:hover{box-shadow:inset 0 0 0 1px var(--gold-dim);}' +
+                  '.da-cal-txt{font-size:11px;color:var(--text-muted);white-space:nowrap;}' +
+                  '@media (max-width:600px){.da-cal>div{min-height:54px;padding:.25rem;}.da-cal-largo{display:none;}}';
   document.head.appendChild(s);
 }
 
@@ -292,16 +307,7 @@ function _daPintar() {
       '<button class="tab" style="padding:.3rem .7rem;" onclick="_daMoverSemana(1)" aria-label="Semana siguiente">›</button>';
 
   var html = '';
-  html += '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;margin:1.5rem 0 1rem;">' +
-            '<div class="tag" style="display:block;">Análisis de tus trades · EA</div>' +
-            '<div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;">' +
-              selector +
-              '<span style="display:flex;margin-left:.4rem;">' +
-                _daChip('Semana', !_daHistorico, '_daVerHistorico(false)') +
-                _daChip('Todo el histórico', _daHistorico, '_daVerHistorico(true)') +
-              '</span>' +
-            '</div>' +
-          '</div>';
+  html += '<div class="tag" style="display:block;margin:1.5rem 0 1rem;">Análisis de tus trades · EA</div>';
   html += '<div style="display:flex;flex-wrap:wrap;gap:0;border-bottom:1px solid var(--border);margin-bottom:1.5rem;">' +
             _daChip('Global', _daCuenta === 'global', "_daElegirCuenta('global')") +
             DA_PESTANAS.filter(function(p) { return _daNumeroPestana(p.clave); }).map(function(p) {
@@ -311,11 +317,23 @@ function _daPintar() {
             }).join('') +
           '</div>';
 
+  html += _daHtmlCalendario(filas);
+
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;margin:2rem 0 1rem;">' +
+            '<div class="tag" style="display:block;">' + (_daHistorico ? 'Todo el histórico' : 'Tu semana') + '</div>' +
+            '<div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;">' +
+              selector +
+              '<span style="display:flex;margin-left:.4rem;">' +
+                _daChip('Semana', !_daHistorico, '_daVerHistorico(false)') +
+                _daChip('Todo el histórico', _daHistorico, '_daVerHistorico(true)') +
+              '</span>' +
+            '</div>' +
+          '</div>';
   html += _daHtmlSemana(periodo, filas);
   html += _daHistorico
     ? '<div class="cell" style="margin-bottom:2rem;color:var(--text-muted);font-size:14px;">La lista de trades va por semanas: ' +
       '<span style="color:var(--gold);cursor:pointer;" onclick="_daVerHistorico(false)">vuelve a Semana</span> y elige una con las flechas.</div>'
-    : _daHtmlTrades(semana);
+    : _daHtmlTrades(semana, 'Trades de la semana', 'w', true);
   cont.innerHTML = html;
   _daPintarEvolucion(filas);
   if (_daAbierto) _daAbrirDetalle(_daAbierto);
@@ -561,6 +579,227 @@ function _daPintarEvolucion(filasCuenta) {
   });
 }
 
+// ── Calendario mensual ───────────────────────────────────────────────────
+// Encima de la vista semanal y con la misma pestaña de cuenta. Cada trade va
+// al día de su cierre (hora de servidor MT5, getUTC*). P&L de trades
+// (AURUM_TRADES), como en el resto del Diario.
+
+function _daDiaMs(iso) {
+  var d = _daFecha(iso);
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+}
+
+function _daMesDe(iso) {
+  var d = _daFecha(iso);
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1);
+}
+
+function _daFmtD(v) { return (v >= 0 ? '+' : '−') + _daNum(Math.abs(v), 0) + ' $'; }
+
+// P&L corto para las celdas: +553 / −1,2k
+function _daFmtCorto(v) {
+  var a = Math.abs(v);
+  return (v >= 0 ? '+' : '−') + (a >= 1000 ? _daNum(a / 1000, 1) + 'k' : _daNum(a, 0));
+}
+
+// Resumen de un día (filas de ese día, cualquier orden). El límite se mide por
+// cuenta: P&L acumulado del día, trade a trade por hora de cierre; se rompe en
+// el primer trade que lo deja en −DA_LIMITE_PERDIDA_DIA o peor.
+function _daResumenDia(filasDia, porFp) {
+  var lista = filasDia.slice().sort(function(a, b) { return _daFecha(a.fecha_cierre) - _daFecha(b.fecha_cierre); });
+  var res = { lista: lista, pnl: 0, conPnl: 0, gan: 0, rotos: [], vueltas: 0 };
+  var acum = {}, roto = {};
+  lista.forEach(function(r) {
+    if (r._vueltaA) res.vueltas++;
+    var t = porFp[r.fp];
+    if (!t || t.beneficio == null) return;
+    var b = parseFloat(t.beneficio), c = String(r.cuenta_numero);
+    res.pnl += b; res.conPnl++; if (b > 0) res.gan++;
+    acum[c] = (acum[c] || 0) + b;
+    if (roto[c]) { roto[c].despues++; roto[c].pnlDespues += b; }
+    else if (acum[c] <= -DA_LIMITE_PERDIDA_DIA) {
+      roto[c] = { r: r, cuenta: c, acum: acum[c], despues: 0, pnlDespues: 0 };
+      res.rotos.push(roto[c]);
+    }
+  });
+  return res;
+}
+
+function _daMoverMes(delta) {
+  var d = new Date(_daMes);
+  _daMes = Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + delta, 1);
+  _daDia = null;
+  if (_daAbierto && _daAbierto.indexOf('d:') === 0) _daAbierto = null;
+  _daPintar();
+}
+
+function _daElegirDia(ms) {
+  _daDia = _daDia === ms ? null : ms;
+  if (_daAbierto && _daAbierto.indexOf('d:') === 0) _daAbierto = null;
+  _daPintar();
+}
+
+function _daHtmlCalendario(filas) {
+  if (_daMes == null) return '';
+  var porFp = _daTradesPorFp();
+  var d0 = new Date(_daMes), y = d0.getUTCFullYear(), m = d0.getUTCMonth();
+  var finMes = Date.UTC(y, m + 1, 1);
+  var nDias = new Date(finMes - DA_MS_DIA).getUTCDate();
+
+  var porDia = {};
+  filas.forEach(function(r) {
+    var k = _daDiaMs(r.fecha_cierre);
+    if (k >= _daMes && k < finMes) (porDia[k] = porDia[k] || []).push(r);
+  });
+  var res = {};
+  Object.keys(porDia).forEach(function(k) { res[k] = _daResumenDia(porDia[k], porFp); });
+  if (_daDia != null && (_daDia < _daMes || _daDia >= finMes)) _daDia = null;
+
+  var nombreMes = new Date(_daMes).toLocaleDateString('es-ES', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+  nombreMes = nombreMes.charAt(0).toUpperCase() + nombreMes.slice(1);
+  var h = '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;margin-bottom:1rem;">' +
+            '<div class="tag" style="display:block;">Calendario</div>' +
+            '<div style="display:flex;align-items:center;gap:.6rem;">' +
+              '<button class="tab" style="padding:.3rem .7rem;" onclick="_daMoverMes(-1)" aria-label="Mes anterior">‹</button>' +
+              '<span style="font-size:14px;color:var(--gold-bright);min-width:150px;text-align:center;">' + _daEsc(nombreMes) + '</span>' +
+              '<button class="tab" style="padding:.3rem .7rem;" onclick="_daMoverMes(1)" aria-label="Mes siguiente">›</button>' +
+            '</div>' +
+          '</div>';
+
+  h += '<div class="da-cal">';
+  ['L', 'M', 'X', 'J', 'V', 'S', 'D'].forEach(function(d) { h += '<div class="da-cal-cab">' + d + '</div>'; });
+  var hueco = (new Date(_daMes).getUTCDay() + 6) % 7;
+  for (var i = 0; i < hueco; i++) h += '<div></div>';
+  for (var dia = 1; dia <= nDias; dia++) {
+    var k = Date.UTC(y, m, dia), rd = res[k];
+    var estilo = '', sombras = [];
+    if (rd && rd.conPnl) {
+      // Intensidad: proporcional al importe, saturada en el límite diario.
+      var a = 0.1 + 0.5 * Math.min(1, Math.abs(rd.pnl) / DA_LIMITE_PERDIDA_DIA);
+      estilo = 'background:linear-gradient(' + (rd.pnl >= 0 ? 'rgba(58,170,106,' : 'rgba(204,68,51,') + a.toFixed(2) + '),' +
+               (rd.pnl >= 0 ? 'rgba(58,170,106,' : 'rgba(204,68,51,') + a.toFixed(2) + ')),var(--bg2);';
+    }
+    if (rd && rd.rotos.length) sombras.push('inset 0 3px 0 #CC4433');
+    if (_daDia === k) sombras.push('inset 0 0 0 2px var(--gold)');
+    if (sombras.length) estilo += 'box-shadow:' + sombras.join(',') + ';';
+    var marcas = '';
+    if (rd && rd.rotos.length) marcas += '<span class="da-cal-largo" title="Límite de pérdida diaria superado" style="color:#FF6B5A;font-size:10px;font-weight:600;">LÍM</span>';
+    if (rd && rd.vueltas >= DA_VUELTAS_AVISO) marcas += '<span title="' + rd.vueltas + ' vueltas" style="color:' + DA_NARANJA + ';font-size:10px;font-weight:600;">↺' + rd.vueltas + '</span>';
+    h += '<div class="da-cal-dia" style="' + estilo + '" onclick="_daElegirDia(' + k + ')" role="button" aria-label="' + dia + '">' +
+           '<div style="display:flex;justify-content:space-between;gap:.2rem;align-items:baseline;">' +
+             '<span style="font-size:12px;color:' + (rd ? 'var(--text)' : 'var(--text-muted)') + ';">' + dia + '</span>' +
+             '<span style="display:flex;gap:.25rem;">' + marcas + '</span></div>' +
+           (rd
+             ? '<span class="da-cal-txt">' + rd.lista.length + '<span class="da-cal-largo"> trade' + (rd.lista.length === 1 ? '' : 's') + '</span></span>' +
+               '<span style="font-size:12px;font-weight:600;white-space:nowrap;color:' + (!rd.conPnl ? 'var(--text-muted)' : rd.pnl >= 0 ? '#7FD6A0' : '#FF8A7A') + ';">' +
+                 (rd.conPnl ? _daFmtCorto(rd.pnl) : '—') + '</span>'
+             : '') +
+         '</div>';
+  }
+  var resto = (7 - (hueco + nDias) % 7) % 7;
+  for (var j = 0; j < resto; j++) h += '<div></div>';
+  h += '</div>';
+  h += '<div style="display:flex;flex-wrap:wrap;gap:.4rem 1.2rem;font-size:12px;color:var(--text-muted);margin:.5rem 0 1px;">' +
+         '<span>Color: P&amp;L del día (más intenso cuanto mayor, tope ' + _daNum(DA_LIMITE_PERDIDA_DIA, 0) + ' $)</span>' +
+         '<span><span style="color:#FF6B5A;font-weight:600;">LÍM</span> / barra roja arriba: límite de pérdida diaria (' + _daNum(DA_LIMITE_PERDIDA_DIA, 0) + ' $ por cuenta) superado</span>' +
+         '<span><span style="color:' + DA_NARANJA + ';font-weight:600;">↺</span> ' + DA_VUELTAS_AVISO + ' o más vueltas</span>' +
+       '</div>';
+
+  h += _daHtmlResumenMes(res);
+  if (_daDia != null) h += _daHtmlPanelDia(res[_daDia] || null);
+  return h;
+}
+
+function _daHtmlResumenMes(res) {
+  var dias = Object.keys(res).map(function(k) { return { k: +k, r: res[k] }; }).filter(function(d) { return d.r.conPnl; });
+  var fecha = function(ms) { return new Date(ms).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', timeZone: 'UTC' }); };
+  var nTrades = Object.keys(res).reduce(function(s, k) { return s + res[k].lista.length; }, 0);
+  if (!nTrades) {
+    return '<div class="cell" style="margin-top:.8rem;color:var(--text-muted);font-size:14px;">Sin trades de la EA cerrados este mes' +
+           (_daCuenta === 'global' ? '' : ' en esta cuenta') + '.</div>';
+  }
+  var pnl = dias.reduce(function(s, d) { return s + d.r.pnl; }, 0);
+  var verdes = dias.filter(function(d) { return d.r.pnl > 0; }).length;
+  var rojos = dias.filter(function(d) { return d.r.pnl < 0; }).length;
+  var orden = dias.slice().sort(function(a, b) { return b.r.pnl - a.r.pnl; });
+  var mejor = orden[0], peor = orden[orden.length - 1];
+  var rotos = Object.keys(res).filter(function(k) { return res[k].rotos.length; }).length;
+  var conVueltas = Object.keys(res).filter(function(k) { return res[k].vueltas >= DA_VUELTAS_AVISO; }).length;
+  return '<div class="da-rejilla" style="--da-base:max(140px, calc(16.666% - 1px));margin-top:.8rem;">' +
+    _daStat('P&amp;L del mes', dias.length ? _daFmtD(pnl) : '—', nTrades + ' trades', pnl >= 0 ? 'green' : 'red') +
+    _daStat('Días verdes', verdes, 'de ' + dias.length + ' con trades', 'green') +
+    _daStat('Días rojos', rojos, 'de ' + dias.length + ' con trades', 'red') +
+    _daStat('Mejor día', mejor && mejor.r.pnl > 0 ? _daFmtD(mejor.r.pnl) : '—', mejor && mejor.r.pnl > 0 ? fecha(mejor.k) : 'sin días verdes', 'green') +
+    _daStat('Peor día', peor && peor.r.pnl < 0 ? _daFmtD(peor.r.pnl) : '—', peor && peor.r.pnl < 0 ? fecha(peor.k) : 'sin días rojos', 'red') +
+    _daStat('Límite roto', rotos, (rotos === 1 ? 'día' : 'días') + (conVueltas ? ' · ' + conVueltas + ' con ' + DA_VUELTAS_AVISO + '+ vueltas' : ''), rotos ? 'red' : 'white') +
+  '</div>';
+}
+
+function _daHtmlPanelDia(rd) {
+  var fecha = new Date(_daDia).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+  fecha = fecha.charAt(0).toUpperCase() + fecha.slice(1);
+  var h = '<div style="border:1px solid var(--border-gold);margin-top:1rem;">' +
+          '<div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:.8rem 1.2rem;border-bottom:1px solid var(--border);">' +
+            '<span style="font-size:15px;color:var(--gold-bright);">' + _daEsc(fecha) + '</span>' +
+            '<button class="tab" style="padding:.2rem .7rem;" onclick="_daElegirDia(' + _daDia + ')" aria-label="Cerrar el día">✕</button>' +
+          '</div>';
+  if (!rd) {
+    return h + '<div style="padding:1rem 1.2rem;font-size:14px;color:var(--text-muted);">Sin trades de la EA cerrados este día' +
+           (_daCuenta === 'global' ? '' : ' en esta cuenta') + '.</div></div>';
+  }
+  h += '<div style="padding:1rem 1.2rem;"><div class="tag" style="display:block;margin-bottom:.6rem;">Análisis del día</div>' +
+       '<div style="font-size:15px;color:var(--text);line-height:1.7;">' + _daEsc(_daAnalisisDia(rd)) + '</div></div>';
+  h += '<div style="padding:0 1.2rem;">' + _daHtmlTrades(rd.lista, 'Trades del día', 'd', false) + '</div>';
+  return h + '</div>';
+}
+
+// "Análisis del día" por reglas (sin IA): 2–3 frases con lo que hay.
+function _daAnalisisDia(rd) {
+  var n = rd.lista.length, frases = [];
+  var plural = function(k, uno, varios) { return k + ' ' + (k === 1 ? uno : varios); };
+  var hora = function(r) { return _daHora(r.fecha_cierre).slice(-5); };
+
+  // 1. Volumen, resultado, vueltas y entradas seguidas
+  var f1 = 'Cerraste ' + plural(n, 'trade', 'trades') +
+           (rd.conPnl ? ' con ' + _daFmtD(rd.pnl) + ' (' + plural(rd.gan, 'ganador', 'ganadores') + ')' : '');
+  var seg = rd.lista.filter(function(r) { return r._seguida; }).length;
+  var extra = [];
+  if (rd.vueltas) extra.push(plural(rd.vueltas, 'vuelta de posición', 'vueltas de posición'));
+  if (seg) extra.push(plural(seg, 'entrada seguida', 'entradas seguidas') + ' (menos de ' + DA_MINUTOS_SECUENCIA + ' min tras cerrar el anterior)');
+  frases.push(f1 + (extra.length ? ', con ' + extra.join(' y ') : (n > 1 ? ', sin entradas seguidas' : '')) + '.');
+
+  // 2. Errores de regla y límite de pérdida diaria
+  var tipos = [['TP1 no asegurado', 'tp1_no_asegurado'], ['SL desprotegido', 'sl_desprotegido'], ['BE antes de TP1', 'be_antes_tp1']];
+  var conErr = rd.lista.filter(function(r) { return r.tp1_no_asegurado || r.sl_desprotegido || r.be_antes_tp1; }).length;
+  var det = tipos.map(function(t) {
+    var k = rd.lista.filter(function(r) { return r[t[1]]; }).length;
+    return k ? t[0] + (k > 1 ? ' ×' + k : '') : null;
+  }).filter(Boolean);
+  var f2 = conErr ? plural(conErr, 'trade', 'trades') + ' con error de regla (' + det.join(', ') + ')' : 'Sin errores de regla';
+  rd.rotos.forEach(function(x, i) {
+    f2 += (i === 0 ? '; superaste el límite de pérdida diaria de ' + _daNum(DA_LIMITE_PERDIDA_DIA, 0) + ' $' : '; también')  +
+          (_daCuenta === 'global' ? ' en ' + _daNombreCuenta(x.cuenta) : '') +
+          ' con el trade cerrado a las ' + hora(x.r) + ' (acumulado ' + _daFmtD(x.acum) + ')' +
+          (x.despues ? ' y después hiciste ' + plural(x.despues, 'trade más', 'trades más') + ' (' + _daFmtD(x.pnlDespues) + ')' : ' y paraste ahí');
+  });
+  frases.push(f2 + '.');
+
+  // 3. Con espera vs seguidas (solo si hay de los dos)
+  var porFp = _daTradesPorFp();
+  var grupo = function(g) {
+    var con = g.filter(function(r) { var t = porFp[r.fp]; return t && t.beneficio != null; });
+    return con.length ? { n: con.length, medio: con.reduce(function(s, r) { return s + parseFloat(porFp[r.fp].beneficio); }, 0) / con.length } : null;
+  };
+  var gs = grupo(rd.lista.filter(function(r) { return r._seguida; }));
+  var ge = grupo(rd.lista.filter(function(r) { return r._gapMin != null && !r._seguida; }));
+  if (gs && ge) {
+    frases.push('Tras esperar al menos ' + DA_MINUTOS_SECUENCIA + ' min: ' + plural(ge.n, 'trade', 'trades') + ', ' + _daFmtD(ge.medio) +
+                ' de media; seguidas: ' + plural(gs.n, 'trade', 'trades') + ', ' + _daFmtD(gs.medio) + ' de media' +
+                (gs.medio < ge.medio ? ' — esperar te fue mejor.' : gs.medio > ge.medio ? ' — las seguidas te fueron mejor.' : '.'));
+  }
+  return frases.join(' ');
+}
+
 // ── B) Lista de trades ───────────────────────────────────────────────────
 
 // Insignia del veredicto de cierre: neutra y discreta, "Cierre: …", porque solo
@@ -711,15 +950,19 @@ function _daHtmlSecuencias(filas, porFp) {
   return h + '</div>';
 }
 
-function _daHtmlTrades(semana) {
-  var lista = semana.filter(function(r) {
-    return (_daEstrategia === 'todas' || (r.estrategia || 'sin_clasificar') === _daEstrategia) &&
-           (!_daSoloErrores || _daErrores(r).length);
+// Lista de trades. pref distingue dónde se pinta ('w' = semana, 'd' = panel del
+// día del calendario) para que un mismo trade en los dos sitios no repita ids.
+// conFiltros: chips de estrategia / "Solo con errores" (solo en la semana).
+function _daHtmlTrades(filas, titulo, pref, conFiltros) {
+  var lista = filas.filter(function(r) {
+    return !conFiltros || ((_daEstrategia === 'todas' || (r.estrategia || 'sin_clasificar') === _daEstrategia) &&
+                           (!_daSoloErrores || _daErrores(r).length));
   }).sort(function(a, b) { return _daFecha(b.fecha_cierre) - _daFecha(a.fecha_cierre); });
   var porFp = _daTradesPorFp();
 
   var h = '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.8rem;margin-bottom:.8rem;">' +
-            '<div class="tag" style="display:block;">Trades de la semana · ' + lista.length + '</div>' +
+            '<div class="tag" style="display:block;">' + titulo + ' · ' + lista.length + '</div>' +
+            (!conFiltros ? '' :
             '<div style="display:flex;flex-wrap:wrap;">' +
               _daChip('Todas', _daEstrategia === 'todas', "_daElegirEstrategia('todas')") +
               _daChip('rechazo_rsi', _daEstrategia === 'rechazo_rsi', "_daElegirEstrategia('rechazo_rsi')") +
@@ -729,7 +972,7 @@ function _daHtmlTrades(semana) {
               '<button class="tab' + (_daSoloErrores ? ' active' : '') + '" style="padding:.45rem .9rem;font-size:12px;' +
                 (_daSoloErrores ? 'color:var(--red);border-bottom-color:var(--red);' : '') + '" ' +
                 'onclick="_daSoloErrores=!_daSoloErrores;_daAbierto=null;_daPintar();">Solo con errores</button>' +
-            '</div></div>';
+            '</div>') + '</div>';
   if (!lista.length) return h + '<div class="cell" style="color:var(--text-muted);font-size:14px;margin-bottom:1.5rem;">Sin trades con este filtro.</div>';
 
   h += '<div style="display:flex;flex-direction:column;gap:1px;background:var(--border);margin-bottom:2rem;">';
@@ -737,10 +980,11 @@ function _daHtmlTrades(semana) {
     var t = porFp[r.fp];
     var ben = t && t.beneficio != null ? parseFloat(t.beneficio) : null;
     var conError = _daErrores(r).length > 0;
+    var clave = _daEsc(pref + ':' + r.fp);
     h += '<div style="background:var(--bg2);' + (conError ? 'box-shadow:inset 3px 0 0 #CC4433B3;' : '') + '">' +
            // Flex con wrap: en pantallas estrechas las insignias y el P&L bajan a
            // una segunda línea (alineadas a la derecha) en vez de aplastar el texto.
-           '<div onclick="_daToggle(\'' + _daEsc(r.fp) + '\')" style="display:flex;flex-wrap:wrap;gap:.5rem 1rem;align-items:center;padding:.8rem 1.2rem;cursor:pointer;">' +
+           '<div onclick="_daToggle(\'' + clave + '\')" style="display:flex;flex-wrap:wrap;gap:.5rem 1rem;align-items:center;padding:.8rem 1.2rem;cursor:pointer;">' +
              '<span style="font-size:13px;color:var(--gold-dim);flex:0 0 88px;">' + _daHora(r.fecha_cierre) + '</span>' +
              '<span style="font-size:14px;color:var(--text-dim);flex:1 1 180px;min-width:0;">' + (r.direccion === 'buy' ? 'Compra' : 'Venta') + ' · ' + _daEsc(_daNombreCuenta(r.cuenta_numero)) +
                ' <span style="color:var(--text-muted);font-size:12px;">· ' + _daEsc(r.estrategia || 'sin clasificar') + '</span></span>' +
@@ -750,30 +994,32 @@ function _daHtmlTrades(semana) {
                  (ben == null ? '—' : (ben >= 0 ? '+' : '') + _daNum(ben, 2) + '$') + '</span>' +
              '</span>' +
            '</div>' +
-           '<div id="da-det-' + _daEsc(r.fp) + '" style="display:none;padding:0 1.2rem 1.2rem;"></div>' +
+           '<div id="da-det-' + clave + '" style="display:none;padding:0 1.2rem 1.2rem;"></div>' +
          '</div>';
   });
   return h + '</div>';
 }
 
-function _daToggle(fp) {
-  if (_daAbierto && _daAbierto !== fp) {
+// clave = '<pref>:<fp>' (ver _daHtmlTrades)
+function _daToggle(clave) {
+  if (_daAbierto && _daAbierto !== clave) {
     var prev = document.getElementById('da-det-' + _daAbierto);
     if (prev) prev.style.display = 'none';
   }
-  if (_daAbierto === fp) {
-    document.getElementById('da-det-' + fp).style.display = 'none';
+  if (_daAbierto === clave) {
+    document.getElementById('da-det-' + clave).style.display = 'none';
     _daAbierto = null;
     return;
   }
-  _daAbierto = fp;
-  _daAbrirDetalle(fp);
+  _daAbierto = clave;
+  _daAbrirDetalle(clave);
 }
 
 // ── Detalle de un trade ──────────────────────────────────────────────────
 
-async function _daAbrirDetalle(fp) {
-  var det = document.getElementById('da-det-' + fp);
+async function _daAbrirDetalle(clave) {
+  var fp = clave.slice(clave.indexOf(':') + 1);
+  var det = document.getElementById('da-det-' + clave);
   var r = (_daDatos || []).filter(function(x) { return x.fp === fp; })[0];
   if (!det || !r) return;
   det.style.display = 'block';
@@ -785,12 +1031,12 @@ async function _daAbrirDetalle(fp) {
     supaGet('post_cierre_velas', 'usuario_email=eq.' + email + '&fp=eq.' + encodeURIComponent(fp), token),
     supaGet('trade_eventos', 'fp=eq.' + encodeURIComponent(fp) + '&order=timestamp.asc', token)
   ]);
-  if (_daAbierto !== fp) return; // se cerró mientras cargaba
+  if (_daAbierto !== clave) return; // se cerró mientras cargaba
   var velas = res[0].data && res[0].data[0];
   var eventos = res[1].data || [];
 
   var h = '<div style="font-size:15px;color:var(--text);line-height:1.7;margin:.2rem 0 1rem;">' + _daEsc(_daFrase(r)) + '</div>';
-  h += '<div id="da-graf-' + _daEsc(fp) + '" style="position:relative;background:#060810;border:1px solid var(--border);margin-bottom:.5rem;"></div>';
+  h += '<div id="da-graf-' + _daEsc(clave) + '" style="position:relative;background:#060810;border:1px solid var(--border);margin-bottom:.5rem;"></div>';
   h += '<div style="display:flex;flex-wrap:wrap;gap:1.2rem;font-size:12px;color:var(--text-muted);margin-bottom:1rem;">' +
          _daLeyenda(DA_COLOR.precio, 'Precio (cierre de vela) y rango máx–mín', false) +
          _daLeyenda(DA_COLOR.entrada, 'Entrada ' + _daNum(r.precio_entrada, 2), true) +
@@ -823,7 +1069,7 @@ async function _daAbrirDetalle(fp) {
   if (r.notas) h += '<div style="font-size:12px;color:var(--text-muted);margin-top:.8rem;">Nota del análisis: ' + _daEsc(r.notas) + '</div>';
 
   det.innerHTML = h;
-  var graf = document.getElementById('da-graf-' + fp);
+  var graf = document.getElementById('da-graf-' + clave);
   if (velas && Array.isArray(velas.velas) && velas.velas.length) _daPintarGrafico(graf, r, velas);
   else graf.innerHTML = '<div style="padding:1rem;font-size:13px;color:var(--text-muted);">Sin velas guardadas para este trade.</div>';
 }

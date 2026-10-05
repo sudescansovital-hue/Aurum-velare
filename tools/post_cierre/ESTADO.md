@@ -247,6 +247,28 @@ en este navegador, va al JSON de cada captura (`ruta_pc`, `carpeta`) y al aviso
 Reconectar, ruta tras reabrir el navegador); falta probar a mano el diálogo
 real de permiso con una carpeta de verdad.
 
+**Calendario mensual (05/10, hecho, solo front, sin SQL).** Encima de "Tu
+semana" y con la misma pestaña de cuenta. Cuadrícula lunes–domingo en hora de
+servidor; cada trade va al día de su **cierre**. Por día: nº de trades
+analizados y P&L (de `trades`), fondo verde/rojo con intensidad proporcional al
+importe (satura en el límite). Marcas: barra roja + "LÍM" si alguna cuenta
+llegó a −`DA_LIMITE_PERDIDA_DIA` (500 $, P&L realizado acumulado del día por
+cuenta, trade a trade por hora de cierre; en móvil solo la barra) y "↺N" con
+`DA_VUELTAS_AVISO` (3) o más vueltas (cuenta el día del primer trade de la
+vuelta). Al pulsar un día: panel con "Análisis del día" por reglas
+(`_daAnalisisDia`: trades/P&L/ganadores, vueltas y seguidas, errores de regla,
+trade en que se rompió el límite y lo hecho después, espera vs seguidas) y la
+lista de trades con las mismas filas/insignias (`_daHtmlTrades(..., 'd', false)`;
+los ids llevan prefijo `w:`/`d:` para no chocar con la semana). Debajo de la
+cuadrícula: P&L del mes, días verdes/rojos, mejor/peor día, días con límite
+roto (+ días con 3+ vueltas). Constantes al principio de `diario-analisis.js`.
+Verificado con los 307 trades reales (fixture en seco): septiembre Global 124
+trades, −1.762 $, 14 verdes / 8 rojos, mejor 11/09 +930, peor 10/09 −2.375,
+límite roto 5 días — idéntico a un cálculo independiente en Python. Probado en
+Chrome sin interfaz en escritorio y a 358 px.
+Ojo: los trades aún sin análisis (cerrados hace menos de una pasada de la
+tarea programada) no salen en el calendario, igual que en la semana.
+
 **Fuera de esta versión:** incubadora de estrategias e informe diario.
 
 ---
