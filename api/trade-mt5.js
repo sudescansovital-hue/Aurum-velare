@@ -37,6 +37,23 @@ async function _post(table, body, prefer) {
   return { ok: r.ok, status: r.status, body: text };
 }
 
+// Insert idempotente (fallo 2 de la EA, 05/10): on_conflict sobre el índice
+// único (cuenta_numero, position_id, timestamp, valor nuevo) de
+// sql_ea_changes_unique.sql. Si la EA reenvía un cambio que ya llegó (reintento
+// tras el timeout de WebRequest), Postgres lo ignora (DO NOTHING) en vez de
+// duplicarlo. Mismo patrón que trade_eventos en api/trade-evento.js.
+// return=representation: [] si era un duplicado, [fila] si se insertó.
+async function _insertSinDuplicar(table, onConflict, body) {
+  const h = Object.assign(_headers(), { 'Prefer': 'resolution=ignore-duplicates,return=representation' });
+  const r = await fetch(`${SUPA_URL}/rest/v1/${table}?on_conflict=${onConflict}`, {
+    method: 'POST', headers: h, body: JSON.stringify(body)
+  });
+  const text = await r.text();
+  let duplicado = false;
+  if (r.ok) { try { duplicado = JSON.parse(text).length === 0; } catch (e) { /* respuesta no JSON: se trata como insertado */ } }
+  return { ok: r.ok, status: r.status, body: text, duplicado };
+}
+
 async function _patch(table, params, body) {
   const r = await fetch(`${SUPA_URL}/rest/v1/${table}?${params}`, {
     method: 'PATCH',
@@ -146,19 +163,20 @@ async function handleSlChange(body, email, cuentaNumero) {
   }
 
   // 1. Registrar el cambio
-  const r1 = await _post('ea_sl_changes', {
+  const r1 = await _insertSinDuplicar('ea_sl_changes', 'cuenta_numero,position_id,timestamp,sl_nuevo', {
     position_id,
     usuario_email: email,
     cuenta_numero: cuentaNumero,
     sl_anterior:   sl_anterior != null ? sl_anterior : null,
     sl_nuevo,
     timestamp
-  }, 'return=minimal');
+  });
 
   if (!r1.ok) {
     console.error('[trade-mt5] sl_change INSERT error:', r1.status, r1.body);
     return { status: 500, json: { error: 'Error registrando cambio SL', detail: r1.body } };
   }
+  if (r1.duplicado) console.log('[trade-mt5] sl_change duplicado ignorado (reintento de la EA) — position_id:', position_id, '| timestamp:', timestamp);
 
   // 2. Actualizar sl_actual en ea_trades (no fatal si falla)
   const r2 = await _patch('ea_trades', `position_id=eq.${encodeURIComponent(position_id)}`, { sl_actual: sl_nuevo });
@@ -180,19 +198,20 @@ async function handleTpChange(body, email, cuentaNumero) {
   }
 
   // 1. Registrar el cambio
-  const r1 = await _post('ea_tp_changes', {
+  const r1 = await _insertSinDuplicar('ea_tp_changes', 'cuenta_numero,position_id,timestamp,tp_nuevo', {
     position_id,
     usuario_email: email,
     cuenta_numero: cuentaNumero,
     tp_anterior:   tp_anterior != null ? tp_anterior : null,
     tp_nuevo,
     timestamp
-  }, 'return=minimal');
+  });
 
   if (!r1.ok) {
     console.error('[trade-mt5] tp_change INSERT error:', r1.status, r1.body);
     return { status: 500, json: { error: 'Error registrando cambio TP', detail: r1.body } };
   }
+  if (r1.duplicado) console.log('[trade-mt5] tp_change duplicado ignorado (reintento de la EA) — position_id:', position_id, '| timestamp:', timestamp);
 
   // 2. Actualizar tp_actual en ea_trades (no fatal si falla)
   const r2 = await _patch('ea_trades', `position_id=eq.${encodeURIComponent(position_id)}`, { tp_actual: tp_nuevo });
