@@ -87,9 +87,56 @@ desde el 19/07; `3cad1a5` lo quitó solo para igualar con BD8B1008…, sin motiv
 funcional documentado). Resultado: **v1.04** en la rama `feature/ea-sync`.
 Frente a la EA en uso solo añade MFE/MAE + el guard. Copias de seguridad en
 `BD8B1008…\MQL5\Experts\EA_Aurum_Tracker_FIX.{mq5,ex5}.bak_20261005_pre_ea_sync`.
-**Pendiente:** compilar en BD8B1008… solo sin posiciones abiertas y comprobar
-en el log que arranca bien, que la sincronización no duplica eventos y que
-`aurum_cola_<cuenta>.txt` no acumula errores. D0E8209F… y 4264CCB9… no se tocan.
+D0E8209F… y 4264CCB9… no se tocan.
+
+### Despliegue de la 1.04 en BD8B1008… (05/10, 23:27:31) — HECHO
+
+Durante la pausa diaria del mercado (último tick 22:59:59 hora de servidor,
+confirmado en MT5 en solo lectura), con UNA posición abierta en 178497
+(23847966, venta 0,2, SL 4155,5, TP 4017).
+
+**Cómo se hizo (y cómo NO):**
+- 1.er intento, 23:11: copia del `.mq5` 1.04 a `MQL5\Experts` + compilación por
+  línea de comandos (`metaeditor64.exe /compile:…`): 0 errores, pero **MT5 no
+  recargó la EA del gráfico** (no apareció `aurum_abiertas_178497.txt`); se
+  restauró la copia de seguridad. **Compilar desde línea de comandos no avisa al
+  terminal: no usarlo para desplegar.** (Al restaurar, MT5 sí recargó la 1.02 a
+  las 23:21 y 23:22; luego el `.ex5` desapareció de la carpeta antes del 2.º
+  intento, sin causa clara — el F7 lo regeneró.)
+- 2.º intento (el bueno): copia del `.mq5` 1.04 (rama `feature/ea-sync`, línea 7
+  `version "1.04"`) a `BD8B1008…\MQL5\Experts` **sin compilar**, y el usuario
+  compiló con **F7 desde MetaEditor abierto desde MT5** (0 errores): MT5 recargó
+  la EA del gráfico XAUUSD H4 con sus mismos inputs (`removed` / `loaded
+  successfully` 23:27:31).
+- Copias de seguridad de la 1.02 siguen en
+  `EA_Aurum_Tracker_FIX.{mq5,ex5}.bak_20261005_pre_ea_sync`.
+
+**Comprobaciones (log de la EA y del terminal, Common\Files, Supabase):**
+- Arranque: `23:27:32 EA_Aurum_Tracker iniciado · Cuenta 178497`, credenciales
+  del archivo local.
+- Posición abierta: `23:27:37 Posición abierta (SL=valor actual) — pos:23847966`,
+  `Posiciones abiertas sincronizadas: 1`; `aurum_abiertas_178497.txt` = `23847966`.
+- `SyncHistory48h`: **`posiciones procesadas: 7`** (la 1.02 decía siempre 1), con
+  `[AURUM RECONCILIA] (sync48h) Cierre recuperado` para los 7 trades del 05/10
+  (23827187: 2 salidas, 4147,46, motivo SL, 551,60 $).
+- Cola: `23:28:37 Procesando cola — 16` y `23:28:58 [AURUM EVENTO] … — 8`;
+  **0 errores HTTP** desde las 23:20; `aurum_cola_178497.txt` y
+  `aurum_cola_eventos_178497.txt` a 0 bytes.
+- Supabase frente a una foto previa al despliegue (7 trades cerrados desde el
+  03/10): mismos eventos (27), cambios de SL (12) y de TP (7), **0 duplicados**,
+  mismos precios de cierre y beneficios.
+
+**Pendiente (no fusionar `feature/ea-sync` en `main` hasta confirmarlo):**
+- Fallo 1: en el próximo cierre real, la línea `[AURUM] Cierre` debe llevar
+  `mfe_pts` / `mae_pts` y `ea_trades.mfe_*` / `mae_*` llegar con valor.
+- Fallo 3: en el próximo movimiento de SL, 'breakeven' solo a ±1 pt de la entrada
+  (y nunca al poner el primer SL).
+- Fallo 5: ver en el log una `[AURUM RECONCILIA] (reconexion|periodica)` real tras
+  una desconexión o suspensión.
+- Prueba en producción del `sl_change` duplicado: sin hacer (requiere las
+  credenciales de la EA, que no se leen).
+- Para futuros despliegues de la EA: mismo procedimiento (copiar el `.mq5` y F7
+  desde MetaEditor de MT5), en la pausa o sin posiciones.
 
 ---
 
@@ -439,18 +486,18 @@ Detalle completo en `salida/resumen.md` (global + por cuenta),
 
 ## Fallos de la EA — estado al 05/10 (rama `feature/ea-sync`, EA v1.04)
 
-Análisis y arreglos del 05/10 (código en la rama; la EA aún sin compilar ni
-desplegar — solo sin posiciones abiertas; compilada en prueba fuera de los
-terminales el 05/10: 0 errores, 0 avisos). Resumen; el detalle original de
+Análisis y arreglos del 05/10. **EA 1.04 desplegada en BD8B1008… el 05/10 a las
+23:27:31** (ver "Despliegue de la 1.04" arriba); la rama aún sin fusionar en
+`main` hasta confirmar los fallos 1 y 3 con trades reales. Resumen; el detalle original de
 cada fallo sigue debajo.
 
 | # | Fallo | Causa encontrada | Arreglo | Estado |
 |---|---|---|---|---|
-| 1 | MFE/MAE nulos | (a) el código MFE/MAE (v1.03) nunca se desplegó: la EA en uso es v1.02; (b) **`handleClose` pisaba MFE/MAE con null** cada vez que `SyncHistory48h` reenviaba el `close` | (a) va en v1.04; (b) `api/trade-mt5.js`: solo escribe MFE/MAE si vienen (probado con mock) | (b) **en producción, `172a3da`**; (a) confirmar con trade real tras desplegar la EA |
-| 2 | Duplicados `ea_sl_changes` / `ea_tp_changes` | Casi todos de julio (bug de la cola, cerrado 20/07: grupos de 16–128). Desde agosto, parejas por reintento: timeout `WebRequest` de 4 s (`HTTP:1003 / error 5203` a ~4,2 s, log 29/09) con el servidor ya habiendo insertado; el endpoint hacía POST sin idempotencia | Limpieza (403 + 72 filas a `respaldo.*`), índices únicos `(cuenta_numero, position_id, timestamp, valor nuevo)`, endpoint con `on_conflict` + `ignore-duplicates` (**en producción, `9f468b7`**); EA: `TimeoutWebRequestMs` = 15 s y cada pasada de la cola se corta en el primer fallo de red (no en errores HTTP, para que un evento rechazado no bloquee la cola) | Servidor hecho; EA pendiente de desplegar. Prueba en producción del duplicado no hecha (requiere las credenciales de la EA; no se leen) |
-| 3 | 'breakeven' mal etiquetado | Umbral de 3 pts (`HandlePositionModified`) frente a 1 pt del análisis; además, poner el primer SL a < 3 pts contaba como BE. Desde el 28/08: 24 de 88 falsos (1,03–2,96 pts) | Input `BeToleranciaPts` = 1.0; primer SL (`sl_prev == 0`) nunca es BE: `sl_protegido` si protege la entrada, si no `sl_ajustado`. Simulado sobre los datos reales: 64 BE reales se quedan, 24 falsos pasan a `sl_protegido` (18) / `sl_ajustado` (6) | EA pendiente de compilar. Reetiquetar históricos en `trade_eventos`: opcional, sin decidir |
+| 1 | MFE/MAE nulos | (a) el código MFE/MAE (v1.03) nunca se desplegó: la EA en uso es v1.02; (b) **`handleClose` pisaba MFE/MAE con null** cada vez que `SyncHistory48h` reenviaba el `close` | (a) va en v1.04; (b) `api/trade-mt5.js`: solo escribe MFE/MAE si vienen (probado con mock) | (b) **en producción, `172a3da`**; (a) EA 1.04 desplegada 05/10: **pendiente de confirmar con el próximo cierre real** |
+| 2 | Duplicados `ea_sl_changes` / `ea_tp_changes` | Casi todos de julio (bug de la cola, cerrado 20/07: grupos de 16–128). Desde agosto, parejas por reintento: timeout `WebRequest` de 4 s (`HTTP:1003 / error 5203` a ~4,2 s, log 29/09) con el servidor ya habiendo insertado; el endpoint hacía POST sin idempotencia | Limpieza (403 + 72 filas a `respaldo.*`), índices únicos `(cuenta_numero, position_id, timestamp, valor nuevo)`, endpoint con `on_conflict` + `ignore-duplicates` (**en producción, `9f468b7`**); EA: `TimeoutWebRequestMs` = 15 s y cada pasada de la cola se corta en el primer fallo de red (no en errores HTTP, para que un evento rechazado no bloquee la cola) | Servidor hecho; EA 1.04 desplegada 05/10 (sync con 0 duplicados y 0 errores HTTP). Prueba en producción del duplicado no hecha (requiere las credenciales de la EA; no se leen) |
+| 3 | 'breakeven' mal etiquetado | Umbral de 3 pts (`HandlePositionModified`) frente a 1 pt del análisis; además, poner el primer SL a < 3 pts contaba como BE. Desde el 28/08: 24 de 88 falsos (1,03–2,96 pts) | Input `BeToleranciaPts` = 1.0; primer SL (`sl_prev == 0`) nunca es BE: `sl_protegido` si protege la entrada, si no `sl_ajustado`. Simulado sobre los datos reales: 64 BE reales se quedan, 24 falsos pasan a `sl_protegido` (18) / `sl_ajustado` (6) | EA 1.04 desplegada 05/10: **pendiente de confirmar con el próximo movimiento de SL**. Reetiquetar históricos en `trade_eventos`: opcional, sin decidir |
 | 4 | `cierre_tp` / `cierre_sl` | **No es un fallo de la EA.** 178497: 75/76 cierres coinciden con `DEAL_REASON` de MT5 (32 manual, 43 SL), 0 cierres por TP en MT5. Las "discrepancias" son del examen de `post_cierre.py` (SL con 1,5–2 pts de deslizamiento o `sl_actual` NULL; tolerancia 1 pt) y ya se usa el tipo de la EA. Falta 1 evento de cierre (22819382, 15/09) | Ninguno en la EA | Cerrado (falso positivo) |
-| 5 | Cierres no reconciliados | `SyncHistory48h` solo al arrancar y solo 48 h; nada al reconectar. Casos: 23827187 (PC suspendido) y **23453924** (25/09: EA quitada 17 min antes del SL, recargada 52 h 40 min después; arreglado con `sql_fix_cierre_23453924.sql` el 05/10). **Además, `SyncHistory48h` solo procesaba 1 posición por arranque** (tras `HistorySelectByPosition` los demás tickets no se pueden leer; logs: siempre "procesadas: 1") | `aurum_abiertas_<cuenta>.txt` con las posiciones vistas abiertas; `ReconciliarPosicion` (parciales + close + evento con `DEAL_REASON`, MFE/MAE null) al arrancar, al reconectar (+30 s) y cada `ReconciliarCadaMin` (15); `SyncHistory48h` reescrita (recoge primero los position_id) y usa la misma función | EA pendiente de desplegar (el arreglo 1(b) ya está en producción) |
+| 5 | Cierres no reconciliados | `SyncHistory48h` solo al arrancar y solo 48 h; nada al reconectar. Casos: 23827187 (PC suspendido) y **23453924** (25/09: EA quitada 17 min antes del SL, recargada 52 h 40 min después; arreglado con `sql_fix_cierre_23453924.sql` el 05/10). **Además, `SyncHistory48h` solo procesaba 1 posición por arranque** (tras `HistorySelectByPosition` los demás tickets no se pueden leer; logs: siempre "procesadas: 1") | `aurum_abiertas_<cuenta>.txt` con las posiciones vistas abiertas; `ReconciliarPosicion` (parciales + close + evento con `DEAL_REASON`, MFE/MAE null) al arrancar, al reconectar (+30 s) y cada `ReconciliarCadaMin` (15); `SyncHistory48h` reescrita (recoge primero los position_id) y usa la misma función | EA 1.04 desplegada 05/10: posición abierta apuntada en `aurum_abiertas_178497.txt`, `SyncHistory48h` procesó 7 (antes 1). Falta ver una reconciliación real tras reconexión |
 
 ## Fallos de la EA — detalle original (29/09)
 
