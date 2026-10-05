@@ -1,5 +1,5 @@
 ﻿// ============================================================
-// NAVEGACIÃ“N Y LOGIN PRINCIPAL â€” app.js
+// NAVEGACIÓN Y LOGIN PRINCIPAL — app.js
 // ============================================================
 
 const ADMIN_EMAIL = 'sudescansovital@gmail.com';
@@ -51,14 +51,14 @@ async function _activarSesion(email) {
   el = document.getElementById('hist-global-wr');     if (el) el.textContent = '0%';
   el = document.getElementById('hist-global-pnl');    if (el) el.textContent = '+0$';
 
-  const packMap  = { umbral:'Pack Umbral', raiz:'Pack RaÃ­z', senda:'Pack Senda', cima:'Pack Cima', demo:'Pack Demo' };
+  const packMap  = { umbral:'Pack Umbral', raiz:'Pack Raíz', senda:'Pack Senda', cima:'Pack Cima', demo:'Pack Demo' };
   const animalMap = { umbral:'🐝', raiz:'🌱', senda:'🦅', cima:'🦁', demo:'🐂' };
 
   window.usuarioActual = usuarioActual = {
     email:      email,
     nombre:     u.nombre || email.split('@')[0],
     nick:       u.nombre || email.split('@')[0],
-    animal:     animalMap[u.pack] || 'âœ¦',
+    animal:     animalMap[u.pack] || '✦',
     animalSala: u.animal || null,
     pack:       packMap[u.pack] || u.pack || 'Sin pack',
     packSlug:   u.pack || null,
@@ -96,8 +96,8 @@ async function hacerRegistro() {
   var err    = document.getElementById('registro-err');
 
   if (!email)         { err.textContent = 'Escribe tu email.'; return; }
-  if (!pass)          { err.textContent = 'Escribe una contraseÃ±a.'; return; }
-  if (pass.length < 6){ err.textContent = 'La contraseÃ±a debe tener al menos 6 caracteres.'; return; }
+  if (!pass)          { err.textContent = 'Escribe una contraseña.'; return; }
+  if (pass.length < 6){ err.textContent = 'La contraseña debe tener al menos 6 caracteres.'; return; }
   if (!nick)          { err.textContent = 'Escribe tu nick.'; return; }
   if (!animal)        { err.textContent = 'Elige tu animal.'; return; }
   err.textContent = '';
@@ -111,7 +111,7 @@ async function hacerRegistro() {
     body: JSON.stringify({ p_email: email, p_nombre: nick, p_animal: animal })
   });
 
-  // NotificaciÃ³n email al admin
+  // Notificación email al admin
   fetch('/api/notify-registro', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -120,9 +120,9 @@ async function hacerRegistro() {
 
   document.getElementById('registro-form').innerHTML =
     '<div style="text-align:center;padding:2rem 0;">' +
-      '<div style="font-size:1.4rem;color:var(--gold);margin-bottom:1rem;">âœ¦</div>' +
+      '<div style="font-size:1.4rem;color:var(--gold);margin-bottom:1rem;">✦</div>' +
       '<p style="color:var(--text1);margin-bottom:.5rem;">Revisa tu email para verificar tu cuenta.</p>' +
-      '<p style="color:var(--text2);font-size:.875rem;">Una vez verificada podrÃ¡s iniciar sesiÃ³n.</p>' +
+      '<p style="color:var(--text2);font-size:.875rem;">Una vez verificada podrás iniciar sesión.</p>' +
     '</div>';
 }
 
@@ -130,7 +130,7 @@ async function hacerLogin() {
   const email = (document.getElementById('login-email').value||'').trim().toLowerCase();
   const pass  = (document.getElementById('login-pass').value||'').trim();
   const err   = document.getElementById('login-err');
-  if (!email || !pass) { err.textContent='Completa email y contraseÃ±a.'; return; }
+  if (!email || !pass) { err.textContent='Completa email y contraseña.'; return; }
 
   const auth = await signInWithPassword(email, pass);
   if (auth.error) { err.textContent = auth.error; return; }
@@ -157,7 +157,7 @@ function _destinoLogin() {
 }
 
 async function hacerLogout() {
-  console.log('[LOGOUT] hacerLogout llamado â€” usuarioActual:', usuarioActual && usuarioActual.email, '| SESSION:', typeof SESSION !== 'undefined' ? SESSION : 'undefined');
+  console.log('[LOGOUT] hacerLogout llamado — usuarioActual:', usuarioActual && usuarioActual.email, '| SESSION:', typeof SESSION !== 'undefined' ? SESSION : 'undefined');
   await signOut();
   location.reload();
 }
@@ -204,13 +204,13 @@ function showToast(msg) {
     t.style.cssText = 'position:fixed;bottom:2rem;right:2rem;background:var(--bg2);border:1px solid var(--border-gold);padding:.8rem 1.5rem;font-size:14px;color:var(--gold-bright);z-index:200;';
     document.body.appendChild(t);
   }
-  t.textContent = 'âœ¦ ' + msg;
+  t.textContent = '✦ ' + msg;
   t.style.opacity = '1';
   clearTimeout(t._t);
   t._t = setTimeout(() => { t.style.opacity='0'; }, 3000);
 }
 
-// â”€â”€ Recovery de contraseÃ±a â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Recovery de contraseña ───────────────────────────────────
 
 var _recoveryToken = null;
 
@@ -229,8 +229,8 @@ async function hacerResetPassword() {
   const pass1 = document.getElementById('recovery-pass1').value;
   const pass2 = document.getElementById('recovery-pass2').value;
   const err   = document.getElementById('recovery-err');
-  if (!pass1 || pass1.length < 6) { err.textContent = 'MÃ­nimo 6 caracteres.'; return; }
-  if (pass1 !== pass2)            { err.textContent = 'Las contraseÃ±as no coinciden.'; return; }
+  if (!pass1 || pass1.length < 6) { err.textContent = 'Mínimo 6 caracteres.'; return; }
+  if (pass1 !== pass2)            { err.textContent = 'Las contraseñas no coinciden.'; return; }
   err.textContent = '';
 
   const r = await fetch(SUPA_URL + '/auth/v1/user', {
@@ -240,15 +240,15 @@ async function hacerResetPassword() {
   });
   if (!r.ok) {
     const e = await r.json();
-    err.textContent = e.message || 'Error al actualizar la contraseÃ±a.'; return;
+    err.textContent = e.message || 'Error al actualizar la contraseña.'; return;
   }
   _recoveryToken = null;
   document.getElementById('recovery-overlay').style.display = 'none';
-  showToast('ContraseÃ±a actualizada â€” inicia sesiÃ³n');
+  showToast('Contraseña actualizada — inicia sesión');
   abrirLogin();
 }
 
-// â”€â”€ Supabase init + dashboard loader â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Supabase init + dashboard loader ────────────────────────
 
 function initSupabase() {}
 
@@ -293,7 +293,7 @@ async function actualizarDashboard() {
   }
 }
 
-// â”€â”€ Onboarding â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Onboarding ───────────────────────────────────────────────
 
 var _animalElegido = null;
 
@@ -318,7 +318,7 @@ async function guardarOnboarding() {
   var res = await supaPatch('usuarios_aurum', 'email=eq.' + usuarioActual.email,
     { animal: _animalElegido, nombre: nick, updated_at: new Date().toISOString() }, getToken());
 
-  if (btn) { btn.textContent = 'Entrar al proceso â†’'; btn.disabled = false; }
+  if (btn) { btn.textContent = 'Entrar al proceso →'; btn.disabled = false; }
   if (res.error) {
     var msg = res.error; try { msg = JSON.parse(res.error).message || msg; } catch(e) {}
     if (err) err.textContent = 'Error: ' + msg; return;
@@ -335,7 +335,7 @@ async function guardarOnboarding() {
   irA('dashboard');
 }
 
-// â”€â”€ Init â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Init ─────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', async () => {
   window.AURUM_TRADES = null;
