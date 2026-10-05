@@ -1,6 +1,6 @@
 # Estado — análisis post-cierre: FASE 1 (examen de la EA) + FASE 2 (Diario web)
 
-> Actualizado 02/10/2026. **FASE 2 en producción** (primer deploy `cdede9a` /
+> Actualizado 05/10/2026 (post_cierre automatizado con tarea programada; fallo 5 de la EA). Antes: 02/10/2026. **FASE 2 en producción** (primer deploy `cdede9a` /
 > `aurum-velare-cw5la96zd`; el anterior a la FASE 2, para rollback, era
 > `aurum-velare-9hp3r9l3q`). Criterios de análisis hoy: **v6**. FASE 1
 > terminada el 29/09 (298 trades, en seco).
@@ -18,9 +18,10 @@ terminal local). Pedido el 02/10, sin hacer. Orden:
    la copia del repo y la que corre en los terminales están desincronizadas
    (ya anotado en `PLAN_CORAZON_DATOS.md`, 27/08). Nada de lo siguiente se
    toca antes de esto.
-2. **Arreglar sus 4 fallos conocidos** (sección "Fallos de la EA" más abajo):
+2. **Arreglar sus 5 fallos conocidos** (sección "Fallos de la EA" más abajo):
    MFE/MAE nulos, duplicados en `ea_sl_changes`/`ea_tp_changes`, 'breakeven'
-   mal etiquetado, clasificación `cierre_tp`/`cierre_sl`.
+   mal etiquetado, clasificación `cierre_tp`/`cierre_sl` y reconciliar al
+   arrancar/reconectar los cierres ocurridos con el PC o MT5 apagado (05/10).
 3. **Que la EA envíe, tras cada cierre y pasada la ventana post-cierre (4 h de
    mercado), las velas M1 del trade al endpoint** (desde la vela de entrada
    hasta el fin de la ventana; mismo formato/criterio de hora de servidor que
@@ -71,6 +72,23 @@ Se acabaron los CSV a mano. Flujo:
 
 **Rutina:** con MT5 abierto, `.venv\Scripts\python.exe post_cierre.py --subir`.
 Una pasada sin nada nuevo dice "0 pendientes · Nada que analizar".
+
+**Automatizado (05/10):** tarea programada de Windows **`\Aurum\post_cierre automatico`**
+(definición en `tarea_post_cierre.xml`). Se lanza cada hora en punto, 3 min
+después de iniciar sesión y 3 min después de volver de suspensión
+(evento 1 de Power-Troubleshooter); si el PC estaba apagado a la hora, corre en
+cuanto puede (`StartWhenAvailable`); nunca dos a la vez; límite 30 min. Acción:
+`wscript lanzar_oculto.vbs` → `auto_post_cierre.ps1` (sin ventana). El `.ps1`
+solo ejecuta `post_cierre.py --subir` si el `terminal64.exe` de
+`MT5_TERMINAL_PATH` ya está abierto; si no, apunta "MT5 cerrado" y sale sin
+abrir MT5. Log en `salida\auto.log` (rota a `auto.log.1` a partir de 2 MB).
+Los fallos de red (`WinError 10060`) ya no requieren repetir a mano: la
+siguiente hora lo vuelve a intentar. Desactivar: Programador de tareas →
+Aurum → clic derecho → Deshabilitar (o `Disable-ScheduledTask -TaskPath '\Aurum\'
+-TaskName 'post_cierre automatico'`). Volver a crearla:
+`Register-ScheduledTask -TaskPath '\Aurum\' -TaskName 'post_cierre automatico'
+-Xml (Get-Content -Raw tarea_post_cierre.xml)`. Probada el 05/10: con MT5
+abierto, código 0; con una ruta de MT5 cerrada, "no se hace nada" y no abre MT5.
 
 **Auth del endpoint:** token propio `POST_CIERRE_TOKEN` (Vercel, sensible,
 Production + Preview de la rama `feature/post-cierre`) en cabecera
@@ -336,6 +354,30 @@ antes hay que sincronizar la copia del repo con la que corre en MT5.
    6407739) y 1 `cierre_manual` que por precio es SL (23329398). Revisar
    `DEAL_REASON_*` y el desempate por precio en `HandleDealClose`.
 
+5. **Cierres perdidos con el PC suspendido / MT5 apagado (05/10)** — Caso
+   23827187 (178497, venta 1,00 @ 4147,36 a las 04:49:57; parcial 0,80 @
+   4140,44 a las 04:59, grabado): el PC se **suspendió** con MT5 cargado
+   (05:36 → 13:28), el resto 0,20 saltó por SL a las **08:06:41 @ 4147,46**
+   (`[sl 4147.00]`, −2 $; total 551,60 $) y la EA nunca lo grabó: al reconectar
+   MT5 no dispara `OnTradeTransaction` por deals ocurridos mientras estaba
+   desconectado, y la EA no se reinició, así que `SyncHistory48h` (solo en
+   `OnInit`/primer `OnTimer`) no corrió. La posición quedó `estado='open'` en
+   `ea_trades` y fuera del Diario. Completado a mano con
+   `sql_fix_cierre_23827187.sql` (ejecutar en Supabase; replica `handleClose`
+   + evento `cierre_sl`). **Arreglo en la EA:** al arrancar **y también al
+   recuperar la conexión** (transición de `TERMINAL_CONNECTED` a true, mirada en
+   `OnTimer`) **y cada X min como red de seguridad**, reconciliar: pedir a
+   Supabase (endpoint nuevo de solo lectura, p. ej. `?accion=abiertas` con las
+   credenciales de la EA) las posiciones de esa cuenta que siguen `open`, y para
+   cada una que ya no esté en `PositionSelectByTicket`, leer
+   `HistorySelectByPosition` y mandar lo que falte: `partial_close` por cada
+   deal OUT no grabado (idempotente por `deal_id`), `close` con el último deal
+   (precio, `DEAL_TIME`, beneficio = suma de deals OUT, como
+   `GetBeneficioTotalPos`) y el evento `cierre_tp`/`cierre_sl`/`cierre_manual`
+   según `DEAL_REASON`. Sin límite de 48 h (lo que diga Supabase que sigue
+   abierto). Hoy `SyncHistory48h` además manda solo el `close` y el evento
+   genérico `cierre`, sin parciales: unificar las dos rutas.
+
 Menores (no son de la EA): 5 SL y 6 TP originales con dedazo de tecleo
 (sección 4 del examen); 3 precios fuera de su vela M1 (sección 6);
 162 trades sin `estrategia` (casi todos antes del 26/08).
@@ -419,6 +461,14 @@ FASE 2 hecha (ver arriba). Pendiente:
   - Las estrategias solo existen desde el 26/08: en muestra casi todo es "sin
     clasificar". Repetir cuando haya más meses clasificados (p. ej. optimizar
     sept, validar oct–nov con `--hasta`).
+- **Mejora futura — vista "Tu día" en el Diario:** pedido el 05/10, sin hacer
+  (solo anotado).
+  - Gráfico del día completo (M5/M15) con todas las entradas y salidas marcadas.
+  - Sesgo del día calculado de forma objetiva: precio respecto a una media en
+    H1/H4 y dirección del día.
+  - Trades del día clasificados a favor o en contra del sesgo, con su resultado.
+  - Resumen del día: P&L, vueltas, errores y distancia al límite de 500 $.
+  - En el histórico: win rate y $ de los trades a favor vs en contra del sesgo.
 - **Mejora futura — vincular capturas a cada trade del Diario:** en el detalle de
   cada trade, mostrar sus capturas; el botón "Capturar pantalla" debe asociar la
   captura al trade seleccionado (por fp), y poder adjuntar una captura que ya
