@@ -361,18 +361,22 @@ async function handleClose(body, email, cuentaNumero, cuentaNombre) {
   }
 
   // 1. Cerrar en ea_trades (igual que antes)
-  const r = await _patch('ea_trades', `position_id=eq.${encodeURIComponent(position_id)}`, {
+  const cierre = {
     estado:       'closed',
     precio_cierre,
     beneficio:    beneficio_total != null ? beneficio_total : null,
-    fecha_cierre: timestamp,
-    // MFE/MAE (04/09): mismo patrón que 'beneficio' arriba — se guarda tal
-    // cual venga, null incluido (posición nunca muestreada por el EA).
-    mfe_price:    mfe_price   != null ? mfe_price   : null,
-    mfe_puntos:   mfe_puntos  != null ? mfe_puntos  : null,
-    mae_price:    mae_price   != null ? mae_price   : null,
-    mae_puntos:   mae_puntos  != null ? mae_puntos  : null
-  });
+    fecha_cierre: timestamp
+  };
+  // MFE/MAE (04/09; 05/10): solo se escriben si vienen. SyncHistory48h y la
+  // reconciliación de la EA (1.04) reenvían el 'close' de trades ya cerrados
+  // SIN MFE/MAE (no los muestrearon); antes eso pisaba con null los valores
+  // que había guardado el cierre en vivo. Un trade cerrado sin muestreo los
+  // deja en null igualmente (no se tocan).
+  if (mfe_price  != null) cierre.mfe_price  = mfe_price;
+  if (mfe_puntos != null) cierre.mfe_puntos = mfe_puntos;
+  if (mae_price  != null) cierre.mae_price  = mae_price;
+  if (mae_puntos != null) cierre.mae_puntos = mae_puntos;
+  const r = await _patch('ea_trades', `position_id=eq.${encodeURIComponent(position_id)}`, cierre);
 
   if (!r.ok) {
     console.error('[trade-mt5] close PATCH error:', r.status, r.body);
