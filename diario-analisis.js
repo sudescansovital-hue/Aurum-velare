@@ -194,6 +194,8 @@ function _daFrase(r) {
     f += ' Cerraste una parte a +' + _daNum(r.runner_parcial_pts, 1) + ' pts pero dejaste el resto sin proteger' +
          (r.runner_sl_pts != null ? ' (SL a ' + _daNum(r.runner_sl_pts, 1) + ' pts de la entrada)' : '') + '.';
   }
+  // Si la hubieras dejado correr (criterios v8): solo cierres a mano con SL al cerrar
+  if (r.dejar_correr === true && r.dejar_correr_resultado && r.dejar_correr_resultado !== 'sin_datos') f += ' ' + _daFraseDejarCorrer(r);
   // SL desprotegido (criterios v4)
   if (r.sl_desprotegido) {
     var hh = function(iso) { return _daHora(iso).slice(-5); };
@@ -204,6 +206,39 @@ function _daFrase(r) {
          (r.sl_protegido_habria_salido ? ': con el SL protegido habrías salido en BE o mejor.' : '.');
   }
   return f;
+}
+
+// "Si la hubieras dejado" (v8): desde el cierre a mano hasta el TP o el SL que
+// tenías puestos al cerrar, tope 5 días de mercado. $ = de más (+) o de menos (−)
+// frente a lo que hiciste, con los lotes del cierre final y sin comisiones.
+function _daTiempoMercado(min) {
+  if (min == null) return '';
+  return min < 1440 ? _daDur(min) + ' de mercado' : _daNum(min / 1440, 1) + ' días de mercado';
+}
+
+function _daFraseDejarCorrer(r) {
+  var extra = r.dejar_correr_usd_extra != null ? parseFloat(r.dejar_correr_usd_extra) : null;
+  var frente = extra == null ? '' : ': ' + _daFmtD(extra) + ' frente a cerrar a mano';
+  var cuando = r.dejar_correr_en ? ' el ' + _daHora(r.dejar_correr_en).replace(' ', ' a las ') : '';
+  var tras = r.dejar_correr_min_mercado != null ? ', ' + _daTiempoMercado(r.dejar_correr_min_mercado) + ' después' : '';
+  var tp = r.dejar_correr_tp != null ? _daNum(r.dejar_correr_tp, 2) : null;
+  var sl = _daNum(r.dejar_correr_sl, 2);
+  switch (r.dejar_correr_resultado) {
+    case 'tp':
+      return 'Si la hubieras dejado: llegó a tu TP (' + tp + ')' + cuando + tras +
+             (r.dejar_correr_hueco ? ', en un hueco de apertura' : '') + frente + '.';
+    case 'sl':
+      return 'Si la hubieras dejado: habría tocado tu SL (' + sl + ')' + cuando + tras +
+             (r.dejar_correr_hueco ? ', con hueco de apertura (salida a ' + _daNum(r.dejar_correr_precio, 2) + ')' : '') +
+             (r.dejar_correr_ambiguo ? ' (en el mismo minuto que el TP: se cuenta como SL)' : '') + frente + '.';
+    case 'ninguno':
+      return 'Si la hubieras dejado: en 5 días de mercado no tocó ' + (tp ? 'ni tu TP ni tu SL' : 'tu SL (no tenías TP)') +
+             '; al final iba a ' + _daNum(r.dejar_correr_precio, 2) + frente + '.';
+    case 'en_curso':
+      return 'Si la hubieras dejado: todavía no ha tocado ' + (tp ? 'ni tu TP ni tu SL' : 'tu SL') +
+             ' (en seguimiento' + (r.dejar_correr_min_mercado != null ? ', ' + _daTiempoMercado(r.dejar_correr_min_mercado) : '') + ').';
+  }
+  return '';
 }
 
 function _daFraseCierre(r) {
@@ -746,6 +781,23 @@ function _daConclusiones(filas, porFp) {
         ' cerrando todo en la parcial, ' + _daNum(dr, 0) + ' $ más' + tr(rs.conUsd.length) + '.'
       : 'Los runners te están costando: ' + rs.conUsd.length + ' runners aportaron ' + _daFmtD(rs.usd) + '; cerrando todo en la parcial habrías hecho ' +
         _daFmtD(rs.todo) + ', ' + _daNum(-dr, 0) + ' $ más' + tr(rs.conUsd.length) + '.' });
+  }
+
+  // 7. Dejar correr los cierres a mano hasta su TP/SL (v8). Solo resueltos y con $.
+  var dc = filas.filter(function(r) {
+    return r.dejar_correr === true && ['tp', 'sl', 'ninguno'].indexOf(r.dejar_correr_resultado) !== -1 &&
+           r.dejar_correr_usd_extra != null && ben(r) != null;
+  });
+  if (dc.length >= G) {
+    var dcExtra = suma(dc, function(r) { return parseFloat(r.dejar_correr_usd_extra); });
+    var dcReal = suma(dc, ben);
+    var dcN = function(k) { return dc.filter(function(r) { return r.dejar_correr_resultado === k; }).length; };
+    var reparto = dcN('tp') + ' llegaban a su TP, ' + dcN('sl') + ' a su SL y ' + dcN('ninguno') + ' a ninguno en 5 días de mercado';
+    out.push({ dinero: Math.abs(dcExtra), frase: dcExtra > 0
+      ? 'Deja correr las que cierras a mano: de ' + dc.length + ' cierres a mano con SL, ' + reparto + '; dejándolas correr habrías hecho ' +
+        _daFmtD(dcReal + dcExtra) + ' en vez de ' + _daFmtD(dcReal) + ', ' + _daNum(dcExtra, 0) + ' $ más' + tr(dc.length) + '.'
+      : 'Cerrar a mano te compensa: de ' + dc.length + ' cierres a mano con SL, ' + reparto + '; dejándolas correr habrías hecho ' +
+        _daFmtD(dcReal + dcExtra) + ' en vez de ' + _daFmtD(dcReal) + ', ' + _daNum(-dcExtra, 0) + ' $ menos' + tr(dc.length) + '.' });
   }
 
   return out.filter(function(x) { return x.dinero > 0; })
