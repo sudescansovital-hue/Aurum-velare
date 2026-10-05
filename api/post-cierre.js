@@ -50,6 +50,10 @@ const COLUMNAS_ANALISIS = [
   'tp1_pts', 'tp1_alcanzado', 'tp1_alcanzado_en', 'tp1_volvio_en', 'tp1_no_asegurado',
   'sl_desprotegido', 'sl_n_desprotecciones', 'sl_protegido_en', 'sl_nivel_protegido',
   'sl_desprotegido_en', 'sl_nivel_desprotegido', 'sl_protegido_habria_salido',
+  // v7 (05/10): runners — sql_post_cierre_v7_runners.sql
+  'runner', 'runner_parcial_en', 'runner_parcial_pts', 'runner_n_parciales', 'runner_vol_resto',
+  'runner_sl_pts', 'runner_max_pts', 'runner_max_en', 'runner_salida_pts', 'runner_minutos',
+  'runner_usd', 'runner_usd_todo_parcial',
   'entrada_en_vela', 'cierre_en_vela', 'notas', 'simbolo_velas', 'broker_velas',
   'criterios_version'
 ];

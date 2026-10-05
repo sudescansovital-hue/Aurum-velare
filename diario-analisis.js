@@ -35,6 +35,12 @@ var DA_MINUTOS_SECUENCIA = 15;
 // en el día) y nº de vueltas a partir del cual se marca el día. Cambiar aquí.
 var DA_LIMITE_PERDIDA_DIA = 500;
 var DA_VUELTAS_AVISO = 3;
+// Runners (criterios v7): niveles en pts desde la entrada para "hasta dónde llegó el resto".
+var DA_RUNNER_NIVELES = [33, 50, 100];
+// "Qué te conviene": mínimo de trades del periodo para sacar conclusiones, y
+// mínimo de casos en cada comparación (p. ej. entradas seguidas, runners).
+var DA_MIN_TRADES_CONVIENE = 20;
+var DA_MIN_GRUPO_CONVIENE = 5;
 var DA_NARANJA = '#E8873A';
 
 var DA_MS_DIA = 86400000;
@@ -173,6 +179,20 @@ function _daFrase(r) {
          ', antes de llegar a tu TP1 de +' + _daNum(r.tp1_pts, 0) + ' pts: rompe la regla' +
          (r.tipo_cierre_detallado === 'sl_breakeven' ? ' y te sacó en breakeven' : '') +
          (r.tp1_alcanzado ? ' (después el precio sí llegó al TP1).' : '.');
+  }
+  // Runner (criterios v7)
+  if (r.runner === true) {
+    var sal = parseFloat(r.runner_salida_pts), pts = function(v) { return (v >= 0 ? '+' : '') + _daNum(v, 1); };
+    f += ' Cerraste una parte a ' + pts(parseFloat(r.runner_parcial_pts)) + ' pts y dejaste ' +
+         (r.runner_vol_resto != null ? _daNum(r.runner_vol_resto, 2) + ' lotes' : 'el resto') +
+         ' con el SL en ' + pts(parseFloat(r.runner_sl_pts)) + ': llegó a ' + pts(parseFloat(r.runner_max_pts)) + ' pts y ' +
+         (sal <= 1 ? 'volvió al BE' : 'salió a ' + pts(sal)) + ' tras ' + _daDur(r.runner_minutos) +
+         (r.runner_usd != null
+           ? '; aportó ' + _daFmtD(parseFloat(r.runner_usd)) + ' (cerrando todo en la parcial: ' + _daFmtD(parseFloat(r.runner_usd_todo_parcial)) + ').'
+           : '.');
+  } else if (r.runner === false) {
+    f += ' Cerraste una parte a +' + _daNum(r.runner_parcial_pts, 1) + ' pts pero dejaste el resto sin proteger' +
+         (r.runner_sl_pts != null ? ' (SL a ' + _daNum(r.runner_sl_pts, 1) + ' pts de la entrada)' : '') + '.';
   }
   // SL desprotegido (criterios v4)
   if (r.sl_desprotegido) {
@@ -400,6 +420,7 @@ function _daHtmlSemana(semana, filasCuenta) {
     _daStat('% pronto', pp ? pp.pct + '%' : '—', pp ? pp.pronto + ' de ' + pp.n + ' a mano' : 'sin cierres a mano', 'gold') +
     _daStat('Pts dejados', _daNum(dejados, 1), 'en los cierres pronto', 'gold') +
   '</div>';
+  h += _daHtmlConviene(semana, _daHistorico ? 'todo el histórico' : 'esta semana');
 
   // Tus decisiones de gestión
   var cm = _daContar(manuales, 'decision_cierre_manual');
@@ -433,6 +454,7 @@ function _daHtmlSemana(semana, filasCuenta) {
     _daHtmlTp1(semana) +
     _daHtmlSlDesprotegido(semana, porFp) +
     _daHtmlSecuencias(semana, porFp) +
+    _daHtmlRunners(semana) +
   '</div>';
 
   // Por estrategia
@@ -579,6 +601,175 @@ function _daPintarEvolucion(filasCuenta) {
   });
 }
 
+// ── Runners (criterios v7) ───────────────────────────────────────────────
+// Trade con parcial y el resto con SL en BE o mejor (runner = true, lo decide
+// post_cierre.py). Pts desde la entrada; $ = pts × 100 × lotes del resto, sin
+// comisiones; runner_usd null si la EA no mandó volumen (antes del ~27/08).
+
+function _daDur(min) {
+  if (min == null) return '—';
+  return min < 60 ? min + ' min' : Math.floor(min / 60) + ' h' + (min % 60 ? ' ' + (min % 60) + ' min' : '');
+}
+
+// Hasta dónde llegó el resto: el nivel más alto de DA_RUNNER_NIVELES que tocó;
+// si no llegó al primero, 'be' si salió en BE (±1 pt) o 'algo' si salió por encima.
+function _daNivelRunner(r) {
+  var m = parseFloat(r.runner_max_pts);
+  for (var i = DA_RUNNER_NIVELES.length - 1; i >= 0; i--) if (m >= DA_RUNNER_NIVELES[i]) return 'n' + DA_RUNNER_NIVELES[i];
+  return parseFloat(r.runner_salida_pts) <= 1 ? 'be' : 'algo';
+}
+
+function _daRunnersResumen(filas) {
+  var run = filas.filter(function(r) { return r.runner === true; });
+  var conUsd = run.filter(function(r) { return r.runner_usd != null && r.runner_usd_todo_parcial != null; });
+  var suma = function(a, k) { return a.reduce(function(s, r) { return s + parseFloat(r[k]); }, 0); };
+  return { run: run, conUsd: conUsd, usd: suma(conUsd, 'runner_usd'), todo: suma(conUsd, 'runner_usd_todo_parcial'),
+           sinProteger: filas.filter(function(r) { return r.runner === false; }).length };
+}
+
+function _daHtmlRunners(filas) {
+  var rs = _daRunnersResumen(filas), run = rs.run;
+  var h = '<div class="cell"><div class="tag" style="display:block;margin-bottom:1rem;">Runners · ' + run.length + '</div>';
+  if (!run.length) {
+    return h + '<div style="font-size:13px;color:var(--text-muted);">Ningún trade con parcial y el resto con SL en BE o mejor' +
+           (rs.sinProteger ? ' (' + rs.sinProteger + ' con parcial y el resto sin proteger)' : '') + '.</div></div>';
+  }
+  var c = _daContar(run.map(function(r) { return { k: _daNivelRunner(r) }; }), 'k');
+  var N = DA_RUNNER_NIVELES;
+  h += _daLineaConteo('Volvió al BE', c.be || 0, run.length, 'var(--text-muted)') +
+       _daLineaConteo('Salió con algo sin llegar a +' + N[0], c.algo || 0, run.length, '#8A6A2A');
+  N.forEach(function(n, i) {
+    h += _daLineaConteo(i < N.length - 1 ? 'Llegó a +' + n + ' (sin +' + N[i + 1] + ')' : 'Llegó a +' + n + ' o más',
+                        c['n' + n] || 0, run.length, i === N.length - 1 ? 'var(--green)' : 'var(--gold)');
+  });
+  var mins = run.map(function(r) { return r.runner_minutos; }).filter(function(x) { return x != null; }).sort(function(a, b) { return a - b; });
+  var sub = function(t) { return '<div style="font-size:12px;color:var(--text-muted);margin-top:.3rem;">' + t + '</div>'; };
+  if (mins.length) h += sub('Tiempo abierto tras la parcial: mediana ' + _daDur(mins[Math.floor(mins.length / 2)]) + ' (máx. ' + _daDur(mins[mins.length - 1]) + ')');
+  if (rs.conUsd.length) {
+    var col = function(v) { return v >= 0 ? 'var(--green)' : 'var(--red)'; };
+    var dif = rs.usd - rs.todo;
+    h += '<div style="font-size:13px;color:var(--text-dim);line-height:1.7;margin-top:.7rem;">' +
+         'Aportaron <span style="color:' + col(rs.usd) + ';">' + _daFmtD(rs.usd) + '</span> (' + _daFmtD(rs.usd / rs.conUsd.length) + ' por runner)' +
+         '<br>Cerrando todo en la parcial: <span style="color:' + col(rs.todo) + ';">' + _daFmtD(rs.todo) + '</span>' +
+         ' · diferencia <span style="color:' + col(dif) + ';">' + _daFmtD(dif) + '</span></div>';
+    if (rs.conUsd.length < run.length) h += sub((run.length - rs.conUsd.length) + ' sin volumen guardado por la EA (antes del 27/08), fuera del $');
+  }
+  ['estructura', 'rechazo_rsi', null].forEach(function(e) {
+    var g = _daRunnersResumen(run.filter(function(r) { return (r.estrategia || null) === e; }));
+    if (!g.run.length) return;
+    h += sub((e || 'sin clasificar') + ': ' + g.run.length + ' runner' + (g.run.length === 1 ? '' : 's') +
+             (g.conUsd.length ? ' · ' + _daFmtD(g.usd) + ' vs ' + _daFmtD(g.todo) + ' todo en la parcial' : ''));
+  });
+  if (rs.sinProteger) h += sub(rs.sinProteger + ' con parcial pero el resto sin proteger (no cuentan como runner)');
+  return h + '</div>';
+}
+
+// ── "Qué te conviene" ────────────────────────────────────────────────────
+// 3–4 frases por reglas (sin IA) con las conclusiones de más dinero en juego
+// del periodo. Cada comparación necesita DA_MIN_GRUPO_CONVIENE casos y el
+// periodo DA_MIN_TRADES_CONVIENE trades. "dinero" solo ordena las frases.
+function _daConclusiones(filas, porFp) {
+  var G = DA_MIN_GRUPO_CONVIENE, out = [];
+  var suma = function(a, f) { return a.reduce(function(s, r) { return s + f(r); }, 0); };
+  var ben = function(r) { var t = porFp[r.fp]; return t && t.beneficio != null ? parseFloat(t.beneficio) : null; };
+  var tr = function(n) { return ' (' + n + ' trade' + (n === 1 ? '' : 's') + ')'; };
+
+  // 1. Esperar 15 min frente a entrar seguido
+  var seg = _daResumenGrupo(filas.filter(function(r) { return r._seguida; }), porFp);
+  var esp = _daResumenGrupo(filas.filter(function(r) { return r._gapMin != null && !r._seguida; }), porFp);
+  if (seg && esp && seg.n >= G && esp.n >= G) {
+    var d = esp.medio - seg.medio;
+    out.push({ dinero: Math.abs(d) * seg.n, frase: d > 0
+      ? 'Espera al menos ' + DA_MINUTOS_SECUENCIA + ' min tras cerrar: entrando seguido sacas ' + _daFmtD(seg.medio) + ' por trade y esperando ' +
+        _daFmtD(esp.medio) + '; en tus ' + seg.n + ' entradas seguidas son unos ' + _daNum(d * seg.n, 0) + ' $ de diferencia' + tr(seg.n + esp.n) + '.'
+      : 'Entrar seguido no te está costando: ' + _daFmtD(seg.medio) + ' por trade frente a ' + _daFmtD(esp.medio) + ' esperando ' +
+        DA_MINUTOS_SECUENCIA + ' min' + tr(seg.n + esp.n) + '.' });
+  }
+
+  // 2. Vueltas de posición
+  var vu = _daVueltasDinero(filas, porFp);
+  if (vu.n >= G) {
+    var dv = vu.mant - vu.real;
+    out.push({ dinero: Math.abs(dv), frase: dv > 0
+      ? 'No le des la vuelta: en ' + vu.n + ' vueltas sacaste ' + _daFmtD(vu.real) + ' con los dos trades; manteniendo el primero hasta su SL o TP habrías sacado ' +
+        _daFmtD(vu.mant) + ', ' + _daNum(dv, 0) + ' $ más' + tr(vu.n * 2) + '.'
+      : 'Darle la vuelta te ha salido bien: ' + vu.n + ' vueltas, ' + _daFmtD(vu.real) + ' frente a ' + _daFmtD(vu.mant) + ' manteniendo el primero' + tr(vu.n * 2) + '.' });
+  }
+
+  // 3. Parar en el límite de pérdida diaria
+  var porDia = {};
+  filas.forEach(function(r) { var k = _daDiaMs(r.fecha_cierre); (porDia[k] = porDia[k] || []).push(r); });
+  var tras = 0, pnlTras = 0, dias = 0;
+  Object.keys(porDia).forEach(function(k) {
+    _daResumenDia(porDia[k], porFp).rotos.forEach(function(x) { if (x.despues) { tras += x.despues; pnlTras += x.pnlDespues; dias++; } });
+  });
+  if (tras >= G) {
+    out.push({ dinero: Math.abs(pnlTras), frase: pnlTras < 0
+      ? 'Para al llegar a −' + _daNum(DA_LIMITE_PERDIDA_DIA, 0) + ' $ en el día: después de superarlo hiciste ' + tras + ' trades más en ' + dias +
+        (dias === 1 ? ' día' : ' días') + ' y sumaron ' + _daFmtD(pnlTras) + '; parando te los habrías ahorrado' + tr(tras) + '.'
+      : 'Después de superar el límite de ' + _daNum(DA_LIMITE_PERDIDA_DIA, 0) + ' $ hiciste ' + tras + ' trades más y sumaron ' + _daFmtD(pnlTras) +
+        ': seguir no te costó dinero, pero rompe la regla' + tr(tras) + '.' });
+  }
+
+  // 4. BE antes de TP1
+  var evBe = filas.filter(function(r) { return r.be_antes_tp1 != null; });
+  var be = evBe.filter(function(r) { return r.be_antes_tp1; });
+  if (evBe.length >= G && be.length) {
+    var perdidos = be.filter(function(r) {
+      return r.tipo_cierre_detallado === 'sl_breakeven' && r.favor_post_puntos != null && r.tp1_pts != null &&
+             parseFloat(r.favor_post_puntos) >= parseFloat(r.tp1_pts) && parseFloat(r.volumen) > 0;
+    });
+    var dTp1 = suma(perdidos, function(r) { return parseFloat(r.tp1_pts) * VALOR_PUNTO_XAUUSD * parseFloat(r.volumen); });
+    out.push({ dinero: dTp1, frase: 'No muevas a BE antes de TP1: lo hiciste en ' + be.length + ' de ' + evBe.length + ' trades' +
+      (perdidos.length
+        ? '; en ' + perdidos.length + ' te sacó en BE y después el precio llegó a tu TP1: unos ' + _daNum(dTp1, 0) + ' $ a TP1 con todo el volumen'
+        : '; ninguno te ha sacado todavía de un TP1') + tr(evBe.length) + '.' });
+  }
+
+  // 5. TP1 no asegurado
+  var alc = filas.filter(function(r) { return r.tp1_alcanzado; });
+  var na = alc.filter(function(r) { return r.tp1_no_asegurado && ben(r) != null && parseFloat(r.volumen) > 0; });
+  if (alc.length >= G && na.length) {
+    var aTp1 = suma(na, function(r) { return parseFloat(r.tp1_pts) * VALOR_PUNTO_XAUUSD * parseFloat(r.volumen); });
+    var realNa = suma(na, ben);
+    out.push({ dinero: Math.abs(aTp1 - realNa), frase: 'Asegura al llegar a TP1: ' + na.length + ' de ' + alc.length +
+      ' veces llegaste a +TP1 y volvió a la entrada sin parcial ni BE; cerrando en TP1 habrías hecho ' + _daFmtD(aTp1) +
+      ' en vez de ' + _daFmtD(realNa) + tr(alc.length) + '.' });
+  }
+
+  // 6. Runners
+  var rs = _daRunnersResumen(filas);
+  if (rs.conUsd.length >= G) {
+    var dr = rs.usd - rs.todo;
+    out.push({ dinero: Math.abs(dr), frase: dr >= 0
+      ? 'Dejar runners te compensa: ' + rs.conUsd.length + ' runners aportaron ' + _daFmtD(rs.usd) + ' frente a ' + _daFmtD(rs.todo) +
+        ' cerrando todo en la parcial, ' + _daNum(dr, 0) + ' $ más' + tr(rs.conUsd.length) + '.'
+      : 'Los runners te están costando: ' + rs.conUsd.length + ' runners aportaron ' + _daFmtD(rs.usd) + '; cerrando todo en la parcial habrías hecho ' +
+        _daFmtD(rs.todo) + ', ' + _daNum(-dr, 0) + ' $ más' + tr(rs.conUsd.length) + '.' });
+  }
+
+  return out.filter(function(x) { return x.dinero > 0; })
+            .sort(function(a, b) { return b.dinero - a.dinero; }).slice(0, 4);
+}
+
+function _daHtmlConviene(filas, nombrePeriodo) {
+  var h = '<div class="cell" style="border-left:2px solid var(--gold);margin-bottom:1px;">' +
+          '<div class="tag" style="display:block;margin-bottom:.8rem;">Qué te conviene · ' + nombrePeriodo + '</div>';
+  if (filas.length < DA_MIN_TRADES_CONVIENE) {
+    return h + '<div style="font-size:14px;color:var(--text-muted);">Con ' + filas.length + ' trade' + (filas.length === 1 ? '' : 's') +
+           ' todavía no hay base suficiente para sacar conclusiones (mínimo ' + DA_MIN_TRADES_CONVIENE + ').</div></div>';
+  }
+  var c = _daConclusiones(filas, _daTradesPorFp());
+  if (!c.length) {
+    return h + '<div style="font-size:14px;color:var(--text-muted);">Ninguna comparación tiene todavía casos suficientes (mínimo ' +
+           DA_MIN_GRUPO_CONVIENE + ' por comparación) · ' + filas.length + ' trades.</div></div>';
+  }
+  return h + '<ul style="margin:0;padding-left:1.1rem;font-size:15px;color:var(--text);line-height:1.7;">' +
+         c.map(function(x) { return '<li style="margin-bottom:.4rem;">' + _daEsc(x.frase) + '</li>'; }).join('') + '</ul>' +
+         '<div style="font-size:12px;color:var(--text-muted);margin-top:.4rem;">Calculado con ' + filas.length + ' trades · ordenado por dinero en juego · ' +
+         'mínimo ' + DA_MIN_GRUPO_CONVIENE + ' casos por comparación · estimaciones con tus propios precios, sin comisiones</div></div>';
+}
+
 // ── Calendario mensual ───────────────────────────────────────────────────
 // Encima de la vista semanal y con la misma pestaña de cuenta. Cada trade va
 // al día de su cierre (hora de servidor MT5, getUTC*). P&L de trades
@@ -706,6 +897,9 @@ function _daHtmlCalendario(filas) {
        '</div>';
 
   h += _daHtmlResumenMes(res);
+  var filasMes = [];
+  Object.keys(porDia).forEach(function(k) { filasMes = filasMes.concat(porDia[k]); });
+  if (filasMes.length) h += '<div style="margin-top:1px;">' + _daHtmlConviene(filasMes, 'este mes') + '</div>';
   if (_daDia != null) h += _daHtmlPanelDia(res[_daDia] || null);
   return h;
 }
@@ -901,26 +1095,34 @@ function _daResumenGrupo(g, porFp) {
            medio: suma(ben) / con.length, total: suma(ben), esp: suma(pts) / con.length };
 }
 
-function _daHtmlSecuencias(filas, porFp) {
-  var fmtD = function(v) { return v == null ? '—' : (v >= 0 ? '+' : '') + _daNum(v, 0) + '$'; };
-  var col = function(v) { return v == null ? 'var(--text-muted)' : v >= 0 ? 'var(--green)' : 'var(--red)'; };
-  var h = '<div class="cell"><div class="tag" style="display:block;margin-bottom:1rem;">Vueltas y entradas seguidas · ' + DA_MINUTOS_SECUENCIA + ' min</div>';
-
-  // Vueltas: la pareja cuenta en el periodo del primer trade
+// Vueltas del periodo (la pareja cuenta en el periodo del primer trade):
+// P&L real de los dos trades vs "mantener el primero" (_daMantenerPts).
+// n = parejas con los dos datos; solo esas entran en real/mant.
+function _daVueltasDinero(filas, porFp) {
   var todos = {};
   (_daDatos || []).forEach(function(r) { todos[r.fp] = r; });
   var pares = filas.filter(function(r) { return r._vueltaA && todos[r._vueltaA]; });
-  var real = 0, conReal = 0, mant = 0, conMant = 0;
+  var real = 0, n = 0, mant = 0;
   pares.forEach(function(a) {
     var b = todos[a._vueltaA], ta = porFp[a.fp], tb = porFp[b.fp];
     if (ta && tb && ta.beneficio != null && tb.beneficio != null) {
       var p = _daMantenerPts(a), v = parseFloat(a.volumen);
       if (p != null && v > 0) {
-        real += parseFloat(ta.beneficio) + parseFloat(tb.beneficio); conReal++;
-        mant += p * VALOR_PUNTO_XAUUSD * v; conMant++;
+        real += parseFloat(ta.beneficio) + parseFloat(tb.beneficio); n++;
+        mant += p * VALOR_PUNTO_XAUUSD * v;
       }
     }
   });
+  return { pares: pares, n: n, real: real, mant: mant };
+}
+
+function _daHtmlSecuencias(filas, porFp) {
+  var fmtD = function(v) { return v == null ? '—' : (v >= 0 ? '+' : '') + _daNum(v, 0) + '$'; };
+  var col = function(v) { return v == null ? 'var(--text-muted)' : v >= 0 ? 'var(--green)' : 'var(--red)'; };
+  var h = '<div class="cell"><div class="tag" style="display:block;margin-bottom:1rem;">Vueltas y entradas seguidas · ' + DA_MINUTOS_SECUENCIA + ' min</div>';
+
+  var vu = _daVueltasDinero(filas, porFp);
+  var pares = vu.pares, real = vu.real, conReal = vu.n, mant = vu.mant;
   h += '<div style="font-size:14px;color:var(--text-dim);margin-bottom:.3rem;">Vueltas de posición: <span style="color:' + DA_NARANJA + ';">' + pares.length + '</span></div>';
   if (pares.length) {
     h += '<div style="font-size:13px;color:var(--text-muted);line-height:1.7;">' +
@@ -989,7 +1191,10 @@ function _daHtmlTrades(filas, titulo, pref, conFiltros) {
              '<span style="font-size:14px;color:var(--text-dim);flex:1 1 180px;min-width:0;">' + (r.direccion === 'buy' ? 'Compra' : 'Venta') + ' · ' + _daEsc(_daNombreCuenta(r.cuenta_numero)) +
                ' <span style="color:var(--text-muted);font-size:12px;">· ' + _daEsc(r.estrategia || 'sin clasificar') + '</span></span>' +
              '<span style="display:flex;gap:.4rem 1rem;flex-wrap:wrap;justify-content:flex-end;align-items:center;margin-left:auto;">' +
-               '<span style="display:flex;gap:.4rem;flex-wrap:wrap;justify-content:flex-end;">' + _daBadgesErrores(r) + _daBadgeDecision(r) + '</span>' +
+               '<span style="display:flex;gap:.4rem;flex-wrap:wrap;justify-content:flex-end;">' + _daBadgesErrores(r) +
+                 (r.runner === true ? '<span style="font-size:11px;color:var(--gold);border:1px solid var(--border-gold);padding:.12rem .45rem;white-space:nowrap;">Runner: +' +
+                                      _daNum(r.runner_max_pts, 1) + '</span>' : '') +
+                 _daBadgeDecision(r) + '</span>' +
                '<span style="font-size:14px;min-width:70px;text-align:right;color:' + (ben == null ? 'var(--text-muted)' : ben >= 0 ? 'var(--green)' : 'var(--red)') + ';">' +
                  (ben == null ? '—' : (ben >= 0 ? '+' : '') + _daNum(ben, 2) + '$') + '</span>' +
              '</span>' +

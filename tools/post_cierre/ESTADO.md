@@ -90,6 +90,17 @@ Aurum → clic derecho → Deshabilitar (o `Disable-ScheduledTask -TaskPath '\Au
 -Xml (Get-Content -Raw tarea_post_cierre.xml)`. Probada el 05/10: con MT5
 abierto, código 0; con una ruta de MT5 cerrada, "no se hace nada" y no abre MT5.
 
+**Qué se publica en aurumvelare.com (05/10):** `.vercelignore` en la raíz deja
+fuera `tools/`, `docs/`, `*.md`, `*.sql`, `*.mq5`, `*.py`, `*.ps1`, `*.vbs`,
+`.env*`, `.post_cierre_token` y `*.log`. Hasta entonces `tools/post_cierre/ESTADO.md`
+(y el resto de `.md`/`.sql`/EA) se servía en público; el token nunca (404).
+Desde `974e421` el deploy sube 33 archivos (antes 64) y todo eso da 404;
+verificado que la web, el Diario y la API siguen respondiendo. Si algún día la
+web necesita servir un archivo de esos tipos, añadir una excepción `!ruta`.
+Desplegar desde una copia limpia del commit (`git worktree add --detach <tmp> HEAD`
++ copiar `.vercel/` + `npx vercel --prod --yes`) para no publicar cambios sin
+commitear.
+
 **Auth del endpoint:** token propio `POST_CIERRE_TOKEN` (Vercel, sensible,
 Production + Preview de la rama `feature/post-cierre`) en cabecera
 `Authorization: Bearer`; email fijo `POST_CIERRE_EMAIL` (roderastrader@gmail.com),
