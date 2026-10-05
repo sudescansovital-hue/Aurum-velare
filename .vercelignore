@@ -1,0 +1,19 @@
+# Lo que NO se sube a Vercel (no se sirve en aurumvelare.com).
+# La web solo necesita los .html/.js/.css de la raíz, api/, package.json y vercel.json.
+
+# Herramientas locales (scripts de MT5, tokens, venv, salidas) y documentación interna
+tools/
+docs/
+*.md
+
+# SQL de migraciones, código MQL5 y scripts de escritorio
+*.sql
+*.mq5
+*.py
+*.ps1
+*.vbs
+
+# Secretos y basura local, por si acaso
+.env*
+.post_cierre_token
+*.log
