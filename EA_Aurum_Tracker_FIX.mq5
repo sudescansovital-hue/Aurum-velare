@@ -4,7 +4,7 @@
 //+------------------------------------------------------------------+
 #property copyright "Aurum Velare"
 #property link      "https://aurumvelare.com"
-#property version   "1.03"
+#property version   "1.04"
 // 1.02 (27/08): mapa de volumen por posición -> clasificación fiable parcial vs
 //   cierre total (antes un parcial podía pisar precio_cierre). SL movido se
 //   parte en breakeven/sl_protegido/sl_ajustado. Cierre distingue TP/SL/manual.
@@ -13,6 +13,20 @@
 //   en aurum_extremos_<cuenta>.txt igual que la cola. Solo toca OnTick,
 //   OnInit, HandleDealClose y BuildCloseJson (parámetros opcionales — no
 //   afecta a la llamada ya existente en SyncHistory48h).
+// 1.04 (05/10): sincronizada con la EA en uso (terminal BD8B1008…, v1.02).
+//   Se reactivan los 4 SendTradeEvento de la línea de tiempo (comentados en
+//   el repo desde el 04/09 pero activos en el terminal) y se restaura el guard
+//   de 30 s de la sincronización inicial (evita repetir SyncHistory48h al
+//   recompilar con el gráfico abierto). Timeout de WebRequest 4 s -> input
+//   TimeoutWebRequestMs (15 s): fallo 2, duplicados en ea_sl/tp_changes por
+//   reintentos tras timeout. Cada pasada de las colas se corta en el primer
+//   fallo de red (sin respuesta), para no encadenar timeouts. 'breakeven'
+//   solo si el SL queda a ±BeToleranciaPts (1 pt) de la entrada, y nunca al
+//   poner el primer SL (fallo 3). Reconciliación de cierres ocurridos con
+//   MT5 desconectado o la EA quitada (aurum_abiertas_<cuenta>.txt; al
+//   arrancar, al reconectar y cada ReconciliarCadaMin) y SyncHistory48h
+//   reescrita: antes solo procesaba 1 posición por arranque (fallo 5). Ver
+//   tools/post_cierre/ESTADO.md.
 
 //--- Inputs
 // Email lleva valor por defecto real: si el EA se reinicia por cualquier
@@ -30,6 +44,12 @@ input string EventoEndpointURL = "https://aurumvelare.com/api/trade-evento"; // 
 input int    AvisarCadaXIntentos = 10; // FIX 06/07: ya no se descarta nunca; esto solo controla cada cuántos intentos fallidos se avisa en el log
 input int    IntervaloEnvioSegundos = 3600; // cada cuánto se procesa la cola (por defecto 1h)
 input int    HorasSync      = 48;
+input double BeToleranciaPts = 1.0;       // 1.04 (05/10): SL a ±este valor de la entrada = 'breakeven' (antes 3 pts fijo).
+                                          // Mismo criterio que el análisis post-cierre y el Diario (fallo 3).
+input int    TimeoutWebRequestMs = 15000; // 1.04 (05/10): antes 4000 fijo. El endpoint tarda a veces >4 s (arranque en frío); con 4 s la EA
+                                          // daba el envío por fallido aunque el servidor ya hubiera guardado, y el reintento duplicaba filas (fallo 2).
+input int    ReconciliarCadaMin = 15;    // 1.04 (05/10): cada cuántos minutos se reconcilian las posiciones que la EA vio abiertas
+                                          // contra el historial de MT5 (además de al arrancar y al recuperar la conexión). Fallo 5.
 input int    IntervaloExtremosSegundos = 2; // MFE/MAE (04/09): cada cuánto se muestrea Bid/Ask de posiciones abiertas en OnTick. Independiente de IntervaloEnvioSegundos (ese solo vacía la cola, corre cada 1h por defecto).
 
 //--- Globales
@@ -82,6 +102,13 @@ PendingEvent g_cola[];
 // duplicacion exponencial (ver comentarios de CargarColaPersistida), asi que
 // esta cola nueva no comparte funciones ni estado con la existente.
 PendingEvent g_cola_eventos[];
+
+// 1.04 (05/10): último código devuelto por WebRequest (DoWebRequest /
+// DoWebRequestEventos). Fuera de 100-599 = sin respuesta HTTP válida
+// (timeout, sin red: p.ej. 1003 / error 5203): la pasada de la cola se corta.
+int g_ultimoCodigoHttp = 0;
+
+bool EsFalloDeRed(const int code) { return (code < 100 || code > 599); }
 
 //--- Persistencia de la cola a disco (sobrevive a reinicios del EA)
 // FIX corazón de datos (06/07): g_cola vivía solo en memoria — cualquier
@@ -691,16 +718,17 @@ bool DoWebRequest(const string json_body) {
    string result_headers;
 
    int len = StringToCharArray(json_body, data_u, 0, StringLen(json_body), CP_UTF8);
-   if(len <= 0) return false;
+   if(len <= 0) { g_ultimoCodigoHttp = 400; return false; } // 1.04: fallo local, no de red: no corta la pasada
    ArrayCopy(data, data_u); // uchar → char (misma representación binaria para ASCII)
 
    ResetLastError();
    int code = WebRequest(
       "POST", EndpointURL,
       "Content-Type: application/json\r\n",
-      4000, data, result, result_headers
+      TimeoutWebRequestMs, data, result, result_headers
    );
 
+   g_ultimoCodigoHttp = code;
    if(code == 200) return true;
 
    string resp = (ArraySize(result) > 0)
@@ -721,16 +749,17 @@ bool DoWebRequestEventos(const string json_body) {
    string result_headers;
 
    int len = StringToCharArray(json_body, data_u, 0, StringLen(json_body), CP_UTF8);
-   if(len <= 0) return false;
+   if(len <= 0) { g_ultimoCodigoHttp = 400; return false; } // 1.04: fallo local, no de red: no corta la pasada
    ArrayCopy(data, data_u);
 
    ResetLastError();
    int code = WebRequest(
       "POST", EventoEndpointURL,
       "Content-Type: application/json\r\n",
-      4000, data, result, result_headers
+      TimeoutWebRequestMs, data, result, result_headers
    );
 
+   g_ultimoCodigoHttp = code;
    if(code == 200) return true;
 
    string resp = (ArraySize(result) > 0)
@@ -964,6 +993,14 @@ void ProcessRetryQueue() {
                   " intentos fallidos y SIGUE en cola (no se descarta) — ",
                   g_cola[i].json_body);
          }
+         // 1.04 (05/10): sin respuesta del servidor (timeout / sin red) → cortar la
+         // pasada: el resto esperaría otros TimeoutWebRequestMs cada uno y
+         // bloquearía la EA. Si el servidor SÍ respondió con error (4xx/5xx), se
+         // sigue con el siguiente para que un evento rechazado no bloquee la cola.
+         if(EsFalloDeRed(g_ultimoCodigoHttp)) {
+            Print("[AURUM] Sin respuesta del servidor — pasada cortada, quedan ", ArraySize(g_cola) - i, " para la próxima");
+            break;
+         }
          i++; // se reintenta en la próxima pasada, sin límite
       }
    }
@@ -995,6 +1032,10 @@ void ProcessRetryQueueEventos() {
             Print("[AURUM EVENTO] ⚠ Evento lleva ", g_cola_eventos[i].reintentos,
                   " intentos fallidos y SIGUE en cola (no se descarta) — ",
                   g_cola_eventos[i].json_body);
+         }
+         if(EsFalloDeRed(g_ultimoCodigoHttp)) { // 1.04: mismo criterio que ProcessRetryQueue
+            Print("[AURUM EVENTO] Sin respuesta del servidor — pasada cortada, quedan ", ArraySize(g_cola_eventos) - i, " para la próxima");
+            break;
          }
          i++;
       }
@@ -1078,6 +1119,7 @@ void SyncOpenPositions() {
       SlMapSet(pos_id, sl);
       TpMapSet(pos_id, tp);
       VolMapSet(pos_id, vol); // FIX 27/08: mapa de volumen
+      AbiertaAgregar(pos_id); // 1.04: fallo 5, reconciliación de cierres
       PendienteAgregar(pos_id, sl != 0.0, tp != 0.0); // FIX 06/07: vigilar si falta SL/TP original
       string json = BuildOpenJson(pos_id, BuildFp(open_time, pos_id),
                                   tipo_str, vol, pe, sl, tp, puntos_sl, estrategia_open, open_time);
@@ -1120,6 +1162,224 @@ datetime GetEntryTimeForPosition(ulong pos_id) {
    return 0;
 }
 
+//+------------------------------------------------------------------+
+//| RECONCILIACIÓN DE CIERRES (1.04, 05/10 — fallo 5)                |
+//+------------------------------------------------------------------+
+// Una posición que se cierra mientras MT5 está desconectado (PC suspendido,
+// sin red) o con la EA quitada del gráfico no pasa nunca por
+// HandleDealClose: MT5 no dispara OnTradeTransaction por deals que ocurrieron
+// sin conexión. Casos reales: 23827187 (05/10, PC suspendido) y 23453924
+// (25/09, EA quitada 17 min antes del SL y recargada 52 h después, fuera de
+// la ventana de SyncHistory48h).
+// Solución: la EA guarda en Common\Files\aurum_abiertas_<cuenta>.txt las
+// posiciones que ha visto abiertas (sobrevive a reinicios y a quitar la EA)
+// y, al arrancar, al recuperar la conexión y cada ReconciliarCadaMin, mira en
+// el historial de MT5 si alguna ya cerró y manda lo que falte. Todo lo que se
+// reenvía es idempotente en el servidor: partial_close por deal_id, close
+// (PATCH + upsert), eventos por (fp, tipo_evento, timestamp).
+
+ulong    g_abiertas[];                  // posiciones XAU que la EA ha visto abiertas y aún no ha cerrado
+bool     g_conectado_prev       = true;
+datetime g_reconciliar_en       = 0;    // > 0: reconciliar en cuanto TimeCurrent() llegue aquí
+datetime g_ultimaReconciliacion = 0;
+datetime g_ultimoCheckConexion  = 0;
+
+string AbiertasFileName() {
+   return "aurum_abiertas_" + g_cuenta_numero + ".txt";
+}
+
+void PersistirAbiertas() {
+   int fh = FileOpen(AbiertasFileName(), FILE_WRITE | FILE_TXT | FILE_ANSI | FILE_COMMON);
+   if(fh == INVALID_HANDLE) {
+      Print("[AURUM RECONCILIA] ERROR: no se pudo escribir ", AbiertasFileName(), " | error:", GetLastError());
+      return;
+   }
+   for(int i = 0; i < ArraySize(g_abiertas); i++)
+      FileWriteString(fh, IntegerToString((long)g_abiertas[i]) + "\r\n");
+   FileClose(fh);
+}
+
+// Se llama una vez en OnInit: recupera las posiciones de una sesión anterior.
+void CargarAbiertas() {
+   ArrayResize(g_abiertas, 0);
+   string fname = AbiertasFileName();
+   if(!FileIsExist(fname, FILE_COMMON)) return;
+   int fh = FileOpen(fname, FILE_READ | FILE_TXT | FILE_ANSI | FILE_COMMON);
+   if(fh == INVALID_HANDLE) {
+      Print("[AURUM RECONCILIA] ERROR: no se pudo leer ", fname, " | error:", GetLastError());
+      return;
+   }
+   while(!FileIsEnding(fh)) {
+      string linea = FileReadString(fh);
+      StringTrimLeft(linea);
+      StringTrimRight(linea);
+      if(StringLen(linea) == 0) continue;
+      ulong p = (ulong)StringToInteger(linea);
+      if(p > 0 && !ArrayContainsUlong(g_abiertas, p)) ArrayAddUlong(g_abiertas, p);
+   }
+   FileClose(fh);
+   if(ArraySize(g_abiertas) > 0)
+      Print("[AURUM RECONCILIA] ", ArraySize(g_abiertas), " posición(es) vistas abiertas en una sesión anterior — se comprobarán");
+}
+
+void AbiertaAgregar(ulong pos_id) {
+   if(ArrayContainsUlong(g_abiertas, pos_id)) return;
+   ArrayAddUlong(g_abiertas, pos_id);
+   PersistirAbiertas();
+}
+
+void AbiertaQuitar(ulong pos_id) {
+   int n = ArraySize(g_abiertas);
+   for(int i = 0; i < n; i++) {
+      if(g_abiertas[i] != pos_id) continue;
+      for(int j = i; j < n - 1; j++) g_abiertas[j] = g_abiertas[j + 1];
+      ArrayResize(g_abiertas, n - 1);
+      PersistirAbiertas();
+      return;
+   }
+}
+
+// Manda, a partir del historial de MT5, lo que habría mandado HandleDealClose
+// para una posición YA CERRADA: cada parcial (partial_close + evento 'parcial'),
+// el cierre total ('close' + evento cierre_tp/cierre_sl/cierre_manual según
+// DEAL_REASON). Devuelve false, sin mandar nada, si la posición sigue abierta
+// o si el historial aún no tiene todos los deals de salida (justo después de
+// reconectar puede tardar): se reintenta en la siguiente pasada.
+// MFE/MAE van null: con la EA parada o MT5 desconectado no se muestreó el
+// precio, y un extremo parcial sería un dato inventado.
+bool ReconciliarPosicion(ulong pos_id, const string origen) {
+   if(PositionSelectByTicket(pos_id)) return false;
+   if(!HistorySelectByPosition(pos_id)) return false;
+
+   int      n = HistoryDealsTotal();
+   double   vol_in = 0.0, pe = 0.0;
+   bool     es_buy = true;
+   datetime entry_time = 0;
+   ulong    outs[];
+   for(int i = 0; i < n; i++) {
+      ulong d = HistoryDealGetTicket(i);
+      if(d == 0) continue;
+      if(!EsXauusd(HistoryDealGetString(d, DEAL_SYMBOL))) return false;
+      ENUM_DEAL_ENTRY de = (ENUM_DEAL_ENTRY)HistoryDealGetInteger(d, DEAL_ENTRY);
+      if(de == DEAL_ENTRY_IN) {
+         vol_in += HistoryDealGetDouble(d, DEAL_VOLUME);
+         if(entry_time == 0) {
+            entry_time = (datetime)HistoryDealGetInteger(d, DEAL_TIME);
+            pe         = HistoryDealGetDouble(d, DEAL_PRICE);
+            es_buy     = (HistoryDealGetInteger(d, DEAL_TYPE) == DEAL_TYPE_BUY);
+         }
+      } else if(de == DEAL_ENTRY_OUT || de == DEAL_ENTRY_OUT_BY) {
+         ArrayAddUlong(outs, d);
+      }
+   }
+   int nout = ArraySize(outs);
+   if(vol_in <= 0.0 || nout == 0) return false;
+
+   // Salidas en orden cronológico (por DEAL_TIME_MSC)
+   for(int a = 0; a < nout - 1; a++)
+      for(int b = 0; b < nout - 1 - a; b++)
+         if(HistoryDealGetInteger(outs[b], DEAL_TIME_MSC) > HistoryDealGetInteger(outs[b + 1], DEAL_TIME_MSC)) {
+            ulong tmp = outs[b]; outs[b] = outs[b + 1]; outs[b + 1] = tmp;
+         }
+
+   double vol_out = 0.0;
+   for(int k = 0; k < nout; k++) vol_out += HistoryDealGetDouble(outs[k], DEAL_VOLUME);
+   if(vol_out < vol_in - 0.00001) return false; // historial incompleto: reintentar más tarde
+
+   string fp        = BuildFp(entry_time, pos_id);
+   double restante  = vol_in;
+   double ben_total = 0.0;
+   for(int k = 0; k < nout; k++) {
+      ulong    d      = outs[k];
+      double   vol    = HistoryDealGetDouble(d, DEAL_VOLUME);
+      double   price  = HistoryDealGetDouble(d, DEAL_PRICE);
+      datetime dtime  = (datetime)HistoryDealGetInteger(d, DEAL_TIME);
+      long     reason = HistoryDealGetInteger(d, DEAL_REASON);
+      double   profit = HistoryDealGetDouble(d, DEAL_PROFIT)
+                      + HistoryDealGetDouble(d, DEAL_COMMISSION)
+                      + HistoryDealGetDouble(d, DEAL_SWAP);
+      restante  -= vol;
+      if(restante < 0.0) restante = 0.0;
+      ben_total += profit;
+      double puntos = es_buy ? (price - pe) : (pe - price);
+
+      if(k < nout - 1) {
+         SendEvent(BuildPartialCloseJson(pos_id, d, vol, price, profit, dtime, reason == DEAL_REASON_SL));
+         SendTradeEvento(BuildParcialEventoJson(fp, vol, restante, price, profit, puntos, dtime));
+      } else {
+         SendEvent(BuildCloseJson(pos_id, d, price, ben_total, dtime, 0.0));
+         string tipo_cierre = (reason == DEAL_REASON_TP) ? "cierre_tp"
+                            : (reason == DEAL_REASON_SL) ? "cierre_sl"
+                            : "cierre_manual";
+         SendTradeEvento(BuildCierreEventoJson(fp, tipo_cierre, price, vol, dtime));
+         Print("[AURUM RECONCILIA] (", origen, ") Cierre recuperado — pos:", pos_id,
+               " | salidas:", nout, " | precio:", DoubleToString(price, 5),
+               " | motivo:", reason, " | ben_total:", DoubleToString(ben_total, 2));
+      }
+   }
+
+   SlMapRemove(pos_id);
+   TpMapRemove(pos_id);
+   VolMapRemove(pos_id);
+   ExtremoMapRemove(pos_id);
+   PersistirExtremos();
+   PendienteQuitarPorPosId(pos_id);
+   return true;
+}
+
+// Revisa todas las posiciones de g_abiertas: las que ya cerraron se mandan
+// (ReconciliarPosicion) y salen de la lista; el resto se queda.
+void ReconciliarCerradas(const string origen) {
+   g_ultimaReconciliacion = TimeCurrent();
+   int recuperadas = 0;
+   int i = 0;
+   while(i < ArraySize(g_abiertas)) {
+      ulong p = g_abiertas[i];
+      if(ReconciliarPosicion(p, origen)) {
+         AbiertaQuitar(p); // desplaza el array: no se incrementa i
+         recuperadas++;
+         continue;
+      }
+      i++;
+   }
+   if(recuperadas > 0)
+      Print("[AURUM RECONCILIA] (", origen, ") ", recuperadas, " cierre(s) recuperados del historial de MT5");
+}
+
+// Llamada desde OnTick y OnTimer (OnTick no llega sin ticks; OnTimer sí). Cada
+// 10 s mira la conexión: al recuperarla programa una reconciliación a los 30 s
+// (para que MT5 termine de bajar el historial); además, cada ReconciliarCadaMin
+// minutos, como red de seguridad. Tras una suspensión, TimeCurrent() salta
+// horas y la reconciliación periódica también se dispara sola.
+void ComprobarReconciliacion() {
+   if(!g_sync_done) return;
+   if(TimeCurrent() - g_ultimoCheckConexion < 10) return;
+   g_ultimoCheckConexion = TimeCurrent();
+
+   bool conectado = (bool)TerminalInfoInteger(TERMINAL_CONNECTED);
+   if(conectado && !g_conectado_prev) {
+      g_reconciliar_en = TimeCurrent() + 30;
+      Print("[AURUM RECONCILIA] Conexión recuperada — reconciliación en 30 s");
+   }
+   g_conectado_prev = conectado;
+   if(!conectado || ArraySize(g_abiertas) == 0) return;
+
+   if(g_reconciliar_en > 0 && TimeCurrent() >= g_reconciliar_en) {
+      g_reconciliar_en = 0;
+      ReconciliarCerradas("reconexion");
+   } else if(TimeCurrent() - g_ultimaReconciliacion >= (datetime)(ReconciliarCadaMin * 60)) {
+      ReconciliarCerradas("periodica");
+   }
+}
+
+// 1.04 (05/10): reescrita. Antes recorría los deals de HistorySelect(desde, ahora)
+// y, dentro del bucle, llamaba a HistorySelectByPosition: eso sustituye la
+// selección de historial, y los tickets de las demás posiciones dejaban de
+// poderse leer (EsXauusd devolvía false y se saltaban en silencio). En los
+// logs, cada arranque decía "posiciones procesadas: 1" aunque hubiera más
+// cierres en la ventana. Ahora primero se recogen los position_id y luego se
+// procesa cada uno con su propia selección. Además manda parciales y evento de
+// cierre (vía ReconciliarPosicion), no solo el 'close'.
 void SyncHistory48h() {
    datetime desde = TimeCurrent() - (datetime)((ulong)HorasSync * 3600);
    if(!HistorySelect(desde, TimeCurrent())) {
@@ -1127,47 +1387,50 @@ void SyncHistory48h() {
       return;
    }
 
+   ulong posiciones[];
    int total = HistoryDealsTotal();
-
-   // Pre-carga todos los tickets antes de iterar para evitar
-   // que HistorySelectByPosition (dentro del bucle) cambie el contexto
-   ulong deal_tickets[];
-   ArrayResize(deal_tickets, total);
-   for(int i = 0; i < total; i++)
-      deal_tickets[i] = HistoryDealGetTicket(i);
-
-   ulong processed[];
-   int   synced = 0;
-
-   for(int i = 0; i < ArraySize(deal_tickets); i++) {
-      ulong dt = deal_tickets[i];
+   for(int i = 0; i < total; i++) {
+      ulong dt = HistoryDealGetTicket(i);
       if(dt == 0) continue;
       if(!EsXauusd(HistoryDealGetString(dt, DEAL_SYMBOL))) continue;
       if((ENUM_DEAL_ENTRY)HistoryDealGetInteger(dt, DEAL_ENTRY) != DEAL_ENTRY_IN) continue;
-
       ulong pos_id = (ulong)HistoryDealGetInteger(dt, DEAL_POSITION_ID);
-      if(ArrayContainsUlong(processed, pos_id)) continue;
-      ArrayAddUlong(processed, pos_id);
+      if(!ArrayContainsUlong(posiciones, pos_id)) ArrayAddUlong(posiciones, pos_id);
+   }
+
+   int synced = 0;
+   for(int k = 0; k < ArraySize(posiciones); k++) {
+      ulong pos_id = posiciones[k];
 
       // Posición abierta: SyncOpenPositions ya la cubre
       if(PositionSelectByTicket(pos_id)) continue;
+      if(!HistorySelectByPosition(pos_id)) continue;
 
-      // Recuperar SL/TP del orden de apertura ANTES de cambiar contexto
+      // Deal de apertura de ESTA posición (selección propia)
+      ulong dt = 0;
+      int nd = HistoryDealsTotal();
+      for(int j = 0; j < nd; j++) {
+         ulong d = HistoryDealGetTicket(j);
+         if((ENUM_DEAL_ENTRY)HistoryDealGetInteger(d, DEAL_ENTRY) == DEAL_ENTRY_IN) { dt = d; break; }
+      }
+      if(dt == 0) continue;
+
+      datetime entry_time   = (datetime)HistoryDealGetInteger(dt, DEAL_TIME);
+      double   entry_price  = HistoryDealGetDouble(dt, DEAL_PRICE);
+      double   entry_vol    = HistoryDealGetDouble(dt, DEAL_VOLUME);
+      string   tipo_str     = (HistoryDealGetInteger(dt, DEAL_TYPE) == DEAL_TYPE_BUY) ? "buy" : "sell";
+      ulong    order_ticket = (ulong)HistoryDealGetInteger(dt, DEAL_ORDER);
+
+      // SL/TP de la orden de apertura (después de leer el deal)
       double sl_orig = 0.0, tp_orig = 0.0;
-      ulong  order_ticket = (ulong)HistoryDealGetInteger(dt, DEAL_ORDER);
       if(HistoryOrderSelect(order_ticket)) {
          sl_orig = HistoryOrderGetDouble(order_ticket, ORDER_SL);
          tp_orig = HistoryOrderGetDouble(order_ticket, ORDER_TP);
       }
-
-      datetime entry_time  = (datetime)HistoryDealGetInteger(dt, DEAL_TIME);
-      double   entry_price = HistoryDealGetDouble(dt, DEAL_PRICE);
-      double   entry_vol   = HistoryDealGetDouble(dt, DEAL_VOLUME);
-      string   tipo_str    = (HistoryDealGetInteger(dt, DEAL_TYPE) == DEAL_TYPE_BUY) ? "buy" : "sell";
-      double   puntos_sl   = (sl_orig != 0.0) ? MathAbs(entry_price - sl_orig) : 0.0;
+      double puntos_sl = (sl_orig != 0.0) ? MathAbs(entry_price - sl_orig) : 0.0;
       // (09/08) Op. B: mismo criterio que en los otros dos sitios — el SL de
       // la orden ya se conoce al reconciliar histórico, así que se clasifica aquí.
-      string   estrategia_open = (sl_orig != 0.0) ? ClasificarEstrategia(puntos_sl) : "";
+      string estrategia_open = (sl_orig != 0.0) ? ClasificarEstrategia(puntos_sl) : "";
 
       string json_open = BuildOpenJson(pos_id, BuildFp(entry_time, pos_id),
                                        tipo_str, entry_vol, entry_price,
@@ -1177,36 +1440,7 @@ void SyncHistory48h() {
             " | sl_orig:", DoubleToString(sl_orig, 5));
       SendEvent(json_open);
 
-      // Ahora sí cambiamos contexto para obtener datos de cierre
-      double   beneficio_total = 0.0;
-      double   close_price     = 0.0;
-      datetime close_time      = 0;
-      ulong    close_deal_id   = 0;
-
-      if(HistorySelectByPosition(pos_id)) {
-         int nd = HistoryDealsTotal();
-         for(int j = 0; j < nd; j++) {
-            ulong d  = HistoryDealGetTicket(j);
-            ENUM_DEAL_ENTRY de = (ENUM_DEAL_ENTRY)HistoryDealGetInteger(d, DEAL_ENTRY);
-            if(de == DEAL_ENTRY_OUT || de == DEAL_ENTRY_OUT_BY) {
-               beneficio_total += HistoryDealGetDouble(d, DEAL_PROFIT)
-                                + HistoryDealGetDouble(d, DEAL_COMMISSION)
-                                + HistoryDealGetDouble(d, DEAL_SWAP);
-               datetime dtime = (datetime)HistoryDealGetInteger(d, DEAL_TIME);
-               if(dtime >= close_time) {
-                  close_time    = dtime;
-                  close_price   = HistoryDealGetDouble(d, DEAL_PRICE);
-                  close_deal_id = d;
-               }
-            }
-         }
-      }
-
-      if(close_time > 0 && close_deal_id != 0) {
-         string json_close = BuildCloseJson(pos_id, close_deal_id,
-                                            close_price, beneficio_total, close_time);
-         SendEvent(json_close);
-      }
+      if(ReconciliarPosicion(pos_id, "sync48h")) AbiertaQuitar(pos_id);
       synced++;
    }
    Print("[AURUM SYNC] Historial ", HorasSync, "h — posiciones procesadas: ", synced);
@@ -1261,6 +1495,7 @@ void HandleDealOpen(const MqlTradeTransaction &trans) {
    SlMapSet(pos_id, sl);
    TpMapSet(pos_id, tp);
    VolMapSet(pos_id, vol_pos); // FIX 27/08: mapa de volumen para clasificar parcial vs cierre total
+   AbiertaAgregar(pos_id);     // 1.04: fallo 5, reconciliación de cierres
    PendienteAgregar(pos_id, sl != 0.0, tp != 0.0); // FIX 06/07: vigilar si falta SL/TP original
 
    string fp   = BuildFp(entry_time, pos_id);
@@ -1275,7 +1510,7 @@ void HandleDealOpen(const MqlTradeTransaction &trans) {
    // FASE 3 (brief linea de tiempo Diario): evento 'entrada' en paralelo,
    // después del SendEvent existente (orden a propósito, ver confirmación
    // dada al usuario antes de este cambio).
-   //SendTradeEvento(BuildEntradaEventoJson(fp, pe, vol_pos, entry_time)); // [FASE3-OFF 2026-08-29] /api/trade-evento no existe aún — reactivar quitando el //
+   SendTradeEvento(BuildEntradaEventoJson(fp, pe, vol_pos, entry_time));
 }
 
 void HandleDealClose(const MqlTradeTransaction &trans) {
@@ -1347,7 +1582,7 @@ void HandleDealClose(const MqlTradeTransaction &trans) {
       datetime entry_time = sel ? (datetime)PositionGetInteger(POSITION_TIME)
                                 : GetEntryTimeForPosition(pos_id);
       string   fp         = BuildFp(entry_time, pos_id);
-      //SendTradeEvento(BuildParcialEventoJson(fp, vol, vol_restante, price, profit, puntos_evt, dtime)); // [FASE3-OFF 2026-08-29] /api/trade-evento no existe aún — reactivar quitando el //
+      SendTradeEvento(BuildParcialEventoJson(fp, vol, vol_restante, price, profit, puntos_evt, dtime));
 
       VolMapSet(pos_id, vol_restante); // la posición sigue viva
    } else {
@@ -1391,7 +1626,7 @@ void HandleDealClose(const MqlTradeTransaction &trans) {
 
       datetime entry_time = GetEntryTimeForPosition(pos_id);
       string   fp         = BuildFp(entry_time, pos_id);
-      //SendTradeEvento(BuildCierreEventoJson(fp, tipo_cierre, price, vol, dtime)); // [FASE3-OFF 2026-08-29] /api/trade-evento no existe aún — reactivar quitando el //
+      SendTradeEvento(BuildCierreEventoJson(fp, tipo_cierre, price, vol, dtime));
 
       SlMapRemove(pos_id);
       TpMapRemove(pos_id);
@@ -1399,6 +1634,7 @@ void HandleDealClose(const MqlTradeTransaction &trans) {
       ExtremoMapRemove(pos_id); // MFE/MAE (04/09): ya no hace falta seguir esta posición
       PersistirExtremos();      // reflejar la baja en disco inmediatamente, no esperar al próximo tick
       PendienteQuitarPorPosId(pos_id); // FIX 06/07: ya no hace falta vigilar una posición cerrada
+      AbiertaQuitar(pos_id);           // 1.04: cerrada en vivo, no hace falta reconciliarla
    }
 }
 
@@ -1429,10 +1665,14 @@ void HandlePositionModified(const MqlTradeTransaction &trans) {
          SendEvent(json);
 
          // FIX 27/08: el evento de línea de tiempo ya NO es siempre 'breakeven'.
-         // Se decide por la distancia CON SIGNO de la entrada al nuevo SL:
-         //   |dist| <= 3 pts      -> 'breakeven'
-         //   dist  >  3 a favor   -> 'sl_protegido'
-         //   dist  >  3 en contra -> 'sl_ajustado'
+         // Se decide por la distancia CON SIGNO de la entrada al nuevo SL
+         // (1.04, 05/10: umbral BeToleranciaPts = 1 pt, antes 3 — fallo 3):
+         //   |dist| <= BeToleranciaPts      -> 'breakeven'
+         //   dist  >  BeToleranciaPts       -> 'sl_protegido'
+         //   dist  < -BeToleranciaPts       -> 'sl_ajustado'
+         // Primer SL (no había ninguno, sl_prev == 0): poner el SL inicial no es
+         // mover a breakeven -> 'sl_protegido' si ya protege la entrada
+         // (dist >= -BeToleranciaPts, mismo criterio que el análisis), si no 'sl_ajustado'.
          // La posición sigue seleccionada aquí (PositionSelectByTicket OK arriba).
          double   precio_entrada = PositionGetDouble(POSITION_PRICE_OPEN);
          bool     es_buy         = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY);
@@ -1443,12 +1683,13 @@ void HandlePositionModified(const MqlTradeTransaction &trans) {
                                           : (precio_entrada - sl_nuevo); // + a favor, - en contra
 
          string tipo_sl;
-         if(MathAbs(dist_favor) <= 3.0) tipo_sl = "breakeven";
-         else if(dist_favor > 3.0)      tipo_sl = "sl_protegido";
-         else                           tipo_sl = "sl_ajustado";
+         if(sl_prev == 0.0)                              tipo_sl = (dist_favor >= -BeToleranciaPts) ? "sl_protegido" : "sl_ajustado";
+         else if(MathAbs(dist_favor) <= BeToleranciaPts) tipo_sl = "breakeven";
+         else if(dist_favor > BeToleranciaPts)           tipo_sl = "sl_protegido";
+         else                                            tipo_sl = "sl_ajustado";
 
          VolMapSet(pos_id, vol_restante); // mantener el mapa de volumen fresco
-         //SendTradeEvento(BuildSlMoveEventoJson(fp, tipo_sl, dist_favor, sl_nuevo, vol_restante, now)); // [FASE3-OFF 2026-08-29] /api/trade-evento no existe aún — reactivar quitando el //
+         SendTradeEvento(BuildSlMoveEventoJson(fp, tipo_sl, dist_favor, sl_nuevo, vol_restante, now));
       }
    }
 
@@ -1600,6 +1841,10 @@ int OnInit() {
    CargarExtremosPersistidos();
    PurgeExtremosCerrados();
 
+   // 1.04 (05/10, fallo 5): posiciones vistas abiertas en una sesión anterior;
+   // las que ya cerraron se recuperan en la sincronización inicial (OnTimer).
+   CargarAbiertas();
+
    // Precarga SL de posiciones abiertas (seguro en OnInit, sin WebRequest)
    PopulateSlMap();
 
@@ -1689,13 +1934,25 @@ void OnTimer() {
    if(!g_sync_done) {
       g_sync_done = true;
 
-      SyncOpenPositions();
-      SyncHistory48h();
+      // Guard extra: si el EA se recarga dos veces seguidas (p.ej. al
+      // recompilar con el chart abierto), esto evita repetir la
+      // sincronización de historial dentro de una ventana de 30s.
+      string gv = "AURUM_LAST_SYNC_" + g_cuenta_numero;
+      double ultimoSync = GlobalVariableCheck(gv) ? GlobalVariableGet(gv) : 0;
+      if(TimeCurrent() - (datetime)ultimoSync < 30) {
+         Print("[AURUM] Sync inicial omitida — ya se hizo hace <30s (doble recarga detectada)");
+      } else {
+         GlobalVariableSet(gv, (double)TimeCurrent());
+         SyncOpenPositions();
+         SyncHistory48h();
+         ReconciliarCerradas("arranque"); // 1.04: fallo 5 (cierres fuera de las 48 h)
+      }
 
       EventKillTimer();
       EventSetTimer(IntervaloEnvioSegundos); // p.ej. cada hora, procesa la cola entera
       return;
    }
+   ComprobarReconciliacion(); // 1.04: fallo 5 — antes de vaciar la cola, para que lo recuperado salga ya
    ProcessRetryQueue();
 
    // FASE 3: cola separada, se procesa después de la existente a propósito
@@ -1724,4 +1981,6 @@ void OnTick() {
       g_ultimoCheckExtremos = TimeCurrent();
       ActualizarExtremosAbiertas();
    }
+
+   ComprobarReconciliacion(); // 1.04: fallo 5 (throttle propio de 10 s)
 }

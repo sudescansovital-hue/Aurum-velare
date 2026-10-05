@@ -52,6 +52,47 @@ sola al trade. Por valorar cómo llegan al Diario:
 
 ---
 
+## Sincronización de la EA (05/10) — paso 1 del siguiente gran paso
+
+Inventario en solo lectura de `%APPDATA%\MetaQuotes\Terminal\<id>\MQL5\Experts`
+(solo 3 terminales tienen la EA) + logs del terminal y de MetaEditor:
+
+| Terminal | Cuentas (última vez en logs) | Archivos | Qué corre | Eventos línea de tiempo | MFE/MAE | En uso |
+|---|---|---|---|---|---|---|
+| `BD8B1008…` (`AppData\Roaming\MetaTrader 5`, el de `MT5_TERMINAL_PATH`) | 178497 (hoy), 7747760 (28/09), 179003 (10/09), 176821 (31/08) | `.mq5` 03/09 00:03 (v1.02) · `.ex5` 04/09 18:36 | v1.02: el `.ex5` del 04/09 se compiló desde ese mismo `.mq5` (metaeditor.log); el log de la EA no lleva `mfe_pts` | Activos | **No** | **Sí** |
+| `D0E8209F…` (`Program Files\MetaTrader 5`) | 176821, 174645 (02/09, la EA falló al iniciar con 174645) | `.mq5` + `.ex5` 29/08 00:26 (compilado desde el repo de ese día) | v1.02 con los 4 `SendTradeEvento` comentados + guard de 30 s | Apagados | No | No |
+| `4264CCB9…` (`Program Files\WSFmarkets MT5 Terminal`) | — (logs hasta 19/07) | solo `.ex5` 19/07, sin fuente | obsoleto | — | — | No |
+| Repo `EA_Aurum_Tracker_FIX.mq5` (main) | — | v1.03 (04/09) | nunca desplegada | Comentados (`3cad1a5` los copió de D0E8209F…) | Sí | — |
+
+**Causa del fallo 1 (MFE/MAE nulos):** el código de MFE/MAE (v1.03, 04/09) solo
+existe en el repo; la EA en uso es v1.02 y nunca lo ha ejecutado. Se espera
+que se resuelva al desplegar la versión sincronizada — confirmar con un trade real.
+
+**Cuentas** (archivos de `Common\Files`; tokens no consultados):
+`aurum_auth_` existe para **178497, 179003 y 7747760** (no para 176821 ni
+7751904); `aurum_cola_`/`aurum_cola_eventos_` para 178497, 179003 y 7747760
+(vacías) y restos antiguos de 152034, 167807 y 176821 (`.bak` del 27/08).
+- 178497 — WSFmarkets-Server, **REAL** según `account_info().trade_mode` (05/10).
+- 179003 — WSFmarkets-Server; tipo no comprobado (no está conectada).
+- 7747760 — Neomaaa-global; tipo no comprobado (no está conectada).
+- 7751904 — Neomaaa-global, solo en logs del 11/06 al 28/06; sin archivos de la EA.
+- **Ojo:** según el usuario (05/10), la cuenta Prueba es la **7751904**, no la
+  178497. El Diario rotula las pestañas con `usuarios_aurum.cuenta_maestra /
+  cuenta_prueba / cuenta_retos` (en el admin), que el 02/10 tenía
+  `cuenta_prueba = 178497`: revisar esa asignación en el admin.
+
+**Decisión (05/10):** partir del repo v1.03, reactivar los 4 `SendTradeEvento`
+y **mantener el guard de 30 s** de la sincronización inicial (estaba en el repo
+desde el 19/07; `3cad1a5` lo quitó solo para igualar con BD8B1008…, sin motivo
+funcional documentado). Resultado: **v1.04** en la rama `feature/ea-sync`.
+Frente a la EA en uso solo añade MFE/MAE + el guard. Copias de seguridad en
+`BD8B1008…\MQL5\Experts\EA_Aurum_Tracker_FIX.{mq5,ex5}.bak_20261005_pre_ea_sync`.
+**Pendiente:** compilar en BD8B1008… solo sin posiciones abiertas y comprobar
+en el log que arranca bien, que la sincronización no duplica eventos y que
+`aurum_cola_<cuenta>.txt` no acumula errores. D0E8209F… y 4264CCB9… no se tocan.
+
+---
+
 ## FASE 2 — Diario de análisis en la web (02/10)
 
 Se acabaron los CSV a mano. Flujo:
@@ -396,7 +437,22 @@ Detalle completo en `salida/resumen.md` (global + por cuenta),
 
 ---
 
-## Fallos de la EA — para arreglar en OTRA sesión
+## Fallos de la EA — estado al 05/10 (rama `feature/ea-sync`, EA v1.04)
+
+Análisis y arreglos del 05/10 (código en la rama; la EA aún sin compilar ni
+desplegar — solo sin posiciones abiertas; compilada en prueba fuera de los
+terminales el 05/10: 0 errores, 0 avisos). Resumen; el detalle original de
+cada fallo sigue debajo.
+
+| # | Fallo | Causa encontrada | Arreglo | Estado |
+|---|---|---|---|---|
+| 1 | MFE/MAE nulos | (a) el código MFE/MAE (v1.03) nunca se desplegó: la EA en uso es v1.02; (b) **`handleClose` pisaba MFE/MAE con null** cada vez que `SyncHistory48h` reenviaba el `close` | (a) va en v1.04; (b) `api/trade-mt5.js`: solo escribe MFE/MAE si vienen (probado con mock) | (b) **en producción, `172a3da`**; (a) confirmar con trade real tras desplegar la EA |
+| 2 | Duplicados `ea_sl_changes` / `ea_tp_changes` | Casi todos de julio (bug de la cola, cerrado 20/07: grupos de 16–128). Desde agosto, parejas por reintento: timeout `WebRequest` de 4 s (`HTTP:1003 / error 5203` a ~4,2 s, log 29/09) con el servidor ya habiendo insertado; el endpoint hacía POST sin idempotencia | Limpieza (403 + 72 filas a `respaldo.*`), índices únicos `(cuenta_numero, position_id, timestamp, valor nuevo)`, endpoint con `on_conflict` + `ignore-duplicates` (**en producción, `9f468b7`**); EA: `TimeoutWebRequestMs` = 15 s y cada pasada de la cola se corta en el primer fallo de red (no en errores HTTP, para que un evento rechazado no bloquee la cola) | Servidor hecho; EA pendiente de desplegar. Prueba en producción del duplicado no hecha (requiere las credenciales de la EA; no se leen) |
+| 3 | 'breakeven' mal etiquetado | Umbral de 3 pts (`HandlePositionModified`) frente a 1 pt del análisis; además, poner el primer SL a < 3 pts contaba como BE. Desde el 28/08: 24 de 88 falsos (1,03–2,96 pts) | Input `BeToleranciaPts` = 1.0; primer SL (`sl_prev == 0`) nunca es BE: `sl_protegido` si protege la entrada, si no `sl_ajustado`. Simulado sobre los datos reales: 64 BE reales se quedan, 24 falsos pasan a `sl_protegido` (18) / `sl_ajustado` (6) | EA pendiente de compilar. Reetiquetar históricos en `trade_eventos`: opcional, sin decidir |
+| 4 | `cierre_tp` / `cierre_sl` | **No es un fallo de la EA.** 178497: 75/76 cierres coinciden con `DEAL_REASON` de MT5 (32 manual, 43 SL), 0 cierres por TP en MT5. Las "discrepancias" son del examen de `post_cierre.py` (SL con 1,5–2 pts de deslizamiento o `sl_actual` NULL; tolerancia 1 pt) y ya se usa el tipo de la EA. Falta 1 evento de cierre (22819382, 15/09) | Ninguno en la EA | Cerrado (falso positivo) |
+| 5 | Cierres no reconciliados | `SyncHistory48h` solo al arrancar y solo 48 h; nada al reconectar. Casos: 23827187 (PC suspendido) y **23453924** (25/09: EA quitada 17 min antes del SL, recargada 52 h 40 min después; arreglado con `sql_fix_cierre_23453924.sql` el 05/10). **Además, `SyncHistory48h` solo procesaba 1 posición por arranque** (tras `HistorySelectByPosition` los demás tickets no se pueden leer; logs: siempre "procesadas: 1") | `aurum_abiertas_<cuenta>.txt` con las posiciones vistas abiertas; `ReconciliarPosicion` (parciales + close + evento con `DEAL_REASON`, MFE/MAE null) al arrancar, al reconectar (+30 s) y cada `ReconciliarCadaMin` (15); `SyncHistory48h` reescrita (recoge primero los position_id) y usa la misma función | EA pendiente de desplegar (el arreglo 1(b) ya está en producción) |
+
+## Fallos de la EA — detalle original (29/09)
 
 Ninguno se ha tocado. Implican EA de producción y/o `api/trade-mt5.js`;
 antes hay que sincronizar la copia del repo con la que corre en MT5.
