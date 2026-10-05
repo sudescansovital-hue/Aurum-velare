@@ -112,7 +112,7 @@ dominio aurumvelare.com no está protegido. El script nunca imprime ninguno.
 Rotar: `openssl rand -hex 32` → `vercel env rm` + `vercel env add ... --sensitive`
 (Preview exige la rama como 3er argumento con la CLI v54) → reescribir el archivo.
 
-**Si cambian umbrales o criterios:** subir `CRITERIOS_VERSION` en
+**Si cambian umbrales o criterios:** (hoy v7, runners, 05/10) subir `CRITERIOS_VERSION` en
 `post_cierre.py` y ejecutar `--subir`: todo se recalcula y se sobrescribe (upsert).
 
 **Verificado 02/10:** regresión `--fuente web` vs `--fuente csv` idéntica en
@@ -257,6 +257,37 @@ en este navegador, va al JSON de cada captura (`ruta_pc`, `carpeta`) y al aviso
 "Guardado en …". Probado en Chrome sin interfaz (migración, 4 estados,
 Reconectar, ruta tras reabrir el navegador); falta probar a mano el diálogo
 real de permiso con una carpeta de verdad.
+
+**Criterios v7 (05/10): RUNNERS.** `evaluar_runner` en `post_cierre.py`. Trade
+con parcial (eventos `parcial` de `trade_eventos`, con precio y
+`volumen_restante`): el resto tras la **primera** parcial es runner si el SL
+protege la entrada (`_sl_protege`, ±1 pt o mejor) al hacer la parcial o hasta
+`RUNNER_VENTANA_PROTECCION_MIN` (15) después; si no, `runner=false` (parcial con
+el resto sin proteger); sin parcial, NULL. Se guarda: pts de la parcial, lotes
+restantes, SL del resto, máximo a favor desde la entrada tras el minuto de la
+parcial (velas M1), salida media ponderada del resto (parciales posteriores +
+cierre), minutos parcial→cierre, `runner_usd` (pts × 100 × lotes de cada salida)
+y `runner_usd_todo_parcial` (resto cerrado en la primera parcial). Sin
+comisiones ni swap. Antes del ~27/08 la EA no mandaba `volumen_restante`: esos
+runners tienen niveles pero `runner_usd` NULL. Columnas en
+`sql_post_cierre_v7_runners.sql` (ejecutado 05/10). Comprobado contra MT5:
+23827187, resto 0,2 a −0,1 pts = −2,00 $ (deal real −2,00).
+En el Diario: bloque "Runners" en Tu semana / Todo el histórico (niveles
+`DA_RUNNER_NIVELES` = +33/+50/+100: volvió al BE, salió con algo, llegó a +33,
++50, +100 o más; mediana de tiempo; $ total y por runner vs todo en la parcial;
+por estrategia), frase en el veredicto e insignia "Runner: +X".
+
+**"Qué te conviene" (05/10, solo front).** `_daConclusiones` en
+`diario-analisis.js`, en Tu semana, en el mes del calendario y en Todo el
+histórico: hasta 4 frases por reglas, ordenadas por dinero en juego, cada una
+con su nº de trades. Comparaciones: esperar 15 min vs seguidas (diferencia de
+$ medio × nº de seguidas), vueltas (real vs mantener el primero), parar en el
+límite diario (P&L de los trades hechos después de superarlo), BE antes de TP1
+(salidas en BE tras las que el precio llegó al TP1: TP1 × 100 × lotes), TP1 no
+asegurado (cerrar en TP1 vs real) y runners (vs todo en la parcial). Mínimos:
+`DA_MIN_TRADES_CONVIENE` = 20 trades en el periodo y `DA_MIN_GRUPO_CONVIENE` =
+5 casos por comparación; con menos, lo dice en vez de concluir. Verificado con
+los 307 trades contra un cálculo independiente en Python.
 
 **Calendario mensual (05/10, hecho, solo front, sin SQL).** Encima de "Tu
 semana" y con la misma pestaña de cuenta. Cuadrícula lunes–domingo en hora de

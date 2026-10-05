@@ -113,7 +113,7 @@ FECHA_CORTE_SEPTIEMBRE = datetime(2026, 9, 1)
 # ── FASE 2: web ──
 # Sube si cambia cualquier criterio/umbral de arriba: el endpoint devuelve
 # entonces como pendientes todos los trades con una version anterior.
-CRITERIOS_VERSION = 6   # v2 (02/10): be_efecto mixto · v3: TP1 no asegurado + velas en hora de servidor · v4: SL desprotegido · v5: precio_fin_ventana · v6: BE antes de TP1
+CRITERIOS_VERSION = 7   # v2 (02/10): be_efecto mixto · v3: TP1 no asegurado + velas en hora de servidor · v4: SL desprotegido · v5: precio_fin_ventana · v6: BE antes de TP1 · v7 (05/10): runners
 BASE_URL_DEFAULT = "https://aurumvelare.com"
 TOKEN_PATH = BASE_DIR / ".post_cierre_token"   # lineas token=... y opcional bypass=...
 LOTE_SUBIDA = 25                               # = MAX_RESULTADOS_POR_LOTE del endpoint
@@ -124,6 +124,12 @@ VELAS_ANTES_ENTRADA = 10
 # "TP1 no asegurado" (criterios v3): TP1 en pts desde la entrada, por estrategia.
 # Estrategias que no esten aqui (incluido sin clasificar = None) no se evaluan.
 TP1_PTS_POR_ESTRATEGIA = {"estructura": 11.0, "rechazo_rsi": 7.0}
+
+# Runners (criterios v7): tras la primera parcial, el resto cuenta como runner si
+# el SL protege la entrada (BE_TOLERANCIA_PTS o mejor) en el momento de la
+# parcial o hasta estos minutos despues (el BE suele ponerse justo despues).
+RUNNER_VENTANA_PROTECCION_MIN = 15
+USD_POR_PUNTO_Y_LOTE = 100.0  # XAUUSD, igual que la web (VALOR_PUNTO_XAUUSD)
 MAX_VELAS_DURANTE = 240
 
 COLUMNA_ORDEN_RESULTADOS = None  # se rellena al final con los nombres de ResultadoTrade
@@ -154,6 +160,7 @@ class Trade:
     cambios_tp: list = field(default_factory=list)
     eventos_be_ea: list = field(default_factory=list)  # [(tipo_evento, timestamp, sl_en_evento, puntos_desde_entrada)]
     parciales: list = field(default_factory=list)      # [timestamp, ...] de trade_eventos 'parcial' (solo --fuente web)
+    parciales_det: list = field(default_factory=list)  # [(timestamp, precio, volumen_restante|None), ...] (v7)
 
 
 @dataclass
@@ -236,6 +243,20 @@ class ResultadoTrade:
     sl_desprotegido_en: str
     sl_nivel_desprotegido: str
     sl_protegido_habria_salido: str
+
+    # Runners (v7): resto tras la primera parcial (ver evaluar_runner)
+    runner: str
+    runner_parcial_en: str
+    runner_parcial_pts: str
+    runner_n_parciales: str
+    runner_vol_resto: str
+    runner_sl_pts: str
+    runner_max_pts: str
+    runner_max_en: str
+    runner_salida_pts: str
+    runner_minutos: str
+    runner_usd: str
+    runner_usd_todo_parcial: str
 
     notas: str
 
@@ -737,6 +758,62 @@ def evaluar_sl_desprotegido(trade: Trade, velas_intra: list, sl_original) -> dic
             "desprotegido_en": d_en, "nivel_desprotegido": d_nivel, "habria_salido": habria}
 
 
+# ── Runners (criterios v7) ──────────────────────────────────────────────
+
+def evaluar_runner(trade: Trade, velas_intra: list, sl_original) -> Optional[dict]:
+    """Trade con parcial: lo que se dejo abierto tras la PRIMERA parcial.
+    runner = el SL protegia la entrada (_sl_protege) al hacer la parcial o hasta
+    RUNNER_VENTANA_PROTECCION_MIN despues (o hasta el cierre, si fue antes).
+    Del resto se mide: maximo a favor desde la entrada tras la parcial (velas M1
+    posteriores al minuto de la parcial), salida media ponderada en pts (parciales
+    posteriores + cierre final), minutos parcial -> cierre y $ = pts x 100 x lotes
+    de cada salida, frente a haber cerrado todo el resto en la primera parcial.
+    Sin comisiones ni swap. $ = None si la EA no mando volumen_restante (eventos
+    anteriores al ~27/08). Devuelve None si no hubo parcial."""
+    if not trade.parciales_det:
+        return None
+    d = 1 if trade.direccion == "buy" else -1
+    pts = lambda precio: round((precio - trade.precio_entrada) * d, 2)
+    ts0, p0, vr0 = trade.parciales_det[0]
+    if vr0 is not None and vr0 <= 0:
+        return None  # la "parcial" cerro todo: no queda resto
+
+    limite = min(ts0 + timedelta(minutes=RUNNER_VENTANA_PROTECCION_MIN), trade.fecha_cierre)
+    sl = sl_en_vigor(trade, sl_original, limite + timedelta(seconds=1))
+    protegido = _sl_protege(trade, sl)
+
+    max_pts, max_en = pts(p0), ts0
+    minuto0 = ts0.replace(second=0, microsecond=0)
+    for v in velas_intra:
+        if v.time > minuto0:
+            f = round(((v.high if d == 1 else v.low) - trade.precio_entrada) * d, 2)
+            if f > max_pts:
+                max_pts, max_en = f, v.time
+
+    # Salidas del resto: parciales posteriores (lo que baja volumen_restante) + cierre final
+    usd = usd_todo = salida_pts = None
+    vols = [vr for _, _, vr in trade.parciales_det]
+    if all(v is not None for v in vols):
+        salidas = []
+        for (_, p_ant, vr_ant), (_, p_i, vr_i) in zip(trade.parciales_det, trade.parciales_det[1:]):
+            salidas.append((round(vr_ant - vr_i, 2), pts(p_i)))
+        salidas.append((vols[-1], pts(trade.precio_cierre)))
+        salidas = [(v, x) for v, x in salidas if v > 0]
+        vol_total = sum(v for v, _ in salidas)
+        if vol_total > 0:
+            salida_pts = round(sum(v * x for v, x in salidas) / vol_total, 2)
+            usd = round(sum(v * x for v, x in salidas) * USD_POR_PUNTO_Y_LOTE, 2)
+            usd_todo = round(vr0 * pts(p0) * USD_POR_PUNTO_Y_LOTE, 2)
+    if salida_pts is None:
+        salida_pts = pts(trade.precio_cierre)
+
+    return {"runner": protegido, "parcial_en": ts0, "parcial_pts": pts(p0), "n_parciales": len(trade.parciales_det),
+            "vol_resto": vr0, "sl_pts": pts(sl) if sl is not None else None,
+            "max_pts": max_pts, "max_en": max_en, "salida_pts": salida_pts,
+            "minutos": max(0, int((trade.fecha_cierre - ts0).total_seconds() // 60)),
+            "usd": usd, "usd_todo_parcial": usd_todo}
+
+
 # ── Analisis por trade ───────────────────────────────────────────────────
 
 def analizar_trade(mt5, simbolo: str, trade: Trade, velas_out: Optional[dict] = None) -> ResultadoTrade:
@@ -854,6 +931,8 @@ def analizar_trade(mt5, simbolo: str, trade: Trade, velas_out: Optional[dict] = 
     tp1 = evaluar_tp1(trade, velas_intra, sl_original)
     desp = evaluar_sl_desprotegido(trade, velas_intra, sl_original)
     be_tp1 = evaluar_be_antes_tp1(trade, velas_intra, sl_original, tp1)
+    run = evaluar_runner(trade, velas_intra, sl_original)
+    sv = lambda k: "" if run is None or run[k] is None else (run[k].isoformat() if isinstance(run[k], datetime) else str(run[k]))
 
     return ResultadoTrade(
         position_id=trade.position_id,
@@ -917,6 +996,18 @@ def analizar_trade(mt5, simbolo: str, trade: Trade, velas_out: Optional[dict] = 
         sl_desprotegido_en=desp["desprotegido_en"].isoformat() if desp["desprotegido_en"] else "",
         sl_nivel_desprotegido=str(desp["nivel_desprotegido"]) if desp["nivel_desprotegido"] is not None else "",
         sl_protegido_habria_salido=str(desp["habria_salido"]) if desp["habria_salido"] is not None else "",
+        runner=sv("runner"),
+        runner_parcial_en=sv("parcial_en"),
+        runner_parcial_pts=sv("parcial_pts"),
+        runner_n_parciales=sv("n_parciales"),
+        runner_vol_resto=sv("vol_resto"),
+        runner_sl_pts=sv("sl_pts"),
+        runner_max_pts=sv("max_pts"),
+        runner_max_en=sv("max_en"),
+        runner_salida_pts=sv("salida_pts"),
+        runner_minutos=sv("minutos"),
+        runner_usd=sv("usd"),
+        runner_usd_todo_parcial=sv("usd_todo_parcial"),
         notas="; ".join(notas),
     )
 
@@ -1046,6 +1137,8 @@ def cargar_desde_web(pendientes: list) -> tuple:
         t.eventos_be_ea = [(e["tipo_evento"], _ts_web(e["timestamp"]), _fl(e["precio"]), _fl(e["puntos_desde_entrada"]))
                            for e in eventos if e["tipo_evento"] in ("breakeven", "sl_protegido", "sl_ajustado")]
         t.parciales = [_ts_web(e["timestamp"]) for e in eventos if e["tipo_evento"] == "parcial"]
+        t.parciales_det = [(_ts_web(e["timestamp"]), _fl(e["precio"]), _fl(e["volumen_restante"]))
+                           for e in eventos if e["tipo_evento"] == "parcial" and e["precio"] is not None]
         trades[t.fp] = t
     return trades, {"total_filas": total, "filas_unicas": len(vistos), "duplicados": duplicados}
 
@@ -1161,6 +1254,18 @@ def resultado_a_fila(r: ResultadoTrade, trade: Trade, simbolo: str, broker: str)
         "sl_protegido_habria_salido": booleano(r.sl_protegido_habria_salido),
         "entrada_en_vela": booleano(r.entrada_dentro_de_vela),
         "cierre_en_vela": booleano(r.cierre_dentro_de_vela),
+        "runner": booleano(r.runner),
+        "runner_parcial_en": iso(r.runner_parcial_en),
+        "runner_parcial_pts": num(r.runner_parcial_pts),
+        "runner_n_parciales": ent(r.runner_n_parciales),
+        "runner_vol_resto": num(r.runner_vol_resto),
+        "runner_sl_pts": num(r.runner_sl_pts),
+        "runner_max_pts": num(r.runner_max_pts),
+        "runner_max_en": iso(r.runner_max_en),
+        "runner_salida_pts": num(r.runner_salida_pts),
+        "runner_minutos": ent(r.runner_minutos),
+        "runner_usd": num(r.runner_usd),
+        "runner_usd_todo_parcial": num(r.runner_usd_todo_parcial),
         "notas": r.notas or None,
         "simbolo_velas": simbolo,
         "broker_velas": broker,
