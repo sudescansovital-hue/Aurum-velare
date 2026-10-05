@@ -1,7 +1,39 @@
 # AURUM VELARE — Arquitectura Web
 > Documento vivo. Se actualiza con el proyecto.  
-> Última actualización: 31 de agosto de 2026  
+> Última actualización: 5 de octubre de 2026  
 > Para uso interno — contexto de desarrollo y nuevas sesiones de trabajo.
+
+---
+
+## Estado sesiones 28/09–05/10/2026 — Diario post-cierre
+
+> Detalle completo (criterios, cifras, verificaciones, cómo ejecutar) en
+> `tools/post_cierre/ESTADO.md`. Resumen aquí.
+
+- **Diario post-cierre** en Mi gestión → Diario (`diario-analisis.js`):
+  pestañas Global / Maestra / Prueba / Retos (cuentas de `usuarios_aurum`),
+  vista semanal (lunes–domingo, hora de servidor MT5) + "Todo el histórico",
+  gráfico M1 de cada trade (durante + 4 h después), veredictos de cierre e
+  insignias de error (TP1 no asegurado, SL desprotegido, BE antes de TP1,
+  vueltas), calendario mensual con panel del día y límite diario de 500 $,
+  runners y bloque "Qué te conviene" (conclusiones por reglas, sin IA).
+- **`tools/post_cierre/post_cierre.py` v7** (criterios de análisis v7, runners)
+  lee velas M1 del MT5 local (solo lectura) y sube vía `api/post-cierre.js`
+  (token `POST_CIERRE_TOKEN`). **Automatizado** con la tarea de Windows
+  `\Aurum\post_cierre automatico`: cada hora, al iniciar sesión y al volver de
+  suspensión, solo si MT5 está abierto; log en `tools/post_cierre/salida/auto.log`.
+- **Tablas:** `post_cierre_analisis` (una fila por trade; incluye las 12
+  columnas `runner*`, `sql_post_cierre_v7_runners.sql` aplicado el 05/10) y
+  `post_cierre_velas` (velas del gráfico). RLS solo SELECT; escribe solo el
+  endpoint.
+- **`.vercelignore`** (05/10): no se publican `tools/`, `docs/`, `*.md`,
+  `*.sql`, `*.mq5` ni scripts locales (antes `ESTADO.md` era público).
+- **Siguiente paso:** sincronizar la EA real de MT5 con
+  `EA_Aurum_Tracker_FIX.mq5` y arreglar sus 5 fallos conocidos (MFE/MAE nulos,
+  duplicados en `ea_sl_changes`/`ea_tp_changes`, 'breakeven' mal etiquetado,
+  clasificación `cierre_tp`/`cierre_sl`, cierres perdidos con el PC
+  suspendido o MT5 apagado), como base para que el análisis funcione para
+  cualquier usuario solo con la EA.
 
 ---
 
@@ -18,6 +50,43 @@ retoma la entrada por sesión aquí; para el detalle técnico completo de
 cada una, `PLAN_CORAZON_DATOS.md` sigue siendo el brief de referencia (ver
 regla #2 de mantenimiento, arriba) — este archivo se queda como índice/
 resumen de alto nivel.
+
+---
+
+## Estado sesión 01 Sep 2026 — Verificación de trade real (6421549): TP change, parciales y SL change se persisten completos
+
+> Detalle completo, paso a paso, en `PLAN_CORAZON_DATOS.md` → "7. Sesión
+> 01/09". Resumen aquí.
+
+Sesión de verificación pura — sin cambios de código ni SQL — cruzando el
+log del EA en pantalla contra Supabase, tabla por tabla, para un trade
+real cerrado hoy en la 7747760 (`position_id 6421549`).
+
+Al empezar la sesión se sospechó que el evento `tp_change` no tenía dónde
+guardarse en el backend — sospecha nacida de comparar contra una copia
+desactualizada de `api/trade-mt5.js` (Project Knowledge), sin
+`handleTpChange`. Al subir el archivo real, se confirmó que sí existe:
+tabla `ea_tp_changes`, campo `tp_actual` en `ea_trades`, más el evento
+`original_capture` y la clasificación de estrategia ya documentados en
+sesiones anteriores (26/08, 31/08). **La sospecha era incorrecta** —
+verificado con datos reales que las 4 tablas relevantes
+(`ea_sl_changes`, `ea_tp_changes`, `trade_parciales`, `ea_trades`)
+contienen el histórico completo del trade, incluidos varios eventos
+anteriores al trozo de log que se había revisado al principio. El único
+fallo de red visible en el log (`error:5203`,
+`ERR_WEBREQUEST_REQUEST_FAILED`, genérico y transitorio) se recuperó solo
+vía la cola de reintentos, sin pérdida de datos.
+
+**Cerrado en la misma sesión: `trade_eventos` verificada (14 filas, todas
+cuadran) y pendiente del 31/08 confirmado** — `beneficio` solo viene
+relleno en eventos `parcial`, NULL en el resto por diseño. Localizado
+`ea-auditoria.js` (el archivo que pinta este timeline en "Mi Gestión",
+ausente de Project Knowledge) y arreglados ahí dos bugs de presentación:
+desfase de +2h en todas las horas (doble conversión de zona horaria,
+`toLocaleString` sin `timeZone: 'UTC'`) y fila de cierre sin el importe
+(ahora usa `trades.beneficio` como fallback cuando el evento no lo trae).
+Ambos mecanismo genérico, no parches puntuales — verificado que se
+aplican igual a cualquier trade futuro, no solo al de hoy.
 
 ---
 

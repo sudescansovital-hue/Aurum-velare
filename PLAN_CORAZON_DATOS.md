@@ -2510,3 +2510,55 @@ Reparto por cuenta:
   actualización del backend para guardarlo. No se puede reconstruir para
   trades ya cerrados/importados — solo aplica hacia adelante desde que se
   implemente.
+
+---
+
+# Sesión 03/09 (tarde/noche) — Análisis de comportamiento manual (cuenta Retos 179003) y pendientes reordenados
+
+## Análisis de comportamiento, sesión 03/09 (por la tarde/noche)
+
+Se hizo un análisis manual (a mano, sin herramienta) de las 8 operaciones
+del día en la cuenta Retos (179003): total **+637.24$**, **WR 62.5%**.
+
+**Hallazgo:** 2 operaciones (02:13 +360.31$, y una sell 0.4 lot +443.83$)
+concentraron **+804.14$**; las otras 6 operaciones sumaron **-166.90$**
+entre todas.
+
+**Patrón identificado:** 4 cambios de dirección seguidos entre 18:04 y el
+cierre (buy→buy→sell→buy→sell), con el lotaje subiendo tras cada pérdida
+(0.1→0.2→0.4), no tras cada ganancia. Roderas confirma que los cambios de
+dirección no son plan — ocurren cuando pierde la lectura clara del
+mercado ("me confundo").
+
+Roderas señala que su primera entrada del día suele ser un "tanteo"
+(lotaje pequeño), pero los datos de ayer muestran que las subidas de
+lotaje llegaron tras pérdidas, no tras aciertos — posible perseguir
+pérdida en vez de tanteo puro. No se puede distinguir con los datos
+actuales cuál de las dos lecturas es la correcta.
+
+Roderas pide que el sistema pueda decirle, por operación: cuánto arriesgó
+en $ y % de cuenta (esto YA es posible desde el fix de `puntos_sl` de
+ayer: puntos_sl × volumen × 100$), y cuánto llegó a bajar la flotante en
+contra aunque se recuperara (esto NO es posible todavía — requiere MAE,
+ver pendientes abajo).
+
+## Pendientes (reordenados, prioridad explícita acordada con Roderas)
+
+**1º — MFE + MAE en el EA** (Maximum Favorable/Adverse Excursion).
+Fusionar en un solo pendiente: el mismo mecanismo de seguimiento de
+precio máx/mín mientras la posición está abierta sirve para capturar
+ambos (lo mejor y lo peor que llegó a estar cada trade). Es la base
+técnica de la que dependen los siguientes dos puntos.
+
+**2º — Resumen diario dentro del Diario.** Vista tipo el análisis manual
+de ayer: agrupar por dirección/lotaje/hora, detectar rachas de ajustes de
+SL en pocos minutos. Pendiente de definir: franja horaria (día natural vs
+sesión de trading), si detecta rachas automáticamente o solo muestra
+datos, si va como sección nueva o sustituye la vista actual de Auditoría
+EA — quedó sin cerrar, hay que retomarlo con Roderas antes de
+construirlo.
+
+**3º — Notas de contexto por trade** (captura + texto). Para capturar el
+"por qué" de cada ajuste/cambio de dirección, no solo el "qué". Ya estaba
+en el plan desde julio, se re-confirma su importancia con el caso de
+ayer.
