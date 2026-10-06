@@ -1,6 +1,6 @@
 # Estado — análisis post-cierre: FASE 1 (examen de la EA) + FASE 2 (Diario web)
 
-> Actualizado 06/10/2026 (cierre de sesión: decisiones y pendientes abajo; "Edge por cuenta"; "Mis reglas"; propuesta "Mi proceso"). Antes: 05/10/2026 (post_cierre automatizado con tarea programada; fallo 5 de la EA). Antes: 02/10/2026. **FASE 2 en producción** (primer deploy `cdede9a` /
+> Actualizado 06/10/2026, noche (Diario al instante desde `ea_trades`, bloque "Hoy" y plan del trader en producción; **un push a `main` despliega solo**). Antes, 06/10 (cierre de sesión: decisiones y pendientes abajo; "Edge por cuenta"; "Mis reglas"; propuesta "Mi proceso"). Antes: 05/10/2026 (post_cierre automatizado con tarea programada; fallo 5 de la EA). Antes: 02/10/2026. **FASE 2 en producción** (primer deploy `cdede9a` /
 > `aurum-velare-cw5la96zd`; el anterior a la FASE 2, para rollback, era
 > `aurum-velare-9hp3r9l3q`). Criterios de análisis hoy: **v6**. FASE 1
 > terminada el 29/09 (298 trades, en seco).
@@ -9,7 +9,9 @@
 
 ## Decisiones del 06/10
 
-- **El Diario es SOLO para trades auditados por la EA** (`post_cierre_analisis`).
+- **El Diario es SOLO para trades auditados por la EA** (`post_cierre_analisis`
+  y, desde la noche del 06/10, también los cerrados de `ea_trades` que aún no
+  tienen análisis: salen al momento como "Análisis pendiente").
   Los trades importados a mano se quedan en el Trade Record; no entran en el
   Diario ni en sus niveles. Por eso en la Maestra el Diario ve 65 trades (desde
   julio) y el análisis de edge, 242 (desde abril).
@@ -20,16 +22,25 @@
 - **Regla real de Roderas** (en Mis reglas, carpeta "Todas"): pérdida máxima por
   trade 500 $; día −800 $ «Límite» y −1.100 $ «Cierre obligatorio»; día +250 $
   «Día bueno», +500 $ «Oportunidad» y +1.500 $ «Asegurar».
+- **Plan del trader (noche del 06/10):** en Mis reglas, cada nivel puede llevar
+  "qué haces al llegar"; el Diario lo recuerda ese día ("Tu plan dice: …").
+  También es solo un aviso. Con un nivel de pérdida ya alcanzado, "Hoy" no
+  enseña cuánto falta para el de beneficio (sería una invitación a recuperar).
 
 ## Pendientes, en orden (06/10)
 
 1. **Semana(s) de observación sin tocar código:** confirmar con trades reales
    MFE/MAE (fallo 1), el breakeven (fallo 3) y los avisos de niveles en el
-   Diario. Después, **fusionar `feature/ea-sync` en `main`**.
+   Diario. Además, comprobar con la sesión del usuario el Diario al instante y
+   el plan (lista en la sección "Diario al instante y plan del trader").
+   Después, **fusionar `feature/ea-sync` en `main`**.
 2. **Siguiente gran paso: rehacer "Mi proceso"** (sección "Mi proceso: Tu
    situación y barra por días limpios", justo debajo). Orden 0-1-2-3; cada
    fase se enseña antes de desplegar.
-3. **Mis reglas, fase 3:** panel del admin con candado.
+3. **Mis reglas, fase 3:** panel del admin con candado. Ojo: con el trigger
+   actual, si el admin fija un nivel más estricto el usuario ya no puede editar
+   su fila de ese nivel (ni el nombre ni el plan) sin bajar antes el importe;
+   resolverlo al hacer esta fase (ver "Diario al instante y plan del trader").
 4. **Frase del runner con cada parcial por separado.**
 5. **Punto 4 — velas desde la EA y análisis en el servidor** (sección
    "Siguiente gran paso (02/10)", pasos 3 y 4).
@@ -492,6 +503,85 @@ comisiones y swap van dentro del beneficio de los importados.
 
 ---
 
+## Diario al instante y plan del trader (06/10, noche) — EN PRODUCCIÓN
+
+**Problema:** el Diario solo leía `post_cierre_analisis`, así que un trade
+recién cerrado no salía hasta que `post_cierre.py` (cada hora) lo analizaba,
+aunque la EA ya lo hubiera mandado a `ea_trades`. Además el P&L salía de
+`AURUM_TRADES`, que se carga al entrar en la web: los trades cerrados después
+salían con P&L "—" hasta recargar.
+
+**En producción:** commit `723e6d0` en `main`, deploy `aurum-velare-1quaszrb4`
+(06/10). SQL del plan `a23bbe7`. Enseñado antes con una vista previa local
+(datos inventados) + 25 pruebas jsdom. **Pendiente de que el usuario lo
+compruebe con su sesión.**
+
+**SQL aplicado por el usuario el 06/10:**
+- RLS de lectura en `ea_trades` (no había ninguna para el navegador):
+  `eat_user_select` (`auth.email() = usuario_email`) y `eat_admin_select`
+  (`sudescansovital@gmail.com`). Escrito y aplicado a mano en Supabase, sin
+  archivo en el repo. Verificado: 2 policies, RLS activado.
+- `tools/post_cierre/sql_mis_reglas_v2_plan.sql`: columna `plan` (máx. 200) en
+  `reglas_valores`, el trigger la recorta, el historial la registra y
+  `reglas_efectivas` la expone al final. Verificado: plan_columnas 2,
+  efectivas 24, con_plan 0. Probado antes en PGlite sobre
+  `sql_mis_reglas.sql` (12 comprobaciones). Ese v1 solo está en la rama
+  `feature/ea-sync`; el v2 está en `main`.
+
+**Cómo funciona (`diario-analisis.js`):**
+- Carga `post_cierre_analisis`, `reglas_efectivas` (`select=*`, funciona con y
+  sin `plan`) y los cerrados de `ea_trades`, **paginado** de 1000 en 1000
+  (max-rows de Supabase; antes `limit=5000` se quedaba en 1000 sin avisar).
+- **Sin duplicados:** clave `fp` en las dos tablas (la misma que usa
+  `post_cierre.py`). Cada `fp` de `ea_trades` sin análisis es una fila
+  provisional (`_pendiente`); cuando llega el análisis, en la siguiente carga
+  ya no se crea.
+- **P&L:** `trades` sigue siendo la fuente de verdad; si el `fp` no está en
+  `AURUM_TRADES`, se usa el `beneficio` de `ea_trades` (es el mismo que la EA
+  escribe en `trades`).
+- **Con pendientes:** calendario, panel del día, listas, P&L, win rate, avisos
+  de Mis reglas ("Tus niveles", LÍM / ▲ / !, "Tras «nivel»"), vueltas y
+  entradas seguidas. **Solo analizados:** veredictos, cierres a mano, BE, TP1,
+  SL desprotegido, runners, "Qué te conviene" y la evolución de % pronto. El
+  "Análisis del día" avisa si hay pendientes en vez de decir "sin errores".
+- **Detalle de un pendiente:** aviso, entrada, cierre, pts, P&L y línea de
+  tiempo (`trade_eventos`), sin gráfico.
+- **Refresco:** con la pestaña del navegador y el Diario visibles, cada 60 s
+  (`DA_REFRESCO_MS`) mira los últimos 20 cierres de `ea_trades` y los últimos
+  20 análisis (`calculado_en`); solo si cambian recarga y repinta.
+- **Bloque "Hoy"** (arriba, antes del calendario; solo si hoy hay trades): una
+  tarjeta por cuenta con P&L, "N sin analizar", el último nivel de pérdida y el
+  último de beneficio alcanzados con **"Tu plan dice: «…»"** (o enlace a Mis
+  reglas si no hay plan), lo abierto después y el siguiente nivel. "Hoy" =
+  fecha del navegador (las horas son de servidor MT5: cerca de medianoche puede
+  no coincidir; el calendario es la referencia). El plan también sale en la
+  frase del panel del día ("tu plan: «…»").
+
+**Mis reglas (`mis-reglas.js`):** campo "Qué haces al llegar" bajo cada nivel;
+plan sin importe da error, igual que el nombre. Lee `plan` explícitamente: sin
+el SQL v2 la pestaña no cargaría.
+
+**Limitación conocida (del trigger de `sql_mis_reglas.sql`, no del v2):** si el
+admin fija para un nivel un importe más estricto que el del usuario, cualquier
+UPDATE de la fila del usuario de ese nivel falla (también cambiar solo el
+nombre o el plan) hasta que baje el importe. Hoy no hay niveles del admin, así
+que no afecta; resolverlo en la fase 3 (p. ej. comprobar el tope solo si cambia
+el importe).
+
+**Qué comprobar con la sesión del usuario:**
+1. Mis reglas: escribir un plan, guardar y recargar (se mantiene); plan sin
+   importe → error.
+2. Cerrar un trade con la EA y abrir el Diario sin esperar a la tarea: sale en
+   el calendario de hoy, en "Trades del día" y en la semana con "Análisis
+   pendiente" y su P&L; al desplegarlo, aviso + línea de tiempo.
+3. Con el Diario abierto, un trade nuevo aparece solo en ≤ 1 min.
+4. Tras la tarea horaria, el mismo trade sale una sola vez, ya con veredicto.
+5. "Hoy": P&L por cuenta, nivel alcanzado con "Tu plan dice", y sin objetivo de
+   beneficio si ya se alcanzó uno de pérdida.
+6. Semanas y meses anteriores, igual que antes.
+
+---
+
 ## Mis reglas (06/10) — fases 1 y 2 en producción; fase 3 pendiente
 
 El límite fijo `DA_LIMITE_PERDIDA_DIA` del Diario pasa a ser configurable por
@@ -514,6 +604,9 @@ comprobaciones de RLS, candado e historial. Sustituye a
   EA reales contra un cálculo independiente en Python (6 niveles, Maestra y
   Prueba) + 14 pruebas jsdom + la prueba anterior del Diario. Detalle abajo.
 - **Fase 3 — pendiente:** panel del admin y candado en la pantalla.
+- **Plan del trader — EN PRODUCCIÓN (06/10, noche):** columna `plan` por nivel
+  (`sql_mis_reglas_v2_plan.sql`) y bloque "Hoy" en el Diario. Ver la sección
+  "Diario al instante y plan del trader".
 
 - **Reglas** (todas opcionales; vacío = no se mide), por usuario y por carpeta
   (`todas` por defecto, o `maestra` / `prueba` / `retos`: por carpeta y no por
@@ -613,6 +706,12 @@ web necesita servir un archivo de esos tipos, añadir una excepción `!ruta`.
 Desplegar desde una copia limpia del commit (`git worktree add --detach <tmp> HEAD`
 + copiar `.vercel/` + `npx vercel --prod --yes`) para no publicar cambios sin
 commitear.
+
+**Ojo (verificado el 06/10 con `vercel ls --prod`): un `git push` a `main`
+también despliega a producción solo** (integración Git de Vercel), además del
+deploy manual. No subir a `main` código que no deba estar ya en la web: usar
+otra rama hasta que esté aprobado. Subir solo `.sql`/`.md`/`tools/` no cambia
+la web (lo excluye `.vercelignore`), pero igualmente genera un deploy.
 
 **Auth del endpoint:** token propio `POST_CIERRE_TOKEN` (Vercel, sensible,
 Production + Preview de la rama `feature/post-cierre`) en cabecera

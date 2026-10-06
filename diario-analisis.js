@@ -13,7 +13,7 @@
 // trades (AURUM_TRADES, fuente de verdad), cruzando por fp; si el trade no
 // está ahí (AURUM_TRADES se carga al entrar), del beneficio de ea_trades.
 //
-// Trades al instante (07/10): también se leen los cerrados de ea_trades. Los
+// Trades al instante (06/10): también se leen los cerrados de ea_trades. Los
 // que post_cierre.py aún no ha analizado salen como fila provisional
 // (_pendiente: "Análisis pendiente") en el calendario, el día, la lista, el
 // P&L y los avisos de Mis reglas; los bloques que necesitan el análisis los

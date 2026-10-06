@@ -9,7 +9,7 @@
 // Datos: reglas_valores (RLS: cada usuario ve las suyas). Una fila por nivel;
 // sin fila = no se mide. Carpeta 'todas' = por defecto; una fila de
 // 'maestra' / 'prueba' / 'retos' sustituye a la de 'todas' para esa carpeta.
-// Plan (07/10, sql_mis_reglas_v2_plan.sql): qué hace el trader al llegar a
+// Plan (06/10, sql_mis_reglas_v2_plan.sql): qué hace el trader al llegar a
 // cada nivel; el Diario lo muestra cuando lo alcanza ("Tu plan dice: …").
 //
 // Módulo aislado: solo LEE helpers globales (supaGet, supaPost, supaPatch,
