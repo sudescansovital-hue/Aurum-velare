@@ -1,6 +1,6 @@
 # Estado — análisis post-cierre: FASE 1 (examen de la EA) + FASE 2 (Diario web)
 
-> Actualizado 06/10/2026 (cierre de sesión: decisiones y pendientes abajo; "Edge por cuenta"; "Mis reglas"). Antes: 05/10/2026 (post_cierre automatizado con tarea programada; fallo 5 de la EA). Antes: 02/10/2026. **FASE 2 en producción** (primer deploy `cdede9a` /
+> Actualizado 06/10/2026 (cierre de sesión: decisiones y pendientes abajo; "Edge por cuenta"; "Mis reglas"; propuesta "Mi proceso"). Antes: 05/10/2026 (post_cierre automatizado con tarea programada; fallo 5 de la EA). Antes: 02/10/2026. **FASE 2 en producción** (primer deploy `cdede9a` /
 > `aurum-velare-cw5la96zd`; el anterior a la FASE 2, para rollback, era
 > `aurum-velare-9hp3r9l3q`). Criterios de análisis hoy: **v6**. FASE 1
 > terminada el 29/09 (298 trades, en seco).
@@ -26,23 +26,150 @@
 1. **Semana(s) de observación sin tocar código:** confirmar con trades reales
    MFE/MAE (fallo 1), el breakeven (fallo 3) y los avisos de niveles en el
    Diario. Después, **fusionar `feature/ea-sync` en `main`**.
-2. **Mis reglas, fase 3:** panel del admin con candado.
-3. **Frase del runner con cada parcial por separado.**
-4. **Punto 4 — velas desde la EA y análisis en el servidor** (sección
-   siguiente, pasos 3 y 4).
-5. **Capturas por trade** en la carpeta local del usuario (ver "Junto a este
+2. **Siguiente gran paso: rehacer "Mi proceso"** (sección "Mi proceso: Tu
+   situación y barra por días limpios", justo debajo). Orden 0-1-2-3; cada
+   fase se enseña antes de desplegar.
+3. **Mis reglas, fase 3:** panel del admin con candado.
+4. **Frase del runner con cada parcial por separado.**
+5. **Punto 4 — velas desde la EA y análisis en el servidor** (sección
+   "Siguiente gran paso (02/10)", pasos 3 y 4).
+6. **Capturas por trade** en la carpeta local del usuario (ver "Junto a este
    paso" más abajo y "vincular capturas a cada trade" en Siguiente paso).
-6. **Rango y recorrido diario en pts.**
-7. **Rehacer Evalúame.**
-8. **Guía "Cómo funciona Aurum".**
-9. **Modo claro.**
+7. **Rango y recorrido diario en pts.**
+8. **Rehacer Evalúame.**
+9. **Guía "Cómo funciona Aurum".**
+10. **Modo claro.**
 
 Pendiente menor: el admin se reconoce por email en el SQL de Mis reglas (ver
 sección Mis reglas); cambiarlo cuando haya más de un admin.
 
 ---
 
-## Siguiente gran paso (02/10) — pasos 1 y 2 hechos el 05/10; 3 y 4 = pendiente 4
+## Mi proceso: Tu situación y barra por días limpios (06/10) — PROPUESTA, sin código
+
+Pendiente nº 2, después de las semanas de observación. Análisis hecho sobre
+`main` el 06/10 (solo lectura). Nada de esto está implementado.
+
+### Análisis: qué hay hoy en "Mi proceso"
+
+Casi todo sale de `buildDashboardHero()` (`gestion.js`). Los trades son
+`AURUM_TRADES.todos` = **todas las filas de `trades` del usuario**
+(`actualizarDashboard()`, `app.js`): todas las cuentas mezcladas (Maestra,
+Prueba, Retos y antiguas), importadas a mano y de la EA, sin filtro.
+
+| Bloque | Cálculo | Problemas |
+|---|---|---|
+| Trades totales | `todos.length` | Incluye Prueba, cuentas antiguas y las filas rotas de junio (precio 0), que Cumplimiento sí filtra. |
+| Win rate global | ganadoras / total (1 decimal); ganadora = `beneficio > 0` (`parser.js`) | Los BE cuentan como perdedoras. Mezcla cuentas. |
+| P&L acumulado | Σ `beneficio` | Suma Prueba con Maestra: no dice si eres rentable. HTML "entorno simulado", JS lo cambia a "entorno real". |
+| Días en proceso | `fecha_entrada` o `created_at` → hoy | Subtítulo "desde el 1 feb 2026" fijo en el HTML. |
+| Nivel actual | `usuarios_aurum.etapa` → lista de 12 nombres; solo lo cambia el admin (`admin.js`, guarda en `etapa_historial`) | `etapa ? etapa : 1` → la etapa 0 (Descubrimiento) nunca se muestra. |
+| **% de etapa/nivel** | **Es el % del ciclo de 111 trades:** `(trades % 111) / 111` | No mide nada de la etapa. Vuelve a ~1% cada 111 trades. El "→ Confianza" del recuadro izquierdo está fijo en el HTML (sin id). |
+| Ciclo actual | `floor(trades/111)+1` + trades del ciclo en curso | Mismo conteo mezclado. |
+| OZT | `ciclos×10 + floor(trades/1111)×50 + etapa×30 + ganados retos + comprados − gastados` | No se guarda: se recalcula y se infla con Prueba/duplicados. "0 retos completados" (`dash-ozt-retos`) y `dash-ozt-widget-sub` no los rellena nadie. |
+| Recuadro "Tu nivel" | Mismo nivel; barra = % del ciclo | Ver arriba. |
+| Etapas completadas | `etapa_historial` (`tablillas.js`) | Bien. |
+| Ranking / Sala | Solo el propio usuario; "Sala León" fijo | — |
+
+### Propuesta A — sección "Tu situación"
+
+Arriba del panel de inicio, tras el saludo; los 4 números pasan a una línea
+pequeña. Módulo nuevo y aislado `tu-situacion.js` (mismo patrón que
+`diario-analisis.js` y `mis-reglas.js`: solo lee globales y pinta en su
+bloque). Cada frase enlaza al Diario.
+
+Ejemplo (cifras inventadas):
+
+```
+TU SITUACIÓN · actualizado hoy 09:12
+ MAESTRA · 167807        ✓ RENTABLE
+ Últimos 90 días: +2.340 $ · 118 trades · PF 1,34 · +19,8 $/trade
+ PRUEBA · 7747760        ✗ NO RENTABLE
+ Últimos 90 días: −410 $ · 64 trades · PF 0,88
+ RETOS · —               Sin trades suficientes (mín. 30)
+
+ EVOLUCIÓN MES A MES · Maestra   [Maestra] [Prueba] [Retos]
+   may    jun    jul    ago    sep    oct
+  −320   +180   +910   −140  +1.210  +360 (en curso)
+
+ ✓ LO QUE HACES BIEN                    ✗ LO QUE TE CUESTA
+ 1. Dejar runners: +640 $               1. Seguir tras «Límite»: 7 veces, −1.180 $
+ 2. Esperar 15 min tras cerrar          2. TP1 no asegurado: ~870 $
+ 3. Parar en «Día bueno»: 11 de 14      3. Vueltas de posición: 6, −420 $
+
+ ◆ REGLA DE LA SEMANA (W41)
+   «Al llegar a −800 $, para.»
+   Esta semana: cumplida 2 de 2 días en que llegaste al nivel.
+
+ Base: 182 trades de trades · 65 auditados por la EA (Diario)
+```
+
+- **Rentable por cuenta:** `AURUM_TRADES` por número de cuenta (criterio de
+  `getTradesActivos()`). Rentable = > 0 $ y PF ≥ 1,1; En equilibrio = PF
+  0,9–1,1; No rentable = resto. Mínimo 30 trades en 90 días, si no "Sin datos
+  suficientes". Vale para cualquier usuario, con EA o sin ella.
+- **Mes a mes:** `AURUM_TRADES`, P&L por mes de cierre y cuenta, últimos 6 meses.
+- **3 aciertos / 3 errores:** de "Qué te conviene" (`_daConclusiones`,
+  `diario-analisis.js`). Cambio pequeño: separar `_daConclusionesTodas()` que
+  devuelve todas con marca acierto/error; `_daConclusiones` sigue devolviendo
+  lo mismo (el Diario no cambia). Si hay menos de 3, se muestran las que haya.
+- **Regla de la semana:** el error que más dinero cuesta, calculado con datos
+  hasta el domingo anterior (no cambia a mitad de semana); debajo, cómo vas esta
+  semana. Sin tabla nueva. Más adelante el admin podría fijarla (fase 3 de Mis
+  reglas).
+- **Ojo:** aciertos/errores/regla solo existen con trades auditados por la EA
+  (hoy solo `POST_CIERRE_EMAIL`, pendiente 5); para otros usuarios: "Disponible
+  cuando tus trades pasen por la EA". Y `_daCargar()` sale sin esperar si ya está
+  cargando: compartir la carga con el Diario, no duplicarla.
+
+### Propuesta B — barra de etapa por días limpios
+
+Se mide con los niveles de Mis reglas (`reglas_efectivas`) sobre `trades`
+(vale para cualquier usuario). Siguen siendo avisos; se mide si se respetaron.
+
+**Día limpio** = día operado en el que:
+- ningún trade pasó la pérdida máxima por trade;
+- si llegó a un nivel de pérdida diaria, no abrió más trades después;
+- si llegó al último nivel de beneficio («Asegurar»), paró. Los niveles
+  intermedios de beneficio no cuentan como incumplimiento (a confirmar).
+- Extra solo con EA: sin errores graves del Diario (SL desprotegido, TP1 no
+  asegurado).
+
+**Barra = días limpios desde el último cambio de etapa ÷ objetivo de la etapa**
+(p. ej. 20). Solo sube: un día sucio no suma ni resta. Inicio = última fila de
+`etapa_historial`. Segunda línea: calidad reciente (% días limpios de los
+últimos 10 operados).
+
+```
+TU NIVEL                              ████████████████████  100%
+  03 · Umbral                         ✦ Listo para revisión de etapa
+  ███████████████░░░░░  74%           El Águila revisará tu paso a Estructura.
+  15 de 20 días limpios → Estructura
+  Últimos 10 días: 8/10 limpios
+```
+
+- **El admin sigue decidiendo:** la barra nunca cambia `usuarios_aurum.etapa`.
+  Al 100% con calidad reciente ≥ 80% → "Listo para revisión". En el panel del
+  admin, junto a la etapa: "15/20 · 80%" o "✦ listo". El cambio se hace como
+  hoy (guardar etapa → `etapa_historial`), lo que pone la barra a 0.
+- Objetivo de días por etapa: fijo en el código (v1) o columna editable por el
+  admin (v2).
+- El conteo por trades se queda en la tarjeta "Ciclo actual".
+- Sin reglas: "Define tus reglas en Mis reglas para empezar a medir tu progreso".
+- Por decidir: si un día que llega a «Cierre obligatorio» debería además restar
+  días (recomendación: no).
+
+### Orden
+
+0. Bugs pequeños de la página: "→ Confianza" fijo, "desde el 1 feb 2026" fijo,
+   "real" frente a "simulado", etapa 0 imposible, subtítulos de retos vacíos.
+1. "Tu situación" con solo `trades`: rentable por cuenta + mes a mes.
+2. Aciertos, errores y regla de la semana (`_daConclusionesTodas()`).
+3. Barra por días limpios + aviso "listo" en el admin.
+
+---
+
+## Siguiente gran paso (02/10) — pasos 1 y 2 hechos el 05/10; 3 y 4 = pendiente 5
 
 **Que el análisis post-cierre funcione para cualquier usuario solo con la
 EA**, sin depender de `post_cierre.py` en el PC de Roderas con MT5 abierto
