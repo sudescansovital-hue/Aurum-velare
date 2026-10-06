@@ -146,8 +146,11 @@ Solo lectura (nada tocado en web, Supabase ni EA). Fuentes: tabla `trades`
 exportada por el usuario (CSV de Table Editor, 1.715 filas; se leyeron solo las
 de `roderastrader@gmail.com` — de `sudescansovital@gmail.com` no hay ninguna),
 trades EA por `GET ?accion=trades` (310, con eventos y SL original) y velas M1
-XAUUSD del MT5 local (solo lectura, hay desde el 25/06). Scripts en el
-scratchpad de la sesión (no van al repo).
+XAUUSD del MT5 local (solo lectura, hay desde el 25/06). Scripts en
+`tools/post_cierre/edge/` (orden de ejecución en `edge/datos.py`); datos en
+`tools/post_cierre/data/edge/` (ignorado por git: `trades_mios.csv` con solo tus
+filas, `ea.json`, `m1.npy` y las salidas `.txt`). El CSV completo de Descargas
+se borró el 06/10.
 
 **Calidad de datos (1.709 filas tuyas → 672 analizadas):**
 - 704 de la 4011477: fuera (pedido, cuenta perdida).
@@ -237,13 +240,35 @@ pero −1,50 en la Prueba (56) y −1,81 en el Resto (106).
 | Ventas | 50% | 59% |
 | Sube lote tras pérdida / tras ganancia | 54% / 20% | 59% / 9% |
 | Cuándo paras | tras ganar 49 de 65 días; días en pérdida 23% | tras ganar 13 de 17; días en pérdida **41%** |
-| Días que tocan −500 $ | 13 de 65 (42 trades después) | 5 de 17 (22 trades después) |
+| Días que rompen −500 $ (por cierre) | 13 de 69 (31 trades abiertos después: −424 $) | 5 de 18 (21 trades después: −393 $) |
 
 Desde el 10/09 la Maestra casi no se opera (9 trades, lote mediano 0,11): la
-actividad se ha pasado a la Prueba. Ojo: los trades hechos **después** de tocar
-−500 $ en el día fueron positivos en la Maestra (+2,91 pts, 42) y en la Prueba
-(+0,85, 22), y negativos en el Resto (−1,38, 78): estos datos no demuestran
-que parar en −500 mejore el resultado; es una regla de riesgo, no de edge.
+actividad se ha pasado a la Prueba.
+
+**Límite de −500 $ — corregido el 06/10 (la primera versión de esta sección
+estaba mal).** Decía que los trades hechos después de tocar −500 $ eran
+positivos (Maestra +2,91 pts / +5.959 $ en 42, Prueba +1.735 $ en 22). Error de
+cálculo: acumulaba el P&L del día en orden de **entrada**, así que sumaba trades
+aún abiertos y ponía mal el momento de la ruptura. El marcador del Diario sí lo
+hace bien (P&L realizado por cuenta, en orden de cierre). `edge/limite.py`
+reproduce todas las versiones:
+
+| Versión | Trades | $ | Días |
+|---|---|---|---|
+| Diario (solo EA analizados, todas las cuentas; "después" = cerrados después) | 52 | −6.617 | 13 |
+| Ídem el 05/10 antes de las 20:00 (sin 23453924, −268,40 $: su cierre se completó con `sql_fix_cierre_23453924.sql` y su análisis entró a las 20:00) | **51** | **−6.349** | 13 |
+| Análisis de edge, primera versión (orden de entrada) — **erróneo** | 142 | +5.777 | 37 |
+| **Bueno para la regla:** todos los trades (EA + importados), orden de cierre, "después" = **abiertos** después del cierre que rompe | **116** | **−5.111** | 30 |
+
+Por grupo (versión buena): Maestra 31 trades, −424 $, +0,12 pts [−1,94, +2,72];
+Prueba 21, −393 $, −1,64 pts [−4,84, +2,01], WR 33%; Resto 64, −4.294 $, −1,31
+pts. Parar en −500 $ habría ahorrado 5.111 $ en total, sobre todo en el Resto
+(167807: −2.822 $). En la Maestra el efecto es casi nulo. Ningún IC excluye el 0:
+es una regla de riesgo que además ahorra dinero, no una ventaja estadística.
+La única diferencia entre el Diario y la versión buena son los importados (64
+trades más en días rotos): con solo trades EA, contar "cerrados después" o
+"abiertos después" da lo mismo (52 / −6.617 $). El dato del Diario es correcto
+para lo que mide (trades de la EA).
 
 **Lotaje, fuera de muestra (reglas sacadas solo de la primera parte):**
 
