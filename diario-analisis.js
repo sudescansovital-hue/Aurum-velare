@@ -41,6 +41,9 @@ var DA_RUNNER_NIVELES = [33, 50, 100];
 // mínimo de casos en cada comparación (p. ej. entradas seguidas, runners).
 var DA_MIN_TRADES_CONVIENE = 20;
 var DA_MIN_GRUPO_CONVIENE = 5;
+// Ventana post-cierre en minutos de mercado (= VENTANA_POST_CIERRE_MIN_MERCADO
+// de post_cierre.py). Con menos velas el análisis es provisional.
+var DA_VENTANA_MIN = 240;
 var DA_NARANJA = '#E8873A';
 
 var DA_MS_DIA = 86400000;
@@ -194,6 +197,8 @@ function _daFrase(r) {
     f += ' Cerraste una parte a +' + _daNum(r.runner_parcial_pts, 1) + ' pts pero dejaste el resto sin proteger' +
          (r.runner_sl_pts != null ? ' (SL a ' + _daNum(r.runner_sl_pts, 1) + ' pts de la entrada)' : '') + '.';
   }
+  // Si la hubieras dejado correr (criterios v8): solo cierres a mano con SL al cerrar
+  if (r.dejar_correr === true && r.dejar_correr_resultado && r.dejar_correr_resultado !== 'sin_datos') f += ' ' + _daFraseDejarCorrer(r);
   // SL desprotegido (criterios v4)
   if (r.sl_desprotegido) {
     var hh = function(iso) { return _daHora(iso).slice(-5); };
@@ -204,6 +209,39 @@ function _daFrase(r) {
          (r.sl_protegido_habria_salido ? ': con el SL protegido habrías salido en BE o mejor.' : '.');
   }
   return f;
+}
+
+// "Si la hubieras dejado" (v8): desde el cierre a mano hasta el TP o el SL que
+// tenías puestos al cerrar, tope 5 días de mercado. $ = de más (+) o de menos (−)
+// frente a lo que hiciste, con los lotes del cierre final y sin comisiones.
+function _daTiempoMercado(min) {
+  if (min == null) return '';
+  return min < 1440 ? _daDur(min) + ' de mercado' : _daNum(min / 1440, 1) + ' días de mercado';
+}
+
+function _daFraseDejarCorrer(r) {
+  var extra = r.dejar_correr_usd_extra != null ? parseFloat(r.dejar_correr_usd_extra) : null;
+  var frente = extra == null ? '' : ': ' + _daFmtD(extra) + ' frente a cerrar a mano';
+  var cuando = r.dejar_correr_en ? ' el ' + _daHora(r.dejar_correr_en).replace(' ', ' a las ') : '';
+  var tras = r.dejar_correr_min_mercado != null ? ', ' + _daTiempoMercado(r.dejar_correr_min_mercado) + ' después' : '';
+  var tp = r.dejar_correr_tp != null ? _daNum(r.dejar_correr_tp, 2) : null;
+  var sl = _daNum(r.dejar_correr_sl, 2);
+  switch (r.dejar_correr_resultado) {
+    case 'tp':
+      return 'Si la hubieras dejado: llegó a tu TP (' + tp + ')' + cuando + tras +
+             (r.dejar_correr_hueco ? ', en un hueco de apertura' : '') + frente + '.';
+    case 'sl':
+      return 'Si la hubieras dejado: habría tocado tu SL (' + sl + ')' + cuando + tras +
+             (r.dejar_correr_hueco ? ', con hueco de apertura (salida a ' + _daNum(r.dejar_correr_precio, 2) + ')' : '') +
+             (r.dejar_correr_ambiguo ? ' (en el mismo minuto que el TP: se cuenta como SL)' : '') + frente + '.';
+    case 'ninguno':
+      return 'Si la hubieras dejado: en 5 días de mercado no tocó ' + (tp ? 'ni tu TP ni tu SL' : 'tu SL (no tenías TP)') +
+             '; al final iba a ' + _daNum(r.dejar_correr_precio, 2) + frente + '.';
+    case 'en_curso':
+      return 'Si la hubieras dejado: todavía no ha tocado ' + (tp ? 'ni tu TP ni tu SL' : 'tu SL') +
+             ' (en seguimiento' + (r.dejar_correr_min_mercado != null ? ', ' + _daTiempoMercado(r.dejar_correr_min_mercado) : '') + ').';
+  }
+  return '';
 }
 
 function _daFraseCierre(r) {
@@ -257,8 +295,11 @@ function _daFraseCierre(r) {
 
 // ── Carga ────────────────────────────────────────────────────────────────
 
+// Se vuelve a pedir cada vez que se abre el Diario: la tarea programada sube
+// análisis nuevos cada hora (y recalcula los provisionales), y antes solo se
+// cargaban una vez por sesión. Si falla, se siguen mostrando los anteriores.
 async function _daCargar() {
-  if (_daDatos || _daCargando) return;
+  if (_daCargando) return;
   var u = window.usuarioActual;
   if (!u || !u.email || typeof supaGet !== 'function') return;
   _daCargando = true;
@@ -266,6 +307,7 @@ async function _daCargar() {
     'usuario_email=eq.' + encodeURIComponent(u.email) + '&order=fecha_cierre.desc&limit=5000', getToken());
   _daCargando = false;
   if (r.error || !Array.isArray(r.data)) { console.error('[diario-analisis] error al cargar', r.error); return; }
+  if (!window.usuarioActual || window.usuarioActual.email !== u.email) return; // cambió la sesión mientras cargaba
   _daDatos = r.data;
   _daMarcarSecuencias(_daDatos);
   if (_daDatos.length && _daSemana == null) _daSemana = _daLunes(_daDatos[0].fecha_cierre);
@@ -376,7 +418,28 @@ function _daEtiquetaHistorico(filas) {
   return 'Todo el histórico · ' + f(filas[filas.length - 1].fecha_cierre) + ' – ' + f(filas[0].fecha_cierre);
 }
 
-function _daElegirCuenta(c) { _daCuenta = c; _daAbierto = null; _daPintar(); }
+// Al cambiar de cuenta, si esa cuenta no tiene trades en la semana a la vista
+// se salta a su última semana con trades (si no, una cuenta poco activa
+// parecía vacía aunque tuviera todo analizado).
+function _daElegirCuenta(c) {
+  _daCuenta = c; _daAbierto = null;
+  var filas = _daFiltrarCuenta(_daDatos || []);
+  if (filas.length && !_daDeSemana(filas, _daSemana).length) _daSemana = _daLunes(filas[0].fecha_cierre);
+  _daPintar();
+}
+
+function _daIrASemana(lunesMs) { _daSemana = lunesMs; _daHistorico = false; _daAbierto = null; _daPintar(); }
+
+// Lunes de la semana con trades más reciente anterior a la elegida o, si no
+// hay ninguna antes, la más reciente de todas. null si la cuenta no tiene trades.
+function _daSemanaConTrades(filas) {
+  if (!filas.length) return null;
+  for (var i = 0; i < filas.length; i++) {   // filas, por fecha_cierre desc
+    var l = _daLunes(filas[i].fecha_cierre);
+    if (l < _daSemana) return l;
+  }
+  return _daLunes(filas[0].fecha_cierre);
+}
 function _daElegirEstrategia(e) { _daEstrategia = e; _daAbierto = null; _daPintar(); }
 
 function _daStat(label, valor, sub, clase) {
@@ -397,9 +460,14 @@ function _daLineaConteo(texto, n, total, color) {
 
 function _daHtmlSemana(semana, filasCuenta) {
   if (!semana.length) {
+    var otra = _daHistorico ? null : _daSemanaConTrades(filasCuenta || []);
     return '<div class="cell" style="margin-bottom:1.5rem;color:var(--text-muted);font-size:14px;">Sin trades de la EA cerrados ' +
            (_daHistorico ? 'todavía' : 'esta semana') +
-           (_daCuenta === 'global' ? '' : ' en esta cuenta') + '.</div>' + _daHtmlEvolucionContenedor();
+           (_daCuenta === 'global' ? '' : ' en esta cuenta') + '.' +
+           (otra == null ? '' : ' <span style="color:var(--gold);cursor:pointer;" onclick="_daIrASemana(' + otra + ')">' +
+                                (otra < _daSemana ? 'Ir a la anterior con trades' : 'Ir a la última con trades') +
+                                ' (' + _daEsc(_daEtiquetaSemana(otra)) + ') →</span>') +
+           '</div>' + _daHtmlEvolucionContenedor();
   }
   var porFp = _daTradesPorFp();
   var pnl = 0, conPnl = 0, ganadoras = 0;
@@ -748,6 +816,23 @@ function _daConclusiones(filas, porFp) {
         _daFmtD(rs.todo) + ', ' + _daNum(-dr, 0) + ' $ más' + tr(rs.conUsd.length) + '.' });
   }
 
+  // 7. Dejar correr los cierres a mano hasta su TP/SL (v8). Solo resueltos y con $.
+  var dc = filas.filter(function(r) {
+    return r.dejar_correr === true && ['tp', 'sl', 'ninguno'].indexOf(r.dejar_correr_resultado) !== -1 &&
+           r.dejar_correr_usd_extra != null && ben(r) != null;
+  });
+  if (dc.length >= G) {
+    var dcExtra = suma(dc, function(r) { return parseFloat(r.dejar_correr_usd_extra); });
+    var dcReal = suma(dc, ben);
+    var dcN = function(k) { return dc.filter(function(r) { return r.dejar_correr_resultado === k; }).length; };
+    var reparto = dcN('tp') + ' llegaban a su TP, ' + dcN('sl') + ' a su SL y ' + dcN('ninguno') + ' a ninguno en 5 días de mercado';
+    out.push({ dinero: Math.abs(dcExtra), frase: dcExtra > 0
+      ? 'Deja correr las que cierras a mano: de ' + dc.length + ' cierres a mano con SL, ' + reparto + '; dejándolas correr habrías hecho ' +
+        _daFmtD(dcReal + dcExtra) + ' en vez de ' + _daFmtD(dcReal) + ', ' + _daNum(dcExtra, 0) + ' $ más' + tr(dc.length) + '.'
+      : 'Cerrar a mano te compensa: de ' + dc.length + ' cierres a mano con SL, ' + reparto + '; dejándolas correr habrías hecho ' +
+        _daFmtD(dcReal + dcExtra) + ' en vez de ' + _daFmtD(dcReal) + ', ' + _daNum(-dcExtra, 0) + ' $ menos' + tr(dc.length) + '.' });
+  }
+
   return out.filter(function(x) { return x.dinero > 0; })
             .sort(function(a, b) { return b.dinero - a.dinero; }).slice(0, 4);
 }
@@ -1023,6 +1108,37 @@ function _daErrores(r) {
   return e;
 }
 
+// Análisis hecho sin la ventana post-cierre completa (trade cerrado hace menos
+// de DA_VENTANA_MIN min de mercado): la tarea programada lo recalcula cada hora
+// hasta completarla, así que el veredicto aún puede cambiar.
+function _daProvisional(r) { return r.ventana_completa === false; }
+
+function _daMinVentana(r) {
+  var v = parseInt(r.velas_post_disponibles, 10);
+  return (isNaN(v) ? 0 : Math.min(v, DA_VENTANA_MIN)) + '/' + DA_VENTANA_MIN + ' min';
+}
+
+function _daBadgeProvisional(r) {
+  if (!_daProvisional(r)) return '';
+  return '<span title="Análisis provisional: se recalcula cada hora hasta completar las 4 h de mercado tras el cierre" ' +
+         'style="font-size:11px;color:var(--gold);border:1px dashed var(--border-gold);padding:.12rem .45rem;white-space:nowrap;">Provisional · ' +
+         _daMinVentana(r) + '</span>';
+}
+
+// Lo que no se pudo evaluar en este trade por falta de datos (no es un fallo
+// del Diario): se explica en el detalle para que no parezca que falta análisis.
+function _daHtmlNoEvaluado(r, eventos) {
+  var l = [];
+  if (!r.estrategia || r.estrategia === 'sin_clasificar') l.push('Sin estrategia: no se evalúan las reglas del TP1 (TP1 no asegurado y BE antes de TP1), que dependen de ella.');
+  if (!eventos.length) l.push('La EA no registró eventos de este trade (las versiones antiguas no los enviaban): sin línea de tiempo ni detección de parciales y runner.');
+  if (r.mfe_puntos == null && r.mae_puntos == null) l.push('Sin MFE/MAE durante el trade.');
+  if (!l.length) return '';
+  return '<div style="font-size:12px;color:var(--text-muted);line-height:1.6;margin:.8rem 0 0;padding:.6rem .8rem;border-left:2px solid var(--border);">' +
+           '<div style="color:var(--text-dim);margin-bottom:.2rem;">No evaluado en este trade</div>' +
+           l.map(function(x) { return '<div>· ' + _daEsc(x) + '</div>'; }).join('') +
+         '</div>';
+}
+
 function _daBadgesErrores(r) {
   return _daErrores(r).map(function(e) {
     return '<span style="font-size:12px;color:' + e.color + ';border:1px solid ' + (e.color === DA_NARANJA ? DA_NARANJA + '66' : '#CC443366') +
@@ -1194,7 +1310,7 @@ function _daHtmlTrades(filas, titulo, pref, conFiltros) {
                '<span style="display:flex;gap:.4rem;flex-wrap:wrap;justify-content:flex-end;">' + _daBadgesErrores(r) +
                  (r.runner === true ? '<span style="font-size:11px;color:var(--gold);border:1px solid var(--border-gold);padding:.12rem .45rem;white-space:nowrap;">Runner: +' +
                                       _daNum(r.runner_max_pts, 1) + '</span>' : '') +
-                 _daBadgeDecision(r) + '</span>' +
+                 _daBadgeDecision(r) + _daBadgeProvisional(r) + '</span>' +
                '<span style="font-size:14px;min-width:70px;text-align:right;color:' + (ben == null ? 'var(--text-muted)' : ben >= 0 ? 'var(--green)' : 'var(--red)') + ';">' +
                  (ben == null ? '—' : (ben >= 0 ? '+' : '') + _daNum(ben, 2) + '$') + '</span>' +
              '</span>' +
@@ -1240,7 +1356,13 @@ async function _daAbrirDetalle(clave) {
   var velas = res[0].data && res[0].data[0];
   var eventos = res[1].data || [];
 
-  var h = '<div style="font-size:15px;color:var(--text);line-height:1.7;margin:.2rem 0 1rem;">' + _daEsc(_daFrase(r)) + '</div>';
+  var h = '';
+  if (_daProvisional(r)) {
+    h += '<div style="font-size:13px;color:var(--gold);line-height:1.6;margin:.2rem 0 .6rem;padding:.5rem .8rem;border:1px dashed var(--border-gold);">' +
+           'Análisis provisional: solo hay ' + _daEsc(_daMinVentana(r)) + ' de mercado después del cierre. ' +
+           'Se recalcula cada hora hasta completar las 4 h; el veredicto puede cambiar.</div>';
+  }
+  h += '<div style="font-size:15px;color:var(--text);line-height:1.7;margin:.2rem 0 1rem;">' + _daEsc(_daFrase(r)) + '</div>';
   h += '<div id="da-graf-' + _daEsc(clave) + '" style="position:relative;background:#060810;border:1px solid var(--border);margin-bottom:.5rem;"></div>';
   h += '<div style="display:flex;flex-wrap:wrap;gap:1.2rem;font-size:12px;color:var(--text-muted);margin-bottom:1rem;">' +
          _daLeyenda(DA_COLOR.precio, 'Precio (cierre de vela) y rango máx–mín', false) +
@@ -1271,6 +1393,7 @@ async function _daAbrirDetalle(clave) {
              '</div>';
     }).join('') + '</div>';
   }
+  h += _daHtmlNoEvaluado(r, eventos);
   if (r.notas) h += '<div style="font-size:12px;color:var(--text-muted);margin-top:.8rem;">Nota del análisis: ' + _daEsc(r.notas) + '</div>';
 
   det.innerHTML = h;

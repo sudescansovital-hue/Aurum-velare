@@ -54,6 +54,10 @@ const COLUMNAS_ANALISIS = [
   'runner', 'runner_parcial_en', 'runner_parcial_pts', 'runner_n_parciales', 'runner_vol_resto',
   'runner_sl_pts', 'runner_max_pts', 'runner_max_en', 'runner_salida_pts', 'runner_minutos',
   'runner_usd', 'runner_usd_todo_parcial',
+  // v8 (05/10): "si la hubieras dejado correr" — sql_post_cierre_v8_dejar_correr.sql
+  'dejar_correr', 'dejar_correr_sl', 'dejar_correr_tp', 'dejar_correr_resultado', 'dejar_correr_en',
+  'dejar_correr_precio', 'dejar_correr_pts', 'dejar_correr_min_mercado', 'dejar_correr_vol',
+  'dejar_correr_usd_extra', 'dejar_correr_ambiguo', 'dejar_correr_hueco',
   'entrada_en_vela', 'cierre_en_vela', 'notas', 'simbolo_velas', 'broker_velas',
   'criterios_version'
 ];
@@ -71,6 +75,9 @@ const ENUMS = {
   decision_cierre_manual: ['na', 'bien_cerrado', 'mixto_te_saliste_con_poco',
                            'pronto', 'correcto', 'indeterminado']
 };
+
+// v8: valores del CHECK post_cierre_analisis_dejar_correr_resultado_check
+const DEJAR_CORRER_RESULTADOS = ['tp', 'sl', 'ninguno', 'en_curso', 'sin_datos'];
 
 function _headers(prefer) {
   const h = {
@@ -228,6 +235,11 @@ async function resultados(body) {
         rechazados.push({ fp, motivo: `${campo} inválido: ${a[campo]}` });
         return;
       }
+    }
+    // v8: mismo CHECK que en Supabase; NULL = no aplica (no es cierre a mano o sin SL)
+    if (a.dejar_correr_resultado != null && !DEJAR_CORRER_RESULTADOS.includes(a.dejar_correr_resultado)) {
+      rechazados.push({ fp, motivo: `dejar_correr_resultado inválido: ${a.dejar_correr_resultado}` });
+      return;
     }
     if (!Number.isInteger(a.criterios_version)) { rechazados.push({ fp, motivo: 'criterios_version inválido' }); return; }
     // velas = null es válido: trade sin histórico M1 (datos_insuficientes),

@@ -113,7 +113,7 @@ FECHA_CORTE_SEPTIEMBRE = datetime(2026, 9, 1)
 # ── FASE 2: web ──
 # Sube si cambia cualquier criterio/umbral de arriba: el endpoint devuelve
 # entonces como pendientes todos los trades con una version anterior.
-CRITERIOS_VERSION = 7   # v2 (02/10): be_efecto mixto · v3: TP1 no asegurado + velas en hora de servidor · v4: SL desprotegido · v5: precio_fin_ventana · v6: BE antes de TP1 · v7 (05/10): runners
+CRITERIOS_VERSION = 8   # v2 (02/10): be_efecto mixto · v3: TP1 no asegurado + velas en hora de servidor · v4: SL desprotegido · v5: precio_fin_ventana · v6: BE antes de TP1 · v7 (05/10): runners · v8 (05/10): dejar correr
 BASE_URL_DEFAULT = "https://aurumvelare.com"
 TOKEN_PATH = BASE_DIR / ".post_cierre_token"   # lineas token=... y opcional bypass=...
 LOTE_SUBIDA = 25                               # = MAX_RESULTADOS_POR_LOTE del endpoint
@@ -129,6 +129,14 @@ TP1_PTS_POR_ESTRATEGIA = {"estructura": 11.0, "rechazo_rsi": 7.0}
 # el SL protege la entrada (BE_TOLERANCIA_PTS o mejor) en el momento de la
 # parcial o hasta estos minutos despues (el BE suele ponerse justo despues).
 RUNNER_VENTANA_PROTECCION_MIN = 15
+
+# "Si la hubieras dejado correr" (criterios v8): cierres a mano, desde el cierre
+# hasta tocar el TP o el SL en vigor al cerrar, tope de 5 dias de MERCADO
+# (velas M1 reales, como la ventana de 4 h). Para tener esas velas se piden a
+# MT5 DEJAR_CORRER_BUSQUEDA_DIAS de calendario desde el cierre (fines de
+# semana y festivos incluidos).
+DEJAR_CORRER_VELAS = 5 * 1440
+DEJAR_CORRER_BUSQUEDA_DIAS = 12
 USD_POR_PUNTO_Y_LOTE = 100.0  # XAUUSD, igual que la web (VALOR_PUNTO_XAUUSD)
 MAX_VELAS_DURANTE = 240
 
@@ -257,6 +265,20 @@ class ResultadoTrade:
     runner_minutos: str
     runner_usd: str
     runner_usd_todo_parcial: str
+
+    # "Si la hubieras dejado correr" (v8): ver evaluar_dejar_correr
+    dejar_correr: str
+    dejar_correr_sl: str
+    dejar_correr_tp: str
+    dejar_correr_resultado: str
+    dejar_correr_en: str
+    dejar_correr_precio: str
+    dejar_correr_pts: str
+    dejar_correr_min_mercado: str
+    dejar_correr_vol: str
+    dejar_correr_usd_extra: str
+    dejar_correr_ambiguo: str
+    dejar_correr_hueco: str
 
     notas: str
 
@@ -814,6 +836,97 @@ def evaluar_runner(trade: Trade, velas_intra: list, sl_original) -> Optional[dic
             "usd": usd, "usd_todo_parcial": usd_todo}
 
 
+# ── "Si la hubieras dejado correr" (criterios v8) ───────────────────────
+
+def _nivel_o_none(v):
+    return None if v is None or v == 0 else v
+
+
+def evaluar_dejar_correr(trade: Trade, velas: list, sl_original, tp_original, detallado: str) -> Optional[dict]:
+    """Solo cierres a mano con SL al cerrar (sin SL -> aplica=False). Desde la primera vela M1 posterior al cierre, que
+    toca primero: el TP o el SL que habia puestos AL CERRAR (sl_actual /
+    tp_actual de ea_trades = ultimo valor; si faltan, el reconstruido con los
+    cambios). Tope DEJAR_CORRER_VELAS minutos de mercado.
+    Reglas: hueco de apertura que salta el SL -> salida al open de esa vela
+    (como el broker); que salta el TP -> salida en el TP; TP y SL en la misma
+    vela -> SL (ambiguo). $ extra = lotes del cierre final x (salida -
+    cierre real) x 100, a favor del trade; None si no se sabe el volumen."""
+    if detallado != "manual":
+        return None
+    compra = trade.direccion == "buy"
+    d = 1 if compra else -1
+    sl = _nivel_o_none(trade.sl_actual)
+    if sl is None:
+        sl = _nivel_o_none(sl_en_vigor(trade, sl_original, trade.fecha_cierre))
+    tp = _nivel_o_none(trade.tp_actual)
+    if tp is None:
+        tp = _nivel_o_none(tp_original)
+        for ts, val in trade.cambios_tp:
+            if ts >= trade.fecha_cierre:
+                break
+            tp = _nivel_o_none(val)
+    if sl is None:
+        # Sin SL al cerrar no hay "hasta su SL": seguir 5 dias sin stop solo mide el
+        # movimiento del oro, no la gestion. Se marca como no simulable (dejar_correr=False).
+        return {"aplica": False}
+
+    # Lotes que se cerraron en el cierre final (lo que quedaba tras las parciales)
+    vol = trade.volumen
+    if trade.parciales_det:
+        vol = trade.parciales_det[-1][2]  # volumen_restante tras la ultima parcial (None antes del ~27/08)
+
+    seguir = [v for v in velas if v.time > trade.fecha_cierre][:DEJAR_CORRER_VELAS]
+    res = {"aplica": True, "sl": sl, "tp": tp, "vol": vol, "resultado": None, "en": None, "precio": None,
+           "min_mercado": None, "ambiguo": False, "hueco": False}
+    if not seguir:
+        res["resultado"] = "sin_datos"
+        return _completar_dejar_correr(res, trade, d)
+
+    previa = trade.fecha_cierre.replace(second=0, microsecond=0)  # minuto del cierre
+    for i, v in enumerate(seguir):
+        salida = tipo = None
+        # Hueco de apertura = la vela llega tras un corte de mercado (fin de semana,
+        # pausa diaria o minutos sin cotizar). Sin corte, una apertura ya pasada del
+        # nivel solo significa que se cruzo dentro de la vela anterior: el broker
+        # habria ejecutado en el nivel, y eso lo cubren los toques normales de abajo.
+        reapertura = v.time - previa > timedelta(minutes=1)
+        previa = v.time
+        if not reapertura:
+            pass
+        elif sl is not None and (v.open <= sl if compra else v.open >= sl):
+            salida, tipo, res["hueco"] = v.open, "sl", True          # hueco que salta el SL
+        elif tp is not None and (v.open >= tp if compra else v.open <= tp):
+            salida, tipo, res["hueco"] = tp, "tp", True              # hueco que salta el TP
+        if tipo is None:
+            toca_sl = sl is not None and (v.low <= sl if compra else v.high >= sl)
+            toca_tp = tp is not None and (v.high >= tp if compra else v.low <= tp)
+            if toca_sl:
+                salida, tipo = sl, "sl"
+                res["ambiguo"] = toca_tp
+            elif toca_tp:
+                salida, tipo = tp, "tp"
+        if tipo:
+            res.update(resultado=tipo, en=v.time, precio=salida, min_mercado=i + 1)
+            return _completar_dejar_correr(res, trade, d)
+
+    ultima = seguir[-1]
+    if len(seguir) >= DEJAR_CORRER_VELAS or datetime.utcnow() - trade.fecha_cierre > timedelta(days=DEJAR_CORRER_BUSQUEDA_DIAS):
+        res.update(resultado="ninguno", en=ultima.time, precio=ultima.close, min_mercado=len(seguir))
+    else:
+        res.update(resultado="en_curso", en=ultima.time, precio=ultima.close, min_mercado=len(seguir))
+    return _completar_dejar_correr(res, trade, d)
+
+
+def _completar_dejar_correr(res: dict, trade: Trade, d: int) -> dict:
+    p = res["precio"]
+    res["pts"] = round((p - trade.precio_entrada) * d, 2) if p is not None else None
+    res["usd_extra"] = (round(res["vol"] * (p - trade.precio_cierre) * d * USD_POR_PUNTO_Y_LOTE, 2)
+                        if p is not None and res["vol"] is not None else None)
+    if p is not None:
+        res["precio"] = round(p, 2)
+    return res
+
+
 # ── Analisis por trade ───────────────────────────────────────────────────
 
 def analizar_trade(mt5, simbolo: str, trade: Trade, velas_out: Optional[dict] = None) -> ResultadoTrade:
@@ -847,7 +960,7 @@ def analizar_trade(mt5, simbolo: str, trade: Trade, velas_out: Optional[dict] = 
     # velas M1 existentes = minutos de mercado abierto (salta fines de semana).
     # Desde el minuto de la entrada (incluye su vela, para entrada_dentro_de_vela).
     desde = trade.fecha_entrada.replace(second=0, microsecond=0)
-    hasta = trade.fecha_cierre + timedelta(days=VENTANA_BUSQUEDA_DIAS)
+    hasta = trade.fecha_cierre + timedelta(days=max(VENTANA_BUSQUEDA_DIAS, DEJAR_CORRER_BUSQUEDA_DIAS))
     velas = obtener_velas_m1(mt5, simbolo, desde, hasta)
     velas_intra = [v for v in velas if trade.fecha_entrada <= v.time <= trade.fecha_cierre]
     velas_post = [v for v in velas if v.time > trade.fecha_cierre][:VENTANA_POST_CIERRE_MIN_MERCADO]
@@ -932,6 +1045,8 @@ def analizar_trade(mt5, simbolo: str, trade: Trade, velas_out: Optional[dict] = 
     desp = evaluar_sl_desprotegido(trade, velas_intra, sl_original)
     be_tp1 = evaluar_be_antes_tp1(trade, velas_intra, sl_original, tp1)
     run = evaluar_runner(trade, velas_intra, sl_original)
+    dc = evaluar_dejar_correr(trade, velas, sl_original, tp_original, detallado)
+    dv = lambda k: "" if dc is None or dc.get(k) is None else (dc[k].isoformat() if isinstance(dc[k], datetime) else str(dc[k]))
     sv = lambda k: "" if run is None or run[k] is None else (run[k].isoformat() if isinstance(run[k], datetime) else str(run[k]))
 
     return ResultadoTrade(
@@ -1008,6 +1123,18 @@ def analizar_trade(mt5, simbolo: str, trade: Trade, velas_out: Optional[dict] = 
         runner_minutos=sv("minutos"),
         runner_usd=sv("usd"),
         runner_usd_todo_parcial=sv("usd_todo_parcial"),
+        dejar_correr="" if dc is None else str(dc["aplica"]),
+        dejar_correr_sl=dv("sl"),
+        dejar_correr_tp=dv("tp"),
+        dejar_correr_resultado=dv("resultado"),
+        dejar_correr_en=dv("en"),
+        dejar_correr_precio=dv("precio"),
+        dejar_correr_pts=dv("pts"),
+        dejar_correr_min_mercado=dv("min_mercado"),
+        dejar_correr_vol=dv("vol"),
+        dejar_correr_usd_extra=dv("usd_extra"),
+        dejar_correr_ambiguo=dv("ambiguo"),
+        dejar_correr_hueco=dv("hueco"),
         notas="; ".join(notas),
     )
 
@@ -1196,6 +1323,8 @@ def resultado_a_fila(r: ResultadoTrade, trade: Trade, simbolo: str, broker: str)
     ventana_completa = (r.resultado_post_cierre in ("fue_a_sl", "fue_a_tp", "ambiguo_misma_vela")
                         or r.velas_post_cierre_disponibles >= VENTANA_POST_CIERRE_MIN_MERCADO
                         or datetime.utcnow() - trade.fecha_cierre > timedelta(days=VENTANA_BUSQUEDA_DIAS))
+    # v8: mientras el seguimiento de 5 dias de mercado siga 'en_curso', no esta completo
+    ventana_completa = ventana_completa and r.dejar_correr_resultado != "en_curso"
     return {
         "fp": r.fp,
         "position_id": r.position_id,
@@ -1266,6 +1395,18 @@ def resultado_a_fila(r: ResultadoTrade, trade: Trade, simbolo: str, broker: str)
         "runner_minutos": ent(r.runner_minutos),
         "runner_usd": num(r.runner_usd),
         "runner_usd_todo_parcial": num(r.runner_usd_todo_parcial),
+        "dejar_correr": booleano(r.dejar_correr),
+        "dejar_correr_sl": num(r.dejar_correr_sl),
+        "dejar_correr_tp": num(r.dejar_correr_tp),
+        "dejar_correr_resultado": r.dejar_correr_resultado or None,
+        "dejar_correr_en": iso(r.dejar_correr_en),
+        "dejar_correr_precio": num(r.dejar_correr_precio),
+        "dejar_correr_pts": num(r.dejar_correr_pts),
+        "dejar_correr_min_mercado": ent(r.dejar_correr_min_mercado),
+        "dejar_correr_vol": num(r.dejar_correr_vol),
+        "dejar_correr_usd_extra": num(r.dejar_correr_usd_extra),
+        "dejar_correr_ambiguo": booleano(r.dejar_correr_ambiguo),
+        "dejar_correr_hueco": booleano(r.dejar_correr_hueco),
         "notas": r.notas or None,
         "simbolo_velas": simbolo,
         "broker_velas": broker,

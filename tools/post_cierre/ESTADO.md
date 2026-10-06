@@ -436,7 +436,7 @@ dominio aurumvelare.com no está protegido. El script nunca imprime ninguno.
 Rotar: `openssl rand -hex 32` → `vercel env rm` + `vercel env add ... --sensitive`
 (Preview exige la rama como 3er argumento con la CLI v54) → reescribir el archivo.
 
-**Si cambian umbrales o criterios:** (hoy v7, runners, 05/10) subir `CRITERIOS_VERSION` en
+**Si cambian umbrales o criterios:** (hoy v8, dejar correr, 05/10) subir `CRITERIOS_VERSION` en
 `post_cierre.py` y ejecutar `--subir`: todo se recalcula y se sobrescribe (upsert).
 
 **Verificado 02/10:** regresión `--fuente web` vs `--fuente csv` idéntica en
@@ -581,6 +581,33 @@ en este navegador, va al JSON de cada captura (`ruta_pc`, `carpeta`) y al aviso
 "Guardado en …". Probado en Chrome sin interfaz (migración, 4 estados,
 Reconectar, ruta tras reabrir el navegador); falta probar a mano el diálogo
 real de permiso con una carpeta de verdad.
+
+**Criterios v8 (05/10): "SI LA HUBIERAS DEJADO CORRER".** `evaluar_dejar_correr`
+en `post_cierre.py`. Solo **cierres a mano con SL al cerrar** (con o sin TP; incluye
+el resto de los runners cerrado a mano). Desde la primera vela M1 posterior al
+cierre, qué toca primero: el TP o el SL **en vigor al cerrar** (`sl_actual` /
+`tp_actual`; si faltan, reconstruidos con los cambios). Tope **5 días de mercado**
+= `DEJAR_CORRER_VELAS` = 5 × 1.440 velas M1 reales (se piden a MT5
+`DEJAR_CORRER_BUSQUEDA_DIAS` = 12 días de calendario desde el cierre; el gráfico
+no cambia, sigue con su ventana de 4 h). Reglas: TP y SL en la misma vela → SL
+(`dejar_correr_ambiguo`); **hueco de apertura** (solo si la vela llega tras un corte
+de mercado: fin de semana, pausa diaria o minutos sin cotizar) que salta el SL →
+salida al open de esa vela, que salta el TP → salida en el TP
+(`dejar_correr_hueco`); sin corte, una apertura ya pasada del nivel se ejecuta en el
+nivel. $ extra = lotes del cierre final × (salida − cierre real) × 100, a favor del
+trade, sin comisiones (NULL si no se sabe el volumen: parciales antes del ~27/08).
+Resultado `tp` / `sl` / `ninguno` / `en_curso` (no han pasado los 5 días: el trade
+se re-analiza en cada pasada, `ventana_completa=false`) / `sin_datos`. **Sin SL al
+cerrar → `dejar_correr=false`** (no simulable: seguir 5 días sin stop solo mide el
+movimiento del oro; 35 trades, casi todos de julio/agosto, con ±350 pts que
+deformaban el total). Columnas en `sql_post_cierre_v8_dejar_correr.sql`
+(ejecutado 05/10). En el Diario: frase "Si la hubieras dejado…" en el veredicto de
+cada cierre a mano y conclusión en "Qué te conviene" (semana, mes, histórico).
+**Histórico 05/10:** 128 simulables · 111 al SL, 13 al TP, 4 a ninguno · 1 hueco ·
+con $ y resueltos 125: real −3.567 $ vs dejándolas correr −8.542 $ → cerrar a mano
+te ahorró 4.974 $. Verificado a mano con velas de MT5 un caso TP (14/07, pico de
+4028 a 4087 en la vela de las 14:30) y el hueco (martes 14/07 00:00, reapertura
+diaria). 308/308 subidos con v8, segunda pasada 0 pendientes.
 
 **Criterios v7 (05/10): RUNNERS.** `evaluar_runner` en `post_cierre.py`. Trade
 con parcial (eventos `parcial` de `trade_eventos`, con precio y

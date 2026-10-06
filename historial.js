@@ -401,6 +401,35 @@ function histDrop(event) {
   if (files && files.length) histSubirMultiple(files);
 }
 
+// Los .htm de MT5 vienen en UTF-16 con BOM, pero si el archivo se vuelve a
+// guardar o viene de otra plataforma suele estar en UTF-8. Se detecta por BOM
+// y, sin BOM, por los bytes nulos típicos de UTF-16 (texto casi todo ASCII).
+function _decodificarInforme(buffer) {
+  var b = new Uint8Array(buffer);
+  var enc = null;
+  if (b[0] === 0xFF && b[1] === 0xFE)                     enc = 'utf-16le';
+  else if (b[0] === 0xFE && b[1] === 0xFF)                enc = 'utf-16be';
+  else if (b[0] === 0xEF && b[1] === 0xBB && b[2] === 0xBF) enc = 'utf-8';
+  else {
+    var n = Math.min(b.length, 1000), cerosPar = 0, cerosImpar = 0;
+    for (var i = 0; i < n; i++) { if (b[i] === 0) { if (i % 2) cerosImpar++; else cerosPar++; } }
+    if (cerosImpar > n / 4)    enc = 'utf-16le';
+    else if (cerosPar > n / 4) enc = 'utf-16be';
+  }
+  console.log('[PARSER-HTM] codificación:', enc || 'utf-8 sin BOM');
+  if (enc) return new TextDecoder(enc).decode(b);
+  // Sin BOM ni nulos: UTF-8, y si no es UTF-8 válido, Windows-1252
+  try { return new TextDecoder('utf-8', { fatal: true }).decode(b); }
+  catch (e) { return new TextDecoder('windows-1252').decode(b); }
+}
+
+var HIST_MSG_SIN_TRADES = {
+  formato:       'No se reconoce el formato del informe.',
+  sin_xauusd:    'El archivo no tiene operaciones de XAU/USD.',
+  solo_abiertas: 'Este informe solo contiene operaciones abiertas. Exporta el Historial desde MT5 (pestaña Historial → clic derecho → Informe)'
+};
+var HIST_MSG_ERROR_LECTURA = 'No se pudo leer el archivo.';
+
 function histSubir(file, onDone) {
   if (!file) return;
   var msg = document.getElementById('hist-msg');
@@ -409,7 +438,16 @@ function histSubir(file, onDone) {
   document.getElementById('hist-prog-bar').style.width = '30%';
   document.getElementById('hist-prog-txt').textContent = 'Leyendo archivo...';
 
+  function errorLectura(err) {
+    if (err) console.error('[HISTORIAL] Error leyendo archivo:', err);
+    msg.style.color = 'var(--red)';
+    msg.textContent = HIST_MSG_ERROR_LECTURA;
+    document.getElementById('hist-progreso').style.display = 'none';
+    if (typeof onDone === 'function') onDone();
+  }
+
   var reader = new FileReader();
+  reader.onerror = function() { errorLectura(reader.error); };
   async function procesarRaw(raw, numeroCuentaForzado) {
     document.getElementById('hist-prog-bar').style.width = '70%';
     document.getElementById('hist-prog-txt').textContent = 'Calculando...';
@@ -424,7 +462,8 @@ function histSubir(file, onDone) {
     var trades   = Array.isArray(_parsed) ? _parsed : (_parsed.trades || []);
     var parciales = Array.isArray(_parsed) ? [] : (_parsed.parciales || []);
     if (!trades || trades.length < 1) {
-      msg.style.color = 'var(--red)'; msg.textContent = 'No se encontraron trades XAU/USD en el archivo.';
+      var _estado = (_parsed && _parsed.estado) || 'formato';
+      msg.style.color = 'var(--red)'; msg.textContent = HIST_MSG_SIN_TRADES[_estado] || HIST_MSG_SIN_TRADES.formato;
       document.getElementById('hist-progreso').style.display = 'none';
       if (typeof onDone === 'function') onDone();
       return;
@@ -518,7 +557,7 @@ function histSubir(file, onDone) {
     reader.onload = function(e) {
       function leerConXLSX() {
         try { var data = new Uint8Array(e.target.result); var wb = XLSX.read(data,{type:'array',cellDates:true}); var ws = wb.Sheets[wb.SheetNames[0]]; var raw = XLSX.utils.sheet_to_json(ws,{header:1,defval:''}); console.log('[XLSX] filas totales:', raw.length, '| fila0:', JSON.stringify(raw[0]), '| fila1:', JSON.stringify(raw[1]), '| fila2:', JSON.stringify(raw[2])); procesarRaw(raw); }
-        catch(err) { msg.style.color='var(--red)'; msg.textContent='Error al leer el archivo.'; document.getElementById('hist-progreso').style.display='none'; if (typeof onDone === 'function') onDone(); }
+        catch(err) { errorLectura(err); }
       }
       if (typeof XLSX !== 'undefined') {
         leerConXLSX();
@@ -526,13 +565,14 @@ function histSubir(file, onDone) {
         var s = document.createElement('script');
         s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
         s.onload = leerConXLSX;
+        s.onerror = function() { errorLectura('no se pudo cargar la librería XLSX'); };
         document.head.appendChild(s);
       }
     }; reader.readAsArrayBuffer(file);
   } else {
     reader.onload = function(e) {
       try {
-        var htmlText = e.target.result;
+        var htmlText = _decodificarInforme(e.target.result);
         var parser2 = new DOMParser();
         var doc2 = parser2.parseFromString(htmlText, 'text/html');
         var titleText = (doc2.querySelector('title') || {}).textContent || '';
@@ -543,17 +583,16 @@ function histSubir(file, onDone) {
         doc2.querySelectorAll('table').forEach(function(table) {
           table.querySelectorAll('tr').forEach(function(tr) {
             var cells = Array.from(tr.querySelectorAll('td,th')).map(function(td) { return td.textContent.trim(); });
-            if (cells.length > 3) raw.push(cells);
+            // También filas de una sola celda con texto: MT5 escribe los títulos
+            // de sección ("Posiciones", "Transacciones"…) como un único <th colspan>.
+            if (cells.length > 3 || (cells.length === 1 && cells[0])) raw.push(cells);
           });
         });
         procesarRaw(raw, numeroCuentaTitle);
       } catch(err) {
-        msg.style.color = 'var(--red)';
-        msg.textContent = 'Error al leer el archivo.';
-        document.getElementById('hist-progreso').style.display = 'none';
-        if (typeof onDone === 'function') onDone();
+        errorLectura(err);
       }
-    }; reader.readAsText(file, 'UTF-16');
+    }; reader.readAsArrayBuffer(file);
   }
 }
 

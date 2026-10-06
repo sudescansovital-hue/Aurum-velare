@@ -1,17 +1,40 @@
 // Parser MT5 + cTrader — Aurum Velare v2
 // Detección por contenido, nunca por número de fila
+//
+// Devuelve { trades, parciales, estado }. Si no hay trades, 'estado' dice por
+// qué, para que historial.js muestre un mensaje concreto:
+//   'ok'            → hay trades
+//   'formato'       → no se reconoce el formato del informe
+//   'sin_xauusd'    → formato válido pero sin operaciones de XAU/USD
+//   'solo_abiertas' → "Informe de trading" de posiciones abiertas, no historial
+
+// Títulos de sección del informe MT5 en español e inglés (comparar con _normTxt)
+var _MT5_SEC_POSICIONES    = ['posiciones', 'positions'];
+var _MT5_SEC_ORDENES       = ['órdenes', 'ordenes', 'orders'];
+var _MT5_SEC_TRANSACCIONES = ['transacciones', 'deals'];
+
+function _normTxt(v) { return String(v||'').normalize('NFC').replace(/[\r\n\t]+/g,' ').toLowerCase().trim(); }
+
+function _filaTieneSeccion(row, nombres) {
+  for (var c = 0; c < row.length; c++) {
+    if (nombres.indexOf(_normTxt(row[c])) >= 0) return true;
+  }
+  return false;
+}
 
 function parsearTrades(raw) {
   console.log('[PARSER] filas recibidas:', raw ? raw.length : 0);
-  if (!raw || raw.length < 2) return { trades: [], parciales: [] };
+  if (!raw || raw.length < 2) return { trades: [], parciales: [], estado: 'formato' };
 
-  function norm(v) { return String(v||'').normalize('NFC').replace(/[\r\n\t]+/g,' ').toLowerCase().trim(); }
+  var norm = _normTxt;
 
   var mt5PosRow = -1;
+  var mt5PosEs  = false;
   for (var r = 0; r < Math.min(raw.length, 20); r++) {
     var row = raw[r] || [];
     for (var c = 0; c < row.length; c++) {
-      if (String(row[c] || '').trim() === 'Posiciones') { mt5PosRow = r; break; }
+      var sec = norm(row[c]);
+      if (_MT5_SEC_POSICIONES.indexOf(sec) >= 0) { mt5PosRow = r; mt5PosEs = (sec === 'posiciones'); break; }
     }
     if (mt5PosRow >= 0) break;
   }
@@ -26,11 +49,20 @@ function parsearTrades(raw) {
 
   console.log('[PARSER] mt5PosRow:', mt5PosRow, '| ctHeaderRow:', ctHeaderRow);
 
-  if (mt5PosRow >= 0)  return _parsearMT5(raw, mt5PosRow);
-  if (ctHeaderRow >= 0) return { trades: _parsearCtrader(raw, ctHeaderRow), parciales: [] };
+  // Un título "Posiciones"/"Positions" también puede aparecer en informes de
+  // cTrader. Si justo debajo hay cabecera cTrader, o el título está en inglés y
+  // hay cabecera cTrader en el archivo, manda cTrader.
+  var esMT5 = mt5PosRow >= 0 && ctHeaderRow !== mt5PosRow + 1 && (mt5PosEs || ctHeaderRow < 0);
+  if (esMT5) return _parsearMT5(raw, mt5PosRow);
+  if (ctHeaderRow >= 0) {
+    var infoCt = { filasXau: 0, formatoOk: false };
+    var tradesCt = _parsearCtrader(raw, ctHeaderRow, infoCt);
+    var estadoCt = tradesCt.length ? 'ok' : (!infoCt.formatoOk || infoCt.filasXau ? 'formato' : 'sin_xauusd');
+    return { trades: tradesCt, parciales: [], estado: estadoCt };
+  }
 
   console.warn('[PARSER] Formato no reconocido');
-  return { trades: [], parciales: [] };
+  return { trades: [], parciales: [], estado: 'formato' };
 }
 
 // ── Utilidades ────────────────────────────────────────────────────
@@ -88,7 +120,7 @@ function _parsearMT5(raw, posicionesRow) {
 
   // ── 1. Leer sección Posiciones ──────────────────────────────────
   var headerRow = posicionesRow + 1;
-  if (headerRow >= raw.length) return { trades: [], parciales: [] };
+  if (headerRow >= raw.length) return { trades: [], parciales: [], estado: 'formato' };
 
   var headers = (raw[headerRow] || []).map(function(h) {
     // FIX corazón de datos (04/07): algunos brokers añaden sufijo de zona
@@ -114,6 +146,21 @@ function _parsearMT5(raw, posicionesRow) {
   var colBen  = _colIdx(headers, ['beneficio', 'profit']);
   var colCom  = _colIdx(headers, ['comisión', 'comision', 'commission']);
   var colSwap = _colIdx(headers, ['swap']);
+  var colMercado = _colIdx(headers, ['precio de mercado', 'market price']);
+
+  // "Informe de trading" de posiciones ABIERTAS (pestaña Operaciones → Informe):
+  // también tiene sección "Posiciones", pero con "Precio de mercado" y beneficio
+  // flotante, sin fecha ni precio de cierre. No es un historial.
+  if (colMercado >= 0 || (fechaIdxs.length === 1 && precioIdxs.length < 2)) {
+    console.warn('[PARSER MT5] informe de posiciones abiertas, no de historial');
+    return { trades: [], parciales: [], estado: 'solo_abiertas' };
+  }
+  if (colSym < 0 || colPe < 0 || colPc < 0) {
+    console.warn('[PARSER MT5] faltan columnas en la cabecera:', JSON.stringify(headers));
+    return { trades: [], parciales: [], estado: 'formato' };
+  }
+
+  var filasXau = 0;
 
   // positionId → fp y tipo (para vincular parciales)
   var posIdToFp   = {};
@@ -126,15 +173,12 @@ function _parsearMT5(raw, posicionesRow) {
     var row = raw[i] || [];
 
     // Detectar inicio de secciones siguientes
-    for (var c = 0; c < row.length; c++) {
-      var cell = String(row[c] || '').trim();
-      if (cell === 'Órdenes' || cell === 'Ordenes') { ordenesRow = i; break; }
-      if (cell === 'Transacciones')                 { transaccionesRow = i; break; }
-    }
-    if (ordenesRow >= 0 || transaccionesRow >= 0) break;
+    if (_filaTieneSeccion(row, _MT5_SEC_ORDENES))       { ordenesRow = i; break; }
+    if (_filaTieneSeccion(row, _MT5_SEC_TRANSACCIONES)) { transaccionesRow = i; break; }
 
     if (colSym < 0 || !row[colSym]) continue;
     if (!_esXauusd(row[colSym])) continue;
+    filasXau++;
 
     var tipo = String(row[colTipo] || '').toLowerCase().trim();
     if (tipo && tipo !== 'buy' && tipo !== 'sell' && tipo !== 'compra' && tipo !== 'venta') continue;
@@ -194,22 +238,25 @@ function _parsearMT5(raw, posicionesRow) {
     }
   }
 
+  if (!trades.length) {
+    // Con filas de XAU pero ninguna válida, lo más probable es que las columnas
+    // no se hayan leído bien: es un problema de formato, no de falta de oro.
+    console.warn('[PARSER MT5] 0 trades | filas XAU:', filasXau);
+    return { trades: [], parciales: [], estado: filasXau ? 'formato' : 'sin_xauusd' };
+  }
+
   // ── 2. Buscar sección Transacciones ────────────────────────────
   if (transaccionesRow < 0) {
     var desde = ordenesRow >= 0 ? ordenesRow : headerRow;
     for (var i = desde; i < raw.length; i++) {
-      var row = raw[i] || [];
-      for (var c = 0; c < row.length; c++) {
-        if (String(row[c] || '').trim() === 'Transacciones') { transaccionesRow = i; break; }
-      }
-      if (transaccionesRow >= 0) break;
+      if (_filaTieneSeccion(raw[i] || [], _MT5_SEC_TRANSACCIONES)) { transaccionesRow = i; break; }
     }
   }
 
-  if (transaccionesRow < 0) return { trades: trades, parciales: [] };
+  if (transaccionesRow < 0) return { trades: trades, parciales: [], estado: 'ok' };
 
   var txHeader = transaccionesRow + 1;
-  if (txHeader >= raw.length) return { trades: trades, parciales: [] };
+  if (txHeader >= raw.length) return { trades: trades, parciales: [], estado: 'ok' };
 
   var txHeaders = (raw[txHeader] || []).map(function(h) {
     return String(h || '').normalize('NFC').toLowerCase().trim()
@@ -295,11 +342,11 @@ function _parsearMT5(raw, posicionesRow) {
   });
 
   console.log('[PARSER MT5] trades:', trades.length, '| parciales:', parciales.length);
-  return { trades: trades, parciales: parciales };
+  return { trades: trades, parciales: parciales, estado: 'ok' };
 }
 
 // ── Parser cTrader ────────────────────────────────────────────────
-function _parsearCtrader(raw, headerRow) {
+function _parsearCtrader(raw, headerRow, info) {
   var trades = [];
 
   var headers = (raw[headerRow] || []).map(function(h) {
@@ -320,6 +367,7 @@ function _parsearCtrader(raw, headerRow) {
   var colNeto = _colIdx(headers, ['$ neto', 'usd neto', 'neto', 'net profit', 'profit', 'beneficio']);
   var colSl   = _colIdx(headers, ['s / l', 's/l', 'sl', 'stop loss']);
   var colTp   = _colIdx(headers, ['t / p', 't/p', 'tp', 'take profit']);
+  if (info) info.formatoOk = colSim >= 0 && colPe >= 0 && colNeto >= 0;
 
   var groups     = {};
   var groupOrder = [];
@@ -328,6 +376,7 @@ function _parsearCtrader(raw, headerRow) {
     var row = raw[i] || [];
     if (!row[colSim]) continue;
     if (!_esXauusd(row[colSim])) continue;
+    if (info) info.filasXau++;
 
     var ben = _num(row[colNeto]);
     var pe  = _num(row[colPe]);
