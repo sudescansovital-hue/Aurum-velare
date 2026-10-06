@@ -14,7 +14,7 @@ function _esperarTrades(fn) {
 }
 
 function gestTab(id) {
-  ['trade-record','ciclo111','horarios','equity','cumplimiento','estadisticas','diario','historial'].forEach(function(p) {
+  ['trade-record','ciclo111','horarios','equity','cumplimiento','estadisticas','diario','reglas','historial'].forEach(function(p) {
     var el = document.getElementById('gpanel-' + p);
     if (el) el.style.display = 'none';
     var tb = document.getElementById('gtab-' + p);
