@@ -1,6 +1,6 @@
 # Estado — análisis post-cierre: FASE 1 (examen de la EA) + FASE 2 (Diario web)
 
-> Actualizado 05/10/2026 (post_cierre automatizado con tarea programada; fallo 5 de la EA). Antes: 02/10/2026. **FASE 2 en producción** (primer deploy `cdede9a` /
+> Actualizado 06/10/2026 (sección "Edge por cuenta, 06/10"). Antes: 05/10/2026 (post_cierre automatizado con tarea programada; fallo 5 de la EA). Antes: 02/10/2026. **FASE 2 en producción** (primer deploy `cdede9a` /
 > `aurum-velare-cw5la96zd`; el anterior a la FASE 2, para rollback, era
 > `aurum-velare-9hp3r9l3q`). Criterios de análisis hoy: **v6**. FASE 1
 > terminada el 29/09 (298 trades, en seco).
@@ -137,6 +137,147 @@ confirmado en MT5 en solo lectura), con UNA posición abierta en 178497
   credenciales de la EA, que no se leen).
 - Para futuros despliegues de la EA: mismo procedimiento (copiar el `.mq5` y F7
   desde MetaEditor de MT5), en la pausa o sin posiciones.
+
+---
+
+## Edge por cuenta, 06/10
+
+Solo lectura (nada tocado en web, Supabase ni EA). Fuentes: tabla `trades`
+exportada por el usuario (CSV de Table Editor, 1.715 filas; se leyeron solo las
+de `roderastrader@gmail.com` — de `sudescansovital@gmail.com` no hay ninguna),
+trades EA por `GET ?accion=trades` (310, con eventos y SL original) y velas M1
+XAUUSD del MT5 local (solo lectura, hay desde el 25/06). Scripts en el
+scratchpad de la sesión (no van al repo).
+
+**Calidad de datos (1.709 filas tuyas → 672 analizadas):**
+- 704 de la 4011477: fuera (pedido, cuenta perdida).
+- 333 importados antiguos (135146: 107, 7741924: 131, 7746279: 75, 7751048: 20)
+  sin fecha, sin lote y sin dirección: fuera (sin eso no hay pts/trade ni orden).
+- Duplicados EA↔importado: **0** (ni por position_id ni por cuenta+fecha+precio
+  ±0,5). Los 5 trades EA que faltaban en `trades` están ahí como importados con
+  el mismo position_id (la tabla ya se deduplicó sola).
+- Sin lote / sin precios / pts imposibles: 0. pts = beneficio / (100 × lote):
+  cuadra con el movimiento de precio (ratio mediano 1,00 en todas las cuentas).
+- Cuentas mal asignadas: ninguna (cada número tiene una sola carpeta).
+  7751904 (que el 05/10 se dijo que era la Prueba) va en "Resto"; la Prueba
+  analizada es la 178497, como se pidió.
+- Hora: los importados solo traen la hora; el minuto de entrada se reconstruyó
+  con velas M1 (probado con los trades EA: error mediano 1 min) cuando se pudo.
+  Antes del 25/06 no hay velas: en la Maestra 161 de 242 trades tienen solo la
+  hora, así que "espera" y "vuelta" son inciertas en su primera parte.
+
+**Resumen por cuenta (pts/trade con IC95):**
+
+| Cuenta | Trades | Periodo | P&L | WR | pts/trade | $/trade |
+|---|---|---|---|---|---|---|
+| Maestra 7747760 | 242 (177 import + 65 EA) | 13/04 → 06/10 | +6.138 $ | 54% | +0,06 [−1,4, +1,5] | +25 |
+| Prueba 178497 | 78 (todos EA) | 10/09 → 05/10 | −185 $ | 45% | −1,33 [−3,5, +0,9] | −2 |
+| Resto (6 cuentas) | 352 | 12/06 → 10/09 | −10.624 $ | 54% | −1,26 [−2,2, −0,3] | −30 |
+
+Resto por cuenta: 152034 +4.070 $ (133), 167807 −6.493 $ (89), 174645
+−2.968 $ (24), 176821 +2.151 $ (47), 179003 −3.380 $ (30), 7751904 −4.005 $ (29).
+Maestra: el P&L sale del lote, no de los puntos (con lote fijo 0,2 los mismos
+trades darían +278 $).
+
+**Método:** variables al entrar (sesión en hora de servidor, día, dirección,
+lote frente a la mediana de la cuenta, resultado del anterior del día, espera
+desde el cierre anterior, vuelta, nº de trade del día, si el día iba en
+pérdida, tanteo = 1.º del día con lote < mediana / segunda tras tanteo) +
+duración (no se sabe al entrar) + solo EA: estrategia, MA200 M1 a favor/en
+contra, distancia del SL original. Segmentos de 1 o 2 variables. Primer 60% de
+cada cuenta (por fecha) para buscar, último 40% para validar; mínimo 30 casos
+en la primera parte; IC95 por bootstrap. "Se sostiene" = media > 0 fuera de
+muestra con ≥15 casos; "fiable" = IC95 fuera de muestra > 0.
+Segmentos evaluados: Maestra 69, Prueba 4, Resto 137. Ninguno tuvo IC95 > 0 ya
+en la primera parte en Maestra ni en Prueba (en Resto, 3, y fallaron fuera).
+
+**Ventaja de verdad:**
+- **Maestra — NY 15–19 h (servidor):** 66 trades, +3,96 pts/trade [+0,76,
+  +7,58], WR 68%. Primera parte +1,53 (37, no significativo); fuera de muestra
+  **+7,06 [+2,85, +11,84]** (29). Positivo en 6 de 7 meses (35 días distintos);
+  sin los 5 mejores trades, +1,25. **No se repite en la Prueba** (30 trades,
+  −1,42) y en el Resto queda en +0,14 (111): es de cómo operas la Maestra, no
+  del mercado.
+- "Duración 60+ min" también se sostiene en la Maestra (+6,93 fuera), pero no
+  sirve de regla: al entrar no sabes cuánto durará.
+- Prueba: **ninguna**. Con 78 trades solo 4 segmentos llegan a 30 casos en la
+  primera parte; nada validable. Resto: ninguna.
+
+**Parecía edge y no se sostuvo:** Resto "duración < 5 min" (+1,33 [+0,30,
++2,48] en la primera parte → −1,63 fuera), "compra con el día en pérdida"
+(+2,42 → −2,06), "NY 15–19" en Resto (+0,80 → −0,44), "compra" (+1,36 →
+−2,15), "MA200 a favor" (+0,84 → −2,75). Maestra "compra tras pérdida" (+0,73 →
+−1,60), "lote > mediana en el 4.º+ trade del día" (+0,71 → −0,65).
+Variables EA: ninguna se sostiene; MA200 a favor da +3,01 en la Maestra (45),
+pero −1,50 en la Prueba (56) y −1,81 en el Resto (106).
+
+**Dónde pierdes siempre:**
+- **Trades que duran 15–59 min, en las 3 cuentas:** Maestra −3,29 [−4,99,
+  −1,60] (66; primera parte −3,20, fuera −3,37, las dos con IC < 0), Prueba
+  −3,30 [−6,34, −0,37] (29), Resto −2,47 [−3,99, −0,91] (110). 58% perdedores.
+  Es el patrón más fiable del análisis, pero es un resultado, no una condición
+  de entrada (en la Prueba: 17 por SL y 11 a mano).
+- Maestra, Londres 09–14: −2,72 [−5,12, −0,22] (45; primera parte −2,87 con
+  IC < 0; fuera solo 6, porque desde julio casi no operas Londres → no
+  verificable).
+- Resto: "Asia 00–08 + venta" −4,27 → −3,80 (IC < 0 en las dos partes),
+  "lunes sin vuelta" −2,83 → −2,84, primer trade del día −3,72 (73), tanteo
+  −5,05 (40). En la Maestra, en cambio, "Asia + venta" da +1,27 (45).
+
+**Maestra vs Prueba (cómo operas):**
+
+| | Maestra (todo / desde 25/06) | Prueba |
+|---|---|---|
+| Sesiones | Asia 36% / 56%, Londres 19% / 6%, NY 27% / 29%, NY tarde 19% / 9% | Asia 44%, Londres 12%, NY 38%, NY tarde 6% |
+| Lote | mediana 0,2; ≥ 0,4 en el 32% | mediana 0,2; ≥ 0,4 en el **44%** |
+| Trades/día | media 3,7 (mediana 2); días con 5+: 29% | media **4,6 (mediana 4)**; días con 5+: **47%** |
+| Seguidas < 15 min (no primeros; Maestra solo desde 25/06) | 52% | **70%** |
+| Vueltas (no primeros; Maestra solo desde 25/06) | 30% | **54%** |
+| Duración | mediana 24 min; 60+ el 32% | mediana 30 min; 60+ el 37% |
+| Ventas | 50% | 59% |
+| Sube lote tras pérdida / tras ganancia | 54% / 20% | 59% / 9% |
+| Cuándo paras | tras ganar 49 de 65 días; días en pérdida 23% | tras ganar 13 de 17; días en pérdida **41%** |
+| Días que tocan −500 $ | 13 de 65 (42 trades después) | 5 de 17 (22 trades después) |
+
+Desde el 10/09 la Maestra casi no se opera (9 trades, lote mediano 0,11): la
+actividad se ha pasado a la Prueba. Ojo: los trades hechos **después** de tocar
+−500 $ en el día fueron positivos en la Maestra (+2,91 pts, 42) y en la Prueba
+(+0,85, 22), y negativos en el Resto (−1,38, 78): estos datos no demuestran
+que parar en −500 mejore el resultado; es una regla de riesgo, no de edge.
+
+**Lotaje, fuera de muestra (reglas sacadas solo de la primera parte):**
+
+| Maestra, últimos 97 trades | $ | $/trade | Máx. DD | Peor racha | Peor día |
+|---|---|---|---|---|---|
+| Lote fijo 0,2 | +1.570 | +16 | 1.938 | 5 | −900 |
+| **0,4 en NY 15–19, 0,2 el resto** | **+5.667** | +58 | 1.836 | 5 | −900 |
+| Solo NY 15–19 a 0,2 (29 trades) | +4.097 | +141 | 398 | 3 | −125 |
+| No operar los segmentos malos de la 1.ª parte | +850 | +12 | 1.989 | 5 | −900 |
+| Real (tus lotes) | +2.916 | +30 | 2.362 | 5 | −1.434 |
+
+La misma regla aplicada a la Prueba (prueba independiente, 78 trades) **pierde**:
+fijo 0,2 −2.081 $; 0,4 en NY −2.931 $; solo NY −850 $; real −185 $. En el Resto
+(141 fuera de muestra), todas las variantes pierden (fijo 0,4: −7.357 $; no
+operar los 23 segmentos malos deja 13 trades y −2.344 $).
+
+**Reglas que salen (para decidir; no aplicadas en ninguna parte):**
+1. **Maestra: lote base 0,2 y 0,4 solo en NY 15–19 (servidor).** 66 casos; 29
+   fuera de muestra con IC95 > 0. Fiabilidad media: se sostiene en la Maestra,
+   pero no se transfiere a la Prueba.
+2. **Entre el minuto 15 y el 60 de un trade, nada a mano (ni cerrar, ni
+   añadir, ni girar): deciden el SL y el TP.** 205 casos en las 3 cuentas, todos
+   con IC < 0. El patrón es de fiabilidad alta; la regla en sí está sin probar
+   (habría que simularla con velas, como `optimizador.py`).
+3. **Prueba: lote fijo 0,2, sin subir tras pérdidas y sin copiar la regla de NY
+   de la Maestra.** 78 casos, −1,33 pts/trade [−3,47, +0,89]: no hay ventaja
+   demostrable, así que más lote solo añade varianza. Fiabilidad de "no hay
+   edge todavía": alta; se necesitan unos 150 trades más para validar
+   segmentos de 30.
+
+**Límites:** se probaron ~210 segmentos (se esperan falsos positivos; por eso
+solo cuenta lo validado fuera de muestra); la primera parte de la Maestra es
+abril–junio con hora sin minuto; la hora es la del servidor de cada bróker;
+comisiones y swap van dentro del beneficio de los importados.
 
 ---
 
