@@ -1,13 +1,48 @@
 # Estado — análisis post-cierre: FASE 1 (examen de la EA) + FASE 2 (Diario web)
 
-> Actualizado 06/10/2026 (sección "Edge por cuenta, 06/10"). Antes: 05/10/2026 (post_cierre automatizado con tarea programada; fallo 5 de la EA). Antes: 02/10/2026. **FASE 2 en producción** (primer deploy `cdede9a` /
+> Actualizado 06/10/2026 (cierre de sesión: decisiones y pendientes abajo; "Edge por cuenta"; "Mis reglas"). Antes: 05/10/2026 (post_cierre automatizado con tarea programada; fallo 5 de la EA). Antes: 02/10/2026. **FASE 2 en producción** (primer deploy `cdede9a` /
 > `aurum-velare-cw5la96zd`; el anterior a la FASE 2, para rollback, era
 > `aurum-velare-9hp3r9l3q`). Criterios de análisis hoy: **v6**. FASE 1
 > terminada el 29/09 (298 trades, en seco).
 
 ---
 
-## ⚠️ SIGUIENTE GRAN PASO — PRIORIDAD MÁXIMA en la próxima sesión
+## Decisiones del 06/10
+
+- **El Diario es SOLO para trades auditados por la EA** (`post_cierre_analisis`).
+  Los trades importados a mano se quedan en el Trade Record; no entran en el
+  Diario ni en sus niveles. Por eso en la Maestra el Diario ve 65 trades (desde
+  julio) y el análisis de edge, 242 (desde abril).
+- **Todos los niveles de Mis reglas son AVISOS:** ni Aurum ni la EA cierran el
+  día ni bloquean operaciones; el trader decide. El Diario solo muestra cuándo
+  se llegó a cada nivel, si se siguió operando y qué pasó después ("te sirvió" /
+  "error").
+- **Regla real de Roderas** (en Mis reglas, carpeta "Todas"): pérdida máxima por
+  trade 500 $; día −800 $ «Límite» y −1.100 $ «Cierre obligatorio»; día +250 $
+  «Día bueno», +500 $ «Oportunidad» y +1.500 $ «Asegurar».
+
+## Pendientes, en orden (06/10)
+
+1. **Semana(s) de observación sin tocar código:** confirmar con trades reales
+   MFE/MAE (fallo 1), el breakeven (fallo 3) y los avisos de niveles en el
+   Diario. Después, **fusionar `feature/ea-sync` en `main`**.
+2. **Mis reglas, fase 3:** panel del admin con candado.
+3. **Frase del runner con cada parcial por separado.**
+4. **Punto 4 — velas desde la EA y análisis en el servidor** (sección
+   siguiente, pasos 3 y 4).
+5. **Capturas por trade** en la carpeta local del usuario (ver "Junto a este
+   paso" más abajo y "vincular capturas a cada trade" en Siguiente paso).
+6. **Rango y recorrido diario en pts.**
+7. **Rehacer Evalúame.**
+8. **Guía "Cómo funciona Aurum".**
+9. **Modo claro.**
+
+Pendiente menor: el admin se reconoce por email en el SQL de Mis reglas (ver
+sección Mis reglas); cambiarlo cuando haya más de un admin.
+
+---
+
+## Siguiente gran paso (02/10) — pasos 1 y 2 hechos el 05/10; 3 y 4 = pendiente 4
 
 **Que el análisis post-cierre funcione para cualquier usuario solo con la
 EA**, sin depender de `post_cierre.py` en el PC de Roderas con MT5 abierto
@@ -294,52 +329,6 @@ pocos casos (9 trades en 4 días; el 25/09 hizo 8 trades tras −800 $ y termin�
 en −1.137 $); no se puede concluir. Días: 17/04, 13/05, 16/06, 26/06, 29/06,
 17/08 y 24/08 (Maestra); 10/09, 24/09, 25/09 y 01/10 (Prueba).
 
----
-
-## Mis reglas — diseño acordado (06/10), SQL sin aplicar
-
-El límite fijo `DA_LIMITE_PERDIDA_DIA` del Diario pasa a ser configurable por
-usuario. SQL: `tools/post_cierre/sql_mis_reglas.sql` (**sin aplicar, pendiente
-de revisión**; probado en un Postgres local, PGlite, con 19 comprobaciones de
-RLS, candado e historial). Sustituye a `sql_reglas_disciplina.sql` (raíz, del
-05/10, sin commitear, nunca aplicado).
-
-- **Reglas** (todas opcionales; vacío = no se mide), por usuario y por carpeta
-  (`todas` por defecto, o `maestra` / `prueba` / `retos`: por carpeta y no por
-  número, porque el número cambia desde el admin):
-  pérdida máxima por trade; hasta 3 niveles de pérdida diaria y hasta 3 de
-  beneficio diario, cada uno con importe y nombre.
-  Roderas: trade 500; día −800 "Límite", −1.100 "Cierre obligatorio"; +250
-  "Día bueno", +500 "Oportunidad", +1.500 "Asegurar".
-- **Todos los niveles son avisos:** ni Aurum ni la EA cierran el día ni bloquean
-  operaciones; el trader decide.
-- **Tablas:** `reglas_valores` (una fila por nivel: ámbito usuario/reto,
-  carpeta, regla, nivel, importe, nombre, `fijada_por` usuario/admin),
-  `reglas_valores_historial` (automático, solo lectura) y la vista
-  `reglas_efectivas` (lo que se aplica por carpeta y nivel).
-- **Admin y candado:** el admin ve y edita las reglas de cada usuario. Si fija
-  un nivel, manda el importe más estricto (el menor, también en beneficio) y el
-  usuario solo puede bajarlo (lo impide un trigger, no solo la pantalla).
-- **Retos:** la tabla admite reglas por reto fijadas por el admin; sin
-  construir (faltará la policy de lectura vía `retos_participantes` y
-  aplicarlas a la cuenta de retos de cada participante).
-- **Fases** (cada una se enseña antes de desplegar):
-  1. Aplicar el SQL + pestaña "Mis reglas" en Mi gestión.
-  2. El Diario usa las reglas por cuenta en lugar de `DA_LIMITE_PERDIDA_DIA`.
-     Por nivel: días en que se alcanzó, si se siguió operando y qué pasó
-     después (trades abiertos después, en $ y pts; en beneficio, cuánto se
-     devolvió o se ganó de más). **Veredicto** cuando se sigue operando tras
-     alcanzar un nivel: "te sirvió" si los trades posteriores suman positivo,
-     "error" si suman negativo, con $ y pts. En el día, una frase ("Llegaste a
-     +250 Día bueno y seguiste: 3 trades, devolviste 180 $ → error"). En
-     semana, mes e histórico, resumen por nivel: veces que sirvió y veces que
-     fue error, con el total de cada lado.
-  3. Panel del admin y candado en la pantalla.
-- **Pendiente — admin por email:** el SQL reconoce al admin por
-  `auth.email() = 'sudescansovital@gmail.com'` (igual que `ADMIN_EMAIL` en
-  `app.js` y otras tablas). Cuando haya más de un admin, pasar a un rol o una
-  tabla de admins y cambiarlo en los dos sitios.
-
 **Lotaje, fuera de muestra (reglas sacadas solo de la primera parte):**
 
 | Maestra, últimos 97 trades | $ | $/trade | Máx. DD | Peor racha | Peor día |
@@ -373,6 +362,79 @@ operar los 23 segmentos malos deja 13 trades y −2.344 $).
 solo cuenta lo validado fuera de muestra); la primera parte de la Maestra es
 abril–junio con hora sin minuto; la hora es la del servidor de cada bróker;
 comisiones y swap van dentro del beneficio de los importados.
+
+---
+
+## Mis reglas (06/10) — fases 1 y 2 en producción; fase 3 pendiente
+
+El límite fijo `DA_LIMITE_PERDIDA_DIA` del Diario pasa a ser configurable por
+usuario. SQL: `tools/post_cierre/sql_mis_reglas.sql`, **aplicado en Supabase el
+06/10** por el usuario (en dos partes; verificado: niveles 6, historial 6,
+policies 7, efectivas 24). Antes se probó en un Postgres local (PGlite) con 19
+comprobaciones de RLS, candado e historial. Sustituye a
+`sql_reglas_disciplina.sql` (raíz, del 05/10, sin commitear, nunca aplicado).
+
+**Estado de las fases:**
+- **Fase 1 — EN PRODUCCIÓN (06/10):** pestaña "Mis reglas" en Mi gestión
+  (`mis-reglas.js`, commit `499d65d` en `main`, deploy
+  `aurum-velare-2nyp03hqp`). Comprobada por el usuario con su sesión: salen sus
+  6 niveles, guarda y se mantiene al recargar. Importes en formato español
+  ("1.100", "999,5"); campo de texto y no `type=number` (con coma, un input
+  numérico puede devolver '' y borraría el nivel).
+- **Fase 2 — EN PRODUCCIÓN (06/10):** el Diario usa los niveles (commit
+  `404183e` en `main`, deploy `aurum-velare-ab4k1h1zt`; enseñada antes con
+  capturas; pendiente de que el usuario la compruebe con su sesión). Verificada con los trades
+  EA reales contra un cálculo independiente en Python (6 niveles, Maestra y
+  Prueba) + 14 pruebas jsdom + la prueba anterior del Diario. Detalle abajo.
+- **Fase 3 — pendiente:** panel del admin y candado en la pantalla.
+
+- **Reglas** (todas opcionales; vacío = no se mide), por usuario y por carpeta
+  (`todas` por defecto, o `maestra` / `prueba` / `retos`: por carpeta y no por
+  número, porque el número cambia desde el admin):
+  pérdida máxima por trade; hasta 3 niveles de pérdida diaria y hasta 3 de
+  beneficio diario, cada uno con importe y nombre.
+  Roderas: trade 500; día −800 "Límite", −1.100 "Cierre obligatorio"; +250
+  "Día bueno", +500 "Oportunidad", +1.500 "Asegurar".
+- **Todos los niveles son avisos:** ni Aurum ni la EA cierran el día ni bloquean
+  operaciones; el trader decide.
+- **Tablas:** `reglas_valores` (una fila por nivel: ámbito usuario/reto,
+  carpeta, regla, nivel, importe, nombre, `fijada_por` usuario/admin),
+  `reglas_valores_historial` (automático, solo lectura) y la vista
+  `reglas_efectivas` (lo que se aplica por carpeta y nivel).
+- **Admin y candado:** el admin ve y edita las reglas de cada usuario. Si fija
+  un nivel, manda el importe más estricto (el menor, también en beneficio) y el
+  usuario solo puede bajarlo (lo impide un trigger, no solo la pantalla).
+- **Retos:** la tabla admite reglas por reto fijadas por el admin; sin
+  construir (faltará la policy de lectura vía `retos_participantes` y
+  aplicarlas a la cuenta de retos de cada participante).
+- **Fases** (cada una se enseña antes de desplegar):
+  1. Aplicar el SQL + pestaña "Mis reglas" en Mi gestión.
+  2. El Diario usa las reglas por cuenta en lugar de `DA_LIMITE_PERDIDA_DIA`.
+     Por nivel: días en que se alcanzó, si se siguió operando y qué pasó
+     después (trades abiertos después, en $ y pts; en beneficio, cuánto se
+     devolvió o se ganó de más). **Veredicto** cuando se sigue operando tras
+     alcanzar un nivel: "te sirvió" si los trades posteriores suman positivo,
+     "error" si suman negativo, con $ y pts. En el día, una frase ("Llegaste a
+     +250 Día bueno y seguiste: 3 trades, devolviste 180 $ → error"). En
+     semana, mes e histórico, resumen por nivel: veces que sirvió y veces que
+     fue error, con el total de cada lado.
+  3. Panel del admin y candado en la pantalla.
+- **Fase 2, cómo funciona** (`diario-analisis.js`, sección "Mis reglas en el
+  Diario"): lee `reglas_efectivas` junto con `post_cierre_analisis`; cada cuenta
+  usa los niveles de su carpeta (las cuentas sin carpeta, los de `todas`). Por
+  cuenta y día de cierre, con el P&L realizado en orden de cierre, se llega a un
+  nivel en el cierre del trade que lo cruza; "después" = trades de esa cuenta
+  abiertos a partir de ese momento y cerrados ese día. Calendario: LÍM (pérdida),
+  ▲ (beneficio), ! (siguió y fue error). Panel del día: una frase por nivel.
+  Semana, mes e histórico: bloque "Tus niveles". "Qué te conviene": una frase por
+  nivel con 5+ veces seguidas. Insignia "Tras «nivel»" en los trades abiertos
+  después (aviso: no cuenta para "Solo con errores"). `DA_LIMITE_PERDIDA_DIA`
+  pasa a `DA_ESCALA_COLOR_DIA` (solo intensidad del color del calendario).
+  Importes de 4 cifras sin punto de miles ("−1100 $"), como el resto del Diario.
+- **Pendiente — admin por email:** el SQL reconoce al admin por
+  `auth.email() = 'sudescansovital@gmail.com'` (igual que `ADMIN_EMAIL` en
+  `app.js` y otras tablas). Cuando haya más de un admin, pasar a un rol o una
+  tabla de admins y cambiarlo en los dos sitios.
 
 ---
 
