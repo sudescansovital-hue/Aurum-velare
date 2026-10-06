@@ -270,6 +270,37 @@ trades más en días rotos): con solo trades EA, contar "cerrados después" o
 "abiertos después" da lo mismo (52 / −6.617 $). El dato del Diario es correcto
 para lo que mide (trades de la EA).
 
+**Pero ninguna de esas cifras mide la regla real (aclarado 06/10).** La regla es
+por cuenta y tiene 3 niveles: N1 un solo trade pierde 500 $ → ese día se cierra;
+N2 el día suma −800 $ → límite; N3 −1.100 $ → cierre obligatorio. El −500 $
+acumulado (`DA_LIMITE_PERDIDA_DIA` en `diario-analisis.js`) no es ninguno de
+los tres. Con la regla real (`edge/limite_niveles.py -v`, todos los trades, día
+de servidor por cierre, "después" = abiertos después del cierre que rompe):
+
+| Cuenta | Nivel | Días | Trades después | $ | pts/trade [IC95] | WR |
+|---|---|---|---|---|---|---|
+| Maestra | N1 trade ≤ −500 | 4 | 7 | −985 | −2,41 [−4,24, −0,59] | 43% |
+| Maestra | N2 día ≤ −800 | 5 | 11 | −1.593 | −2,91 [−4,55, −1,30] | 18% |
+| Maestra | N3 día ≤ −1.100 | 5 | 5 | −528 | −2,40 [−4,24, −0,56] | 20% |
+| Maestra | el primero que salte | 7 | 14 | −1.573 | −2,27 [−3,76, −0,92] | 36% |
+| Prueba | N1 | 1 | 1 | +398 | +3,98 | 100% |
+| Prueba | N2 | 4 | 9 | +115 | +0,19 [−5,28, +6,73] | 33% |
+| Prueba | N3 | 1 | 0 | 0 | — | — |
+| Prueba | el primero que salte | 4 | 9 | +115 | +0,19 | 33% |
+
+Maestra: seguir después de cualquier nivel pierde (−1.573 $ en 14 trades, IC
+< 0; 6 de esos 14 son importados de abril–junio con hora sin minuto). Prueba:
+pocos casos (9 trades en 4 días; el 25/09 hizo 8 trades tras −800 $ y terminó
+en −1.137 $); no se puede concluir. Días: 17/04, 13/05, 16/06, 26/06, 29/06,
+17/08 y 24/08 (Maestra); 10/09, 24/09, 25/09 y 01/10 (Prueba).
+
+**Pendiente (no aplicado):** el marcador y "Qué te conviene" no deben llevar
+el límite fijo; van a "Mis reglas" de cada usuario con 3 campos configurables
+(vacío = no se mide): pérdida máxima por trade, límite diario y límite duro
+(Roderas: 500 / 800 / 1.100). `sql_reglas_disciplina.sql` (sin commitear, del
+05/10, sin aplicar) solo tiene `limite_diario_usd`: habría que añadir
+`perdida_max_trade_usd` y `limite_duro_usd` antes de aplicarlo.
+
 **Lotaje, fuera de muestra (reglas sacadas solo de la primera parte):**
 
 | Maestra, últimos 97 trades | $ | $/trade | Máx. DD | Peor racha | Peor día |
