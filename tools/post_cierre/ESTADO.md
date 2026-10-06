@@ -294,12 +294,51 @@ pocos casos (9 trades en 4 días; el 25/09 hizo 8 trades tras −800 $ y termin�
 en −1.137 $); no se puede concluir. Días: 17/04, 13/05, 16/06, 26/06, 29/06,
 17/08 y 24/08 (Maestra); 10/09, 24/09, 25/09 y 01/10 (Prueba).
 
-**Pendiente (no aplicado):** el marcador y "Qué te conviene" no deben llevar
-el límite fijo; van a "Mis reglas" de cada usuario con 3 campos configurables
-(vacío = no se mide): pérdida máxima por trade, límite diario y límite duro
-(Roderas: 500 / 800 / 1.100). `sql_reglas_disciplina.sql` (sin commitear, del
-05/10, sin aplicar) solo tiene `limite_diario_usd`: habría que añadir
-`perdida_max_trade_usd` y `limite_duro_usd` antes de aplicarlo.
+---
+
+## Mis reglas — diseño acordado (06/10), SQL sin aplicar
+
+El límite fijo `DA_LIMITE_PERDIDA_DIA` del Diario pasa a ser configurable por
+usuario. SQL: `tools/post_cierre/sql_mis_reglas.sql` (**sin aplicar, pendiente
+de revisión**; probado en un Postgres local, PGlite, con 19 comprobaciones de
+RLS, candado e historial). Sustituye a `sql_reglas_disciplina.sql` (raíz, del
+05/10, sin commitear, nunca aplicado).
+
+- **Reglas** (todas opcionales; vacío = no se mide), por usuario y por carpeta
+  (`todas` por defecto, o `maestra` / `prueba` / `retos`: por carpeta y no por
+  número, porque el número cambia desde el admin):
+  pérdida máxima por trade; hasta 3 niveles de pérdida diaria y hasta 3 de
+  beneficio diario, cada uno con importe y nombre.
+  Roderas: trade 500; día −800 "Límite", −1.100 "Cierre obligatorio"; +250
+  "Día bueno", +500 "Oportunidad", +1.500 "Asegurar".
+- **Todos los niveles son avisos:** ni Aurum ni la EA cierran el día ni bloquean
+  operaciones; el trader decide.
+- **Tablas:** `reglas_valores` (una fila por nivel: ámbito usuario/reto,
+  carpeta, regla, nivel, importe, nombre, `fijada_por` usuario/admin),
+  `reglas_valores_historial` (automático, solo lectura) y la vista
+  `reglas_efectivas` (lo que se aplica por carpeta y nivel).
+- **Admin y candado:** el admin ve y edita las reglas de cada usuario. Si fija
+  un nivel, manda el importe más estricto (el menor, también en beneficio) y el
+  usuario solo puede bajarlo (lo impide un trigger, no solo la pantalla).
+- **Retos:** la tabla admite reglas por reto fijadas por el admin; sin
+  construir (faltará la policy de lectura vía `retos_participantes` y
+  aplicarlas a la cuenta de retos de cada participante).
+- **Fases** (cada una se enseña antes de desplegar):
+  1. Aplicar el SQL + pestaña "Mis reglas" en Mi gestión.
+  2. El Diario usa las reglas por cuenta en lugar de `DA_LIMITE_PERDIDA_DIA`.
+     Por nivel: días en que se alcanzó, si se siguió operando y qué pasó
+     después (trades abiertos después, en $ y pts; en beneficio, cuánto se
+     devolvió o se ganó de más). **Veredicto** cuando se sigue operando tras
+     alcanzar un nivel: "te sirvió" si los trades posteriores suman positivo,
+     "error" si suman negativo, con $ y pts. En el día, una frase ("Llegaste a
+     +250 Día bueno y seguiste: 3 trades, devolviste 180 $ → error"). En
+     semana, mes e histórico, resumen por nivel: veces que sirvió y veces que
+     fue error, con el total de cada lado.
+  3. Panel del admin y candado en la pantalla.
+- **Pendiente — admin por email:** el SQL reconoce al admin por
+  `auth.email() = 'sudescansovital@gmail.com'` (igual que `ADMIN_EMAIL` en
+  `app.js` y otras tablas). Cuando haya más de un admin, pasar a un rol o una
+  tabla de admins y cambiarlo en los dos sitios.
 
 **Lotaje, fuera de muestra (reglas sacadas solo de la primera parte):**
 
