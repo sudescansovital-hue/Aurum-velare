@@ -1,7 +1,42 @@
 # AURUM VELARE — Arquitectura Web
 > Documento vivo. Se actualiza con el proyecto.  
-> Última actualización: 5 de octubre de 2026  
+> Última actualización: 6 de octubre de 2026  
 > Para uso interno — contexto de desarrollo y nuevas sesiones de trabajo.
+
+---
+
+## Sesión 06/10/2026
+
+> Detalle completo (cifras, verificaciones, decisiones y pendientes en orden)
+> en `tools/post_cierre/ESTADO.md`. Resumen aquí.
+
+- **EA 1.04 desplegada** en el terminal `BD8B1008…` (el de
+  `MT5_TERMINAL_PATH`) el 05/10 a las 23:27: se copia el `.mq5` a
+  `MQL5\Experts` y se compila con **F7 desde MetaEditor abierto desde MT5**
+  (compilar por línea de comandos no recarga la EA del gráfico). Funcionando en
+  Maestra y Prueba según el usuario (06/10). Sigue en la rama
+  `feature/ea-sync`; se fusiona en `main` tras la observación de MFE/MAE y
+  breakeven con trades reales.
+- **Importación del historial** (`parser.js`, `historial.js`, `e3e8615`):
+  informes MT5 en inglés, `.htm` con detección de codificación (UTF-16 LE/BE,
+  UTF-8, Windows-1252), filas de título de sección conservadas, aviso si se sube
+  el informe de posiciones abiertas en vez del Historial y mensajes de error por
+  causa (formato, sin XAU/USD, solo abiertas, no se pudo leer).
+- **Diario** (`15f8fee`): se recarga al abrirlo, insignia de análisis
+  provisional, salto a la última semana con trades al cambiar de cuenta, y
+  "no evaluado" en el detalle.
+- **Análisis de edge por cuenta** (solo lectura): scripts en
+  `tools/post_cierre/edge/` (datos en `tools/post_cierre/data/edge/`, fuera de
+  git). Resultados y la corrección del límite de pérdida diaria en ESTADO.md.
+- **Mis reglas, fases 1 y 2 en producción** (SQL
+  `tools/post_cierre/sql_mis_reglas.sql` aplicado en Supabase; tablas
+  `reglas_valores`, `reglas_valores_historial` y vista `reglas_efectivas`):
+  - fase 1, pestaña "Mis reglas" en Mi gestión (`mis-reglas.js`, `499d65d`);
+  - fase 2, el Diario usa los niveles por cuenta en lugar del límite fijo de
+    500 $ (`404183e`): calendario, frase del día con veredicto "te sirvió" /
+    "error", bloque "Tus niveles" en semana, mes e histórico y "Qué te conviene".
+  Todos los niveles son avisos; el Diario es solo para trades auditados por la
+  EA. Fase 3 (panel del admin con candado) pendiente.
 
 ---
 

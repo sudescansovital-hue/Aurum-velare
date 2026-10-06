@@ -1,13 +1,48 @@
 # Estado — análisis post-cierre: FASE 1 (examen de la EA) + FASE 2 (Diario web)
 
-> Actualizado 05/10/2026 (post_cierre automatizado con tarea programada; fallo 5 de la EA). Antes: 02/10/2026. **FASE 2 en producción** (primer deploy `cdede9a` /
+> Actualizado 06/10/2026 (cierre de sesión: decisiones y pendientes abajo; "Edge por cuenta"; "Mis reglas"). Antes: 05/10/2026 (post_cierre automatizado con tarea programada; fallo 5 de la EA). Antes: 02/10/2026. **FASE 2 en producción** (primer deploy `cdede9a` /
 > `aurum-velare-cw5la96zd`; el anterior a la FASE 2, para rollback, era
 > `aurum-velare-9hp3r9l3q`). Criterios de análisis hoy: **v6**. FASE 1
 > terminada el 29/09 (298 trades, en seco).
 
 ---
 
-## ⚠️ SIGUIENTE GRAN PASO — PRIORIDAD MÁXIMA en la próxima sesión
+## Decisiones del 06/10
+
+- **El Diario es SOLO para trades auditados por la EA** (`post_cierre_analisis`).
+  Los trades importados a mano se quedan en el Trade Record; no entran en el
+  Diario ni en sus niveles. Por eso en la Maestra el Diario ve 65 trades (desde
+  julio) y el análisis de edge, 242 (desde abril).
+- **Todos los niveles de Mis reglas son AVISOS:** ni Aurum ni la EA cierran el
+  día ni bloquean operaciones; el trader decide. El Diario solo muestra cuándo
+  se llegó a cada nivel, si se siguió operando y qué pasó después ("te sirvió" /
+  "error").
+- **Regla real de Roderas** (en Mis reglas, carpeta "Todas"): pérdida máxima por
+  trade 500 $; día −800 $ «Límite» y −1.100 $ «Cierre obligatorio»; día +250 $
+  «Día bueno», +500 $ «Oportunidad» y +1.500 $ «Asegurar».
+
+## Pendientes, en orden (06/10)
+
+1. **Semana(s) de observación sin tocar código:** confirmar con trades reales
+   MFE/MAE (fallo 1), el breakeven (fallo 3) y los avisos de niveles en el
+   Diario. Después, **fusionar `feature/ea-sync` en `main`**.
+2. **Mis reglas, fase 3:** panel del admin con candado.
+3. **Frase del runner con cada parcial por separado.**
+4. **Punto 4 — velas desde la EA y análisis en el servidor** (sección
+   siguiente, pasos 3 y 4).
+5. **Capturas por trade** en la carpeta local del usuario (ver "Junto a este
+   paso" más abajo y "vincular capturas a cada trade" en Siguiente paso).
+6. **Rango y recorrido diario en pts.**
+7. **Rehacer Evalúame.**
+8. **Guía "Cómo funciona Aurum".**
+9. **Modo claro.**
+
+Pendiente menor: el admin se reconoce por email en el SQL de Mis reglas (ver
+sección Mis reglas); cambiarlo cuando haya más de un admin.
+
+---
+
+## Siguiente gran paso (02/10) — pasos 1 y 2 hechos el 05/10; 3 y 4 = pendiente 4
 
 **Que el análisis post-cierre funcione para cualquier usuario solo con la
 EA**, sin depender de `post_cierre.py` en el PC de Roderas con MT5 abierto
@@ -49,6 +84,357 @@ sola al trade. Por valorar cómo llegan al Diario:
   (tamaño del cuerpo, reintentos, la cola en RAM ya ha dado problemas): mejor
   un endpoint aparte que no comparta la cola de eventos del trade. Valorar
   JPEG / menor resolución para reducir tamaño.
+
+---
+
+## Sincronización de la EA (05/10) — paso 1 del siguiente gran paso
+
+Inventario en solo lectura de `%APPDATA%\MetaQuotes\Terminal\<id>\MQL5\Experts`
+(solo 3 terminales tienen la EA) + logs del terminal y de MetaEditor:
+
+| Terminal | Cuentas (última vez en logs) | Archivos | Qué corre | Eventos línea de tiempo | MFE/MAE | En uso |
+|---|---|---|---|---|---|---|
+| `BD8B1008…` (`AppData\Roaming\MetaTrader 5`, el de `MT5_TERMINAL_PATH`) | 178497 (hoy), 7747760 (28/09), 179003 (10/09), 176821 (31/08) | `.mq5` 03/09 00:03 (v1.02) · `.ex5` 04/09 18:36 | v1.02: el `.ex5` del 04/09 se compiló desde ese mismo `.mq5` (metaeditor.log); el log de la EA no lleva `mfe_pts` | Activos | **No** | **Sí** |
+| `D0E8209F…` (`Program Files\MetaTrader 5`) | 176821, 174645 (02/09, la EA falló al iniciar con 174645) | `.mq5` + `.ex5` 29/08 00:26 (compilado desde el repo de ese día) | v1.02 con los 4 `SendTradeEvento` comentados + guard de 30 s | Apagados | No | No |
+| `4264CCB9…` (`Program Files\WSFmarkets MT5 Terminal`) | — (logs hasta 19/07) | solo `.ex5` 19/07, sin fuente | obsoleto | — | — | No |
+| Repo `EA_Aurum_Tracker_FIX.mq5` (main) | — | v1.03 (04/09) | nunca desplegada | Comentados (`3cad1a5` los copió de D0E8209F…) | Sí | — |
+
+**Causa del fallo 1 (MFE/MAE nulos):** el código de MFE/MAE (v1.03, 04/09) solo
+existe en el repo; la EA en uso es v1.02 y nunca lo ha ejecutado. Se espera
+que se resuelva al desplegar la versión sincronizada — confirmar con un trade real.
+
+**Cuentas** (archivos de `Common\Files`; tokens no consultados):
+`aurum_auth_` existe para **178497, 179003 y 7747760** (no para 176821 ni
+7751904); `aurum_cola_`/`aurum_cola_eventos_` para 178497, 179003 y 7747760
+(vacías) y restos antiguos de 152034, 167807 y 176821 (`.bak` del 27/08).
+- 178497 — WSFmarkets-Server, **REAL** según `account_info().trade_mode` (05/10).
+- 179003 — WSFmarkets-Server; tipo no comprobado (no está conectada).
+- 7747760 — Neomaaa-global; tipo no comprobado (no está conectada).
+- 7751904 — Neomaaa-global, solo en logs del 11/06 al 28/06; sin archivos de la EA.
+- **Ojo:** según el usuario (05/10), la cuenta Prueba es la **7751904**, no la
+  178497. El Diario rotula las pestañas con `usuarios_aurum.cuenta_maestra /
+  cuenta_prueba / cuenta_retos` (en el admin), que el 02/10 tenía
+  `cuenta_prueba = 178497`: revisar esa asignación en el admin.
+
+**Decisión (05/10):** partir del repo v1.03, reactivar los 4 `SendTradeEvento`
+y **mantener el guard de 30 s** de la sincronización inicial (estaba en el repo
+desde el 19/07; `3cad1a5` lo quitó solo para igualar con BD8B1008…, sin motivo
+funcional documentado). Resultado: **v1.04** en la rama `feature/ea-sync`.
+Frente a la EA en uso solo añade MFE/MAE + el guard. Copias de seguridad en
+`BD8B1008…\MQL5\Experts\EA_Aurum_Tracker_FIX.{mq5,ex5}.bak_20261005_pre_ea_sync`.
+D0E8209F… y 4264CCB9… no se tocan.
+
+### Despliegue de la 1.04 en BD8B1008… (05/10, 23:27:31) — HECHO
+
+Durante la pausa diaria del mercado (último tick 22:59:59 hora de servidor,
+confirmado en MT5 en solo lectura), con UNA posición abierta en 178497
+(23847966, venta 0,2, SL 4155,5, TP 4017).
+
+**Cómo se hizo (y cómo NO):**
+- 1.er intento, 23:11: copia del `.mq5` 1.04 a `MQL5\Experts` + compilación por
+  línea de comandos (`metaeditor64.exe /compile:…`): 0 errores, pero **MT5 no
+  recargó la EA del gráfico** (no apareció `aurum_abiertas_178497.txt`); se
+  restauró la copia de seguridad. **Compilar desde línea de comandos no avisa al
+  terminal: no usarlo para desplegar.** (Al restaurar, MT5 sí recargó la 1.02 a
+  las 23:21 y 23:22; luego el `.ex5` desapareció de la carpeta antes del 2.º
+  intento, sin causa clara — el F7 lo regeneró.)
+- 2.º intento (el bueno): copia del `.mq5` 1.04 (rama `feature/ea-sync`, línea 7
+  `version "1.04"`) a `BD8B1008…\MQL5\Experts` **sin compilar**, y el usuario
+  compiló con **F7 desde MetaEditor abierto desde MT5** (0 errores): MT5 recargó
+  la EA del gráfico XAUUSD H4 con sus mismos inputs (`removed` / `loaded
+  successfully` 23:27:31).
+- Copias de seguridad de la 1.02 siguen en
+  `EA_Aurum_Tracker_FIX.{mq5,ex5}.bak_20261005_pre_ea_sync`.
+
+**Comprobaciones (log de la EA y del terminal, Common\Files, Supabase):**
+- Arranque: `23:27:32 EA_Aurum_Tracker iniciado · Cuenta 178497`, credenciales
+  del archivo local.
+- Posición abierta: `23:27:37 Posición abierta (SL=valor actual) — pos:23847966`,
+  `Posiciones abiertas sincronizadas: 1`; `aurum_abiertas_178497.txt` = `23847966`.
+- `SyncHistory48h`: **`posiciones procesadas: 7`** (la 1.02 decía siempre 1), con
+  `[AURUM RECONCILIA] (sync48h) Cierre recuperado` para los 7 trades del 05/10
+  (23827187: 2 salidas, 4147,46, motivo SL, 551,60 $).
+- Cola: `23:28:37 Procesando cola — 16` y `23:28:58 [AURUM EVENTO] … — 8`;
+  **0 errores HTTP** desde las 23:20; `aurum_cola_178497.txt` y
+  `aurum_cola_eventos_178497.txt` a 0 bytes.
+- Supabase frente a una foto previa al despliegue (7 trades cerrados desde el
+  03/10): mismos eventos (27), cambios de SL (12) y de TP (7), **0 duplicados**,
+  mismos precios de cierre y beneficios.
+
+**Pendiente (no fusionar `feature/ea-sync` en `main` hasta confirmarlo):**
+- Fallo 1: en el próximo cierre real, la línea `[AURUM] Cierre` debe llevar
+  `mfe_pts` / `mae_pts` y `ea_trades.mfe_*` / `mae_*` llegar con valor.
+- Fallo 3: en el próximo movimiento de SL, 'breakeven' solo a ±1 pt de la entrada
+  (y nunca al poner el primer SL).
+- Fallo 5: ver en el log una `[AURUM RECONCILIA] (reconexion|periodica)` real tras
+  una desconexión o suspensión.
+- Prueba en producción del `sl_change` duplicado: sin hacer (requiere las
+  credenciales de la EA, que no se leen).
+- Para futuros despliegues de la EA: mismo procedimiento (copiar el `.mq5` y F7
+  desde MetaEditor de MT5), en la pausa o sin posiciones.
+
+---
+
+## Edge por cuenta, 06/10
+
+Solo lectura (nada tocado en web, Supabase ni EA). Fuentes: tabla `trades`
+exportada por el usuario (CSV de Table Editor, 1.715 filas; se leyeron solo las
+de `roderastrader@gmail.com` — de `sudescansovital@gmail.com` no hay ninguna),
+trades EA por `GET ?accion=trades` (310, con eventos y SL original) y velas M1
+XAUUSD del MT5 local (solo lectura, hay desde el 25/06). Scripts en
+`tools/post_cierre/edge/` (orden de ejecución en `edge/datos.py`); datos en
+`tools/post_cierre/data/edge/` (ignorado por git: `trades_mios.csv` con solo tus
+filas, `ea.json`, `m1.npy` y las salidas `.txt`). El CSV completo de Descargas
+se borró el 06/10.
+
+**Calidad de datos (1.709 filas tuyas → 672 analizadas):**
+- 704 de la 4011477: fuera (pedido, cuenta perdida).
+- 333 importados antiguos (135146: 107, 7741924: 131, 7746279: 75, 7751048: 20)
+  sin fecha, sin lote y sin dirección: fuera (sin eso no hay pts/trade ni orden).
+- Duplicados EA↔importado: **0** (ni por position_id ni por cuenta+fecha+precio
+  ±0,5). Los 5 trades EA que faltaban en `trades` están ahí como importados con
+  el mismo position_id (la tabla ya se deduplicó sola).
+- Sin lote / sin precios / pts imposibles: 0. pts = beneficio / (100 × lote):
+  cuadra con el movimiento de precio (ratio mediano 1,00 en todas las cuentas).
+- Cuentas mal asignadas: ninguna (cada número tiene una sola carpeta).
+  7751904 (que el 05/10 se dijo que era la Prueba) va en "Resto"; la Prueba
+  analizada es la 178497, como se pidió.
+- Hora: los importados solo traen la hora; el minuto de entrada se reconstruyó
+  con velas M1 (probado con los trades EA: error mediano 1 min) cuando se pudo.
+  Antes del 25/06 no hay velas: en la Maestra 161 de 242 trades tienen solo la
+  hora, así que "espera" y "vuelta" son inciertas en su primera parte.
+
+**Resumen por cuenta (pts/trade con IC95):**
+
+| Cuenta | Trades | Periodo | P&L | WR | pts/trade | $/trade |
+|---|---|---|---|---|---|---|
+| Maestra 7747760 | 242 (177 import + 65 EA) | 13/04 → 06/10 | +6.138 $ | 54% | +0,06 [−1,4, +1,5] | +25 |
+| Prueba 178497 | 78 (todos EA) | 10/09 → 05/10 | −185 $ | 45% | −1,33 [−3,5, +0,9] | −2 |
+| Resto (6 cuentas) | 352 | 12/06 → 10/09 | −10.624 $ | 54% | −1,26 [−2,2, −0,3] | −30 |
+
+Resto por cuenta: 152034 +4.070 $ (133), 167807 −6.493 $ (89), 174645
+−2.968 $ (24), 176821 +2.151 $ (47), 179003 −3.380 $ (30), 7751904 −4.005 $ (29).
+Maestra: el P&L sale del lote, no de los puntos (con lote fijo 0,2 los mismos
+trades darían +278 $).
+
+**Método:** variables al entrar (sesión en hora de servidor, día, dirección,
+lote frente a la mediana de la cuenta, resultado del anterior del día, espera
+desde el cierre anterior, vuelta, nº de trade del día, si el día iba en
+pérdida, tanteo = 1.º del día con lote < mediana / segunda tras tanteo) +
+duración (no se sabe al entrar) + solo EA: estrategia, MA200 M1 a favor/en
+contra, distancia del SL original. Segmentos de 1 o 2 variables. Primer 60% de
+cada cuenta (por fecha) para buscar, último 40% para validar; mínimo 30 casos
+en la primera parte; IC95 por bootstrap. "Se sostiene" = media > 0 fuera de
+muestra con ≥15 casos; "fiable" = IC95 fuera de muestra > 0.
+Segmentos evaluados: Maestra 69, Prueba 4, Resto 137. Ninguno tuvo IC95 > 0 ya
+en la primera parte en Maestra ni en Prueba (en Resto, 3, y fallaron fuera).
+
+**Ventaja de verdad:**
+- **Maestra — NY 15–19 h (servidor):** 66 trades, +3,96 pts/trade [+0,76,
+  +7,58], WR 68%. Primera parte +1,53 (37, no significativo); fuera de muestra
+  **+7,06 [+2,85, +11,84]** (29). Positivo en 6 de 7 meses (35 días distintos);
+  sin los 5 mejores trades, +1,25. **No se repite en la Prueba** (30 trades,
+  −1,42) y en el Resto queda en +0,14 (111): es de cómo operas la Maestra, no
+  del mercado.
+- "Duración 60+ min" también se sostiene en la Maestra (+6,93 fuera), pero no
+  sirve de regla: al entrar no sabes cuánto durará.
+- Prueba: **ninguna**. Con 78 trades solo 4 segmentos llegan a 30 casos en la
+  primera parte; nada validable. Resto: ninguna.
+
+**Parecía edge y no se sostuvo:** Resto "duración < 5 min" (+1,33 [+0,30,
++2,48] en la primera parte → −1,63 fuera), "compra con el día en pérdida"
+(+2,42 → −2,06), "NY 15–19" en Resto (+0,80 → −0,44), "compra" (+1,36 →
+−2,15), "MA200 a favor" (+0,84 → −2,75). Maestra "compra tras pérdida" (+0,73 →
+−1,60), "lote > mediana en el 4.º+ trade del día" (+0,71 → −0,65).
+Variables EA: ninguna se sostiene; MA200 a favor da +3,01 en la Maestra (45),
+pero −1,50 en la Prueba (56) y −1,81 en el Resto (106).
+
+**Dónde pierdes siempre:**
+- **Trades que duran 15–59 min, en las 3 cuentas:** Maestra −3,29 [−4,99,
+  −1,60] (66; primera parte −3,20, fuera −3,37, las dos con IC < 0), Prueba
+  −3,30 [−6,34, −0,37] (29), Resto −2,47 [−3,99, −0,91] (110). 58% perdedores.
+  Es el patrón más fiable del análisis, pero es un resultado, no una condición
+  de entrada (en la Prueba: 17 por SL y 11 a mano).
+- Maestra, Londres 09–14: −2,72 [−5,12, −0,22] (45; primera parte −2,87 con
+  IC < 0; fuera solo 6, porque desde julio casi no operas Londres → no
+  verificable).
+- Resto: "Asia 00–08 + venta" −4,27 → −3,80 (IC < 0 en las dos partes),
+  "lunes sin vuelta" −2,83 → −2,84, primer trade del día −3,72 (73), tanteo
+  −5,05 (40). En la Maestra, en cambio, "Asia + venta" da +1,27 (45).
+
+**Maestra vs Prueba (cómo operas):**
+
+| | Maestra (todo / desde 25/06) | Prueba |
+|---|---|---|
+| Sesiones | Asia 36% / 56%, Londres 19% / 6%, NY 27% / 29%, NY tarde 19% / 9% | Asia 44%, Londres 12%, NY 38%, NY tarde 6% |
+| Lote | mediana 0,2; ≥ 0,4 en el 32% | mediana 0,2; ≥ 0,4 en el **44%** |
+| Trades/día | media 3,7 (mediana 2); días con 5+: 29% | media **4,6 (mediana 4)**; días con 5+: **47%** |
+| Seguidas < 15 min (no primeros; Maestra solo desde 25/06) | 52% | **70%** |
+| Vueltas (no primeros; Maestra solo desde 25/06) | 30% | **54%** |
+| Duración | mediana 24 min; 60+ el 32% | mediana 30 min; 60+ el 37% |
+| Ventas | 50% | 59% |
+| Sube lote tras pérdida / tras ganancia | 54% / 20% | 59% / 9% |
+| Cuándo paras | tras ganar 49 de 65 días; días en pérdida 23% | tras ganar 13 de 17; días en pérdida **41%** |
+| Días que rompen −500 $ (por cierre) | 13 de 69 (31 trades abiertos después: −424 $) | 5 de 18 (21 trades después: −393 $) |
+
+Desde el 10/09 la Maestra casi no se opera (9 trades, lote mediano 0,11): la
+actividad se ha pasado a la Prueba.
+
+**Límite de −500 $ — corregido el 06/10 (la primera versión de esta sección
+estaba mal).** Decía que los trades hechos después de tocar −500 $ eran
+positivos (Maestra +2,91 pts / +5.959 $ en 42, Prueba +1.735 $ en 22). Error de
+cálculo: acumulaba el P&L del día en orden de **entrada**, así que sumaba trades
+aún abiertos y ponía mal el momento de la ruptura. El marcador del Diario sí lo
+hace bien (P&L realizado por cuenta, en orden de cierre). `edge/limite.py`
+reproduce todas las versiones:
+
+| Versión | Trades | $ | Días |
+|---|---|---|---|
+| Diario (solo EA analizados, todas las cuentas; "después" = cerrados después) | 52 | −6.617 | 13 |
+| Ídem el 05/10 antes de las 20:00 (sin 23453924, −268,40 $: su cierre se completó con `sql_fix_cierre_23453924.sql` y su análisis entró a las 20:00) | **51** | **−6.349** | 13 |
+| Análisis de edge, primera versión (orden de entrada) — **erróneo** | 142 | +5.777 | 37 |
+| **Bueno para la regla:** todos los trades (EA + importados), orden de cierre, "después" = **abiertos** después del cierre que rompe | **116** | **−5.111** | 30 |
+
+Por grupo (versión buena): Maestra 31 trades, −424 $, +0,12 pts [−1,94, +2,72];
+Prueba 21, −393 $, −1,64 pts [−4,84, +2,01], WR 33%; Resto 64, −4.294 $, −1,31
+pts. Parar en −500 $ habría ahorrado 5.111 $ en total, sobre todo en el Resto
+(167807: −2.822 $). En la Maestra el efecto es casi nulo. Ningún IC excluye el 0:
+es una regla de riesgo que además ahorra dinero, no una ventaja estadística.
+La única diferencia entre el Diario y la versión buena son los importados (64
+trades más en días rotos): con solo trades EA, contar "cerrados después" o
+"abiertos después" da lo mismo (52 / −6.617 $). El dato del Diario es correcto
+para lo que mide (trades de la EA).
+
+**Pero ninguna de esas cifras mide la regla real (aclarado 06/10).** La regla es
+por cuenta y tiene 3 niveles: N1 un solo trade pierde 500 $ → ese día se cierra;
+N2 el día suma −800 $ → límite; N3 −1.100 $ → cierre obligatorio. El −500 $
+acumulado (`DA_LIMITE_PERDIDA_DIA` en `diario-analisis.js`) no es ninguno de
+los tres. Con la regla real (`edge/limite_niveles.py -v`, todos los trades, día
+de servidor por cierre, "después" = abiertos después del cierre que rompe):
+
+| Cuenta | Nivel | Días | Trades después | $ | pts/trade [IC95] | WR |
+|---|---|---|---|---|---|---|
+| Maestra | N1 trade ≤ −500 | 4 | 7 | −985 | −2,41 [−4,24, −0,59] | 43% |
+| Maestra | N2 día ≤ −800 | 5 | 11 | −1.593 | −2,91 [−4,55, −1,30] | 18% |
+| Maestra | N3 día ≤ −1.100 | 5 | 5 | −528 | −2,40 [−4,24, −0,56] | 20% |
+| Maestra | el primero que salte | 7 | 14 | −1.573 | −2,27 [−3,76, −0,92] | 36% |
+| Prueba | N1 | 1 | 1 | +398 | +3,98 | 100% |
+| Prueba | N2 | 4 | 9 | +115 | +0,19 [−5,28, +6,73] | 33% |
+| Prueba | N3 | 1 | 0 | 0 | — | — |
+| Prueba | el primero que salte | 4 | 9 | +115 | +0,19 | 33% |
+
+Maestra: seguir después de cualquier nivel pierde (−1.573 $ en 14 trades, IC
+< 0; 6 de esos 14 son importados de abril–junio con hora sin minuto). Prueba:
+pocos casos (9 trades en 4 días; el 25/09 hizo 8 trades tras −800 $ y terminó
+en −1.137 $); no se puede concluir. Días: 17/04, 13/05, 16/06, 26/06, 29/06,
+17/08 y 24/08 (Maestra); 10/09, 24/09, 25/09 y 01/10 (Prueba).
+
+**Lotaje, fuera de muestra (reglas sacadas solo de la primera parte):**
+
+| Maestra, últimos 97 trades | $ | $/trade | Máx. DD | Peor racha | Peor día |
+|---|---|---|---|---|---|
+| Lote fijo 0,2 | +1.570 | +16 | 1.938 | 5 | −900 |
+| **0,4 en NY 15–19, 0,2 el resto** | **+5.667** | +58 | 1.836 | 5 | −900 |
+| Solo NY 15–19 a 0,2 (29 trades) | +4.097 | +141 | 398 | 3 | −125 |
+| No operar los segmentos malos de la 1.ª parte | +850 | +12 | 1.989 | 5 | −900 |
+| Real (tus lotes) | +2.916 | +30 | 2.362 | 5 | −1.434 |
+
+La misma regla aplicada a la Prueba (prueba independiente, 78 trades) **pierde**:
+fijo 0,2 −2.081 $; 0,4 en NY −2.931 $; solo NY −850 $; real −185 $. En el Resto
+(141 fuera de muestra), todas las variantes pierden (fijo 0,4: −7.357 $; no
+operar los 23 segmentos malos deja 13 trades y −2.344 $).
+
+**Reglas que salen (para decidir; no aplicadas en ninguna parte):**
+1. **Maestra: lote base 0,2 y 0,4 solo en NY 15–19 (servidor).** 66 casos; 29
+   fuera de muestra con IC95 > 0. Fiabilidad media: se sostiene en la Maestra,
+   pero no se transfiere a la Prueba.
+2. **Entre el minuto 15 y el 60 de un trade, nada a mano (ni cerrar, ni
+   añadir, ni girar): deciden el SL y el TP.** 205 casos en las 3 cuentas, todos
+   con IC < 0. El patrón es de fiabilidad alta; la regla en sí está sin probar
+   (habría que simularla con velas, como `optimizador.py`).
+3. **Prueba: lote fijo 0,2, sin subir tras pérdidas y sin copiar la regla de NY
+   de la Maestra.** 78 casos, −1,33 pts/trade [−3,47, +0,89]: no hay ventaja
+   demostrable, así que más lote solo añade varianza. Fiabilidad de "no hay
+   edge todavía": alta; se necesitan unos 150 trades más para validar
+   segmentos de 30.
+
+**Límites:** se probaron ~210 segmentos (se esperan falsos positivos; por eso
+solo cuenta lo validado fuera de muestra); la primera parte de la Maestra es
+abril–junio con hora sin minuto; la hora es la del servidor de cada bróker;
+comisiones y swap van dentro del beneficio de los importados.
+
+---
+
+## Mis reglas (06/10) — fases 1 y 2 en producción; fase 3 pendiente
+
+El límite fijo `DA_LIMITE_PERDIDA_DIA` del Diario pasa a ser configurable por
+usuario. SQL: `tools/post_cierre/sql_mis_reglas.sql`, **aplicado en Supabase el
+06/10** por el usuario (en dos partes; verificado: niveles 6, historial 6,
+policies 7, efectivas 24). Antes se probó en un Postgres local (PGlite) con 19
+comprobaciones de RLS, candado e historial. Sustituye a
+`sql_reglas_disciplina.sql` (raíz, del 05/10, sin commitear, nunca aplicado).
+
+**Estado de las fases:**
+- **Fase 1 — EN PRODUCCIÓN (06/10):** pestaña "Mis reglas" en Mi gestión
+  (`mis-reglas.js`, commit `499d65d` en `main`, deploy
+  `aurum-velare-2nyp03hqp`). Comprobada por el usuario con su sesión: salen sus
+  6 niveles, guarda y se mantiene al recargar. Importes en formato español
+  ("1.100", "999,5"); campo de texto y no `type=number` (con coma, un input
+  numérico puede devolver '' y borraría el nivel).
+- **Fase 2 — EN PRODUCCIÓN (06/10):** el Diario usa los niveles (commit
+  `404183e` en `main`, deploy `aurum-velare-ab4k1h1zt`; enseñada antes con
+  capturas; pendiente de que el usuario la compruebe con su sesión). Verificada con los trades
+  EA reales contra un cálculo independiente en Python (6 niveles, Maestra y
+  Prueba) + 14 pruebas jsdom + la prueba anterior del Diario. Detalle abajo.
+- **Fase 3 — pendiente:** panel del admin y candado en la pantalla.
+
+- **Reglas** (todas opcionales; vacío = no se mide), por usuario y por carpeta
+  (`todas` por defecto, o `maestra` / `prueba` / `retos`: por carpeta y no por
+  número, porque el número cambia desde el admin):
+  pérdida máxima por trade; hasta 3 niveles de pérdida diaria y hasta 3 de
+  beneficio diario, cada uno con importe y nombre.
+  Roderas: trade 500; día −800 "Límite", −1.100 "Cierre obligatorio"; +250
+  "Día bueno", +500 "Oportunidad", +1.500 "Asegurar".
+- **Todos los niveles son avisos:** ni Aurum ni la EA cierran el día ni bloquean
+  operaciones; el trader decide.
+- **Tablas:** `reglas_valores` (una fila por nivel: ámbito usuario/reto,
+  carpeta, regla, nivel, importe, nombre, `fijada_por` usuario/admin),
+  `reglas_valores_historial` (automático, solo lectura) y la vista
+  `reglas_efectivas` (lo que se aplica por carpeta y nivel).
+- **Admin y candado:** el admin ve y edita las reglas de cada usuario. Si fija
+  un nivel, manda el importe más estricto (el menor, también en beneficio) y el
+  usuario solo puede bajarlo (lo impide un trigger, no solo la pantalla).
+- **Retos:** la tabla admite reglas por reto fijadas por el admin; sin
+  construir (faltará la policy de lectura vía `retos_participantes` y
+  aplicarlas a la cuenta de retos de cada participante).
+- **Fases** (cada una se enseña antes de desplegar):
+  1. Aplicar el SQL + pestaña "Mis reglas" en Mi gestión.
+  2. El Diario usa las reglas por cuenta en lugar de `DA_LIMITE_PERDIDA_DIA`.
+     Por nivel: días en que se alcanzó, si se siguió operando y qué pasó
+     después (trades abiertos después, en $ y pts; en beneficio, cuánto se
+     devolvió o se ganó de más). **Veredicto** cuando se sigue operando tras
+     alcanzar un nivel: "te sirvió" si los trades posteriores suman positivo,
+     "error" si suman negativo, con $ y pts. En el día, una frase ("Llegaste a
+     +250 Día bueno y seguiste: 3 trades, devolviste 180 $ → error"). En
+     semana, mes e histórico, resumen por nivel: veces que sirvió y veces que
+     fue error, con el total de cada lado.
+  3. Panel del admin y candado en la pantalla.
+- **Fase 2, cómo funciona** (`diario-analisis.js`, sección "Mis reglas en el
+  Diario"): lee `reglas_efectivas` junto con `post_cierre_analisis`; cada cuenta
+  usa los niveles de su carpeta (las cuentas sin carpeta, los de `todas`). Por
+  cuenta y día de cierre, con el P&L realizado en orden de cierre, se llega a un
+  nivel en el cierre del trade que lo cruza; "después" = trades de esa cuenta
+  abiertos a partir de ese momento y cerrados ese día. Calendario: LÍM (pérdida),
+  ▲ (beneficio), ! (siguió y fue error). Panel del día: una frase por nivel.
+  Semana, mes e histórico: bloque "Tus niveles". "Qué te conviene": una frase por
+  nivel con 5+ veces seguidas. Insignia "Tras «nivel»" en los trades abiertos
+  después (aviso: no cuenta para "Solo con errores"). `DA_LIMITE_PERDIDA_DIA`
+  pasa a `DA_ESCALA_COLOR_DIA` (solo intensidad del color del calendario).
+  Importes de 4 cifras sin punto de miles ("−1100 $"), como el resto del Diario.
+- **Pendiente — admin por email:** el SQL reconoce al admin por
+  `auth.email() = 'sudescansovital@gmail.com'` (igual que `ADMIN_EMAIL` en
+  `app.js` y otras tablas). Cuando haya más de un admin, pasar a un rol o una
+  tabla de admins y cambiarlo en los dos sitios.
 
 ---
 
@@ -423,7 +809,22 @@ Detalle completo en `salida/resumen.md` (global + por cuenta),
 
 ---
 
-## Fallos de la EA — para arreglar en OTRA sesión
+## Fallos de la EA — estado al 05/10 (rama `feature/ea-sync`, EA v1.04)
+
+Análisis y arreglos del 05/10. **EA 1.04 desplegada en BD8B1008… el 05/10 a las
+23:27:31** (ver "Despliegue de la 1.04" arriba); la rama aún sin fusionar en
+`main` hasta confirmar los fallos 1 y 3 con trades reales. Resumen; el detalle original de
+cada fallo sigue debajo.
+
+| # | Fallo | Causa encontrada | Arreglo | Estado |
+|---|---|---|---|---|
+| 1 | MFE/MAE nulos | (a) el código MFE/MAE (v1.03) nunca se desplegó: la EA en uso es v1.02; (b) **`handleClose` pisaba MFE/MAE con null** cada vez que `SyncHistory48h` reenviaba el `close` | (a) va en v1.04; (b) `api/trade-mt5.js`: solo escribe MFE/MAE si vienen (probado con mock) | (b) **en producción, `172a3da`**; (a) EA 1.04 desplegada 05/10: **pendiente de confirmar con el próximo cierre real** |
+| 2 | Duplicados `ea_sl_changes` / `ea_tp_changes` | Casi todos de julio (bug de la cola, cerrado 20/07: grupos de 16–128). Desde agosto, parejas por reintento: timeout `WebRequest` de 4 s (`HTTP:1003 / error 5203` a ~4,2 s, log 29/09) con el servidor ya habiendo insertado; el endpoint hacía POST sin idempotencia | Limpieza (403 + 72 filas a `respaldo.*`), índices únicos `(cuenta_numero, position_id, timestamp, valor nuevo)`, endpoint con `on_conflict` + `ignore-duplicates` (**en producción, `9f468b7`**); EA: `TimeoutWebRequestMs` = 15 s y cada pasada de la cola se corta en el primer fallo de red (no en errores HTTP, para que un evento rechazado no bloquee la cola) | Servidor hecho; EA 1.04 desplegada 05/10 (sync con 0 duplicados y 0 errores HTTP). Prueba en producción del duplicado no hecha (requiere las credenciales de la EA; no se leen) |
+| 3 | 'breakeven' mal etiquetado | Umbral de 3 pts (`HandlePositionModified`) frente a 1 pt del análisis; además, poner el primer SL a < 3 pts contaba como BE. Desde el 28/08: 24 de 88 falsos (1,03–2,96 pts) | Input `BeToleranciaPts` = 1.0; primer SL (`sl_prev == 0`) nunca es BE: `sl_protegido` si protege la entrada, si no `sl_ajustado`. Simulado sobre los datos reales: 64 BE reales se quedan, 24 falsos pasan a `sl_protegido` (18) / `sl_ajustado` (6) | EA 1.04 desplegada 05/10: **pendiente de confirmar con el próximo movimiento de SL**. Reetiquetar históricos en `trade_eventos`: opcional, sin decidir |
+| 4 | `cierre_tp` / `cierre_sl` | **No es un fallo de la EA.** 178497: 75/76 cierres coinciden con `DEAL_REASON` de MT5 (32 manual, 43 SL), 0 cierres por TP en MT5. Las "discrepancias" son del examen de `post_cierre.py` (SL con 1,5–2 pts de deslizamiento o `sl_actual` NULL; tolerancia 1 pt) y ya se usa el tipo de la EA. Falta 1 evento de cierre (22819382, 15/09) | Ninguno en la EA | Cerrado (falso positivo) |
+| 5 | Cierres no reconciliados | `SyncHistory48h` solo al arrancar y solo 48 h; nada al reconectar. Casos: 23827187 (PC suspendido) y **23453924** (25/09: EA quitada 17 min antes del SL, recargada 52 h 40 min después; arreglado con `sql_fix_cierre_23453924.sql` el 05/10). **Además, `SyncHistory48h` solo procesaba 1 posición por arranque** (tras `HistorySelectByPosition` los demás tickets no se pueden leer; logs: siempre "procesadas: 1") | `aurum_abiertas_<cuenta>.txt` con las posiciones vistas abiertas; `ReconciliarPosicion` (parciales + close + evento con `DEAL_REASON`, MFE/MAE null) al arrancar, al reconectar (+30 s) y cada `ReconciliarCadaMin` (15); `SyncHistory48h` reescrita (recoge primero los position_id) y usa la misma función | EA 1.04 desplegada 05/10: posición abierta apuntada en `aurum_abiertas_178497.txt`, `SyncHistory48h` procesó 7 (antes 1). Falta ver una reconciliación real tras reconexión |
+
+## Fallos de la EA — detalle original (29/09)
 
 Ninguno se ha tocado. Implican EA de producción y/o `api/trade-mt5.js`;
 antes hay que sincronizar la copia del repo con la que corre en MT5.
