@@ -9,6 +9,8 @@
 // Datos: reglas_valores (RLS: cada usuario ve las suyas). Una fila por nivel;
 // sin fila = no se mide. Carpeta 'todas' = por defecto; una fila de
 // 'maestra' / 'prueba' / 'retos' sustituye a la de 'todas' para esa carpeta.
+// Plan (07/10, sql_mis_reglas_v2_plan.sql): qué hace el trader al llegar a
+// cada nivel; el Diario lo muestra cuando lo alcanza ("Tu plan dice: …").
 //
 // Módulo aislado: solo LEE helpers globales (supaGet, supaPost, supaPatch,
 // supaDelete, getToken, usuarioActual) y pinta dentro de #mis-reglas-bloque.
@@ -29,6 +31,7 @@ var MR_BLOQUES = [
     ayuda: 'Aviso cuando el P&L cerrado del día llega a este importe en positivo.' }
 ];
 var MR_MAX_NOMBRE = 40;
+var MR_MAX_PLAN = 200;
 
 var _mrFilas = null;        // filas de reglas_valores del usuario (suyas y del admin)
 var _mrCarpeta = 'todas';
@@ -56,7 +59,7 @@ async function _mrCargar() {
   if (!u || !u.email || typeof supaGet !== 'function') return false;
   var r = await supaGet('reglas_valores',
     'ambito=eq.usuario&ambito_id=eq.' + encodeURIComponent(u.email) +
-    '&select=id,cuenta,regla,nivel,fijada_por,valor,nombre,updated_at&order=regla,nivel', getToken());
+    '&select=id,cuenta,regla,nivel,fijada_por,valor,nombre,plan,updated_at&order=regla,nivel', getToken());
   if (r.error || !Array.isArray(r.data)) { console.error('[mis-reglas] error al cargar', r.error); return false; }
   if (!window.usuarioActual || window.usuarioActual.email !== u.email) return false;
   _mrFilas = r.data.map(function(f) { f.nivel = Number(f.nivel); f.valor = Number(f.valor); return f; });
@@ -119,6 +122,9 @@ function _mrPintar() {
              '<input id="' + idv + '-n" type="text" maxlength="' + MR_MAX_NOMBRE + '" value="' + _mrEsc(f && f.nombre ? f.nombre : '') + '" ' +
                'placeholder="' + _mrEsc(heredada && heredada.nombre ? heredada.nombre : 'Nombre (opcional)') + '" ' +
                'aria-label="' + b.titulo + (b.niveles > 1 ? ' nivel ' + n : '') + ', nombre" class="mr-nombre" style="' + _MR_INPUT + '">' +
+             '<input id="' + idv + '-p" type="text" maxlength="' + MR_MAX_PLAN + '" value="' + _mrEsc(f && f.plan ? f.plan : '') + '" ' +
+               'placeholder="' + _mrEsc(heredada && heredada.plan ? 'Todas: ' + heredada.plan : 'Qué haces al llegar (opcional): p. ej. cierro la plataforma') + '" ' +
+               'aria-label="' + b.titulo + (b.niveles > 1 ? ' nivel ' + n : '') + ', tu plan al llegar" class="mr-plan" style="' + _MR_INPUT + 'font-size:14px;">' +
            '</div>';
     }
     h += '</div>';
@@ -132,7 +138,7 @@ function _mrPintar() {
        '</div>';
   h += '<div style="font-size:13px;color:var(--text-muted);margin-top:1.4rem;line-height:1.7;border-top:1px solid var(--border);padding-top:1rem;">' +
          'Son avisos: Aurum no cierra tu día ni bloquea operaciones. El Diario te mostrará cuándo llegaste a cada nivel, ' +
-         'si seguiste operando y qué pasó después. Cada cambio queda registrado.' +
+         'si seguiste operando y qué pasó después; si escribes qué haces al llegar a un nivel, te lo recordará ese día. Cada cambio queda registrado.' +
        '</div>';
 
   _mrEstilos();
@@ -149,9 +155,10 @@ function _mrEstilos() {
     '.mr-nivel{font-size:12px;color:var(--text-muted);letter-spacing:.05em;}' +
     '.mr-importe{display:flex;align-items:center;gap:.35rem;}' +
     '.mr-signo,.mr-usd{font-size:15px;color:var(--text-muted);}' +
+    '.mr-plan{grid-column:2/-1;margin-bottom:.5rem;}.mr-sin-nivel .mr-plan{grid-column:1/-1;}' +
     '#mis-reglas-bloque input:focus{border-color:var(--gold)!important;}' +
     '#mis-reglas-bloque input::placeholder{color:#6b6556;}' +
-    '@media (max-width:600px){.mr-fila,.mr-sin-nivel{grid-template-columns:1fr;gap:.35rem;margin-bottom:.9rem;}}';
+    '@media (max-width:600px){.mr-fila,.mr-sin-nivel{grid-template-columns:1fr;gap:.35rem;margin-bottom:.9rem;}.mr-plan{grid-column:1/-1;}}';
   document.head.appendChild(s);
 }
 
@@ -182,6 +189,7 @@ function _mrLeerFormulario() {
       var idv = 'mr-' + b.regla + '-' + n;
       var crudo = _mrLeerImporte(document.getElementById(idv + '-v').value);
       var nombre = (document.getElementById(idv + '-n').value || '').trim().slice(0, MR_MAX_NOMBRE);
+      var plan = (document.getElementById(idv + '-p').value || '').trim().slice(0, MR_MAX_PLAN);
       var etiqueta = b.titulo + (b.niveles > 1 ? ' (nivel ' + n + ')' : '');
       var valor = null;
       if (crudo !== '') {
@@ -189,15 +197,15 @@ function _mrLeerFormulario() {
         if (!isFinite(valor) || valor <= 0) { errores.push(etiqueta + ': pon un importe mayor que 0 o déjalo vacío.'); continue; }
         valor = Math.round(valor * 100) / 100;
         importes.push(valor);
-      } else if (nombre) {
-        errores.push(etiqueta + ': tiene nombre pero no importe.');
+      } else if (nombre || plan) {
+        errores.push(etiqueta + ': tiene ' + (nombre ? 'nombre' : 'plan') + ' pero no importe.');
         continue;
       }
       var actual = _mrFila(_mrCarpeta, b.regla, n);
       if (valor == null && actual) cambios.push({ op: 'borrar', fila: actual });
-      else if (valor != null && !actual) cambios.push({ op: 'crear', regla: b.regla, nivel: n, valor: valor, nombre: nombre || null });
-      else if (valor != null && (actual.valor !== valor || (actual.nombre || '') !== nombre)) {
-        cambios.push({ op: 'cambiar', fila: actual, valor: valor, nombre: nombre || null });
+      else if (valor != null && !actual) cambios.push({ op: 'crear', regla: b.regla, nivel: n, valor: valor, nombre: nombre || null, plan: plan || null });
+      else if (valor != null && (actual.valor !== valor || (actual.nombre || '') !== nombre || (actual.plan || '') !== plan)) {
+        cambios.push({ op: 'cambiar', fila: actual, valor: valor, nombre: nombre || null, plan: plan || null });
       }
     }
     for (var i = 1; i < importes.length; i++) {
@@ -225,10 +233,10 @@ async function _mrGuardar() {
     if (c.op === 'crear') {
       r = await supaPost('reglas_valores', {
         ambito: 'usuario', ambito_id: u.email, cuenta: _mrCarpeta, regla: c.regla, nivel: c.nivel,
-        fijada_por: 'usuario', valor: c.valor, nombre: c.nombre
+        fijada_por: 'usuario', valor: c.valor, nombre: c.nombre, plan: c.plan
       }, 'return=minimal', token);
     } else if (c.op === 'cambiar') {
-      r = await supaPatch('reglas_valores', 'id=eq.' + c.fila.id, { valor: c.valor, nombre: c.nombre }, token);
+      r = await supaPatch('reglas_valores', 'id=eq.' + c.fila.id, { valor: c.valor, nombre: c.nombre, plan: c.plan }, token);
     } else {
       r = await supaDelete('reglas_valores', 'id=eq.' + c.fila.id, token);
     }
