@@ -27,13 +27,15 @@ var _daAbierto = null;        // trade desplegado: 'w:<fp>' (lista semanal) o 'd
 var _daSoloErrores = false;   // filtro "Solo con errores" de la lista de trades
 var _daMes = null;            // ms del día 1 00:00 del mes del calendario
 var _daDia = null;            // ms del día elegido en el calendario (null = ninguno)
+var _daReglas = null;         // Mis reglas: { carpeta: [{regla, nivel, valor, nombre}] } de reglas_efectivas; null = no cargadas
 
 // Vuelta de posición / entradas seguidas: minutos entre el cierre de un trade
 // y la apertura del siguiente en la misma cuenta. Cambiar aquí.
 var DA_MINUTOS_SECUENCIA = 15;
-// Calendario: límite de pérdida diaria por cuenta ($, P&L realizado acumulado
-// en el día) y nº de vueltas a partir del cual se marca el día. Cambiar aquí.
-var DA_LIMITE_PERDIDA_DIA = 500;
+// Calendario: importe ($) en el que satura la intensidad del color de cada día
+// (solo color; los niveles de pérdida/beneficio salen de Mis reglas) y nº de
+// vueltas a partir del cual se marca el día. Cambiar aquí.
+var DA_ESCALA_COLOR_DIA = 500;
 var DA_VUELTAS_AVISO = 3;
 // Runners (criterios v7): niveles en pts desde la entrada para "hasta dónde llegó el resto".
 var DA_RUNNER_NIVELES = [33, 50, 100];
@@ -303,9 +305,21 @@ async function _daCargar() {
   var u = window.usuarioActual;
   if (!u || !u.email || typeof supaGet !== 'function') return;
   _daCargando = true;
-  var r = await supaGet('post_cierre_analisis',
-    'usuario_email=eq.' + encodeURIComponent(u.email) + '&order=fecha_cierre.desc&limit=5000', getToken());
+  var res = await Promise.all([
+    supaGet('post_cierre_analisis',
+      'usuario_email=eq.' + encodeURIComponent(u.email) + '&order=fecha_cierre.desc&limit=5000', getToken()),
+    supaGet('reglas_efectivas',
+      'usuario_email=eq.' + encodeURIComponent(u.email) + '&select=carpeta,regla,nivel,valor,nombre', getToken())
+  ]);
+  var r = res[0];
   _daCargando = false;
+  // Mis reglas: si fallan, se mantienen las anteriores (o ninguna) y el Diario sigue.
+  if (!res[1].error && Array.isArray(res[1].data) && window.usuarioActual && window.usuarioActual.email === u.email) {
+    _daReglas = {};
+    res[1].data.forEach(function(x) {
+      (_daReglas[x.carpeta] = _daReglas[x.carpeta] || []).push({ regla: x.regla, nivel: Number(x.nivel), valor: Number(x.valor), nombre: x.nombre || null });
+    });
+  } else if (res[1].error) console.error('[diario-analisis] error al cargar Mis reglas', res[1].error);
   if (r.error || !Array.isArray(r.data)) { console.error('[diario-analisis] error al cargar', r.error); return; }
   if (!window.usuarioActual || window.usuarioActual.email !== u.email) return; // cambió la sesión mientras cargaba
   _daDatos = r.data;
@@ -357,6 +371,7 @@ function _daPintar() {
   // Si la cuenta de la pestaña elegida se ha quitado en el admin, volver a Global.
   if (_daCuenta !== 'global' && !_daNumeroPestana(_daCuenta)) _daCuenta = 'global';
 
+  _daMarcarNiveles(_daDatos, _daTradesPorFp());
   var filas = _daFiltrarCuenta(_daDatos);
   var semana = _daDeSemana(filas, _daSemana);
   // "Todo el histórico": mismos bloques con todos los trades de la cuenta elegida.
@@ -489,6 +504,7 @@ function _daHtmlSemana(semana, filasCuenta) {
     _daStat('Pts dejados', _daNum(dejados, 1), 'en los cierres pronto', 'gold') +
   '</div>';
   h += _daHtmlConviene(semana, _daHistorico ? 'todo el histórico' : 'esta semana');
+  h += _daHtmlNiveles(semana, _daHistorico ? 'todo el histórico' : 'esta semana');
 
   // Tus decisiones de gestión
   var cm = _daContar(manuales, 'decision_cierre_manual');
@@ -764,20 +780,18 @@ function _daConclusiones(filas, porFp) {
       : 'Darle la vuelta te ha salido bien: ' + vu.n + ' vueltas, ' + _daFmtD(vu.real) + ' frente a ' + _daFmtD(vu.mant) + ' manteniendo el primero' + tr(vu.n * 2) + '.' });
   }
 
-  // 3. Parar en el límite de pérdida diaria
-  var porDia = {};
-  filas.forEach(function(r) { var k = _daDiaMs(r.fecha_cierre); (porDia[k] = porDia[k] || []).push(r); });
-  var tras = 0, pnlTras = 0, dias = 0;
-  Object.keys(porDia).forEach(function(k) {
-    _daResumenDia(porDia[k], porFp).rotos.forEach(function(x) { if (x.despues) { tras += x.despues; pnlTras += x.pnlDespues; dias++; } });
+  // 3. Seguir operando después de alcanzar un nivel de Mis reglas (avisos)
+  _daResumenNiveles(filas, porFp).forEach(function(x) {
+    var n = x.sirvio.n + x.error.n + x.neutro;
+    if (n < G) return;
+    var tot = x.sirvio.usd + x.error.usd, pts = x.sirvio.pts + x.error.pts;
+    var reparto = ' (te sirvió ' + x.sirvio.n + (x.sirvio.n === 1 ? ' vez, ' : ' veces, ') + _daFmtD(x.sirvio.usd) +
+                  '; error ' + x.error.n + (x.error.n === 1 ? ' vez, ' : ' veces, ') + _daFmtD(x.error.usd) + ')';
+    out.push({ dinero: Math.abs(tot), frase: tot < 0
+      ? 'Al llegar a ' + _daTxtNivel(x.nivel) + ', para: seguiste ' + n + ' veces y los trades de después sumaron ' + _daFmtD(tot) +
+        ' (' + _daFmtPts(pts) + ')' + reparto + tr(x.trades) + '.'
+      : 'Seguir después de ' + _daTxtNivel(x.nivel) + ' te ha salido bien: ' + n + ' veces, ' + _daFmtD(tot) + ' (' + _daFmtPts(pts) + ')' + reparto + tr(x.trades) + '.' });
   });
-  if (tras >= G) {
-    out.push({ dinero: Math.abs(pnlTras), frase: pnlTras < 0
-      ? 'Para al llegar a −' + _daNum(DA_LIMITE_PERDIDA_DIA, 0) + ' $ en el día: después de superarlo hiciste ' + tras + ' trades más en ' + dias +
-        (dias === 1 ? ' día' : ' días') + ' y sumaron ' + _daFmtD(pnlTras) + '; parando te los habrías ahorrado' + tr(tras) + '.'
-      : 'Después de superar el límite de ' + _daNum(DA_LIMITE_PERDIDA_DIA, 0) + ' $ hiciste ' + tras + ' trades más y sumaron ' + _daFmtD(pnlTras) +
-        ': seguir no te costó dinero, pero rompe la regla' + tr(tras) + '.' });
-  }
 
   // 4. BE antes de TP1
   var evBe = filas.filter(function(r) { return r.be_antes_tp1 != null; });
@@ -878,26 +892,20 @@ function _daFmtCorto(v) {
   return (v >= 0 ? '+' : '−') + (a >= 1000 ? _daNum(a / 1000, 1) + 'k' : _daNum(a, 0));
 }
 
-// Resumen de un día (filas de ese día, cualquier orden). El límite se mide por
-// cuenta: P&L acumulado del día, trade a trade por hora de cierre; se rompe en
-// el primer trade que lo deja en −DA_LIMITE_PERDIDA_DIA o peor.
+// Resumen de un día (filas de ese día, cualquier orden). Los niveles de Mis
+// reglas se miden por cuenta (ver _daNivelesDia).
 function _daResumenDia(filasDia, porFp) {
   var lista = filasDia.slice().sort(function(a, b) { return _daFecha(a.fecha_cierre) - _daFecha(b.fecha_cierre); });
-  var res = { lista: lista, pnl: 0, conPnl: 0, gan: 0, rotos: [], vueltas: 0 };
-  var acum = {}, roto = {};
+  var res = { lista: lista, pnl: 0, conPnl: 0, gan: 0, vueltas: 0, niveles: _daNivelesDia(lista, porFp) };
   lista.forEach(function(r) {
     if (r._vueltaA) res.vueltas++;
     var t = porFp[r.fp];
     if (!t || t.beneficio == null) return;
-    var b = parseFloat(t.beneficio), c = String(r.cuenta_numero);
+    var b = parseFloat(t.beneficio);
     res.pnl += b; res.conPnl++; if (b > 0) res.gan++;
-    acum[c] = (acum[c] || 0) + b;
-    if (roto[c]) { roto[c].despues++; roto[c].pnlDespues += b; }
-    else if (acum[c] <= -DA_LIMITE_PERDIDA_DIA) {
-      roto[c] = { r: r, cuenta: c, acum: acum[c], despues: 0, pnlDespues: 0 };
-      res.rotos.push(roto[c]);
-    }
   });
+  res.perdida = res.niveles.filter(function(x) { return x.nivel.regla !== 'beneficio_dia'; });
+  res.beneficio = res.niveles.filter(function(x) { return x.nivel.regla === 'beneficio_dia'; });
   return res;
 }
 
@@ -950,16 +958,21 @@ function _daHtmlCalendario(filas) {
     var k = Date.UTC(y, m, dia), rd = res[k];
     var estilo = '', sombras = [];
     if (rd && rd.conPnl) {
-      // Intensidad: proporcional al importe, saturada en el límite diario.
-      var a = 0.1 + 0.5 * Math.min(1, Math.abs(rd.pnl) / DA_LIMITE_PERDIDA_DIA);
+      // Intensidad: proporcional al importe, saturada en DA_ESCALA_COLOR_DIA.
+      var a = 0.1 + 0.5 * Math.min(1, Math.abs(rd.pnl) / DA_ESCALA_COLOR_DIA);
       estilo = 'background:linear-gradient(' + (rd.pnl >= 0 ? 'rgba(58,170,106,' : 'rgba(204,68,51,') + a.toFixed(2) + '),' +
                (rd.pnl >= 0 ? 'rgba(58,170,106,' : 'rgba(204,68,51,') + a.toFixed(2) + ')),var(--bg2);';
     }
-    if (rd && rd.rotos.length) sombras.push('inset 0 3px 0 #CC4433');
+    if (rd && rd.perdida.length) sombras.push('inset 0 3px 0 #CC4433');
+    else if (rd && rd.beneficio.length) sombras.push('inset 0 3px 0 #3AAA6A');
     if (_daDia === k) sombras.push('inset 0 0 0 2px var(--gold)');
     if (sombras.length) estilo += 'box-shadow:' + sombras.join(',') + ';';
     var marcas = '';
-    if (rd && rd.rotos.length) marcas += '<span class="da-cal-largo" title="Límite de pérdida diaria superado" style="color:#FF6B5A;font-size:10px;font-weight:600;">LÍM</span>';
+    if (rd && rd.perdida.length) marcas += '<span class="da-cal-largo" title="' + _daEsc(_daTituloNiveles(rd.perdida)) + '" style="color:#FF6B5A;font-size:10px;font-weight:600;">LÍM</span>';
+    if (rd && rd.beneficio.length) marcas += '<span class="da-cal-largo" title="' + _daEsc(_daTituloNiveles(rd.beneficio)) + '" style="color:#7FD6A0;font-size:10px;font-weight:600;">▲' + rd.beneficio.length + '</span>';
+    if (rd && rd.niveles.some(function(x) { return _daVeredictoNivel(x) === 'error'; })) {
+      marcas += '<span title="Seguiste después de un nivel y los trades de después sumaron negativo" style="color:#FF6B5A;font-size:10px;font-weight:600;">!</span>';
+    }
     if (rd && rd.vueltas >= DA_VUELTAS_AVISO) marcas += '<span title="' + rd.vueltas + ' vueltas" style="color:' + DA_NARANJA + ';font-size:10px;font-weight:600;">↺' + rd.vueltas + '</span>';
     h += '<div class="da-cal-dia" style="' + estilo + '" onclick="_daElegirDia(' + k + ')" role="button" aria-label="' + dia + '">' +
            '<div style="display:flex;justify-content:space-between;gap:.2rem;align-items:baseline;">' +
@@ -976,15 +989,19 @@ function _daHtmlCalendario(filas) {
   for (var j = 0; j < resto; j++) h += '<div></div>';
   h += '</div>';
   h += '<div style="display:flex;flex-wrap:wrap;gap:.4rem 1.2rem;font-size:12px;color:var(--text-muted);margin:.5rem 0 1px;">' +
-         '<span>Color: P&amp;L del día (más intenso cuanto mayor, tope ' + _daNum(DA_LIMITE_PERDIDA_DIA, 0) + ' $)</span>' +
-         '<span><span style="color:#FF6B5A;font-weight:600;">LÍM</span> / barra roja arriba: límite de pérdida diaria (' + _daNum(DA_LIMITE_PERDIDA_DIA, 0) + ' $ por cuenta) superado</span>' +
+         '<span>Color: P&amp;L del día (más intenso cuanto mayor, tope ' + _daNum(DA_ESCALA_COLOR_DIA, 0) + ' $)</span>' +
+         (_daHayReglas()
+           ? '<span><span style="color:#FF6B5A;font-weight:600;">LÍM</span> / barra roja: llegaste a un nivel de pérdida · ' +
+             '<span style="color:#7FD6A0;font-weight:600;">▲</span> / barra verde: a un nivel de beneficio · ' +
+             '<span style="color:#FF6B5A;font-weight:600;">!</span> seguiste y fue error (avisos de Mis reglas, por cuenta)</span>'
+           : '<span>Sin niveles de pérdida ni de beneficio: ' + _daEnlaceReglas('ponlos en Mis reglas') + '</span>') +
          '<span><span style="color:' + DA_NARANJA + ';font-weight:600;">↺</span> ' + DA_VUELTAS_AVISO + ' o más vueltas</span>' +
        '</div>';
 
   h += _daHtmlResumenMes(res);
   var filasMes = [];
   Object.keys(porDia).forEach(function(k) { filasMes = filasMes.concat(porDia[k]); });
-  if (filasMes.length) h += '<div style="margin-top:1px;">' + _daHtmlConviene(filasMes, 'este mes') + '</div>';
+  if (filasMes.length) h += '<div style="margin-top:1px;">' + _daHtmlConviene(filasMes, 'este mes') + _daHtmlNiveles(filasMes, 'este mes') + '</div>';
   if (_daDia != null) h += _daHtmlPanelDia(res[_daDia] || null);
   return h;
 }
@@ -1002,7 +1019,7 @@ function _daHtmlResumenMes(res) {
   var rojos = dias.filter(function(d) { return d.r.pnl < 0; }).length;
   var orden = dias.slice().sort(function(a, b) { return b.r.pnl - a.r.pnl; });
   var mejor = orden[0], peor = orden[orden.length - 1];
-  var rotos = Object.keys(res).filter(function(k) { return res[k].rotos.length; }).length;
+  var rotos = Object.keys(res).filter(function(k) { return res[k].perdida.length; }).length;
   var conVueltas = Object.keys(res).filter(function(k) { return res[k].vueltas >= DA_VUELTAS_AVISO; }).length;
   return '<div class="da-rejilla" style="--da-base:max(140px, calc(16.666% - 1px));margin-top:.8rem;">' +
     _daStat('P&amp;L del mes', dias.length ? _daFmtD(pnl) : '—', nTrades + ' trades', pnl >= 0 ? 'green' : 'red') +
@@ -1010,7 +1027,7 @@ function _daHtmlResumenMes(res) {
     _daStat('Días rojos', rojos, 'de ' + dias.length + ' con trades', 'red') +
     _daStat('Mejor día', mejor && mejor.r.pnl > 0 ? _daFmtD(mejor.r.pnl) : '—', mejor && mejor.r.pnl > 0 ? fecha(mejor.k) : 'sin días verdes', 'green') +
     _daStat('Peor día', peor && peor.r.pnl < 0 ? _daFmtD(peor.r.pnl) : '—', peor && peor.r.pnl < 0 ? fecha(peor.k) : 'sin días rojos', 'red') +
-    _daStat('Límite roto', rotos, (rotos === 1 ? 'día' : 'días') + (conVueltas ? ' · ' + conVueltas + ' con ' + DA_VUELTAS_AVISO + '+ vueltas' : ''), rotos ? 'red' : 'white') +
+    _daStat('Nivel de pérdida', rotos, (rotos === 1 ? 'día' : 'días') + (conVueltas ? ' · ' + conVueltas + ' con ' + DA_VUELTAS_AVISO + '+ vueltas' : ''), rotos ? 'red' : 'white') +
   '</div>';
 }
 
@@ -1047,7 +1064,7 @@ function _daAnalisisDia(rd) {
   if (seg) extra.push(plural(seg, 'entrada seguida', 'entradas seguidas') + ' (menos de ' + DA_MINUTOS_SECUENCIA + ' min tras cerrar el anterior)');
   frases.push(f1 + (extra.length ? ', con ' + extra.join(' y ') : (n > 1 ? ', sin entradas seguidas' : '')) + '.');
 
-  // 2. Errores de regla y límite de pérdida diaria
+  // 2. Errores de regla
   var tipos = [['TP1 no asegurado', 'tp1_no_asegurado'], ['SL desprotegido', 'sl_desprotegido'], ['BE antes de TP1', 'be_antes_tp1']];
   var conErr = rd.lista.filter(function(r) { return r.tp1_no_asegurado || r.sl_desprotegido || r.be_antes_tp1; }).length;
   var det = tipos.map(function(t) {
@@ -1055,13 +1072,10 @@ function _daAnalisisDia(rd) {
     return k ? t[0] + (k > 1 ? ' ×' + k : '') : null;
   }).filter(Boolean);
   var f2 = conErr ? plural(conErr, 'trade', 'trades') + ' con error de regla (' + det.join(', ') + ')' : 'Sin errores de regla';
-  rd.rotos.forEach(function(x, i) {
-    f2 += (i === 0 ? '; superaste el límite de pérdida diaria de ' + _daNum(DA_LIMITE_PERDIDA_DIA, 0) + ' $' : '; también')  +
-          (_daCuenta === 'global' ? ' en ' + _daNombreCuenta(x.cuenta) : '') +
-          ' con el trade cerrado a las ' + hora(x.r) + ' (acumulado ' + _daFmtD(x.acum) + ')' +
-          (x.despues ? ' y después hiciste ' + plural(x.despues, 'trade más', 'trades más') + ' (' + _daFmtD(x.pnlDespues) + ')' : ' y paraste ahí');
-  });
   frases.push(f2 + '.');
+
+  // 2b. Niveles de Mis reglas alcanzados (avisos), en orden de hora
+  rd.niveles.forEach(function(x) { frases.push(_daFraseNivel(x, _daCuenta === 'global')); });
 
   // 3. Con espera vs seguidas (solo si hay de los dos)
   var porFp = _daTradesPorFp();
@@ -1077,6 +1091,215 @@ function _daAnalisisDia(rd) {
                 (gs.medio < ge.medio ? ' — esperar te fue mejor.' : gs.medio > ge.medio ? ' — las seguidas te fueron mejor.' : '.'));
   }
   return frases.join(' ');
+}
+
+// ── Mis reglas en el Diario (fase 2) ───────────────────────────────────────
+// Niveles de reglas_efectivas (mis-reglas.js / sql_mis_reglas.sql). Todos son
+// AVISOS: Aurum no cierra el día ni bloquea nada; el Diario muestra cuándo se
+// llegó a cada nivel, si se siguió operando y qué pasó después.
+// Por cuenta y día de servidor (día del cierre, como el calendario), con el
+// P&L realizado en orden de cierre (beneficio de trades por fp):
+//   perdida_trade  un trade pierde >= valor
+//   perdida_dia    el acumulado del día llega a -valor
+//   beneficio_dia  el acumulado del día llega a +valor
+// Se llega al nivel en el cierre del trade que lo cruza. "Después" = trades de
+// esa cuenta abiertos a partir de ese momento y cerrados ese mismo día.
+// Veredicto si se siguió: "te sirvió" si los de después suman > 0, "error" si
+// suman < 0 (en $; los pts = beneficio / (100 × lotes) de cada trade, sumados).
+
+var DA_REGLA_ORDEN = { perdida_trade: 0, perdida_dia: 1, beneficio_dia: 2 };
+
+// Carpeta de una cuenta ('maestra' / 'prueba' / 'retos'); las que no tienen
+// carpeta (historial) usan las reglas de 'todas'.
+function _daCarpetaDe(num) {
+  var u = window.usuarioActual || {}, n = String(num);
+  if (u.cuenta_maestra && String(u.cuenta_maestra) === n) return 'maestra';
+  if (u.cuenta_prueba  && String(u.cuenta_prueba)  === n) return 'prueba';
+  if (u.cuenta_retos   && String(u.cuenta_retos)   === n) return 'retos';
+  return 'todas';
+}
+
+function _daReglasDe(num) { return (_daReglas && _daReglas[_daCarpetaDe(num)]) || []; }
+
+function _daHayReglas() {
+  return !!_daReglas && Object.keys(_daReglas).some(function(k) { return _daReglas[k].length; });
+}
+
+function _daEnlaceReglas(txt) {
+  return '<span style="color:var(--gold);cursor:pointer;" onclick="gestTab(\'reglas\');if(typeof buildMisReglas===\'function\')buildMisReglas();">' + txt + '</span>';
+}
+
+function _daFmtPts(v) { return (v >= 0 ? '+' : '−') + _daNum(Math.abs(v), 1) + ' pts'; }
+
+// "−800 $ «Límite»", "−500 $ en un trade", "+250 $ «Día bueno»"
+function _daTxtNivel(n) {
+  return (n.regla === 'beneficio_dia' ? '+' : '−') + _daNum(n.valor, 0) + ' $' +
+         (n.regla === 'perdida_trade' ? ' en un trade' : '') + (n.nombre ? ' «' + n.nombre + '»' : '');
+}
+
+function _daBenef(r, porFp) {
+  var t = porFp[r.fp];
+  return t && t.beneficio != null ? parseFloat(t.beneficio) : null;
+}
+
+function _daPtsTrade(r, porFp) {
+  var b = _daBenef(r, porFp), v = parseFloat(r.volumen);
+  return b != null && v > 0 ? b / (VALOR_PUNTO_XAUUSD * v) : _daPtsReales(r);
+}
+
+// Niveles alcanzados en un día (filas de ese día de cualquier cuenta).
+// Devuelve [{ nivel, cuenta, r (trade que lo cruza), acum, en (ms), tras: [...], usd, pts }] por hora.
+function _daNivelesDia(filasDia, porFp) {
+  var porCuenta = {}, out = [];
+  filasDia.forEach(function(r) { (porCuenta[r.cuenta_numero] = porCuenta[r.cuenta_numero] || []).push(r); });
+  Object.keys(porCuenta).forEach(function(c) {
+    var niveles = _daReglasDe(c);
+    if (!niveles.length) return;
+    var lista = porCuenta[c].slice().sort(function(a, b) { return _daFecha(a.fecha_cierre) - _daFecha(b.fecha_cierre); });
+    var hechos = {}, acum = 0;
+    lista.forEach(function(r) {
+      var b = _daBenef(r, porFp);
+      if (b == null) return;
+      acum += b;
+      niveles.forEach(function(n) {
+        var k = n.regla + ':' + n.nivel;
+        if (hechos[k]) return;
+        var llega = n.regla === 'perdida_trade' ? b <= -n.valor
+                  : n.regla === 'perdida_dia'   ? acum <= -n.valor
+                  : acum >= n.valor;
+        if (!llega) return;
+        var en = _daFecha(r.fecha_cierre).getTime();
+        var tras = lista.filter(function(x) { return x !== r && _daFecha(x.fecha_entrada).getTime() >= en; });
+        var conB = tras.filter(function(x) { return _daBenef(x, porFp) != null; });
+        hechos[k] = { nivel: n, cuenta: c, r: r, acum: acum, en: en, tras: tras,
+                      usd: conB.reduce(function(s, x) { return s + _daBenef(x, porFp); }, 0),
+                      pts: conB.reduce(function(s, x) { return s + _daPtsTrade(x, porFp); }, 0) };
+        out.push(hechos[k]);
+      });
+    });
+  });
+  return out.sort(function(a, b) {
+    return a.en - b.en || DA_REGLA_ORDEN[a.nivel.regla] - DA_REGLA_ORDEN[b.nivel.regla] || a.nivel.nivel - b.nivel.nivel;
+  });
+}
+
+// null = no siguió operando; 'sirvio' / 'error' / 'neutro' (suma 0 o sin P&L)
+function _daVeredictoNivel(h) {
+  if (!h.tras.length) return null;
+  return h.usd > 0 ? 'sirvio' : h.usd < 0 ? 'error' : 'neutro';
+}
+
+// Frase del día: "Llegaste a +250 $ «Día bueno» a las 14:05 y seguiste: 3 trades,
+// devolviste 180 $ (−6,3 pts) → error."
+function _daFraseNivel(h, conCuenta) {
+  var hora = _daHora(h.r.fecha_cierre).slice(-5), n = h.nivel, ben = n.regla === 'beneficio_dia';
+  var ini = n.regla === 'perdida_trade'
+    ? 'Un trade perdió ' + _daNum(-_daBenef(h.r, _daTradesPorFp()), 0) + ' $ a las ' + hora + ' (tu aviso: ' + _daTxtNivel(n) + ')'
+    : 'Llegaste a ' + _daTxtNivel(n) + ' a las ' + hora + (n.regla === 'perdida_dia' ? ' (acumulado ' + _daFmtD(h.acum) + ')' : '');
+  if (conCuenta) ini += ' en ' + _daNombreCuenta(h.cuenta);
+  var v = _daVeredictoNivel(h);
+  if (!v) return ini + ' y paraste ahí.';
+  var k = h.tras.length, cuanto;
+  if (v === 'neutro') cuanto = 'quedaste igual';
+  else if (ben) cuanto = h.usd < 0 ? 'devolviste ' + _daNum(-h.usd, 0) + ' $' : 'ganaste ' + _daNum(h.usd, 0) + ' $ más';
+  else cuanto = h.usd < 0 ? 'perdiste ' + _daNum(-h.usd, 0) + ' $ más' : 'recuperaste ' + _daNum(h.usd, 0) + ' $';
+  return ini + ' y seguiste: ' + k + (k === 1 ? ' trade, ' : ' trades, ') + cuanto + ' (' + _daFmtPts(h.pts) + ')' +
+         (v === 'sirvio' ? ' → te sirvió.' : v === 'error' ? ' → error.' : '.');
+}
+
+function _daTituloNiveles(lista) {
+  return lista.map(function(h) {
+    var v = _daVeredictoNivel(h);
+    return _daTxtNivel(h.nivel) + (v === 'error' ? ': seguiste y fue error' : v === 'sirvio' ? ': seguiste y te sirvió' : v ? ': seguiste' : ': paraste');
+  }).join(' · ');
+}
+
+// Marca en cada trade los niveles alcanzados antes de abrirlo (r._trasNiveles),
+// con todos los trades cargados, por cuenta y día del cierre.
+function _daMarcarNiveles(filas, porFp) {
+  var dias = {};
+  (filas || []).forEach(function(r) {
+    r._trasNiveles = [];
+    var k = r.cuenta_numero + '|' + _daDiaMs(r.fecha_cierre);
+    (dias[k] = dias[k] || []).push(r);
+  });
+  Object.keys(dias).forEach(function(k) {
+    _daNivelesDia(dias[k], porFp).forEach(function(h) {
+      h.tras.forEach(function(r) { r._trasNiveles.push(h); });
+    });
+  });
+}
+
+// Insignia (aviso, no error: no cuenta para "Solo con errores"): el último
+// nivel de pérdida y el último de beneficio alcanzados antes de abrir el trade.
+function _daBadgesNivel(r) {
+  if (!r._trasNiveles || !r._trasNiveles.length) return '';
+  var ult = {};
+  r._trasNiveles.forEach(function(h) { ult[h.nivel.regla === 'beneficio_dia' ? 'b' : 'p'] = h; });
+  return ['p', 'b'].filter(function(k) { return ult[k]; }).map(function(k) {
+    var h = ult[k], col = k === 'p' ? '#FF8A7A' : '#7FD6A0';
+    return '<span title="Abierto después de llegar a ' + _daEsc(_daTxtNivel(h.nivel)) + ' ese día" style="font-size:11px;color:' + col +
+           ';border:1px dashed ' + col + '88;padding:.12rem .45rem;white-space:nowrap;">Tras ' +
+           _daEsc(h.nivel.nombre ? '«' + h.nivel.nombre + '»' : _daTxtNivel(h.nivel)) + '</span>';
+  }).join('');
+}
+
+// Resumen por nivel de un periodo: días que se alcanzó, días que se siguió y
+// veredictos con su total. Un mismo nivel con importes distintos en cada
+// carpeta (p. ej. Prueba −600, resto −800) sale en filas separadas.
+function _daResumenNiveles(filas, porFp) {
+  var dias = {}, grupos = {};
+  filas.forEach(function(r) {
+    var k = r.cuenta_numero + '|' + _daDiaMs(r.fecha_cierre);
+    (dias[k] = dias[k] || []).push(r);
+  });
+  Object.keys(dias).forEach(function(k) {
+    _daNivelesDia(dias[k], porFp).forEach(function(h) {
+      var n = h.nivel, g = n.regla + '|' + n.nivel + '|' + n.valor + '|' + (n.nombre || '');
+      var x = grupos[g] = grupos[g] || { nivel: n, dias: 0, siguio: 0, trades: 0, neutro: 0,
+                                         sirvio: { n: 0, usd: 0, pts: 0 }, error: { n: 0, usd: 0, pts: 0 } };
+      x.dias++;
+      var v = _daVeredictoNivel(h);
+      if (!v) return;
+      x.siguio++; x.trades += h.tras.length;
+      if (v === 'neutro') { x.neutro++; return; }
+      x[v].n++; x[v].usd += h.usd; x[v].pts += h.pts;
+    });
+  });
+  return Object.keys(grupos).map(function(k) { return grupos[k]; }).sort(function(a, b) {
+    return DA_REGLA_ORDEN[a.nivel.regla] - DA_REGLA_ORDEN[b.nivel.regla] || a.nivel.nivel - b.nivel.nivel || a.nivel.valor - b.nivel.valor;
+  });
+}
+
+function _daHtmlNiveles(filas, nombrePeriodo) {
+  var h = '<div class="cell" style="margin-bottom:1px;"><div class="tag" style="display:block;margin-bottom:.4rem;">Tus niveles · ' + nombrePeriodo + '</div>' +
+          '<div style="font-size:12px;color:var(--text-muted);margin-bottom:.9rem;">Avisos de Mis reglas, por cuenta y día: cuándo llegaste a cada nivel, si seguiste operando y qué pasó después.</div>';
+  if (!_daHayReglas()) {
+    return h + '<div style="font-size:14px;color:var(--text-muted);">No tienes niveles configurados. ' + _daEnlaceReglas('Ponlos en Mis reglas →') + '</div></div>';
+  }
+  var res = _daResumenNiveles(filas, _daTradesPorFp());
+  if (!res.length) {
+    return h + '<div style="font-size:14px;color:var(--text-muted);">No llegaste a ningún nivel ' + (nombrePeriodo === 'todo el histórico' ? 'en todo el histórico' : nombrePeriodo) + '.</div></div>';
+  }
+  var celda = function(g, color) {
+    if (!g.n) return '<td style="color:var(--text-muted);">—</td>';
+    return '<td style="color:' + color + ';white-space:nowrap;">' + g.n + ' · ' + _daFmtD(g.usd) +
+           ' <span style="color:var(--text-muted);font-size:12px;">(' + _daFmtPts(g.pts) + ')</span></td>';
+  };
+  h += '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;min-width:560px;">' +
+       '<thead><tr style="color:var(--text-muted);text-align:right;">' +
+       '<th style="text-align:left;font-weight:400;padding:.3rem 0;">Nivel</th><th style="font-weight:400;">Días</th>' +
+       '<th style="font-weight:400;">Seguiste</th><th style="font-weight:400;">Te sirvió</th><th style="font-weight:400;">Error</th></tr></thead><tbody>';
+  res.forEach(function(x) {
+    var color = x.nivel.regla === 'beneficio_dia' ? '#7FD6A0' : '#FF8A7A';
+    h += '<tr style="border-top:1px solid var(--border);text-align:right;color:var(--text-dim);">' +
+         '<td style="text-align:left;padding:.45rem 0;"><span style="color:' + color + ';">' + _daEsc(_daTxtNivel(x.nivel)) + '</span></td>' +
+         '<td>' + x.dias + '</td><td>' + x.siguio + (x.neutro ? ' <span style="color:var(--text-muted);font-size:12px;">(' + x.neutro + ' igual)</span>' : '') + '</td>' +
+         celda(x.sirvio, 'var(--green)') + celda(x.error, 'var(--red)') + '</tr>';
+  });
+  return h + '</tbody></table></div>' +
+         '<div style="font-size:12px;color:var(--text-muted);margin-top:.5rem;">Te sirvió / error: los trades que abriste después de llegar al nivel ese día sumaron positivo / negativo. ' +
+         'Solo trades de la EA analizados.</div></div>';
 }
 
 // ── B) Lista de trades ───────────────────────────────────────────────────
@@ -1307,7 +1530,7 @@ function _daHtmlTrades(filas, titulo, pref, conFiltros) {
              '<span style="font-size:14px;color:var(--text-dim);flex:1 1 180px;min-width:0;">' + (r.direccion === 'buy' ? 'Compra' : 'Venta') + ' · ' + _daEsc(_daNombreCuenta(r.cuenta_numero)) +
                ' <span style="color:var(--text-muted);font-size:12px;">· ' + _daEsc(r.estrategia || 'sin clasificar') + '</span></span>' +
              '<span style="display:flex;gap:.4rem 1rem;flex-wrap:wrap;justify-content:flex-end;align-items:center;margin-left:auto;">' +
-               '<span style="display:flex;gap:.4rem;flex-wrap:wrap;justify-content:flex-end;">' + _daBadgesErrores(r) +
+               '<span style="display:flex;gap:.4rem;flex-wrap:wrap;justify-content:flex-end;">' + _daBadgesErrores(r) + _daBadgesNivel(r) +
                  (r.runner === true ? '<span style="font-size:11px;color:var(--gold);border:1px solid var(--border-gold);padding:.12rem .45rem;white-space:nowrap;">Runner: +' +
                                       _daNum(r.runner_max_pts, 1) + '</span>' : '') +
                  _daBadgeDecision(r) + _daBadgeProvisional(r) + '</span>' +
