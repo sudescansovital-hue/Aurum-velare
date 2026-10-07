@@ -1,6 +1,6 @@
 # Estado — análisis post-cierre: FASE 1 (examen de la EA) + FASE 2 (Diario web)
 
-> Actualizado 06/10/2026, noche (Diario al instante desde `ea_trades`, bloque "Hoy" y plan del trader en producción; **un push a `main` despliega solo**). Antes, 06/10 (cierre de sesión: decisiones y pendientes abajo; "Edge por cuenta"; "Mis reglas"; propuesta "Mi proceso"). Antes: 05/10/2026 (post_cierre automatizado con tarea programada; fallo 5 de la EA). Antes: 02/10/2026. **FASE 2 en producción** (primer deploy `cdede9a` /
+> Actualizado 07/10/2026 (propuesta "Modos, plan del día y tablero en directo", pendiente nº 3). Antes, 06/10/2026, noche (Diario al instante desde `ea_trades`, bloque "Hoy" y plan del trader en producción; **un push a `main` despliega solo**). Antes, 06/10 (cierre de sesión: decisiones y pendientes abajo; "Edge por cuenta"; "Mis reglas"; propuesta "Mi proceso"). Antes: 05/10/2026 (post_cierre automatizado con tarea programada; fallo 5 de la EA). Antes: 02/10/2026. **FASE 2 en producción** (primer deploy `cdede9a` /
 > `aurum-velare-cw5la96zd`; el anterior a la FASE 2, para rollback, era
 > `aurum-velare-9hp3r9l3q`). Criterios de análisis hoy: **v6**. FASE 1
 > terminada el 29/09 (298 trades, en seco).
@@ -37,19 +37,23 @@
 2. **Siguiente gran paso: rehacer "Mi proceso"** (sección "Mi proceso: Tu
    situación y barra por días limpios", justo debajo). Orden 0-1-2-3; cada
    fase se enseña antes de desplegar.
-3. **Mis reglas, fase 3:** panel del admin con candado. Ojo: con el trigger
+3. **Modos, plan del día y tablero en directo** (sección "Modos, plan del día
+   y tablero en directo (propuesta 07/10)", debajo de la de "Mi proceso").
+   Propuesta sin código; la vista Directo espera la maqueta y la plantilla del
+   usuario.
+4. **Mis reglas, fase 3:** panel del admin con candado. Ojo: con el trigger
    actual, si el admin fija un nivel más estricto el usuario ya no puede editar
    su fila de ese nivel (ni el nombre ni el plan) sin bajar antes el importe;
    resolverlo al hacer esta fase (ver "Diario al instante y plan del trader").
-4. **Frase del runner con cada parcial por separado.**
-5. **Punto 4 — velas desde la EA y análisis en el servidor** (sección
+5. **Frase del runner con cada parcial por separado.**
+6. **Punto 4 — velas desde la EA y análisis en el servidor** (sección
    "Siguiente gran paso (02/10)", pasos 3 y 4).
-6. **Capturas por trade** en la carpeta local del usuario (ver "Junto a este
+7. **Capturas por trade** en la carpeta local del usuario (ver "Junto a este
    paso" más abajo y "vincular capturas a cada trade" en Siguiente paso).
-7. **Rango y recorrido diario en pts.**
-8. **Rehacer Evalúame.**
-9. **Guía "Cómo funciona Aurum".**
-10. **Modo claro.**
+8. **Rango y recorrido diario en pts.**
+9. **Rehacer Evalúame.**
+10. **Guía "Cómo funciona Aurum".**
+11. **Modo claro.**
 
 Pendiente menor: el admin se reconoce por email en el SQL de Mis reglas (ver
 sección Mis reglas); cambiarlo cuando haya más de un admin.
@@ -129,7 +133,7 @@ TU SITUACIÓN · actualizado hoy 09:12
   semana. Sin tabla nueva. Más adelante el admin podría fijarla (fase 3 de Mis
   reglas).
 - **Ojo:** aciertos/errores/regla solo existen con trades auditados por la EA
-  (hoy solo `POST_CIERRE_EMAIL`, pendiente 5); para otros usuarios: "Disponible
+  (hoy solo `POST_CIERRE_EMAIL`, pendiente 6); para otros usuarios: "Disponible
   cuando tus trades pasen por la EA". Y `_daCargar()` sale sin esperar si ya está
   cargando: compartir la carga con el Diario, no duplicarla.
 
@@ -180,7 +184,176 @@ TU NIVEL                              ██████████████
 
 ---
 
-## Siguiente gran paso (02/10) — pasos 1 y 2 hechos el 05/10; 3 y 4 = pendiente 5
+## Modos, plan del día y tablero en directo (propuesta 07/10) — PROPUESTA, sin código
+
+Pendiente nº 3, después de "Mi proceso". Nada de esto está implementado. Todo
+son AVISOS: Aurum no cierra ni bloquea nada; el trader decide.
+
+### A) Modos de operación y plan del día
+
+- **Al empezar el día** (antes del primer trade) el trader elige en Aurum:
+  - **Modo:** Scalping, Testeo o Estructura (más adelante, lista editable por
+    usuario).
+  - **Cómo empieza:** vendiendo, comprando o sin sesgo.
+  Una vez al día. Si lo cambia durante el día, queda registrado con la hora.
+- **Cada modo tiene sus normas en Mis reglas**, como hoy por carpeta: pérdida
+  máx. por trade, niveles de pérdida y de beneficio diario con nombre y "qué
+  hago al llegar", lote, SL/TP, parciales, horario y máx. de trades. Con
+  historial de cambios. **Prioridad: modo > cuenta > generales ("todas").**
+- Cada usuario define sus modos y sus normas; Aurum mide a cada uno contra su
+  propio plan (son datos, no código).
+- **Trades del día marcados con el modo del día**; sin plan = "sin
+  clasificar". En el Diario se puede clasificar o corregir a mano. Más
+  adelante el sistema propone el modo (p. ej. lote bajo = Testeo) y el trader
+  confirma.
+- **El Diario compara plan y realidad:** primer trade a favor del sesgo o no,
+  trades contra el sesgo y su resultado, cumplimiento de las normas del modo.
+- **Dato que lo justifica** (Diario, todo el histórico, 07/10): 154 de 313
+  trades EA "sin clasificar", con −4.829 $.
+
+### B) Escalado con suelo (por modo)
+
+- Al llegar a cada nivel de beneficio, el **"suelo del día"** sube y ya no se
+  devuelve. Ejemplo con los niveles de Roderas: +125 → suelo 0 $; +500 →
+  suelo +250 $; +1.500 → suelo +1.000 $. Los suelos los define el usuario por
+  modo.
+- **Riesgo permitido en el siguiente trade = P&L del día − suelo.**
+  **Lote máximo = (P&L del día − suelo) ÷ (100 × SL en pts)**, con tope de
+  lote máximo absoluto. Opción "uso del margen": todo / la mitad.
+- **En pérdida nunca se sube lote.**
+- Datos que lo apoyan (Diario, todo el histórico): seguir tras +125 → te
+  sirvió 13 de 15 (+1.559 $); seguir tras −300 → −6.545 $, casi toda la
+  pérdida histórica.
+- Por decidir al construirlo: qué riesgo se permite **antes** del primer nivel
+  (sin suelo, la fórmula da 0; propuesta: la pérdida máx. por trade del modo)
+  y de dónde sale el "SL en pts" (propuesta: el SL de las normas del modo; si
+  el modo no lo tiene, que el trader lo escriba).
+
+### C) Tablero del día (tipo juego de la oca) — dos vistas
+
+- **Vista Diario:** en el bloque "Hoy" del Diario (`_daHtmlHoy`,
+  `diario-analisis.js`), pestañas Scalping / Testeo / Estructura; camino de
+  casillas del modo y camino de pérdidas aparte; panel **"Ahora mismo"** (P&L,
+  suelo, puedes arriesgar, lote máximo, siguiente nivel de beneficio y de
+  pérdida); recorrido de hoy y la frase del plan al llegar al nivel.
+- **Vista Directo (para emitir en YouTube):** tablero visual de 24 casillas en
+  círculo con el **"Jardín"** en el centro (cerrar el día en verde por encima
+  del suelo). Casillas especiales:
+  - **OCA** = niveles de beneficio (suben el suelo);
+  - **POSADA** = no tocar el trade del min 15 al 60 / pausa para revisar;
+  - **PUENTE** = cambio de modo;
+  - **LABERINTO** = vueltas de posición;
+  - **POZO** = primer nivel de pérdida (solo observas);
+  - **CÁRCEL** = segundo nivel;
+  - **CALAVERA** = cierre obligatorio (vuelta a la salida).
+  Ficha del trader que avanza sola con los eventos de la EA (ya llegan cada
+  60 s), cartel grande con el último evento y panel lateral con LIVE, modo,
+  sesgo, P&L grande, suelo, lote máximo y recorrido.
+- **IMPORTANTE:** la vista Directo tiene que caber en la misma pantalla que los
+  gráficos de MT5 (formato estrecho/vertical o ventana aparte redimensionable),
+  no solo a 1920×1080 a pantalla completa.
+- Hay una **maqueta en Claude Design** (no accesible desde aquí): el usuario la
+  enseñará con capturas cuando toque implementarlo.
+- Las casillas y caminos de cada modo saldrán de una **plantilla que el usuario
+  está rellenando**; cuando la tenga, se pasa.
+
+### D) Análisis en solo lectura (07/10): dónde encaja
+
+**Plan del día** — tabla nueva, p. ej. `plan_dia`: una fila por elección
+(usuario, día de servidor, carpeta — `todas` por defecto, como Mis reglas —,
+modo, sesgo `venta` / `compra` / `sin_sesgo`, `creado_en`). Solo se añaden
+filas: el plan vigente a una hora es la última fila anterior, así que los
+cambios del día con su hora salen de la propia tabla (no hace falta otra de
+historial). RLS como `reglas_valores` (el usuario, lo suyo; el admin, todo).
+
+**Modos** — tabla nueva `modos` (id, usuario, nombre, orden, activo). Se
+guarda el **id**, no el nombre, para que renombrar un modo no rompa el
+historial. Al crear el usuario (o la primera vez), los tres de partida.
+
+**Normas por modo** — mejor **ampliar `reglas_valores`** que crear otra tabla
+(ya tiene historial, candado del admin, plan "qué hago al llegar" y la vista
+`reglas_efectivas` que lee el Diario):
+- columna `modo_id` (NULL = norma general o de carpeta, como hoy);
+- reglas nuevas en el CHECK de `regla`: `lote_max`, `sl_pts`, `tp_pts`,
+  `max_trades`, `suelo_dia` (por nivel de beneficio) y horario
+  (`hora_desde` / `hora_hasta`). Ojo: hoy `valor > 0` (las 00:00 no caben) y
+  `nivel` va de 1 a 3 (la plantilla del tablero puede pedir más niveles):
+  habrá que relajar esos CHECK. Parciales: valor por nivel (pts del parcial)
+  o texto en `plan`; decidir con la plantilla;
+- el UNIQUE debe incluir `modo_id` (con NULL hace falta `NULLS NOT DISTINCT` o
+  un índice único con `coalesce(modo_id, 0)`), y también el trigger del candado
+  y `reglas_valores_historial`;
+- `reglas_efectivas` ganaría la columna `modo_id`, resolviendo por cada
+  carpeta y modo: fila del modo > fila de la carpeta > fila de `todas`.
+  **Riesgo:** el Diario y Mis reglas leen hoy la vista con `select=*` y agrupan
+  solo por carpeta; al añadir filas por modo tienen que filtrar
+  `modo_id IS NULL` o se mezclarían niveles. Hacer el SQL y ese filtro a la vez.
+
+**Modo de cada trade** — **no** como columna de `trades`: `historial.js`
+reimporta con DELETE + INSERT por cuenta y se perdería; y `ea_trades` la
+escribe el endpoint de la EA. Propuesta:
+- por defecto se **deduce** (plan vigente a la hora de entrada del trade); sin
+  plan → "sin clasificar";
+- tabla nueva `trade_modo` (`fp` + usuario, `modo_id`, `origen` manual /
+  confirmado / propuesto, `creado_en`) solo para correcciones y
+  confirmaciones a mano; manda sobre lo deducido;
+- **ojo con la hora:** el plan se elige con la hora del navegador
+  (`timestamptz`) y los trades llevan hora de servidor MT5 sin zona. Hace falta
+  el desfase del servidor para saber qué plan regía al entrar (el mismo
+  problema que ya avisa "Hoy" cerca de medianoche).
+
+**Encaje con `estrategia` de la EA** (`rechazo_rsi` si SL ≤ 9 pts,
+`estructura` si ≤ 37,5, si no vacía; `ClasificarEstrategia` en la EA y CHECK en
+`sql_estrategia.sql`): son **dos ejes distintos** y no se mezclan.
+`estrategia` = lo que la EA mide del trade (distancia del SL); modo = lo que el
+trader declara para el día. No se toca el CHECK ni la EA. El Diario puede
+cruzarlos (p. ej. modo Scalping con trades de estructura = no seguiste el
+plan) y usarlos para la propuesta de modo futura (SL y lote). Ojo con el
+nombre: modo "Estructura" y estrategia "estructura" no son lo mismo; en
+pantalla, rotular "Modo" y "Setup (EA)" para no confundir. Los "sin
+clasificar" de antes del 26/08 no tienen estrategia (no existía) ni tendrán
+modo salvo a mano.
+
+**Datos en vivo para el tablero:**
+- P&L realizado del día por cuenta: ya lo calcula el Diario (`trades` +
+  cerrados de `ea_trades`, refresco cada 60 s, `DA_REFRESCO_MS`).
+- Posiciones abiertas: `ea_trades` con `estado='open'` (entrada, volumen,
+  `sl_actual`, `tp_actual`, `fecha_entrada`). El Diario hoy solo carga las
+  cerradas: habría que leer también las abiertas (la RLS `eat_user_select` ya
+  lo permite). Sirve para POSADA (min 15–60 del trade abierto) y para el riesgo
+  en curso.
+- Eventos para el cartel y la ficha: `trade_eventos` (entrada, sl_protegido,
+  breakeven, parcial, cierre_tp/sl/manual). Hoy se leen por `fp` al abrir un
+  trade; para el tablero, los del día (comprobar la RLS de lectura de
+  `trade_eventos` para el usuario).
+- Vueltas (LABERINTO): ya existen en el front (`_daMarcarSecuencias`).
+- **No hay** precio actual ni P&L flotante: la EA no manda ticks (MFE/MAE solo
+  al cerrar). El tablero avanza con cierres y eventos, no con el flotante.
+- Retraso: cola de la EA (60 s) + sondeo del Diario (60 s) → hasta ~2 min.
+  Para la vista Directo, sondear cada 10–15 s solo lo de hoy o usar Supabase
+  Realtime sobre `ea_trades` / `trade_eventos` (lo que se pueda con la RLS).
+- La vista Directo necesita la sesión del usuario. Si se emite con una fuente
+  de navegador de OBS (no comparte la sesión de Chrome), hará falta iniciar
+  sesión dentro de OBS o un enlace privado de solo lectura con token
+  revocable: decidirlo antes de construirla.
+
+**Qué NO toca la EA:** todo lo anterior. Modos, plan del día, normas,
+clasificación, escalado con suelo y las dos vistas del tablero son tablas
+nuevas + SQL de `reglas_valores` + front. Tampoco hace falta tocar
+`api/trade-mt5.js`. Solo tocaría la EA un P&L flotante en directo (mandar
+precio o P&L de las abiertas), que no forma parte de esta propuesta y quedaría
+sujeto a la regla de `feature/ea-sync` (EA sincronizada y confirmada antes).
+
+**Orden sugerido:** (1) SQL `modos` + `plan_dia` + `modo_id` en
+`reglas_valores` y filtro en Diario/Mis reglas; (2) selector de plan del día y
+normas por modo en Mis reglas; (3) modo en el Diario (deducido + corrección a
+mano) y comparación plan/realidad; (4) suelo y lote máximo en "Hoy"; (5)
+tablero vista Diario; (6) vista Directo (con capturas de la maqueta y la
+plantilla del usuario).
+
+---
+
+## Siguiente gran paso (02/10) — pasos 1 y 2 hechos el 05/10; 3 y 4 = pendiente 6
 
 **Que el análisis post-cierre funcione para cualquier usuario solo con la
 EA**, sin depender de `post_cierre.py` en el PC de Roderas con MT5 abierto

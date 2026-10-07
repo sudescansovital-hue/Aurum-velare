@@ -1,7 +1,28 @@
 # AURUM VELARE — Arquitectura Web
 > Documento vivo. Se actualiza con el proyecto.  
-> Última actualización: 6 de octubre de 2026  
+> Última actualización: 7 de octubre de 2026  
 > Para uso interno — contexto de desarrollo y nuevas sesiones de trabajo.
+
+---
+
+## Sesión 07/10/2026
+
+> Detalle en `tools/post_cierre/ESTADO.md`. Resumen aquí.
+
+- **Propuesta "Modos, plan del día y tablero en directo"** (sin código,
+  pendiente nº 3 de ESTADO.md): el trader elige cada día modo (Scalping /
+  Testeo / Estructura) y sesgo; normas por modo en Mis reglas (modo > cuenta >
+  generales); escalado con "suelo del día"; tablero tipo juego de la oca en el
+  Diario y en una vista Directo para emitir. Análisis de encaje: tablas nuevas
+  `modos`, `plan_dia` y `trade_modo` + columna `modo_id` en `reglas_valores`;
+  el modo es un eje distinto de `estrategia` de la EA; nada de esto toca la EA
+  ni `api/trade-mt5.js`.
+- **"Pack" es el nombre correcto** de lo que compra el usuario (Umbral, Raíz,
+  Senda, Cima): se borran de este documento los pendientes de cambiar "pack"
+  por "Camino" (Inicio, El Proceso y Prioridades técnicas) y se corrige la
+  tabla de vocabulario y el resto del documento ("requiere Pack", "Los
+  Packs"…). En la web no se cambia ningún texto de "Pack". Ojo: 8 avisos de
+  la web (salas, sin sesión) dicen "Necesitas un Camino para entrar."; sin tocar.
 
 ---
 
@@ -370,7 +391,7 @@ Sistema web de acompañamiento para traders de XAU/USD. No es una academia ni un
 
 | Término | Definición |
 |---|---|
-| **Camino** | El acceso que compra un usuario. Nunca "pack" ni "membresía". Tipos: Umbral (77€) · Raíz (111€) · Senda (222€) · Cima (333€) |
+| **Pack** | El acceso que compra un usuario. Nunca "membresía". Tipos: Umbral (77€) · Raíz (111€) · Senda (222€) · Cima (333€) |
 | **Navegador** | Barra superior con enlaces de sección |
 | **Sala** | Espacio de comunidad. Cada animal tiene la suya. Hay salas abiertas y sala privada por invitación del Águila |
 | **Historial** | Archivo CSV de operaciones importado desde MT5/cTrader |
@@ -402,11 +423,11 @@ Sistema web de acompañamiento para traders de XAU/USD. No es una academia ni un
 | Tipo | Acceso |
 |---|---|
 | **Visitante** | Sin registro. Ve: Inicio, El Proceso, Tablillas, vista previa de Salas, Evalúame |
-| **Usuario con Camino** | Acceso completo a Salas, Trade Record, Mi Proceso, Mi Gestión |
-| **Usuario con Camino Cima** | Igual que anterior + todas las salas sin límite de animal |
+| **Usuario con Pack** | Acceso completo a Salas, Trade Record, Mi Proceso, Mi Gestión |
+| **Usuario con Pack Cima** | Igual que anterior + todas las salas sin límite de animal |
 | **Admin — Águila** | Acceso total. Panel admin, etapas, retos, eventos, salas privadas |
 
-**Bloqueo páginas privadas:** Mi Proceso y Mi Gestión aparecen en el navegador para todos. Sin Camino → mensaje: *"Necesitas un Camino para acceder a esta sección."*
+**Bloqueo páginas privadas:** Mi Proceso y Mi Gestión aparecen en el navegador para todos. Sin Pack → mensaje (texto actual de la web): *"Necesitas un Camino para entrar."*
 
 ---
 
@@ -414,11 +435,11 @@ Sistema web de acompañamiento para traders de XAU/USD. No es una academia ni un
 
 1. INICIO — público
 2. EL PROCESO — público
-3. LAS SALAS — vista previa pública · interior requiere Camino
+3. LAS SALAS — vista previa pública · interior requiere Pack
 4. ✦ EVALÚAME — público para evaluación · privado para Trade Record
 5. TABLILLAS — público
-6. MI PROCESO — privado · requiere Camino
-7. MI GESTIÓN — privado · requiere Camino
+6. MI PROCESO — privado · requiere Pack
+7. MI GESTIÓN — privado · requiere Pack
 
 ---
 
@@ -438,7 +459,6 @@ Sistema web de acompañamiento para traders de XAU/USD. No es una academia ni un
 - **B7 — Acceso por tandas:** Modelo de acceso limitado + formulario "Apuntarme"
 
 ### Pendiente
-- → Cambiar "Ver los Packs" por "Ver los Caminos" en botones CTA
 - → Decidir si animales y etapas se quedan aquí o se mueven a El Proceso
 - → Inicio es la página más importante para SEO — no eliminar contenido sin valorar impacto
 
@@ -452,34 +472,31 @@ Sistema web de acompañamiento para traders de XAU/USD. No es una academia ni un
 ### Bloques de contenido
 
 - **B1 — Cómo funciona:** 4 pasos: Evaluación → Datos → Estructura → Evolución por etapas
-- **B2 — Los Caminos:**
-  - Umbral · 77€ · 22 días · Al vencer: 24h con 10% descuento en cualquier Camino
+- **B2 — Los Packs:**
+  - Umbral · 77€ · 22 días · Al vencer: 24h con 10% descuento en cualquier Pack
   - Raíz · 111€ · Pago único · El inicio real
   - Senda · 222€ · Pago único · Más elegido · Incluye análisis de cumplimiento mensual automático
   - Cima · 333€ · Pago único · Todas las salas sin límite de animal
 - **B3 — Sistema OZT:** Cómo se ganan, para qué sirven
 - **B4 — CTA Evalúame:** Llamada a evaluación antes de entrar
 
-### Contenido incluido en todos los Caminos
+### Contenido incluido en todos los Packs
 - 3 cuentas MT5 simuladas (Maestra · Retos · Prueba)
 - Mi Proceso y Mi Gestión
 - Sala de su animal
 - Retos con OZT
 
-### Pendiente
-- → Cambiar "pack" por "Camino" en todos los textos
-
 ---
 
 ## PÁGINA 3 — LAS SALAS
 
-**Acceso:** Vista previa pública · Interior requiere Camino  
+**Acceso:** Vista previa pública · Interior requiere Pack  
 **Estado V1:** Revisar lógica de acceso
 
 ### Lógica de acceso
-- **Sin Camino:** Ve todas las salas con estado (En vivo / Cerrada) pero NO puede entrar
-- **Con Camino:** Entra a su sala de animal + salas abiertas + extras asignadas por el Águila
-- **Con Camino Cima:** Entra a todas las salas sin restricción
+- **Sin Pack:** Ve todas las salas con estado (En vivo / Cerrada) pero NO puede entrar
+- **Con Pack:** Entra a su sala de animal + salas abiertas + extras asignadas por el Águila
+- **Con Pack Cima:** Entra a todas las salas sin restricción
 
 ### Salas del sistema
 | Sala | Estado | Notas |
@@ -490,7 +507,7 @@ Sistema web de acompañamiento para traders de XAU/USD. No es una academia ni un
 | Elefante | Cerrada | Memoria · Control emocional |
 | León | En vivo | Presencia · Convicción |
 | Lobo | Cerrada | Instinto · Adaptación |
-| Sala Abierta | En vivo | Todos los animales · Todos los Caminos |
+| Sala Abierta | En vivo | Todos los animales · Todos los Packs |
 | Sala Evento | Cerrada | Convocatorias del Águila con fecha/hora |
 | Sala Privada | Por código | Acceso dado por el Águila con código |
 
@@ -507,7 +524,7 @@ Sistema web de acompañamiento para traders de XAU/USD. No es una academia ni un
 
 ## PÁGINA 4 — ✦ EVALÚAME
 
-**Acceso:** Público para evaluación · Privado (requiere Camino) para Trade Record  
+**Acceso:** Público para evaluación · Privado (requiere Pack) para Trade Record  
 **Estado V1:** Bugs activos en subida de historiales
 
 ### Vista pública — Evaluación 33€
@@ -517,7 +534,7 @@ Sistema web de acompañamiento para traders de XAU/USD. No es una academia ni un
 - Los 33€ se descuentan si entra al proceso en las 6h siguientes
 - Pago por Stripe · código por email inmediatamente
 
-### Vista privada — Trade Record (usuarios con Camino)
+### Vista privada — Trade Record (usuarios con Pack)
 
 #### Las 4 carpetas fijas por usuario
 Cada usuario tiene EXACTAMENTE estas 4 carpetas. El sistema asigna cada historial subido automáticamente:
@@ -552,7 +569,7 @@ Las pestañas NO cambian. Cambian los datos según la cuenta seleccionada. Vista
 - ⚪ Diario unido al calendario personal del usuario
 - ⚪ Anotaciones con imágenes adjuntas
 - ⚪ Sistema inteligente que detecta las mejores reflexiones automáticamente
-- ⚪ Diferenciación de precio en Caminos para cubrir coste de almacenamiento
+- ⚪ Diferenciación de precio en Packs para cubrir coste de almacenamiento
 
 ---
 
@@ -583,7 +600,7 @@ Página filosófica inspirada en el Camino de Santiago (~1 km del hogar de Roder
 
 ## PÁGINA 6 — MI PROCESO
 
-**Acceso:** Privado — requiere Camino activo  
+**Acceso:** Privado — requiere Pack activo  
 **Estado V1:** Funciona — lógica de etapas pendiente
 
 ### Dashboard principal
@@ -623,7 +640,7 @@ Ranking de sala por OZT — siempre visible
 
 ## PÁGINA 7 — MI GESTIÓN
 
-**Acceso:** Privado — requiere Camino activo  
+**Acceso:** Privado — requiere Pack activo  
 **Nota:** Es el Trade Record completo. Ver documentación detallada en PÁGINA 4 — sección Vista privada.
 
 ---
@@ -651,18 +668,17 @@ Ranking de sala por OZT — siempre visible
 
 ### 🟡 Importante
 5. Verificar datos Trade Record contra historial real
-6. Mensaje de bloqueo correcto en Mi Proceso y Mi Gestión sin Camino
-7. Cambiar "pack" → "Camino" y "Ver los Packs" → "Ver los Caminos" en toda la web
-8. Quitar "Nueva entrada" de pestañas que no lo necesitan
+6. Mensaje de bloqueo correcto en Mi Proceso y Mi Gestión sin Pack
+7. Quitar "Nueva entrada" de pestañas que no lo necesitan
 
 ### ⚪ Backlog
-9. Panel admin: gestión de cuentas, numeración, asignación de etapas
-10. Lógica de etapas: contenido diferente por etapa
-11. Sala privada: acceso por código del Águila
-12. Tablillas: integración con red social
-13. Tablilla física: proceso de pedido y envío
-14. SEO · páginas legales · Stripe/desistimiento
-15. Subida de 3 historiales pendientes de Roderas
+8. Panel admin: gestión de cuentas, numeración, asignación de etapas
+9. Lógica de etapas: contenido diferente por etapa
+10. Sala privada: acceso por código del Águila
+11. Tablillas: integración con red social
+12. Tablilla física: proceso de pedido y envío
+13. SEO · páginas legales · Stripe/desistimiento
+14. Subida de 3 historiales pendientes de Roderas
 
 ---
 
@@ -672,7 +688,7 @@ Ranking de sala por OZT — siempre visible
 |---|---|
 | trades | Operaciones individuales por usuario |
 | historiales | Historiales subidos agrupados por carpeta y usuario |
-| usuarios_aurum | Perfil: nombre · animal · etapa · Camino · fecha inicio · OZT · umbrales SL |
+| usuarios_aurum | Perfil: nombre · animal · etapa · Pack · fecha inicio · OZT · umbrales SL |
 
 ### Columnas relevantes — trades
 | Campo | Tipo | Descripción |
