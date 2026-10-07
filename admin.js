@@ -143,10 +143,14 @@ function renderAdminTabla() {
       '<td style="' + th + '">' +
         '<button onclick="adminAbrirEditar(\'' + u.id + '\')" style="font-size:11px;padding:.3rem .8rem;background:transparent;border:1px solid var(--border-gold);color:var(--gold);cursor:pointer;letter-spacing:.05em;">Editar</button>' +
       '</td>' +
-    '</tr>';
+    '</tr>' +
+    // Etapas v2: criterios del usuario (etapas.js), plegado
+    '<tr id="adm-et-det-' + i + '" style="display:none;"><td colspan="12" class="etapa-siguiente" style="padding:.8rem 1.2rem;background:#0A0C14;"></td></tr>';
   }).join('');
-  // Días limpios de cada usuario junto a su etapa (dias-limpios.js); se rellena después.
-  if (typeof dlAdminPintar === 'function') dlAdminPintar(adminUsuarios);
+  // Etapas v2 junto a la etapa de cada usuario (etapas.js); sin la tabla de
+  // criterios, los días limpios del punto 3 (dias-limpios.js). Se rellena después.
+  if (typeof etAdminPintar === 'function') etAdminPintar(adminUsuarios);
+  else if (typeof dlAdminPintar === 'function') dlAdminPintar(adminUsuarios);
 }
 
 function renderAdminStats() {
@@ -398,6 +402,7 @@ async function adminGuardarUsuario() {
 
     // Días limpios (dias-limpios.js): la etapa o las cuentas pueden haber cambiado.
     if (_u && _u.email && typeof dlAdminOlvidar === 'function') dlAdminOlvidar(_u.email);
+    if (_u && _u.email && typeof etAdminOlvidar === 'function') etAdminOlvidar(_u.email);
 
     if (adminCumplDesbloqueado && _u && _u.email) {
       var cumplDatos = {

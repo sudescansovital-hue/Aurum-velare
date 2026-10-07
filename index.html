@@ -1260,6 +1260,9 @@
         <!-- Tu situación (tu-situacion.js): rentable por cuenta + mes a mes -->
         <div id="tu-situacion" class="tu-situacion"></div>
 
+        <!-- Etapas v2 (etapas.js): criterios para llegar a la siguiente etapa -->
+        <div id="etapa-siguiente" class="etapa-siguiente"></div>
+
         <!-- Stats en línea (07/10: más pequeños, debajo de "Tu situación") -->
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);">
           <div style="background:var(--bg2);padding:.6rem 1rem;position:relative;">
@@ -2522,6 +2525,15 @@
         </table>
       </div>
 
+      <!-- Etapas v2: editor de criterios (etapas.js) -->
+      <div style="margin-top:1.5rem;padding:1.2rem 1.5rem;background:var(--bg2);border:1px solid var(--border);">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;">
+          <div style="font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#cc9966;">Criterios de las etapas</div>
+          <button class="tab" style="padding:.3rem .9rem;font-size:12px;" onclick="var e=document.getElementById('admin-etapas-editor');if(e.style.display==='none'){e.style.display='block';etEditorPintar();}else{e.style.display='none';}">Editar criterios</button>
+        </div>
+        <div id="admin-etapas-editor" class="etapa-siguiente" style="display:none;margin-top:1rem;"></div>
+      </div>
+
       <!-- Añadir usuario -->
       <div style="margin-top:1.5rem;padding:1.2rem 1.5rem;background:var(--bg2);border:1px solid var(--border);">
         <div style="font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#cc9966;margin-bottom:.9rem;">+ Añadir usuario</div>
@@ -2708,6 +2720,7 @@
   <script src="mis-reglas.js"></script>
   <script src="tu-situacion.js"></script>
   <script src="dias-limpios.js"></script>
+  <script src="etapas.js"></script>
   <script src="preguntas.js"></script>
 <script>
 const ANIMALES_DATA = {
