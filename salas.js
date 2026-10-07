@@ -57,7 +57,7 @@ var LIVEKIT_ROOMS = {
 function entrarSala(tipo) {
   console.log('[LK] entrarSala() tipo:', tipo);
   if (typeof usuarioActual === 'undefined' || !usuarioActual) {
-    showToast('Esta sala es solo para miembros. Necesitas un Camino para entrar.');
+    showToast('Esta sala es solo para miembros. Necesitas un Pack para entrar.');
     return;
   }
   salaActualTipo = tipo;

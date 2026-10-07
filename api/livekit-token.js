@@ -84,7 +84,7 @@ module.exports = async function handler(req, res) {
   if ((sala.tipo === 'animal' || sala.tipo === 'abierta') && !esAdmin) {
     const perfil = await _perfilUsuario(email);
     if (!perfil || !perfil.activo || !perfil.pack) {
-      return res.status(403).json({ error: 'Necesitas un Camino activo para entrar a las salas.' });
+      return res.status(403).json({ error: 'Necesitas un Pack activo para entrar a las salas.' });
     }
     if (sala.tipo === 'animal') {
       const esCima     = perfil.pack === 'cima';
