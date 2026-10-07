@@ -448,7 +448,7 @@ function buildCicloDots() {
   // Actualizar stats
   el = document.getElementById('ciclo-wr');       if (el) el.textContent = wr + '%';
   el = document.getElementById('ciclo-wr-sub');   if (el) el.textContent = wins + ' wins de ' + ultimos.length;
-  el = document.getElementById('ciclo-pnl');      if (el) el.textContent = (pnl>=0?'+':'') + pnl + '$';
+  el = document.getElementById('ciclo-pnl');      if (el) { el.textContent = (pnl>=0?'+':'') + pnl + '$'; el.className = 'stat-val ' + (pnl >= 0 ? 'green' : 'red'); }
   el = document.getElementById('ciclo-rr');       if (el) el.textContent = rr;
   el = document.getElementById('ciclo-rr-sub');   if (el) el.textContent = ptsL > 0 ? Math.round(ptsW*10)/10 + ' / ' + Math.round(ptsL*10)/10 + ' pts' : '—';
   el = document.getElementById('ciclo-esp');      if (el) el.textContent = (esp>=0?'+':'') + esp;
@@ -1851,8 +1851,8 @@ function buildDashboardHero() {
   el = document.getElementById('dash-trades-total');  if (el) el.textContent = totalTrades;
   el = document.getElementById('dash-wr-global');     if (el) el.textContent = (wr === null ? '—' : wr + '%');
   el = document.getElementById('dash-wr-global-sub'); if (el) el.textContent = (totalTrades === 0 ? 'Sin trades registrados' : wins.length + ' wins de ' + totalTrades);
-  el = document.getElementById('dash-pnl-global');    if (el) el.textContent = pnlStr;
-  el = document.getElementById('dash-pnl-global-sub');if (el) el.textContent = cuentas.length + ' cuenta' + (cuentas.length !== 1 ? 's' : '') + ' · entorno real';
+  el = document.getElementById('dash-pnl-global');    if (el) { el.textContent = pnlStr; el.style.color = pnl >= 0 ? 'var(--green)' : 'var(--red)'; }
+  el = document.getElementById('dash-pnl-global-sub');if (el) el.textContent = cuentas.length + ' cuenta' + (cuentas.length !== 1 ? 's' : '');
   el = document.getElementById('card-global-pnl');    if (el) el.textContent = pnlStr;
   var conEAGlobal = todos.filter(function(t) { return t.fuente === 'ea'; }).length;
   el = document.getElementById('card-global-sub');    if (el) el.textContent = totalTrades === 0 ? 'Sin trades registrados' : (totalTrades + ' trades · WR ' + wr + '%' + (conEAGlobal > 0 ? ' · ' + conEAGlobal + ' auditado' + (conEAGlobal !== 1 ? 's' : '') + ' EA' : ''));
@@ -1882,7 +1882,11 @@ function buildDashboardHero() {
 
   // Nivel/etapa
   var ETAPAS = ['Descubrimiento', 'Silencio', 'Umbral', 'Estructura', 'Fractura', 'Claridad', 'Consistencia', 'Confianza', 'Paciencia', 'Rentabilidad', 'Vuelo', '✦ Oro'];
-  var etapa = (typeof usuarioActual !== 'undefined' && usuarioActual && usuarioActual.etapa) ? usuarioActual.etapa : 1;
+  // etapa_real conserva la etapa 0 (usuarioActual.etapa la convierte en 1 y la
+  // usa el cálculo de OZT, que no se toca); sin etapa guardada, 1 como antes.
+  var etapa = (typeof usuarioActual !== 'undefined' && usuarioActual)
+    ? (usuarioActual.etapa_real != null ? usuarioActual.etapa_real : (usuarioActual.etapa || 1))
+    : 1;
   var idx = Math.min(Math.max(0, etapa), ETAPAS.length - 1);
   var nombreActual = ETAPAS[idx];
   var nombreSig = ETAPAS[Math.min(idx + 1, ETAPAS.length - 1)];
@@ -1893,6 +1897,7 @@ function buildDashboardHero() {
   el = document.getElementById('dash-nivel-pct');  if (el) el.textContent = pctCiclo + '%';
   el = document.getElementById('dash-nivel-card'); if (el) el.textContent = numStr + ' · ' + nombreActual;
   el = document.getElementById('dash-nivel-sub');  if (el) el.textContent = pctCiclo + '% hacia ' + nombreSig;
+  el = document.getElementById('dash-nivel-next'); if (el) el.textContent = '→ ' + nombreSig;
   el = document.getElementById('sidebar-nivel-num');  if (el) el.textContent = numStr;
   el = document.getElementById('sidebar-nivel-name'); if (el) el.textContent = nombreActual;
   el = document.getElementById('sidebar-nivel-fill'); if (el) el.style.width = pctCiclo + '%';
@@ -1906,7 +1911,9 @@ function buildDashboardHero() {
     var diasProceso = Math.floor((Date.now() - _fe) / 86400000);
     el = document.getElementById('dash-dias-proceso'); if (el) el.textContent = diasProceso;
     el = document.getElementById('dash-fecha-inicio'); if (el) el.textContent = _fe.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+    el = document.getElementById('dash-dias-desde');   if (el) el.textContent = 'desde el ' + _fe.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' }).replace('.', '');
   }
+  _pintarRetosCompletados();
 
   // Días por cuenta — desde primer trade hasta último trade
   // Usa la misma lógica de fecha que el resto del sistema (fp primero, luego created_at)
@@ -1958,15 +1965,31 @@ function buildDashboardHero() {
     var subTxt = sub.length === 0
       ? 'Sin trades'
       : sub.length + ' trades · WR ' + (m.wr === null ? '—' : m.wr + '%') + (conEA > 0 ? ' · ' + conEA + ' auditado' + (conEA !== 1 ? 's' : '') + ' EA' : '');
-    return { pnl: (m.pnl >= 0 ? '+' : '') + m.pnl + '$', sub: subTxt };
+    return { pnl: (m.pnl >= 0 ? '+' : '') + m.pnl + '$', pnlNum: m.pnl, sub: subTxt };
   }
   var sM = statsCuenta('maestra'), sR = statsCuenta('retos'), sP = statsCuenta('prueba');
-  el = document.getElementById('card-maestra-pnl'); if (el) el.textContent = sM.pnl;
+  el = document.getElementById('card-maestra-pnl'); if (el) { el.textContent = sM.pnl; el.style.color = sM.pnlNum >= 0 ? 'var(--green)' : 'var(--red)'; }
   el = document.getElementById('card-maestra-sub'); if (el) el.textContent = sM.sub;
   el = document.getElementById('card-retos-pnl');   if (el) el.textContent = sR.pnl;
   el = document.getElementById('card-retos-sub');   if (el) el.textContent = sR.sub;
   el = document.getElementById('card-prueba-pnl');  if (el) el.textContent = sP.pnl;
   el = document.getElementById('card-prueba-sub');  if (el) el.textContent = sP.sub;
+}
+
+// Retos completados (retos_participantes con ganador=true) en los subtítulos de
+// OZT de Mi proceso. Sin retos o si falla la consulta, texto neutro.
+async function _pintarRetosCompletados() {
+  var email = usuarioActual && usuarioActual.email;
+  var n = 0;
+  if (email && typeof supaGet === 'function') {
+    var r = await supaGet('retos_participantes', 'usuario_email=eq.' + encodeURIComponent(email) + '&ganador=eq.true&select=id', getToken());
+    if (!usuarioActual || usuarioActual.email !== email) return;
+    if (!r.error && Array.isArray(r.data)) n = r.data.length;
+  }
+  var txt = n > 0 ? n + (n === 1 ? ' reto completado' : ' retos completados') : 'Sin retos completados todavía';
+  var el;
+  el = document.getElementById('dash-ozt-retos');      if (el) el.textContent = txt;
+  el = document.getElementById('dash-ozt-widget-sub'); if (el) el.textContent = txt;
 }
 
 // Diario

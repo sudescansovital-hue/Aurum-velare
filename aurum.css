@@ -83,6 +83,20 @@ nav {
   gap: 0.55rem;
 }
 
+/* Tapa la franja de 36px que queda encima del menú fijo al hacer scroll (la
+   barra de aviso dorada no es fija y se va con la página; sin esto el
+   contenido asomaba por encima del menú). La barra dorada va por encima
+   (z-index 101), así que arriba del todo se sigue viendo igual. */
+nav::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  height: 36px;
+  background: var(--bg);
+}
+
 .nav-logo {
   font-family: 'Cormorant Garamond', serif;
   font-size: 28px;
@@ -372,8 +386,8 @@ footer {
   padding: 1.5rem 0;
   background: var(--bg2);
   position: sticky;
-  top: 147px;
-  height: calc(100vh - 147px);
+  top: var(--nav-bottom, 147px);
+  height: calc(100vh - var(--nav-bottom, 147px));
   overflow-y: auto;
 }
 
@@ -465,7 +479,7 @@ footer {
   border-bottom: 1px solid var(--border);
   background: var(--bg2);
   position: sticky;
-  top: 147px;
+  top: var(--nav-bottom, 147px);
   z-index: 10;
 }
 
