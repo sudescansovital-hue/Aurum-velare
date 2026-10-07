@@ -28,6 +28,8 @@ var _daDatos = null;          // filas de post_cierre_analisis + provisionales d
 var _daEa = null;             // trades cerrados de ea_trades (P&L y trades aún sin analizar)
 var _daEaEmail = null;        // de quién son las filas de _daEa
 var _daCargando = false;
+var _daCargaPromesa = null;   // carga en curso: quien llame mientras tanto espera la misma (Diario y "Tu situación")
+var _daDatosEmail = null;     // de quién son _daDatos
 var _daFirma = null;          // últimos cierres y análisis vistos (ver _daComprobarNuevos)
 var _daSemana = null;         // ms del lunes 00:00 de la semana elegida
 var _daHistorico = false;     // true = "Todo el histórico" (todas las semanas juntas)
@@ -359,7 +361,13 @@ function _daFusionar(analisis, ea) {
 // Se vuelve a pedir cada vez que se abre el Diario: la tarea programada sube
 // análisis nuevos cada hora (y recalcula los provisionales), y antes solo se
 // cargaban una vez por sesión. Si falla, se siguen mostrando los anteriores.
-async function _daCargar() {
+function _daCargar() {
+  if (_daCargaPromesa) return _daCargaPromesa;
+  _daCargaPromesa = _daCargarAhora().finally(function() { _daCargaPromesa = null; });
+  return _daCargaPromesa;
+}
+
+async function _daCargarAhora() {
   if (_daCargando) return;
   var u = window.usuarioActual;
   if (!u || !u.email || typeof supaGet !== 'function') return;
@@ -392,6 +400,7 @@ async function _daCargar() {
   } else { _daEa = res[2].data; _daEaEmail = u.email; }
   if (r.error || !Array.isArray(r.data)) { console.error('[diario-analisis] error al cargar', r.error); return; }
   _daDatos = _daFusionar(r.data, _daEa || []);
+  _daDatosEmail = u.email;
   _daMarcarSecuencias(_daDatos);
   if (_daDatos.length && _daSemana == null) _daSemana = _daLunes(_daDatos[0].fecha_cierre);
   if (_daDatos.length && _daMes == null) _daMes = _daMesDe(_daDatos[0].fecha_cierre);
@@ -866,6 +875,18 @@ function _daHtmlRunners(filas) {
 // del periodo. Cada comparación necesita DA_MIN_GRUPO_CONVIENE casos y el
 // periodo DA_MIN_TRADES_CONVIENE trades. "dinero" solo ordena las frases.
 function _daConclusiones(filas, porFp) {
+  return _daConclusionesTodas(filas, porFp).filter(function(x) { return x.dinero > 0; })
+            .sort(function(a, b) { return b.dinero - a.dinero; }).slice(0, 4);
+}
+
+// Todas las conclusiones, sin filtrar ni cortar (Mi proceso, "Tu situación":
+// aciertos, errores y regla de la semana). Cada una lleva además:
+//   tipo   'acierto' | 'error'
+//   clave  qué comparación es ('seguidas', 'vueltas', 'nivel:<regla>:<nivel>:<valor>',
+//          'be_antes_tp1', 'tp1_no_asegurado', 'runners', 'dejar_correr')
+//   corta  texto corto con el coste o la ganancia
+//   regla  (solo errores) la regla en imperativo
+function _daConclusionesTodas(filas, porFp) {
   var G = DA_MIN_GRUPO_CONVIENE, out = [];
   var suma = function(a, f) { return a.reduce(function(s, r) { return s + f(r); }, 0); };
   var ben = function(r) { var t = porFp[r.fp]; return t && t.beneficio != null ? parseFloat(t.beneficio) : null; };
@@ -876,7 +897,11 @@ function _daConclusiones(filas, porFp) {
   var esp = _daResumenGrupo(filas.filter(function(r) { return r._gapMin != null && !r._seguida; }), porFp);
   if (seg && esp && seg.n >= G && esp.n >= G) {
     var d = esp.medio - seg.medio;
-    out.push({ dinero: Math.abs(d) * seg.n, frase: d > 0
+    out.push({ dinero: Math.abs(d) * seg.n, clave: 'seguidas', tipo: d > 0 ? 'error' : 'acierto',
+      corta: d > 0 ? 'Entrar seguido (< ' + DA_MINUTOS_SECUENCIA + ' min): ' + seg.n + ' veces, ~' + _daNum(d * seg.n, 0) + ' $ menos que esperando'
+                   : 'Entrar seguido no te cuesta: ' + _daFmtD(seg.medio) + '/trade frente a ' + _daFmtD(esp.medio) + ' esperando',
+      regla: 'Espera al menos ' + DA_MINUTOS_SECUENCIA + ' min tras cerrar un trade antes de abrir otro.',
+      frase: d > 0
       ? 'Espera al menos ' + DA_MINUTOS_SECUENCIA + ' min tras cerrar: entrando seguido sacas ' + _daFmtD(seg.medio) + ' por trade y esperando ' +
         _daFmtD(esp.medio) + '; en tus ' + seg.n + ' entradas seguidas son unos ' + _daNum(d * seg.n, 0) + ' $ de diferencia' + tr(seg.n + esp.n) + '.'
       : 'Entrar seguido no te está costando: ' + _daFmtD(seg.medio) + ' por trade frente a ' + _daFmtD(esp.medio) + ' esperando ' +
@@ -887,7 +912,11 @@ function _daConclusiones(filas, porFp) {
   var vu = _daVueltasDinero(filas, porFp);
   if (vu.n >= G) {
     var dv = vu.mant - vu.real;
-    out.push({ dinero: Math.abs(dv), frase: dv > 0
+    out.push({ dinero: Math.abs(dv), clave: 'vueltas', tipo: dv > 0 ? 'error' : 'acierto',
+      corta: dv > 0 ? 'Vueltas de posición: ' + vu.n + ', ' + _daNum(dv, 0) + ' $ menos que manteniendo el primero'
+                    : 'Darle la vuelta: ' + vu.n + ' veces, ' + _daNum(-dv, 0) + ' $ más que manteniendo',
+      regla: 'No le des la vuelta a una posición: si cierras, espera.',
+      frase: dv > 0
       ? 'No le des la vuelta: en ' + vu.n + ' vueltas sacaste ' + _daFmtD(vu.real) + ' con los dos trades; manteniendo el primero hasta su SL o TP habrías sacado ' +
         _daFmtD(vu.mant) + ', ' + _daNum(dv, 0) + ' $ más' + tr(vu.n * 2) + '.'
       : 'Darle la vuelta te ha salido bien: ' + vu.n + ' vueltas, ' + _daFmtD(vu.real) + ' frente a ' + _daFmtD(vu.mant) + ' manteniendo el primero' + tr(vu.n * 2) + '.' });
@@ -900,7 +929,10 @@ function _daConclusiones(filas, porFp) {
     var tot = x.sirvio.usd + x.error.usd, pts = x.sirvio.pts + x.error.pts;
     var reparto = ' (te sirvió ' + x.sirvio.n + (x.sirvio.n === 1 ? ' vez, ' : ' veces, ') + _daFmtD(x.sirvio.usd) +
                   '; error ' + x.error.n + (x.error.n === 1 ? ' vez, ' : ' veces, ') + _daFmtD(x.error.usd) + ')';
-    out.push({ dinero: Math.abs(tot), frase: tot < 0
+    out.push({ dinero: Math.abs(tot), clave: 'nivel:' + x.nivel.regla + ':' + x.nivel.nivel + ':' + x.nivel.valor, nivel: x.nivel, tipo: tot < 0 ? 'error' : 'acierto',
+      corta: (tot < 0 ? 'Seguir tras ' : 'Seguir tras ') + _daTxtNivel(x.nivel) + ': ' + n + ' veces, ' + _daFmtD(tot),
+      regla: 'Al llegar a ' + _daTxtNivel(x.nivel) + ', para.',
+      frase: tot < 0
       ? 'Al llegar a ' + _daTxtNivel(x.nivel) + ', para: seguiste ' + n + ' veces y los trades de después sumaron ' + _daFmtD(tot) +
         ' (' + _daFmtPts(pts) + ')' + reparto + tr(x.trades) + '.'
       : 'Seguir después de ' + _daTxtNivel(x.nivel) + ' te ha salido bien: ' + n + ' veces, ' + _daFmtD(tot) + ' (' + _daFmtPts(pts) + ')' + reparto + tr(x.trades) + '.' });
@@ -915,7 +947,10 @@ function _daConclusiones(filas, porFp) {
              parseFloat(r.favor_post_puntos) >= parseFloat(r.tp1_pts) && parseFloat(r.volumen) > 0;
     });
     var dTp1 = suma(perdidos, function(r) { return parseFloat(r.tp1_pts) * VALOR_PUNTO_XAUUSD * parseFloat(r.volumen); });
-    out.push({ dinero: dTp1, frase: 'No muevas a BE antes de TP1: lo hiciste en ' + be.length + ' de ' + evBe.length + ' trades' +
+    out.push({ dinero: dTp1, clave: 'be_antes_tp1', tipo: 'error',
+      corta: 'BE antes de TP1: ' + be.length + ' de ' + evBe.length + (perdidos.length ? ', ~' + _daNum(dTp1, 0) + ' $ que llegaban a TP1' : ''),
+      regla: 'No muevas a BE antes de TP1.',
+      frase: 'No muevas a BE antes de TP1: lo hiciste en ' + be.length + ' de ' + evBe.length + ' trades' +
       (perdidos.length
         ? '; en ' + perdidos.length + ' te sacó en BE y después el precio llegó a tu TP1: unos ' + _daNum(dTp1, 0) + ' $ a TP1 con todo el volumen'
         : '; ninguno te ha sacado todavía de un TP1') + tr(evBe.length) + '.' });
@@ -927,7 +962,10 @@ function _daConclusiones(filas, porFp) {
   if (alc.length >= G && na.length) {
     var aTp1 = suma(na, function(r) { return parseFloat(r.tp1_pts) * VALOR_PUNTO_XAUUSD * parseFloat(r.volumen); });
     var realNa = suma(na, ben);
-    out.push({ dinero: Math.abs(aTp1 - realNa), frase: 'Asegura al llegar a TP1: ' + na.length + ' de ' + alc.length +
+    out.push({ dinero: Math.abs(aTp1 - realNa), clave: 'tp1_no_asegurado', tipo: 'error',
+      corta: 'TP1 no asegurado: ' + na.length + ' de ' + alc.length + ', ~' + _daNum(Math.abs(aTp1 - realNa), 0) + ' $',
+      regla: 'Asegura al llegar a TP1 (parcial o SL a la entrada).',
+      frase: 'Asegura al llegar a TP1: ' + na.length + ' de ' + alc.length +
       ' veces llegaste a +TP1 y volvió a la entrada sin parcial ni BE; cerrando en TP1 habrías hecho ' + _daFmtD(aTp1) +
       ' en vez de ' + _daFmtD(realNa) + tr(alc.length) + '.' });
   }
@@ -936,7 +974,11 @@ function _daConclusiones(filas, porFp) {
   var rs = _daRunnersResumen(filas);
   if (rs.conUsd.length >= G) {
     var dr = rs.usd - rs.todo;
-    out.push({ dinero: Math.abs(dr), frase: dr >= 0
+    out.push({ dinero: Math.abs(dr), clave: 'runners', tipo: dr >= 0 ? 'acierto' : 'error',
+      corta: dr >= 0 ? 'Dejar runners: ' + rs.conUsd.length + ', ' + _daNum(dr, 0) + ' $ más que cerrar en la parcial'
+                     : 'Runners: ' + rs.conUsd.length + ', ' + _daNum(-dr, 0) + ' $ menos que cerrar en la parcial',
+      regla: 'Cierra todo en la parcial: de momento el runner te resta.',
+      frase: dr >= 0
       ? 'Dejar runners te compensa: ' + rs.conUsd.length + ' runners aportaron ' + _daFmtD(rs.usd) + ' frente a ' + _daFmtD(rs.todo) +
         ' cerrando todo en la parcial, ' + _daNum(dr, 0) + ' $ más' + tr(rs.conUsd.length) + '.'
       : 'Los runners te están costando: ' + rs.conUsd.length + ' runners aportaron ' + _daFmtD(rs.usd) + '; cerrando todo en la parcial habrías hecho ' +
@@ -953,15 +995,18 @@ function _daConclusiones(filas, porFp) {
     var dcReal = suma(dc, ben);
     var dcN = function(k) { return dc.filter(function(r) { return r.dejar_correr_resultado === k; }).length; };
     var reparto = dcN('tp') + ' llegaban a su TP, ' + dcN('sl') + ' a su SL y ' + dcN('ninguno') + ' a ninguno en 5 días de mercado';
-    out.push({ dinero: Math.abs(dcExtra), frase: dcExtra > 0
+    out.push({ dinero: Math.abs(dcExtra), clave: 'dejar_correr', tipo: dcExtra > 0 ? 'error' : 'acierto',
+      corta: dcExtra > 0 ? 'Cerrar a mano antes de tiempo: ' + dc.length + ', ' + _daNum(dcExtra, 0) + ' $ menos que dejándolas correr'
+                         : 'Cerrar a mano: ' + dc.length + ' veces, te ahorró ' + _daNum(-dcExtra, 0) + ' $',
+      regla: 'Deja correr hasta tu SL o TP las que sueles cerrar a mano.',
+      frase: dcExtra > 0
       ? 'Deja correr las que cierras a mano: de ' + dc.length + ' cierres a mano con SL, ' + reparto + '; dejándolas correr habrías hecho ' +
         _daFmtD(dcReal + dcExtra) + ' en vez de ' + _daFmtD(dcReal) + ', ' + _daNum(dcExtra, 0) + ' $ más' + tr(dc.length) + '.'
       : 'Cerrar a mano te compensa: de ' + dc.length + ' cierres a mano con SL, ' + reparto + '; dejándolas correr habrías hecho ' +
         _daFmtD(dcReal + dcExtra) + ' en vez de ' + _daFmtD(dcReal) + ', ' + _daNum(-dcExtra, 0) + ' $ menos' + tr(dc.length) + '.' });
   }
 
-  return out.filter(function(x) { return x.dinero > 0; })
-            .sort(function(a, b) { return b.dinero - a.dinero; }).slice(0, 4);
+  return out;
 }
 
 function _daHtmlConviene(filas, nombrePeriodo) {
