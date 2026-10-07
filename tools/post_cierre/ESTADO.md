@@ -1,6 +1,6 @@
 # Estado — análisis post-cierre: FASE 1 (examen de la EA) + FASE 2 (Diario web)
 
-> Actualizado 07/10/2026 (base de los MODOS en producción: plan del día, modo de cada trade y plan frente a realidad; punto 1 de "Mi proceso", "Tu situación", en producción; punto 0 en producción y comprobado; textos "Pack" en la web; idea "Alertas al móvil"; propuesta "Modos, plan del día y tablero en directo", pendiente nº 3). Antes, 06/10/2026, noche (Diario al instante desde `ea_trades`, bloque "Hoy" y plan del trader en producción; **un push a `main` despliega solo**). Antes, 06/10 (cierre de sesión: decisiones y pendientes abajo; "Edge por cuenta"; "Mis reglas"; propuesta "Mi proceso"). Antes: 05/10/2026 (post_cierre automatizado con tarea programada; fallo 5 de la EA). Antes: 02/10/2026. **FASE 2 en producción** (primer deploy `cdede9a` /
+> Actualizado 07/10/2026 (punto 2 de "Mi proceso" en producción: aciertos, errores y regla de la semana; base de los MODOS en producción: plan del día, modo de cada trade y plan frente a realidad; punto 1 de "Mi proceso", "Tu situación", en producción; punto 0 en producción y comprobado; textos "Pack" en la web; idea "Alertas al móvil"; propuesta "Modos, plan del día y tablero en directo", pendiente nº 3). Antes, 06/10/2026, noche (Diario al instante desde `ea_trades`, bloque "Hoy" y plan del trader en producción; **un push a `main` despliega solo**). Antes, 06/10 (cierre de sesión: decisiones y pendientes abajo; "Edge por cuenta"; "Mis reglas"; propuesta "Mi proceso"). Antes: 05/10/2026 (post_cierre automatizado con tarea programada; fallo 5 de la EA). Antes: 02/10/2026. **FASE 2 en producción** (primer deploy `cdede9a` /
 > `aurum-velare-cw5la96zd`; el anterior a la FASE 2, para rollback, era
 > `aurum-velare-9hp3r9l3q`). Criterios de análisis hoy: **v6**. FASE 1
 > terminada el 29/09 (298 trades, en seco).
@@ -36,7 +36,7 @@
    Después, **fusionar `feature/ea-sync` en `main`**.
 2. **Siguiente gran paso: rehacer "Mi proceso"** (sección "Mi proceso: Tu
    situación y barra por días limpios", justo debajo). Orden 0-1-2-3; cada
-   fase se enseña antes de desplegar. **Puntos 0 y 1 hechos (07/10, en producción).**
+   fase se enseña antes de desplegar. **Puntos 0, 1 y 2 hechos (07/10, en producción).** Falta el 3 (barra por días limpios).
 3. **Modos, plan del día y tablero en directo** (sección "Modos, plan del día
    y tablero en directo (propuesta 07/10)", debajo de la de "Mi proceso").
    **Base hecha y en producción (07/10)**: tablas, plan del día, modo de cada
@@ -191,7 +191,8 @@ TU NIVEL                              ██████████████
    imposible, subtítulos de retos vacíos. Ver "Punto 0 de Mi proceso (07/10)".
 1. **HECHO (07/10, en producción).** "Tu situación" con solo `trades`:
    rentable por cuenta + mes a mes. Ver "Punto 1 de Mi proceso (07/10)".
-2. Aciertos, errores y regla de la semana (`_daConclusionesTodas()`).
+2. **HECHO (07/10, en producción).** Aciertos, errores y regla de la semana
+   (`_daConclusionesTodas()`). Ver "Punto 2 de Mi proceso (07/10)".
 3. Barra por días limpios + aviso "listo" en el admin.
 
 ---
@@ -241,6 +242,46 @@ WR, P&L, OZT, % de ciclo) ni de textos de "Pack".
   (precios, FAQ y datos estructurados). Quedan con "Camino" solo el Camino de
   Santiago (Tablillas) y "✦ Camino matemático a la Etapa 5" (Equity: es un
   recorrido, no el Pack).
+
+---
+
+## Punto 2 de Mi proceso: aciertos, errores y regla de la semana (07/10) — EN PRODUCCIÓN
+
+Rama `feature/aciertos-errores` (`482e3e1`), merge `85a35a5`, deploy
+`aurum-velare-fp3t81g8c` (copia limpia). **Pendiente de que el usuario lo
+compruebe con su sesión.**
+
+- **Diario** (`diario-analisis.js`): `_daConclusionesTodas(filas, porFp)`
+  devuelve todas las conclusiones de "Qué te conviene" con `tipo`
+  (acierto/error), `clave`, `corta` y `regla` (imperativo). `_daConclusiones`
+  = las de dinero > 0, ordenadas, máx. 4: **el Diario no cambia** (comprobado:
+  mismo texto en Semana y en Todo el histórico que `main`). Clasificación:
+  error = seguidas peor que esperar, vueltas peor que mantener, seguir tras un
+  nivel con suma < 0, BE antes de TP1, TP1 no asegurado, runners peor que
+  cerrar en la parcial, cerrar a mano peor que dejar correr; el resto, acierto.
+- **Carga compartida**: `_daCargar()` devuelve la carga en curso si ya hay una
+  (antes salía sin esperar) y guarda `_daDatosEmail`. "Tu situación" reutiliza
+  `_daDatos` si ya están cargados; si no, llama a `_daCargar()`. Comprobado:
+  1 petición al abrir Mi proceso y 1 más para 3 cargas simultáneas.
+- **Mi proceso → "Tu situación"**, debajo del mes a mes: "Lo que haces bien" y
+  "Lo que te cuesta" (3 y 3 por dinero; todas las cuentas, todo el histórico,
+  solo trades analizados, como el Diario en Global → Todo el histórico; al
+  pasar el ratón, la frase completa del Diario). Mínimo 20 trades auditados;
+  sin trades de la EA: "Disponible cuando tus trades pasen por la EA".
+- **Regla de la semana (Wnn)**: el error que más cuesta con los trades
+  cerrados antes del lunes de la semana en curso (hora de servidor MT5, con el
+  desfase de `modos.js`): no cambia a mitad de semana. Debajo, "Por qué" y
+  cómo vas esta semana (según la regla: días que llegaste al nivel y si
+  paraste, entradas seguidas, vueltas, BE antes de TP1, TP1 sin asegurar…).
+- **Cifras con los datos reales** (310 trades EA del export del 06/10,
+  analizados en seco con criterios v8 a partir de las velas de MT5, sin subir
+  nada; coinciden con el "Qué te conviene" del Diario):
+  - Bien: cerrar a mano te ahorró 4.987 $ (126); seguir tras +250 «Día bueno»
+    +773 $ (11 veces); tras +500 «Oportunidad» +367 $ (5).
+  - Te cuesta: seguir tras −800 «Límite» −5.069 $ (7 veces); tras −500 $ en
+    un trade −4.706 $ (5); entrar seguido ~3.432 $ menos que esperando (151).
+  - Regla W41: «Al llegar a −800 $ «Límite», para.» (301 trades hasta el
+    domingo 04/10); esta semana (05–06/10) no se llegó a ese nivel.
 
 ---
 

@@ -42,6 +42,11 @@
   `tu-situacion.js` (solo `trades`): rentable por cuenta en 90 días (PF ≥ 1,1)
   y P&L mes a mes; cuentas con el criterio de `getTradesActivos()`; Retos
   "Sin cuenta asignada" (la 179003 se perdió). Detalle en ESTADO.md.
+- **Mi proceso, punto 2 — EN PRODUCCIÓN** (`482e3e1`, merge `85a35a5`, deploy
+  `aurum-velare-fp3t81g8c`): en "Tu situación", 3 aciertos y 3 errores con su
+  coste y la regla de la semana (error que más cuesta hasta el domingo
+  anterior + cómo vas esta semana), de `_daConclusionesTodas()` del Diario
+  (que no cambia). `_daCargar()` comparte la carga en curso.
 - **Modos: base en producción** (SQL `tools/post_cierre/sql_modos.sql` aplicado
   por el usuario; web `021300e`, merge `6333db6`, deploy
   `aurum-velare-pucxf45zl`): tablas `modos`, `plan_dia` (por carpeta, solo se
