@@ -286,7 +286,9 @@ admin; usa `dias-limpios.js` y, para la regla de la semana, el Diario.
   de su carpeta o de `todas`; trades con modo = % con corrección con modo o
   plan vigente; regla de la semana = semanas cerradas seguidas (desde la más
   reciente) sin incumplir la regla de esa semana (la del Diario con los datos
-  hasta su lunes; semana sin operar ni suma ni corta; sin regla, cumplida);
+  hasta su lunes; semana sin operar o sin regla (pocos datos) = neutra: ni
+  suma ni corta la racha — decidido por el usuario el 07/10; `d995813`,
+  deploy `aurum-velare-pxzutos82`);
   % de días limpios = últimos N días operados (hace falta tener N);
   días sin «Cierre obligatorio» = racha de días operados sin que ninguna cuenta
   llegue al último nivel de pérdida diaria. Resultados (por cuenta, hasta
