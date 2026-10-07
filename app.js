@@ -280,6 +280,7 @@ async function actualizarDashboard() {
   window.AURUM_TRADES = { todos: allData };
   if (typeof buildDashboardHero         === 'function') buildDashboardHero();
   if (typeof buildTuSituacion           === 'function') buildTuSituacion();
+  if (typeof buildDiasLimpios           === 'function') buildDiasLimpios();
   if (typeof buildCicloDots             === 'function') buildCicloDots();
   if (typeof buildHorarios              === 'function') buildHorarios();
   if (typeof buildEquity                === 'function') buildEquity();

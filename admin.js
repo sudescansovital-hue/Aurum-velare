@@ -108,7 +108,7 @@ function renderAdminTabla() {
     return;
   }
   var hoy = new Date();
-  tbody.innerHTML = adminUsuarios.map(function(u) {
+  tbody.innerHTML = adminUsuarios.map(function(u, i) {
     var expirado = u.fecha_expiracion && new Date(u.fecha_expiracion) < hoy;
     var activo   = u.activo && !expirado;
     var exp      = u.fecha_expiracion ? new Date(u.fecha_expiracion + 'T12:00:00').toLocaleDateString('es-ES') : 'Sin límite';
@@ -133,7 +133,8 @@ function renderAdminTabla() {
       '<td style="' + th + '"><span style="color:var(--gold);">' + packLabel + '</span></td>' +
       '<td style="' + th + 'color:var(--text-muted);">' + animalText + '</td>' +
       '<td style="' + th + 'font-size:12px;color:var(--text-muted);">' + salaAuto + salaExtra + '</td>' +
-      '<td style="' + th + 'color:var(--text-muted);">Etapa ' + (u.etapa || 1) + '</td>' +
+      '<td style="' + th + 'color:var(--text-muted);">Etapa ' + (u.etapa || 1) +
+        '<span id="adm-dl-' + i + '" style="display:block;font-size:11px;margin-top:.15rem;white-space:nowrap;"></span></td>' +
       '<td style="' + th + 'color:var(--green);font-size:12px;">' + (u.cuenta_maestra || (adminHistorialesMap[u.email] && adminHistorialesMap[u.email]['Maestra']) || '—') + '</td>' +
       '<td style="' + th + 'color:#6A9AEE;font-size:12px;">'   + (u.cuenta_prueba  || (adminHistorialesMap[u.email] && adminHistorialesMap[u.email]['Prueba'])   || '—') + '</td>' +
       '<td style="' + th + 'color:#E8A84C;font-size:12px;">'   + (u.cuenta_retos   || (adminHistorialesMap[u.email] && adminHistorialesMap[u.email]['Retos'])    || '—') + '</td>' +
@@ -144,6 +145,8 @@ function renderAdminTabla() {
       '</td>' +
     '</tr>';
   }).join('');
+  // Días limpios de cada usuario junto a su etapa (dias-limpios.js); se rellena después.
+  if (typeof dlAdminPintar === 'function') dlAdminPintar(adminUsuarios);
 }
 
 function renderAdminStats() {
@@ -392,6 +395,9 @@ async function adminGuardarUsuario() {
         if (_histRes.error) console.error('[ADMIN] error al registrar etapa_historial:', _histRes.error);
       }
     }
+
+    // Días limpios (dias-limpios.js): la etapa o las cuentas pueden haber cambiado.
+    if (_u && _u.email && typeof dlAdminOlvidar === 'function') dlAdminOlvidar(_u.email);
 
     if (adminCumplDesbloqueado && _u && _u.email) {
       var cumplDatos = {
