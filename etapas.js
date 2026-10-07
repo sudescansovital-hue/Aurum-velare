@@ -300,7 +300,8 @@ function _etRachaReglaSemana(filas, porFp, desdeDia, ahoraMs) {
       regla = _daConclusionesTodas(base, porFp).filter(function(x) { return x.tipo === 'error' && x.dinero > 0; })
                                                 .sort(function(a, b) { return b.dinero - a.dinero; })[0] || null;
     }
-    if (regla && !_etCumpleRegla(regla, semana, porFp)) { nota = 'La última que no cumpliste: W' + _daSemanaIso(L) + ' («' + regla.regla + '»)'; break; }
+    if (!regla) continue;                                                   // sin regla (pocos datos): neutra, ni suma ni corta
+    if (!_etCumpleRegla(regla, semana, porFp)) { nota = 'La última que no cumpliste: W' + _daSemanaIso(L) + ' («' + regla.regla + '»)'; break; }
     racha++;
   }
   return { racha: racha, nota: nota };
