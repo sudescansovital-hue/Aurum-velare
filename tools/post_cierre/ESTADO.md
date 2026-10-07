@@ -52,6 +52,14 @@
    actual, si el admin fija un nivel más estricto el usuario ya no puede editar
    su fila de ese nivel (ni el nombre ni el plan) sin bajar antes el importe;
    resolverlo al hacer esta fase (ver "Diario al instante y plan del trader").
+   **SQL preparado (07/10, rama `feature/mis-reglas-fase3`, SIN APLICAR):**
+   `tools/post_cierre/sql_mis_reglas_v3_candado.sql` — solo cambia el trigger
+   `reglas_valores_antes`: el tope del admin se comprueba en INSERT, al cambiar
+   de nivel/carpeta o al SUBIR el importe; cambiar nombre/plan o bajar el
+   importe siempre se puede. Probado en PGlite sobre v1+v2 (30 comprobaciones:
+   bug reproducido con v2 y resuelto con v3, RLS, vista e historial). El panel
+   del admin no necesita más SQL (`rv_admin_all`, `rvh_admin_select`).
+   Pantallas: cuando el usuario aplique el SQL.
 6. **Frase del runner con cada parcial por separado.**
 7. **Punto 4 — velas desde la EA y análisis en el servidor** (sección
    "Siguiente gran paso (02/10)", pasos 3 y 4).
