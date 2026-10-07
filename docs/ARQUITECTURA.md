@@ -42,6 +42,15 @@
   `tu-situacion.js` (solo `trades`): rentable por cuenta en 90 días (PF ≥ 1,1)
   y P&L mes a mes; cuentas con el criterio de `getTradesActivos()`; Retos
   "Sin cuenta asignada" (la 179003 se perdió). Detalle en ESTADO.md.
+- **Modos: base en producción** (SQL `tools/post_cierre/sql_modos.sql` aplicado
+  por el usuario; web `021300e`, merge `6333db6`, deploy
+  `aurum-velare-pucxf45zl`): tablas `modos`, `plan_dia` (por carpeta, solo se
+  añaden filas) y `trade_modo` (correcciones a mano). Módulo `modos.js` en el
+  Diario: "Plan del día" en "Hoy", modo de cada trade según el plan vigente de
+  su carpeta (hora de servidor MT5 calculada con `trade_eventos`), insignia y
+  filtro por modo, corrección en el detalle y "Plan frente a realidad" en el
+  panel del día. La estrategia de la EA se rotula "Setup (EA)". Normas por
+  modo, escalado y tablero: pendientes de la plantilla del usuario.
 - **Idea "Alertas al móvil"** (pendiente nº 4 de ESTADO.md, sin código): fase 1
   alertas de reglas por Telegram sin tocar la EA; fase 2 alertas de precio;
   fase 3 bot que opera solo si la fase 2 demuestra ventaja y el usuario lo

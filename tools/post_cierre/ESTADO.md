@@ -1,6 +1,6 @@
 # Estado — análisis post-cierre: FASE 1 (examen de la EA) + FASE 2 (Diario web)
 
-> Actualizado 07/10/2026 (punto 1 de "Mi proceso", "Tu situación", en producción; punto 0 en producción y comprobado; textos "Pack" en la web; idea "Alertas al móvil"; propuesta "Modos, plan del día y tablero en directo", pendiente nº 3). Antes, 06/10/2026, noche (Diario al instante desde `ea_trades`, bloque "Hoy" y plan del trader en producción; **un push a `main` despliega solo**). Antes, 06/10 (cierre de sesión: decisiones y pendientes abajo; "Edge por cuenta"; "Mis reglas"; propuesta "Mi proceso"). Antes: 05/10/2026 (post_cierre automatizado con tarea programada; fallo 5 de la EA). Antes: 02/10/2026. **FASE 2 en producción** (primer deploy `cdede9a` /
+> Actualizado 07/10/2026 (base de los MODOS en producción: plan del día, modo de cada trade y plan frente a realidad; punto 1 de "Mi proceso", "Tu situación", en producción; punto 0 en producción y comprobado; textos "Pack" en la web; idea "Alertas al móvil"; propuesta "Modos, plan del día y tablero en directo", pendiente nº 3). Antes, 06/10/2026, noche (Diario al instante desde `ea_trades`, bloque "Hoy" y plan del trader en producción; **un push a `main` despliega solo**). Antes, 06/10 (cierre de sesión: decisiones y pendientes abajo; "Edge por cuenta"; "Mis reglas"; propuesta "Mi proceso"). Antes: 05/10/2026 (post_cierre automatizado con tarea programada; fallo 5 de la EA). Antes: 02/10/2026. **FASE 2 en producción** (primer deploy `cdede9a` /
 > `aurum-velare-cw5la96zd`; el anterior a la FASE 2, para rollback, era
 > `aurum-velare-9hp3r9l3q`). Criterios de análisis hoy: **v6**. FASE 1
 > terminada el 29/09 (298 trades, en seco).
@@ -39,8 +39,11 @@
    fase se enseña antes de desplegar. **Puntos 0 y 1 hechos (07/10, en producción).**
 3. **Modos, plan del día y tablero en directo** (sección "Modos, plan del día
    y tablero en directo (propuesta 07/10)", debajo de la de "Mi proceso").
-   Propuesta sin código; la vista Directo espera la maqueta y la plantilla del
-   usuario.
+   **Base hecha y en producción (07/10)**: tablas, plan del día, modo de cada
+   trade y plan frente a realidad (ver "Modos: base en producción"). Falta lo
+   que depende de la plantilla del usuario: normas por modo (`modo_id` en
+   `reglas_valores`), escalado con suelo y tablero; la vista Directo espera
+   además la maqueta.
 4. **Alertas al móvil** (sección "Alertas al móvil (idea 07/10)", debajo de
    la de "Modos…"). Fase 1 no toca la EA; fases 2 y 3 esperan a fusionar
    `feature/ea-sync`.
@@ -282,6 +285,58 @@ Python. **Pendiente de que el usuario lo compruebe con su sesión.**
   admin reetiqueta los trades).
 - En móvil, la columna central de Mi proceso queda casi sin ancho (toda la
   página, anterior a este cambio; pendiente menor de móvil).
+
+---
+
+## Modos: base en producción (07/10)
+
+Lo que no depende de las normas de cada modo. No toca la EA ni
+`api/trade-mt5.js` ni `reglas_valores`.
+
+**SQL** `tools/post_cierre/sql_modos.sql` (rama `feature/modos`, `7958c96` +
+`fcc2cba`), probado en PGlite (47 comprobaciones) y **aplicado por el usuario
+el 07/10** (tablas 3, policies 13, usuarios_con_modos 6, modos 18). La API vio
+las tablas sin recargar el esquema (comprobado con la clave pública: 200).
+- `modos`: por usuario, Scalping / Testeo / Estructura por defecto; se guarda
+  el id; no se borra si se usa (se desactiva). `modos_por_defecto()` los crea
+  a usuarios nuevos (la web la llama si no tiene ninguno).
+- `plan_dia`: carpeta (`todas` / `maestra` / `prueba` / `retos`), fecha y hora
+  de servidor MT5, modo, sesgo (`vendiendo` / `comprando` / `sin_sesgo`). Solo
+  se añaden filas (el usuario no edita ni borra).
+- `trade_modo`: solo correcciones a mano por `fp` (modo NULL = "sin
+  clasificar" a mano).
+- Plan vigente para un trade = última fila anterior del mismo día de servidor
+  de su carpeta; si no hay, la de `todas`; si tampoco, "sin clasificar". Un
+  plan de su carpeta manda sobre un `todas` posterior (decidido así).
+
+**Web** (fase B, `021300e`, merge `6333db6`, deploy
+`aurum-velare-pucxf45zl`): módulo `modos.js` + enganches en
+`diario-analisis.js` (carga, "Hoy", lista, detalle y panel del día).
+- **"Hoy"**: panel "Plan del día" (cuenta, modo y sesgo; "Cambiar plan" añade
+  fila; "Cambios de hoy" con las horas). Sin plan hoy: aviso para elegirlo. Se
+  ve aunque no haya trades hoy (pero solo si el Diario tiene trades de la EA).
+- **Hora de servidor MT5** en el navegador: hora real + desfase. Desfase = el
+  mayor `timestamp − creado_en` de los 30 eventos más recientes de
+  `trade_eventos` (la EA manda la hora de servidor; la llegada solo se
+  retrasa), redondeado a la hora. Sin eventos: hora de Europa del Este
+  (`Europe/Athens`), marcada "estimada". El panel muestra la hora de servidor
+  y el desfase usado (p. ej. "UTC+3").
+- **Lista**: insignia "Modo: …" (✎ si está corregido a mano), filtro por modo
+  (Todos / cada modo / Sin clasificar); la estrategia de la EA pasa a
+  rotularse "Setup (EA)" (chips, fila "Setup: …", tabla "Por setup (EA)").
+- **Detalle de un trade** (analizado o pendiente): modo y de dónde sale
+  (plan de las HH:MM · cuenta · sesgo, o corregido a mano) y selector para
+  corregirlo ("Según el plan" borra la corrección).
+- **Panel del día del calendario**: "Plan frente a realidad": planes del día,
+  primer trade a favor del sesgo sí/no, trades contra el sesgo con $ y pts
+  (beneficio / (100 × lotes)), trades sin plan. "Sin sesgo" no se mide.
+- Probado en local con los 310 trades EA reales + 4 de hoy inventados y
+  Supabase simulado (guardar plan, corregir, filtrar). Comprobado que el texto
+  del Diario es idéntico al de `main` salvo lo añadido y los rótulos.
+- **Pendiente de que el usuario lo compruebe con su sesión.**
+- Sin hacer (no pedido aún): pantalla para renombrar / añadir / desactivar
+  modos (la tabla lo permite); propuesta automática del modo; modo en "Tu
+  situación" y en el resumen semanal.
 
 ---
 
