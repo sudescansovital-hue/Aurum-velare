@@ -1,6 +1,6 @@
 # Estado — análisis post-cierre: FASE 1 (examen de la EA) + FASE 2 (Diario web)
 
-> Actualizado 07/10/2026 (ETAPAS v2 revisión 2: criterios para llegar a cada etapa + resultados + tamaño de cuenta, SQL sin aplicar, pendiente nº 3; punto 3 de "Mi proceso" en producción: barra de etapa por días limpios; "Mi proceso" completo; punto 2 en producción: aciertos, errores y regla de la semana; base de los MODOS en producción: plan del día, modo de cada trade y plan frente a realidad; punto 1 de "Mi proceso", "Tu situación", en producción; punto 0 en producción y comprobado; textos "Pack" en la web; idea "Alertas al móvil"; propuesta "Modos, plan del día y tablero en directo", pendiente nº 3). Antes, 06/10/2026, noche (Diario al instante desde `ea_trades`, bloque "Hoy" y plan del trader en producción; **un push a `main` despliega solo**). Antes, 06/10 (cierre de sesión: decisiones y pendientes abajo; "Edge por cuenta"; "Mis reglas"; propuesta "Mi proceso"). Antes: 05/10/2026 (post_cierre automatizado con tarea programada; fallo 5 de la EA). Antes: 02/10/2026. **FASE 2 en producción** (primer deploy `cdede9a` /
+> Actualizado 07/10/2026 (ETAPAS v2 EN PRODUCCIÓN: SQL aplicado por el usuario y web (Mi proceso + admin); antes, revisión 2 del SQL; punto 3 de "Mi proceso" en producción: barra de etapa por días limpios; "Mi proceso" completo; punto 2 en producción: aciertos, errores y regla de la semana; base de los MODOS en producción: plan del día, modo de cada trade y plan frente a realidad; punto 1 de "Mi proceso", "Tu situación", en producción; punto 0 en producción y comprobado; textos "Pack" en la web; idea "Alertas al móvil"; propuesta "Modos, plan del día y tablero en directo", pendiente nº 3). Antes, 06/10/2026, noche (Diario al instante desde `ea_trades`, bloque "Hoy" y plan del trader en producción; **un push a `main` despliega solo**). Antes, 06/10 (cierre de sesión: decisiones y pendientes abajo; "Edge por cuenta"; "Mis reglas"; propuesta "Mi proceso"). Antes: 05/10/2026 (post_cierre automatizado con tarea programada; fallo 5 de la EA). Antes: 02/10/2026. **FASE 2 en producción** (primer deploy `cdede9a` /
 > `aurum-velare-cw5la96zd`; el anterior a la FASE 2, para rollback, era
 > `aurum-velare-9hp3r9l3q`). Criterios de análisis hoy: **v6**. FASE 1
 > terminada el 29/09 (298 trades, en seco).
@@ -38,12 +38,9 @@
    situación y barra por días limpios", justo debajo). Orden 0-1-2-3; cada
    fase se enseña antes de desplegar. **HECHO: puntos 0, 1, 2 y 3 en
    producción (07/10).** Queda comprobar el 3 con la sesión del usuario.
-3. **Etapas v2** (sección "Etapas v2 (propuesta 07/10)", debajo de la de "Mi
-   proceso"): criterios para llegar a cada etapa (disciplina y resultados)
-   editables por el admin, cada uno con su barra, tamaño de cuenta y aviso
-   "no mantiene". SQL revisión 2 preparado y probado
-   (`tools/post_cierre/sql_etapas_v2.sql`, rama `feature/etapas-v2`,
-   `1ae6793`), **sin aplicar: lo revisa el usuario**. Después, la web.
+3. **Etapas v2 — HECHO (07/10, en producción)**: SQL aplicado y web (Mi
+   proceso y admin). Ver "Etapas v2: en producción". Queda que el usuario lo
+   compruebe con su sesión.
 4. **Modos, plan del día y tablero en directo** (sección "Modos, plan del día
    y tablero en directo (propuesta 07/10)", debajo de la de "Mi proceso").
    **Base hecha y en producción (07/10)**: tablas, plan del día, modo de cada
@@ -253,7 +250,84 @@ WR, P&L, OZT, % de ciclo) ni de textos de "Pack".
 
 ---
 
-## Etapas v2 (propuesta 07/10, revisión 2) — SQL preparado, SIN APLICAR
+## Etapas v2: en producción (07/10)
+
+**SQL** `tools/post_cierre/sql_etapas_v2.sql` (rama `feature/etapas-v2`,
+`1ae6793`) **aplicado por el usuario el 07/10**: criterios 102, por etapa 1:3
+2:4 3:5 4:7 5:9 6:11 7:12 8:12 9:12 10:13 11:14, policies 5, tamaños 18. La API
+ve las tablas (200 con la clave pública). **Nota:** al aplicarlo, la parte de
+triggers/RLS se ejecutó DESPUÉS de los inserts iniciales, así que los 102
+criterios iniciales **no tienen fila en `etapa_criterios_historial`**; los
+cambios a partir de entonces sí quedan registrados.
+
+**Decisiones del usuario sobre la revisión 2 (07/10):** puntos 1–5 y 8, como
+estaban; **6: la MISMA cuenta** tiene que cumplir todos los criterios de
+resultados de una etapa; **7: los de RESULTADOS van en ventanas móviles**
+(últimos N días / meses naturales completos), NO desde el cambio de etapa; los
+de disciplina, desde el último cambio de etapa (plan/modos, desde el 07/10).
+
+**Web** (`etapas.js`, `7f86335`, merge `7bb1c3d`, deploy
+`aurum-velare-hek5w35u9`, copia limpia). Funciones puras para Mi proceso y
+admin; usa `dias-limpios.js` y, para la regla de la semana, el Diario.
+- **Mi proceso**: bloque "Para llegar a «X»" (tras "Tu situación") con los
+  criterios de la etapa SIGUIENTE en dos columnas, Disciplina y Resultados
+  (con la cuenta usada), cada uno con barra, valor actual / objetivo y nota.
+  "Tu nivel" (Mi proceso y Mi gestión) y "Nivel actual" pasan a % de la etapa
+  = media de los criterios (cada uno topado), "N de M criterios → X", "Ver
+  criterios" y "Ver días limpios" (lista del punto 3). "✦ Listo para revisión"
+  cuando se cumplen todos. En Oro: "estás en la última etapa".
+- **Cuenta de resultados**: entre Maestra / Prueba / Retos (las del tamaño de
+  cuenta) la que más criterios cumple y más cerca está; si no tiene ninguna
+  asignada, entre todas. (Decidido al probarlo: si no, con los datos reales
+  salía la cuenta antigua 152034.)
+- **Cómo se mide cada tipo** (disciplina, desde el día siguiente al último
+  cambio de etapa): días operados y limpios = punto 3; plan antes del primer
+  trade = % de días (por día de entrada) cuyo primer trade tenía plan vigente
+  de su carpeta o de `todas`; trades con modo = % con corrección con modo o
+  plan vigente; regla de la semana = semanas cerradas seguidas (desde la más
+  reciente) sin incumplir la regla de esa semana (la del Diario con los datos
+  hasta su lunes; semana sin operar ni suma ni corta; sin regla, cumplida);
+  % de días limpios = últimos N días operados (hace falta tener N);
+  días sin «Cierre obligatorio» = racha de días operados sin que ninguna cuenta
+  llegue al último nivel de pérdida diaria. Resultados (por cuenta, hasta
+  ahora): racha de días operados de esa cuenta sin llegar al último nivel; PF
+  y nº de trades de los cerrados en los últimos `ventana_dias`; meses = P&L
+  por mes de cierre de los últimos meses naturales completos (el en curso no
+  cuenta; mes sin trades = no positivo); media mensual / tamaño de su carpeta
+  (`cuenta_tamanos`, 50.000 por defecto).
+- **Admin**: bajo "Etapa N": "% · cumplidos/total" o "✦ listo", "⚠ no mantiene
+  «X»" y "criterios" (despliega la fila: criterios de la siguiente etapa, las
+  3 últimas semanas de "mantener" con lo que falla, y los 3 tamaños de cuenta
+  con "Guardar tamaños"). **Editor** "Criterios de las etapas" (botón "Editar
+  criterios" bajo la tabla de usuarios): por etapa, nombre, objetivo,
+  parámetros (JSON) y activo; cada cambio, al historial. No añade ni borra
+  criterios (se puede desactivar).
+- **"⚠ no mantiene «X»"**: en las 3 últimas semanas cerradas (hasta cada
+  domingo) no cumplió los criterios de su etapa ACTUAL. Para "mantener" se
+  miran solo resultados (ventanas móviles), EA, reglas y los % de disciplina
+  (plan, modo y días limpios) en ventana móvil (últimos 30 días operados o 200
+  trades) sin el corte del cambio de etapa; los de recuento o racha (días
+  operados, días limpios, semanas de la regla, días sin «Cierre obligatorio»)
+  NO, porque vuelven a 0 al cambiar de etapa y saldría el aviso siempre al
+  empezar una. **Decidido por mí; a confirmar por el usuario.** Nunca cambia
+  la etapa. Constante `ET_SEMANAS_AVISO` = 3.
+- `dias-limpios.js`: `dlCalcular` añade por día `nivelMax` y `porCuenta`, y
+  calcula los días aunque no haya reglas (para "días operados"). Punto 3 sin
+  cambios (comprobado: mismas cifras). `app.js`: `tiene_ea` en `usuarioActual`.
+- Sin la tabla de criterios (o si falla), se queda la barra del punto 3 en Mi
+  proceso y los días limpios en el admin.
+- **Con los datos reales** (export del 06/10, perfil simulado en etapa 3
+  Estructura con último cambio el 15/09, criterios = los del SQL): para llegar
+  a Fractura 72 % · 4 de 7 (EA ✓, reglas ✓, 14 días operados ✓, días limpios
+  8/20, plan sin días desde el 07/10; Maestra: 13 de 20 días sin «Cierre
+  obligatorio», PF 1,36 con 62 trades en 60 días ✓). "⚠ no mantiene
+  «Estructura»": W38–W40 sin 20 días operados seguidos sin llegar a −1.100 $ en
+  Maestra ni en Prueba. Regla de la semana: W40 no cumplida (01/10, seguir tras
+  −800). Las cifras reales dependen de la etapa y del último cambio reales.
+
+---
+
+## Etapas v2 (propuesta 07/10, revisión 2) — diseño (aplicado: ver la sección de arriba)
 
 Pendiente nº 3. Va **encima del punto 3** (días limpios) sin romperlo: los
 días limpios pasan a ser uno de los criterios. Nada de esto cambia
