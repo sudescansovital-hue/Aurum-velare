@@ -10,10 +10,18 @@
 --               Estructura). El nombre se puede editar: en el resto de tablas
 --               se guarda el id, así renombrar no rompe nada. No se borran si
 --               se usan (FK): se desactivan con activo = false.
---   plan_dia    el plan del día: modo + sesgo. Solo se AÑADEN filas: si el
---               trader cambia de plan durante el día, fila nueva; el plan
---               vigente a una hora = la última fila anterior. El usuario no
---               puede editar ni borrar (sin policies de UPDATE/DELETE).
+--   plan_dia    el plan del día: modo + sesgo, POR CARPETA ('todas' por
+--               defecto, o 'maestra' / 'prueba' / 'retos': mismo criterio que
+--               reglas_valores en Mis reglas, por carpeta y no por número, que
+--               cambia en el admin). Solo se AÑADEN filas: si el trader cambia
+--               de plan durante el día, fila nueva. El usuario no puede editar
+--               ni borrar (sin policies de UPDATE/DELETE).
+--               Plan vigente para un trade de una carpeta, a la hora de entrada
+--               (servidor MT5) = la última fila anterior DEL MISMO DÍA de ESA
+--               carpeta; si no hay, la última anterior del día de 'todas'; si
+--               tampoco, "sin clasificar". Las cuentas sin
+--               carpeta (historial externo) usan 'todas'. Se resuelve en el
+--               front (ver la consulta de ejemplo al final).
 --   trade_modo  SOLO las correcciones a mano del modo de un trade (por fp). Lo
 --               normal es deducir el modo del plan vigente al abrir el trade;
 --               esta fila manda sobre lo deducido. modo_id NULL = "sin
@@ -32,11 +40,12 @@
 -- ninguno (respeta la RLS: solo crea los de quien la llama).
 --
 -- Probado en PGlite (Postgres local, con auth.email() y el rol authenticated
--- simulados) el 07/10: 37 comprobaciones OK — se aplica dos veces sin error ni
+-- simulados) el 07/10: 47 comprobaciones OK — se aplica dos veces sin error ni
 -- duplicados; cada usuario solo ve/toca lo suyo; plan_dia solo admite añadir
--- (sin editar ni borrar); FK compuesta impide usar modos de otro usuario;
--- borrar un modo en uso falla; nombre repetido o vacío falla; plan vigente =
--- última fila anterior; modos_por_defecto() crea 3 una sola vez y falla sin
+-- (sin editar ni borrar); carpeta válida y 'todas' por defecto; plan vigente
+-- por carpeta con respaldo en 'todas' y solo del mismo día; FK compuesta
+-- impide usar modos de otro usuario; borrar un modo en uso falla; nombre
+-- repetido o vacío falla; modos_por_defecto() crea 3 una sola vez y falla sin
 -- sesión; el admin ve y corrige todo. Consulta de comprobación al final.
 -- NO APLICADO: pendiente de revisión (07/10).
 
@@ -58,6 +67,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS modos_usuario_nombre_uidx
 CREATE TABLE IF NOT EXISTS plan_dia (
   id             BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   usuario_email  TEXT NOT NULL DEFAULT auth.email(),
+  carpeta        TEXT NOT NULL DEFAULT 'todas' CHECK (carpeta IN ('todas', 'maestra', 'prueba', 'retos')),
   fecha          DATE NOT NULL,                       -- día de servidor MT5
   hora_servidor  TIMESTAMP NOT NULL,                  -- hora de servidor MT5 al elegir
   modo_id        BIGINT NOT NULL,
@@ -67,8 +77,8 @@ CREATE TABLE IF NOT EXISTS plan_dia (
   CONSTRAINT plan_dia_modo_fk FOREIGN KEY (modo_id, usuario_email)
     REFERENCES modos (id, usuario_email) ON DELETE RESTRICT
 );
-CREATE INDEX IF NOT EXISTS plan_dia_usuario_hora_idx
-  ON plan_dia (usuario_email, hora_servidor);
+CREATE INDEX IF NOT EXISTS plan_dia_usuario_carpeta_hora_idx
+  ON plan_dia (usuario_email, carpeta, hora_servidor);
 
 CREATE TABLE IF NOT EXISTS trade_modo (
   usuario_email  TEXT NOT NULL DEFAULT auth.email(),
@@ -180,7 +190,16 @@ ON CONFLICT DO NOTHING;
 
 NOTIFY pgrst, 'reload schema';
 
--- 6) Comprobación tras aplicarlo (solo lectura):
+-- 6) Plan vigente (ejemplo; el front hace lo mismo con los planes cargados):
+--    trade de la carpeta 'prueba' abierto a las 2026-10-07 10:15 (servidor).
+-- SELECT modo_id, sesgo, carpeta FROM plan_dia
+--  WHERE usuario_email = auth.email() AND fecha = '2026-10-07'
+--    AND hora_servidor <= '2026-10-07 10:15'
+--    AND carpeta IN ('prueba', 'todas')
+--  ORDER BY (carpeta = 'prueba') DESC, hora_servidor DESC
+--  LIMIT 1;
+
+-- 7) Comprobación tras aplicarlo (solo lectura):
 -- SELECT
 --   (SELECT count(*) FROM information_schema.tables
 --     WHERE table_schema = 'public' AND table_name IN ('modos', 'plan_dia', 'trade_modo')) AS tablas,      -- 3
