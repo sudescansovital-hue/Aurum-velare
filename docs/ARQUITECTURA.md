@@ -34,6 +34,14 @@
 - **Avisos de salas con "Pack"** (`b1497a0`, deploy `aurum-velare-psjtsx4ez`):
   "Necesitas un Pack para entrar." (7 en `index.html`, 1 en `salas.js`) y el
   403 de `api/livekit-token.js`.
+- **Resto de textos "Pack" en la web** (`cbc5e7a`, deploy
+  `aurum-velare-af296lnjo`): login, aviso de acceso y `valor.html`. Solo
+  quedan con "Camino" el Camino de Santiago y "Camino matemático" (Equity).
+- **Mi proceso, punto 1 "Tu situación" — EN PRODUCCIÓN** (`feature/tu-situacion`
+  `98df2ae`, merge `53492fe`, deploy `aurum-velare-qjyev8ixu`): módulo
+  `tu-situacion.js` (solo `trades`): rentable por cuenta en 90 días (PF ≥ 1,1)
+  y P&L mes a mes; cuentas con el criterio de `getTradesActivos()`; Retos
+  "Sin cuenta asignada" (la 179003 se perdió). Detalle en ESTADO.md.
 - **Idea "Alertas al móvil"** (pendiente nº 4 de ESTADO.md, sin código): fase 1
   alertas de reglas por Telegram sin tocar la EA; fase 2 alertas de precio;
   fase 3 bot que opera solo si la fase 2 demuestra ventaja y el usuario lo

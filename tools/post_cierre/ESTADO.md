@@ -1,6 +1,6 @@
 # Estado — análisis post-cierre: FASE 1 (examen de la EA) + FASE 2 (Diario web)
 
-> Actualizado 07/10/2026 (punto 0 de "Mi proceso" en producción y comprobado; avisos "Pack"; idea "Alertas al móvil"; propuesta "Modos, plan del día y tablero en directo", pendiente nº 3). Antes, 06/10/2026, noche (Diario al instante desde `ea_trades`, bloque "Hoy" y plan del trader en producción; **un push a `main` despliega solo**). Antes, 06/10 (cierre de sesión: decisiones y pendientes abajo; "Edge por cuenta"; "Mis reglas"; propuesta "Mi proceso"). Antes: 05/10/2026 (post_cierre automatizado con tarea programada; fallo 5 de la EA). Antes: 02/10/2026. **FASE 2 en producción** (primer deploy `cdede9a` /
+> Actualizado 07/10/2026 (punto 1 de "Mi proceso", "Tu situación", en producción; punto 0 en producción y comprobado; textos "Pack" en la web; idea "Alertas al móvil"; propuesta "Modos, plan del día y tablero en directo", pendiente nº 3). Antes, 06/10/2026, noche (Diario al instante desde `ea_trades`, bloque "Hoy" y plan del trader en producción; **un push a `main` despliega solo**). Antes, 06/10 (cierre de sesión: decisiones y pendientes abajo; "Edge por cuenta"; "Mis reglas"; propuesta "Mi proceso"). Antes: 05/10/2026 (post_cierre automatizado con tarea programada; fallo 5 de la EA). Antes: 02/10/2026. **FASE 2 en producción** (primer deploy `cdede9a` /
 > `aurum-velare-cw5la96zd`; el anterior a la FASE 2, para rollback, era
 > `aurum-velare-9hp3r9l3q`). Criterios de análisis hoy: **v6**. FASE 1
 > terminada el 29/09 (298 trades, en seco).
@@ -36,7 +36,7 @@
    Después, **fusionar `feature/ea-sync` en `main`**.
 2. **Siguiente gran paso: rehacer "Mi proceso"** (sección "Mi proceso: Tu
    situación y barra por días limpios", justo debajo). Orden 0-1-2-3; cada
-   fase se enseña antes de desplegar. **Punto 0 hecho (07/10, en producción).**
+   fase se enseña antes de desplegar. **Puntos 0 y 1 hechos (07/10, en producción).**
 3. **Modos, plan del día y tablero en directo** (sección "Modos, plan del día
    y tablero en directo (propuesta 07/10)", debajo de la de "Mi proceso").
    Propuesta sin código; la vista Directo espera la maqueta y la plantilla del
@@ -61,8 +61,9 @@
 Pendiente menor: el admin se reconoce por email en el SQL de Mis reglas (ver
 sección Mis reglas); cambiarlo cuando haya más de un admin.
 
-Pendiente menor: **Mi gestión no se adapta a móvil** (la página se desplaza de
-lado; ya pasaba antes del 07/10). No tocar ahora.
+Pendiente menor: **Mi gestión y Mi proceso no se adaptan a móvil** (Mi
+gestión se desplaza de lado; en Mi proceso la columna central queda casi sin
+ancho; ya pasaba antes del 07/10). No tocar ahora.
 
 ---
 
@@ -185,7 +186,8 @@ TU NIVEL                              ██████████████
 0. **HECHO (07/10, en producción).** Bugs pequeños de la página: "→ Confianza"
    fijo, "desde el 1 feb 2026" fijo, "real" frente a "simulado", etapa 0
    imposible, subtítulos de retos vacíos. Ver "Punto 0 de Mi proceso (07/10)".
-1. "Tu situación" con solo `trades`: rentable por cuenta + mes a mes.
+1. **HECHO (07/10, en producción).** "Tu situación" con solo `trades`:
+   rentable por cuenta + mes a mes. Ver "Punto 1 de Mi proceso (07/10)".
 2. Aciertos, errores y regla de la semana (`_daConclusionesTodas()`).
 3. Barra por días limpios + aviso "listo" en el admin.
 
@@ -230,9 +232,56 @@ WR, P&L, OZT, % de ciclo) ni de textos de "Pack".
 - **Avisos de salas (07/10, `b1497a0`, deploy `aurum-velare-psjtsx4ez`):** los
   7 avisos de las salas en `index.html`, el de `salas.js` y el error 403 de
   `api/livekit-token.js` dicen "Necesitas un Pack…" en vez de "Camino".
-  Quedan otros textos con "Camino" en la web (login "Camino requerido",
-  "¿Sin Camino?", "Ver los Caminos →", aviso de acceso de Mi proceso,
-  "Camino Umbral/Raíz/Senda" en `valor.html`) — sin tocar, no pedido.
+- **Resto de textos "Pack" (07/10, `cbc5e7a`, deploy `aurum-velare-af296lnjo`):**
+  login ("Pack requerido", "¿Sin Pack?", "Ver los Packs →"), aviso de acceso a
+  Mi proceso / Mi gestión y "Pack Umbral / Raíz / Senda" en `valor.html`
+  (precios, FAQ y datos estructurados). Quedan con "Camino" solo el Camino de
+  Santiago (Tablillas) y "✦ Camino matemático a la Etapa 5" (Equity: es un
+  recorrido, no el Pack).
+
+---
+
+## Punto 1 de Mi proceso: "Tu situación" (07/10) — EN PRODUCCIÓN
+
+Rama `feature/tu-situacion` (`98df2ae`), merge en `main` `53492fe`, deploy
+`aurum-velare-qjyev8ixu` (copia limpia). Enseñado antes en local con los
+trades reales del usuario (export de `trades` del 06/10, 1.709 filas, solo
+lectura; perfil simulado) y cifras verificadas con un cálculo aparte en
+Python. **Pendiente de que el usuario lo compruebe con su sesión.**
+
+- Módulo `tu-situacion.js` (aislado, solo lee `AURUM_TRADES`, `usuarioActual`
+  y `_fechaRealTrade`); bloque `#tu-situacion` tras el saludo de Mi proceso;
+  `app.js` solo añade la llamada `buildTuSituacion()` tras
+  `buildDashboardHero()`. Los 4 números de siempre pasan debajo, más pequeños
+  (mismos ids y cálculos).
+- Por Maestra / Prueba / Retos, últimos 90 días (`TS_DIAS_VENTANA`): P&L,
+  trades, PF, $/trade y veredicto: Rentable = P&L > 0 y PF ≥ 1,1; En
+  equilibrio = PF 0,9–1,1; No rentable = resto; menos de 30 trades → "Sin
+  trades suficientes (n de 30)". Evolución mes a mes: últimos 6 meses con
+  pestaña por cuenta, mes en curso marcado. Pulsar una cuenta abre el Diario
+  en esa cuenta.
+- **Cuentas:** mismo criterio que las pestañas de Mi gestión
+  (`getTradesActivos()`): número del admin (`usuarios_aurum.cuenta_*`) →
+  trades con ese `cuenta_numero`; sin número → trades con la carpeta en
+  `cuenta`; sin nada → "Sin cuenta asignada".
+- Mes = día del trade (`fp` / `fecha`): `trades` no guarda el cierre.
+- Con los datos reales (07/10): Maestra +2.351 $ · 72 trades · PF 1,58 →
+  Rentable; Prueba −185 $ · 78 · PF 0,98 → En equilibrio; Retos sin cuenta.
+- **Retos (aclarado 07/10):** el usuario perdió la 179003 y hoy no tiene
+  cuenta de Retos. En el export del 06/10 sus 30 trades están como "Cuenta
+  Externa", lo que encaja con que ya se quitó del admin (al vaciar el campo,
+  `_reasignarCuentaExterna` pasa los trades de "Cuenta Retos" a Externa). No
+  comprobado en Supabase. Si siguiera puesta: Admin → Editar usuario → vaciar
+  "Cuenta Retos" → Guardar cambios.
+- **Criterios distintos en la web (sin tocar):** las tarjetas de cuenta del
+  Trade Record (`buildDashboardHero`, `statsCuenta`) cuentan por la etiqueta
+  `cuenta` ("Cuenta Retos"…), no por número; por eso Retos sale "+0 $ · Sin
+  trades" aunque el admin tuviera un número. Las pestañas de Mi gestión y "Tu
+  situación" usan número y, si no hay, etiqueta; el Diario, solo el número.
+  Coinciden mientras el admin y las etiquetas estén al día (el guardado del
+  admin reetiqueta los trades).
+- En móvil, la columna central de Mi proceso queda casi sin ancho (toda la
+  página, anterior a este cambio; pendiente menor de móvil).
 
 ---
 
