@@ -279,6 +279,7 @@ async function actualizarDashboard() {
   console.log('[AURUM] trades recibidos:', allData.length, '| primer usuario_email en datos:', allData[0] && allData[0].usuario_email);
   window.AURUM_TRADES = { todos: allData };
   if (typeof buildDashboardHero         === 'function') buildDashboardHero();
+  if (typeof buildTuSituacion           === 'function') buildTuSituacion();
   if (typeof buildCicloDots             === 'function') buildCicloDots();
   if (typeof buildHorarios              === 'function') buildHorarios();
   if (typeof buildEquity                === 'function') buildEquity();

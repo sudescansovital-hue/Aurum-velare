@@ -1234,3 +1234,31 @@ tr:hover td { background: #0E1020; }
 }
 .sala-tab:hover { color: var(--gold-dim); }
 .sala-tab-activo { color: var(--gold); border-bottom-color: var(--gold); }
+
+/* ===== TU SITUACIÓN (Mi proceso, tu-situacion.js) ===== */
+.tu-situacion:empty { display: none; }
+.tu-situacion { border: 1px solid var(--border-gold); background: var(--bg2); padding: 1rem 1.2rem; margin-bottom: 1rem; position: relative; }
+.tu-situacion .ts-cab { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; flex-wrap: wrap; margin-bottom: .6rem; }
+.tu-situacion .ts-hora { font-size: 12px; color: var(--text-muted); }
+.tu-situacion .ts-cuentas { display: flex; flex-direction: column; gap: 1px; background: var(--border); margin-bottom: 1rem; }
+.tu-situacion .ts-cuenta { background: var(--bg); padding: .6rem .8rem; display: grid; grid-template-columns: 1fr auto; gap: .1rem 1rem; align-items: baseline; }
+.tu-situacion .ts-cuenta[onclick] { cursor: pointer; }
+.tu-situacion .ts-cuenta[onclick]:hover { background: #0E1020; }
+.tu-situacion .ts-nombre { font-size: 12px; letter-spacing: .2em; color: var(--gold-dim); }
+.tu-situacion .ts-ver { font-size: 12px; letter-spacing: .15em; text-transform: uppercase; text-align: right; }
+.tu-situacion .ts-linea { grid-column: 1 / -1; font-size: 14px; color: var(--text-dim); }
+.tu-situacion .ts-mes-cab { display: flex; justify-content: space-between; align-items: center; gap: .6rem; flex-wrap: wrap; margin-bottom: .5rem; }
+.tu-situacion .ts-sub { font-size: 11px; letter-spacing: .25em; text-transform: uppercase; color: var(--text-muted); }
+.tu-situacion .ts-chips { display: flex; gap: .3rem; flex-wrap: wrap; }
+.tu-situacion .ts-chip { background: transparent; border: 1px solid var(--border); color: var(--text-muted); font: inherit; font-size: 11px; letter-spacing: .1em; padding: .2rem .6rem; cursor: pointer; }
+.tu-situacion .ts-chip.activo { border-color: var(--gold); color: var(--gold); }
+.tu-situacion .ts-meses { display: grid; grid-template-columns: repeat(6, 1fr); gap: 1px; background: var(--border); }
+.tu-situacion .ts-mes { background: var(--bg); padding: .5rem .6rem; text-align: center; }
+.tu-situacion .ts-mes-nombre { font-size: 12px; color: var(--text-muted); }
+.tu-situacion .ts-mes-nombre span { font-size: 10px; }
+.tu-situacion .ts-mes-pnl { font-family: 'Cormorant Garamond', serif; font-size: 22px; line-height: 1.2; }
+.tu-situacion .ts-mes-n { font-size: 11px; color: var(--text-muted); }
+.tu-situacion .ts-base { margin-top: .8rem; font-size: 11px; color: var(--text-muted); line-height: 1.6; }
+@media (max-width: 700px) {
+  .tu-situacion .ts-meses { grid-template-columns: repeat(3, 1fr); }
+}
