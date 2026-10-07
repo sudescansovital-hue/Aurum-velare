@@ -42,6 +42,11 @@
   `tu-situacion.js` (solo `trades`): rentable por cuenta en 90 días (PF ≥ 1,1)
   y P&L mes a mes; cuentas con el criterio de `getTradesActivos()`; Retos
   "Sin cuenta asignada" (la 179003 se perdió). Detalle en ESTADO.md.
+- **Etapas v2 (propuesta, SQL sin aplicar)**: criterios por etapa editables
+  por el admin (`etapa_criterios` + historial), cada uno con su barra, "listo"
+  cuando todos al 100 % y aviso "⚠ no mantiene" en el admin; la etapa la sigue
+  cambiando el admin. SQL `tools/post_cierre/sql_etapas_v2.sql` en la rama
+  `feature/etapas-v2`, probado en PGlite. Pendiente nº 3 de ESTADO.md.
 - **Mi proceso, punto 3 — EN PRODUCCIÓN** (`11e507b`, merge `1e8105d`, deploy
   `aurum-velare-fd3wej9tm`): barra de etapa por días limpios (`dias-limpios.js`)
   en "Tu nivel" (Mi proceso y Mi gestión) y "Nivel actual": días limpios desde

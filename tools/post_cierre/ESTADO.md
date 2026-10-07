@@ -1,6 +1,6 @@
 # Estado — análisis post-cierre: FASE 1 (examen de la EA) + FASE 2 (Diario web)
 
-> Actualizado 07/10/2026 (punto 3 de "Mi proceso" en producción: barra de etapa por días limpios; "Mi proceso" completo; punto 2 en producción: aciertos, errores y regla de la semana; base de los MODOS en producción: plan del día, modo de cada trade y plan frente a realidad; punto 1 de "Mi proceso", "Tu situación", en producción; punto 0 en producción y comprobado; textos "Pack" en la web; idea "Alertas al móvil"; propuesta "Modos, plan del día y tablero en directo", pendiente nº 3). Antes, 06/10/2026, noche (Diario al instante desde `ea_trades`, bloque "Hoy" y plan del trader en producción; **un push a `main` despliega solo**). Antes, 06/10 (cierre de sesión: decisiones y pendientes abajo; "Edge por cuenta"; "Mis reglas"; propuesta "Mi proceso"). Antes: 05/10/2026 (post_cierre automatizado con tarea programada; fallo 5 de la EA). Antes: 02/10/2026. **FASE 2 en producción** (primer deploy `cdede9a` /
+> Actualizado 07/10/2026 (ETAPAS v2 propuesta y SQL preparado sin aplicar, pendiente nº 3; punto 3 de "Mi proceso" en producción: barra de etapa por días limpios; "Mi proceso" completo; punto 2 en producción: aciertos, errores y regla de la semana; base de los MODOS en producción: plan del día, modo de cada trade y plan frente a realidad; punto 1 de "Mi proceso", "Tu situación", en producción; punto 0 en producción y comprobado; textos "Pack" en la web; idea "Alertas al móvil"; propuesta "Modos, plan del día y tablero en directo", pendiente nº 3). Antes, 06/10/2026, noche (Diario al instante desde `ea_trades`, bloque "Hoy" y plan del trader en producción; **un push a `main` despliega solo**). Antes, 06/10 (cierre de sesión: decisiones y pendientes abajo; "Edge por cuenta"; "Mis reglas"; propuesta "Mi proceso"). Antes: 05/10/2026 (post_cierre automatizado con tarea programada; fallo 5 de la EA). Antes: 02/10/2026. **FASE 2 en producción** (primer deploy `cdede9a` /
 > `aurum-velare-cw5la96zd`; el anterior a la FASE 2, para rollback, era
 > `aurum-velare-9hp3r9l3q`). Criterios de análisis hoy: **v6**. FASE 1
 > terminada el 29/09 (298 trades, en seco).
@@ -38,29 +38,34 @@
    situación y barra por días limpios", justo debajo). Orden 0-1-2-3; cada
    fase se enseña antes de desplegar. **HECHO: puntos 0, 1, 2 y 3 en
    producción (07/10).** Queda comprobar el 3 con la sesión del usuario.
-3. **Modos, plan del día y tablero en directo** (sección "Modos, plan del día
+3. **Etapas v2** (sección "Etapas v2 (propuesta 07/10)", debajo de la de "Mi
+   proceso"): criterios por etapa editables por el admin, cada uno con su
+   barra, y aviso "no mantiene". SQL preparado y probado
+   (`tools/post_cierre/sql_etapas_v2.sql`, rama `feature/etapas-v2`), **sin
+   aplicar: lo revisa el usuario**. Después, la web.
+4. **Modos, plan del día y tablero en directo** (sección "Modos, plan del día
    y tablero en directo (propuesta 07/10)", debajo de la de "Mi proceso").
    **Base hecha y en producción (07/10)**: tablas, plan del día, modo de cada
    trade y plan frente a realidad (ver "Modos: base en producción"). Falta lo
    que depende de la plantilla del usuario: normas por modo (`modo_id` en
    `reglas_valores`), escalado con suelo y tablero; la vista Directo espera
    además la maqueta.
-4. **Mis reglas, fase 3:** panel del admin con candado. Ojo: con el trigger
+5. **Mis reglas, fase 3:** panel del admin con candado. Ojo: con el trigger
    actual, si el admin fija un nivel más estricto el usuario ya no puede editar
    su fila de ese nivel (ni el nombre ni el plan) sin bajar antes el importe;
    resolverlo al hacer esta fase (ver "Diario al instante y plan del trader").
-5. **Frase del runner con cada parcial por separado.**
-6. **Punto 4 — velas desde la EA y análisis en el servidor** (sección
+6. **Frase del runner con cada parcial por separado.**
+7. **Punto 4 — velas desde la EA y análisis en el servidor** (sección
    "Siguiente gran paso (02/10)", pasos 3 y 4).
-7. **Capturas por trade** en la carpeta local del usuario (ver "Junto a este
+8. **Capturas por trade** en la carpeta local del usuario (ver "Junto a este
    paso" más abajo y "vincular capturas a cada trade" en Siguiente paso).
-8. **Rango y recorrido diario en pts.**
-9. **Rehacer Evalúame.**
-10. **Guía "Cómo funciona Aurum".**
-11. **Alertas al móvil** (sección "Alertas al móvil (idea 07/10)", debajo de
+9. **Rango y recorrido diario en pts.**
+10. **Rehacer Evalúame.**
+11. **Guía "Cómo funciona Aurum".**
+12. **Alertas al móvil** (sección "Alertas al móvil (idea 07/10)", debajo de
    la de "Modos…"). Fase 1 no toca la EA; fases 2 y 3 esperan a fusionar
    `feature/ea-sync`. (Movido casi al final el 07/10, a petición del usuario.)
-12. **Modo claro.**
+13. **Modo claro.**
 
 Pendiente menor: el admin se reconoce por email en el SQL de Mis reglas (ver
 sección Mis reglas); cambiarlo cuando haya más de un admin.
@@ -144,7 +149,7 @@ TU SITUACIÓN · actualizado hoy 09:12
   semana. Sin tabla nueva. Más adelante el admin podría fijarla (fase 3 de Mis
   reglas).
 - **Ojo:** aciertos/errores/regla solo existen con trades auditados por la EA
-  (hoy solo `POST_CIERRE_EMAIL`, pendiente 6); para otros usuarios: "Disponible
+  (hoy solo `POST_CIERRE_EMAIL`, pendiente 7); para otros usuarios: "Disponible
   cuando tus trades pasen por la EA". Y `_daCargar()` sale sin esperar si ya está
   cargando: compartir la carga con el Diario, no duplicarla.
 
@@ -244,6 +249,86 @@ WR, P&L, OZT, % de ciclo) ni de textos de "Pack".
   (precios, FAQ y datos estructurados). Quedan con "Camino" solo el Camino de
   Santiago (Tablillas) y "✦ Camino matemático a la Etapa 5" (Equity: es un
   recorrido, no el Pack).
+
+---
+
+## Etapas v2 (propuesta 07/10) — SQL preparado, SIN APLICAR
+
+Pendiente nº 3. Va **encima del punto 3** (días limpios) sin romperlo: los
+días limpios pasan a ser uno de los criterios. Nada de esto cambia
+`usuarios_aurum.etapa` ni la forma de asignar/guardar etapas: el admin sigue
+decidiendo (guardar etapa → `etapa_historial`). No toca la EA.
+
+**Idea (decidida por el usuario, 07/10):**
+- Cada etapa tiene sus criterios, cada uno con su barra. % de la etapa = media
+  de sus criterios (cada uno topado al 100 %). "✦ Listo para revisión" solo
+  cuando TODOS llegan al 100 %. Criterios editables por el admin.
+- Todo se cuenta desde el último cambio de etapa (`etapa_historial`). Los de
+  plan del día y modos, además, solo desde el 07/10/2026 (antes no existían).
+- Criterios iniciales (cada etapa mantiene lo de las anteriores):
+  - Descubrimiento / Silencio: EA conectada (`tiene_ea`), reglas definidas en
+    Mis reglas, 10 días operados.
+  - Umbral / Estructura: + 20 días limpios.
+  - Fractura: + plan del día elegido antes del primer trade en el 90 % de los
+    días operados.
+  - Claridad: + 80 % de trades con modo (plan o corrección a mano) + cumplir
+    la regla de la semana 3 semanas seguidas.
+  - Consistencia: + 80 % de días limpios en los últimos 30 días operados.
+  - Confianza: + 60 días sin llegar al nivel de pérdida más alto («Cierre
+    obligatorio»).
+  - Rentabilidad: + una cuenta con PF ≥ 1,1 y ≥ 100 trades en los últimos 90
+    días.
+  - Vuelo / Oro: + rentable (PF ≥ 1,1) 3 trimestres seguidos, sin perder el
+    criterio de Confianza.
+- **Aviso en el admin (pedido 07/10):** si un usuario deja de cumplir los
+  criterios de su etapa ACTUAL 3 semanas seguidas → "⚠ no mantiene
+  «Claridad»". Nunca baja la etapa solo: decide el admin.
+
+**SQL** `tools/post_cierre/sql_etapas_v2.sql` (rama `feature/etapas-v2`,
+`bfd4d30`), **NO aplicado**:
+- `etapa_criterios`: una fila por criterio y etapa (0–11), con `tipo`,
+  `objetivo`, `parametros` (JSON: `desde`, `ventana`, `pf`, `ventana_dias`),
+  `nombre` visible, `orden`, `activo`. Filas explícitas por etapa (los de las
+  anteriores incluidos) para que el admin cambie una etapa sin tocar las demás.
+  Tipos: `ea_conectada`, `reglas_definidas`, `dias_operados`, `dias_limpios`,
+  `plan_antes_primer_trade`, `trades_con_modo`, `regla_semana_seguidas`,
+  `pct_dias_limpios`, `dias_sin_nivel_maximo`, `cuenta_rentable`,
+  `trimestres_rentables` (los calcula la web; el SQL solo guarda objetivos).
+- `etapa_criterios_historial` (automático, solo lo lee el admin).
+- RLS: cualquier usuario con sesión lee los criterios; solo el admin escribe.
+- Valores iniciales: cada criterio se define una vez con la etapa desde la que
+  se exige y se copia a las siguientes: 84 filas (0:3 1:3 2:4 3:4 4:5 5:7 6:8
+  7:9 8:9 9:10 10:11 11:11). Idempotente.
+- Probado en PGlite: 30 comprobaciones OK (ver la cabecera del SQL).
+
+**Interpretaciones a confirmar al revisar el SQL** (fáciles de cambiar):
+1. Los criterios de una etapa son lo que hay que cumplir ESTANDO en ella para
+   pasar a la siguiente (Descubrimiento = EA + reglas + 10 días → Silencio).
+2. **Paciencia (8)** no estaba en la lista: lleva lo mismo que Confianza.
+   **Oro (11)** es la última: lleva lo mismo que Vuelo (sin "siguiente", sirve
+   para el aviso de "no mantiene").
+3. "60 días sin «Cierre obligatorio»" = racha actual de días OPERADOS seguidos
+   sin llegar al último nivel de pérdida diaria (no días de calendario).
+4. "3 trimestres seguidos" = trimestres naturales (ene–mar…), en una MISMA
+   cuenta, PF ≥ 1,1; "una cuenta" de Rentabilidad = cualquiera de las tres
+   carpetas o externa.
+5. "Cumplir la regla de la semana": la semana cuenta como cumplida si no hubo
+   incumplimiento de esa regla (si no se dio la situación, también cuenta) y
+   hubo al menos un día operado. Pendiente de definir en la web.
+6. Rentabilidad: "últimos 90 días" a partir del último cambio de etapa (si el
+   cambio es más reciente, ventana más corta).
+7. **"No mantiene"**: ¿"los criterios de su etapa ACTUAL" son los que le
+   hicieron llegar a ella (los de la etapa anterior: estando en Claridad, los
+   de Fractura) o los de la propia etapa (los que necesita para pasar)?
+   Propuesta: los de la anterior (es lo que "mantener" significa); con los de
+   la propia etapa casi todos saldrían en aviso al empezar. Sin tabla nueva:
+   la web lo recalcula con los datos hasta el domingo de cada una de las 3
+   últimas semanas (EA y reglas, con el estado actual). Las 3 semanas, en una
+   constante.
+
+**Después de aplicarlo (paso 3):** en Mi proceso, cada criterio con su barra
+(qué falta para la siguiente etapa); en el admin, cada criterio por usuario +
+"✦ listo" + "⚠ no mantiene"; editor de criterios en el admin.
 
 ---
 
@@ -435,7 +520,7 @@ las tablas sin recargar el esquema (comprobado con la clave pública: 200).
 
 ## Modos, plan del día y tablero en directo (propuesta 07/10) — PROPUESTA, sin código
 
-Pendiente nº 3, después de "Mi proceso". Nada de esto está implementado. Todo
+Pendiente nº 4, después de "Etapas v2". Lo que no es la base de los modos (ver "Modos: base en producción") no está implementado. Todo
 son AVISOS: Aurum no cierra ni bloquea nada; el trader decide.
 
 ### A) Modos de operación y plan del día
@@ -606,7 +691,7 @@ plantilla del usuario).
 
 ## Alertas al móvil (idea 07/10) — IDEA, sin código
 
-Pendiente nº 11. Siguen siendo avisos salvo la fase 3, que exige decisión
+Pendiente nº 12. Siguen siendo avisos salvo la fase 3, que exige decisión
 expresa del usuario.
 
 - **Fase 1 — Alertas de reglas (no tocan la EA).** Con los eventos que ya
@@ -632,7 +717,7 @@ expresa del usuario.
 
 ---
 
-## Siguiente gran paso (02/10) — pasos 1 y 2 hechos el 05/10; 3 y 4 = pendiente 6
+## Siguiente gran paso (02/10) — pasos 1 y 2 hechos el 05/10; 3 y 4 = pendiente 7
 
 **Que el análisis post-cierre funcione para cualquier usuario solo con la
 EA**, sin depender de `post_cierre.py` en el PC de Roderas con MT5 abierto
