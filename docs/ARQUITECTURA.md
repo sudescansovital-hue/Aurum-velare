@@ -9,6 +9,22 @@
 
 > Detalle en `tools/post_cierre/ESTADO.md`. Resumen aquí.
 
+- **Noche — EN PRODUCCIÓN** (`011fe93`, deploy `aurum-velare-awe9gylb8`
+  desde copia limpia):
+  - **Mis reglas, fase 3:** panel del admin (botón "Reglas" en cada usuario:
+    lo suyo, tope del admin por carpeta, lo que se aplica, últimos cambios) y
+    candado en la pantalla del usuario. SQL `sql_mis_reglas_v3_candado.sql`
+    (el tope solo frena subir el importe; nombre y plan siempre editables).
+  - **Normas por modo, fase 1:** `normas-modo.js` (nuevo) dentro de Mis
+    reglas: pestaña por modo + "Gestionar modos"; tabla `modo_normas` (JSONB
+    validado por trigger, historial, candado del admin) en vez de `modo_id`
+    en `reglas_valores`. Campos [A] = medibles con la EA (medición, fase 2).
+  - **Etapas:** plan del día y modos cuentan desde el 08/10/2026.
+  - **`feature/ea-sync` fusionada** (`a953c03`): EA 1.04 confirmada con los
+    logs del 05–07/10 (MFE/MAE, BE a 1 pt, reconciliación tras 8 h sin
+    conexión). No cambia la web ni hay que tocar MT5.
+  - Scripts nuevos en la web: `normas-modo.js` (antes de `mis-reglas.js`).
+
 - **Propuesta "Modos, plan del día y tablero en directo"** (sin código,
   pendiente nº 3 de ESTADO.md): el trader elige cada día modo (Scalping /
   Testeo / Estructura) y sesgo; normas por modo en Mis reglas (modo > cuenta >

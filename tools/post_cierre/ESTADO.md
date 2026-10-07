@@ -1,6 +1,6 @@
 # Estado — análisis post-cierre: FASE 1 (examen de la EA) + FASE 2 (Diario web)
 
-> Actualizado 07/10/2026 (ETAPAS v2 EN PRODUCCIÓN: SQL aplicado por el usuario y web (Mi proceso + admin); antes, revisión 2 del SQL; punto 3 de "Mi proceso" en producción: barra de etapa por días limpios; "Mi proceso" completo; punto 2 en producción: aciertos, errores y regla de la semana; base de los MODOS en producción: plan del día, modo de cada trade y plan frente a realidad; punto 1 de "Mi proceso", "Tu situación", en producción; punto 0 en producción y comprobado; textos "Pack" en la web; idea "Alertas al móvil"; propuesta "Modos, plan del día y tablero en directo", pendiente nº 3). Antes, 06/10/2026, noche (Diario al instante desde `ea_trades`, bloque "Hoy" y plan del trader en producción; **un push a `main` despliega solo**). Antes, 06/10 (cierre de sesión: decisiones y pendientes abajo; "Edge por cuenta"; "Mis reglas"; propuesta "Mi proceso"). Antes: 05/10/2026 (post_cierre automatizado con tarea programada; fallo 5 de la EA). Antes: 02/10/2026. **FASE 2 en producción** (primer deploy `cdede9a` /
+> Actualizado 07/10/2026, noche (MIS REGLAS FASE 3 y NORMAS POR MODO FASE 1 EN PRODUCCIÓN, `011fe93`, deploy `aurum-velare-awe9gylb8`; SQL candado v3, normas por modo y `desde` 08/10 aplicados por el usuario; `feature/ea-sync` FUSIONADA en `main`). Antes, 07/10 (ETAPAS v2 EN PRODUCCIÓN: SQL aplicado por el usuario y web (Mi proceso + admin); antes, revisión 2 del SQL; punto 3 de "Mi proceso" en producción: barra de etapa por días limpios; "Mi proceso" completo; punto 2 en producción: aciertos, errores y regla de la semana; base de los MODOS en producción: plan del día, modo de cada trade y plan frente a realidad; punto 1 de "Mi proceso", "Tu situación", en producción; punto 0 en producción y comprobado; textos "Pack" en la web; idea "Alertas al móvil"; propuesta "Modos, plan del día y tablero en directo", pendiente nº 3). Antes, 06/10/2026, noche (Diario al instante desde `ea_trades`, bloque "Hoy" y plan del trader en producción; **un push a `main` despliega solo**). Antes, 06/10 (cierre de sesión: decisiones y pendientes abajo; "Edge por cuenta"; "Mis reglas"; propuesta "Mi proceso"). Antes: 05/10/2026 (post_cierre automatizado con tarea programada; fallo 5 de la EA). Antes: 02/10/2026. **FASE 2 en producción** (primer deploy `cdede9a` /
 > `aurum-velare-cw5la96zd`; el anterior a la FASE 2, para rollback, era
 > `aurum-velare-9hp3r9l3q`). Criterios de análisis hoy: **v6**. FASE 1
 > terminada el 29/09 (298 trades, en seco).
@@ -33,7 +33,17 @@
    MFE/MAE (fallo 1), el breakeven (fallo 3) y los avisos de niveles en el
    Diario. Además, comprobar con la sesión del usuario el Diario al instante y
    el plan (lista en la sección "Diario al instante y plan del trader").
-   Después, **fusionar `feature/ea-sync` en `main`**.
+   Después, **fusionar `feature/ea-sync` en `main`**. **HECHO (07/10,
+   noche):** revisión de los logs 05–07/10 (MFE/MAE en los 5 cierres en
+   directo; BE con el umbral de 1 pt; cierre de 23847966 recuperado por la
+   reconciliación periódica tras 8 h sin conexión) y merge `a953c03`
+   (conflictos de `ARQUITECTURA.md` y `ESTADO.md` con la versión de `main`,
+   que ya contenía todo lo de la rama). La web no cambia (la rama solo traía
+   EA, `tools/`, `docs/` y `.sql`); en MT5 no hay que tocar nada (la EA que
+   corre en BD8B1008… es idéntica a la de `main`, salvo BOM/CRLF).
+   Pendiente menor: la cola de 7747760 guarda 2 reenvíos (de 07:49 del 07/10)
+   que salen al volver a cargar esa cuenta, y la 179003 (no es del usuario)
+   reintenta con 403 cada vez que se carga.
 2. **Siguiente gran paso: rehacer "Mi proceso"** (sección "Mi proceso: Tu
    situación y barra por días limpios", justo debajo). Orden 0-1-2-3; cada
    fase se enseña antes de desplegar. **HECHO: puntos 0, 1, 2 y 3 en
@@ -44,10 +54,12 @@
 4. **Modos, plan del día y tablero en directo** (sección "Modos, plan del día
    y tablero en directo (propuesta 07/10)", debajo de la de "Mi proceso").
    **Base hecha y en producción (07/10)**: tablas, plan del día, modo de cada
-   trade y plan frente a realidad (ver "Modos: base en producción"). Falta lo
-   que depende de la plantilla del usuario: normas por modo (`modo_id` en
-   `reglas_valores`), escalado con suelo y tablero; la vista Directo espera
-   además la maqueta.
+   trade y plan frente a realidad (ver "Modos: base en producción").
+   **Normas por modo, fase 1 (guardar y mostrar) EN PRODUCCIÓN (07/10,
+   noche)**: tabla `modo_normas` (no `modo_id` en `reglas_valores`; ver
+   "Normas por modo"). Falta: medición (cumplimiento por modo en el Diario,
+   suelo y lote máximo en vivo) y tablero; la vista Directo espera además la
+   maqueta.
 5. **Mis reglas, fase 3:** panel del admin con candado. Ojo: con el trigger
    actual, si el admin fija un nivel más estricto el usuario ya no puede editar
    su fila de ese nivel (ni el nombre ni el plan) sin bajar antes el importe;
@@ -59,7 +71,8 @@
    importe siempre se puede. Probado en PGlite sobre v1+v2 (30 comprobaciones:
    bug reproducido con v2 y resuelto con v3, RLS, vista e historial). El panel
    del admin no necesita más SQL (`rv_admin_all`, `rvh_admin_select`).
-   Pantallas: cuando el usuario aplique el SQL.
+   **HECHO (07/10, noche): SQL aplicado por el usuario y pantallas en
+   producción** (ver "Mis reglas", fase 3).
 6. **Frase del runner con cada parcial por separado.**
 7. **Punto 4 — velas desde la EA y análisis en el servidor** (sección
    "Siguiente gran paso (02/10)", pasos 3 y 4).
@@ -259,6 +272,11 @@ WR, P&L, OZT, % de ciclo) ni de textos de "Pack".
 ---
 
 ## Etapas v2: en producción (07/10)
+
+**07/10 (noche):** `parametros.desde` de plan antes del primer trade y trades
+con modo pasa a **2026-10-08** (SQL del usuario, 15 filas) para que los trades
+del 07/10, anteriores al plan, no cuenten ("0 de 1 días"); el pie de "Mi
+proceso" dice "desde el 08/10/2026" (`etapas.js`).
 
 **SQL** `tools/post_cierre/sql_etapas_v2.sql` (rama `feature/etapas-v2`,
 `1ae6793`) **aplicado por el usuario el 07/10**: criterios 102, por etapa 1:3
@@ -566,7 +584,7 @@ Python. **Pendiente de que el usuario lo compruebe con su sesión.**
 
 ---
 
-## Normas por modo (07/10) — fase 1: SQL preparado, SIN APLICAR
+## Normas por modo (07/10) — fase 1 EN PRODUCCIÓN (SQL aplicado + pantalla)
 
 Rama `feature/normas-modo`, `tools/post_cierre/sql_normas_modo.sql`. Pedido
 del usuario: normas por modo editables por cada usuario en Mis reglas (una
@@ -593,8 +611,28 @@ máximo en vivo) y el tablero, en fases siguientes.
 - RLS como `modos`. Borrar un modo sin uso borra sus normas (queda en el
   historial); desactivarlo no las toca.
 - Probado en PGlite: 69 comprobaciones OK.
-- **Siguiente:** cuando el usuario lo aplique, pantalla en Mis reglas
-  (pestañas por modo, "Gestionar modos", marcas [A]).
+- **SQL aplicado por el usuario el 07/10** (tablas 2, policies 7, triggers 2).
+- **Pantalla EN PRODUCCIÓN** (`011fe93`, deploy `aurum-velare-awe9gylb8`,
+  copia limpia), módulo nuevo `normas-modo.js` dentro de Mis reglas:
+  - Fila de pestañas: "Reglas por cuenta" (lo de antes), "Modo · X" por cada
+    modo activo y "⚙ Gestionar modos" (renombrar, añadir, activar/desactivar;
+    sin borrar). Tras guardar modos se actualiza la copia del Diario
+    (`_moModos`) para el plan del día y los filtros.
+  - Formulario por modo con las 9 secciones; todo opcional; marca **[A]** (azul)
+    en lo que Aurum podrá medir con la EA. Sí/no en desplegable con "—" (vacío
+    = no se mide). Horas con selector HH:MM (hora del servidor MT5). Importes
+    en formato español ("0,2", "1.500").
+  - Guardar: PATCH si ya hay fila, POST si no (**no upsert**: el trigger lo
+    trataría como alta y el candado frenaría importes ya guardados). Si el
+    servidor rechaza, "No se ha guardado: …" con su mensaje y el nombre del
+    campo de la pantalla (p. ej. «Lote inicial» fuera de rango; "el TP2 tiene
+    que estar más lejos que el TP1"); lo escrito se conserva. "No hay cambios"
+    compara sin importar el orden de las claves del jsonb.
+  - Probado en jsdom contra PGlite con los SQL reales (34 comprobaciones junto
+    con Mis reglas y el admin) + capturas con Chrome sin interfaz (escritorio y
+    móvil). **Pendiente de que el usuario lo compruebe con su sesión.**
+- **Siguiente (fase 2):** medición en el Diario (modo > cuenta > todas y
+  min(modo, tope del admin)), suelo y lote máximo en vivo; luego el tablero.
 
 ---
 
@@ -968,7 +1006,9 @@ confirmado en MT5 en solo lectura), con UNA posición abierta en 178497
   03/10): mismos eventos (27), cambios de SL (12) y de TP (7), **0 duplicados**,
   mismos precios de cierre y beneficios.
 
-**Pendiente (no fusionar `feature/ea-sync` en `main` hasta confirmarlo):**
+**Confirmado el 07/10 (noche) con los logs del 05–07/10 y fusionado en `main`
+(`a953c03`)** — fallos 1, 3 y 5 vistos con trades reales (ver pendiente nº 1);
+queda la prueba del `sl_change` duplicado. Lista original:
 - Fallo 1: en el próximo cierre real, la línea `[AURUM] Cierre` debe llevar
   `mfe_pts` / `mae_pts` y `ea_trades.mfe_*` / `mae_*` llegar con valor.
 - Fallo 3: en el próximo movimiento de SL, 'breakeven' solo a ±1 pt de la entrada
@@ -1251,7 +1291,7 @@ el importe).
 
 ---
 
-## Mis reglas (06/10) — fases 1 y 2 en producción; fase 3 pendiente
+## Mis reglas (06/10) — fases 1, 2 y 3 en producción
 
 El límite fijo `DA_LIMITE_PERDIDA_DIA` del Diario pasa a ser configurable por
 usuario. SQL: `tools/post_cierre/sql_mis_reglas.sql`, **aplicado en Supabase el
@@ -1272,7 +1312,19 @@ comprobaciones de RLS, candado e historial. Sustituye a
   capturas; pendiente de que el usuario la compruebe con su sesión). Verificada con los trades
   EA reales contra un cálculo independiente en Python (6 niveles, Maestra y
   Prueba) + 14 pruebas jsdom + la prueba anterior del Diario. Detalle abajo.
-- **Fase 3 — pendiente:** panel del admin y candado en la pantalla.
+- **Fase 3 — EN PRODUCCIÓN (07/10, noche):** SQL `sql_mis_reglas_v3_candado.sql`
+  aplicado por el usuario; web `011fe93`, deploy `aurum-velare-awe9gylb8`.
+  - **Admin:** botón "Reglas" en cada fila de usuarios → fila desplegable con
+    pestañas Todas / Maestra / Prueba / Retos y, por nivel: lo suyo (o "de
+    Todas"), el **tope del admin** (editable; vacío = sin tope en esa carpeta;
+    en una carpeta sin tope propio sale "Todas: X") y lo que se aplica (🔒 si
+    manda el admin), más los 8 últimos cambios del historial. Guardar crea,
+    cambia o borra filas `fijada_por = 'admin'`.
+  - **Usuario (candado en pantalla):** bajo el nivel con tope, "🔒 Tope del
+    admin: X $" y qué se aplica; el importe vacío muestra "Admin: X". Antes de
+    guardar se avisa con el mismo criterio que el trigger (alta o subida por
+    encima del tope); cambiar nombre/plan o bajar siempre se puede.
+  - Las normas por modo respetan los topes del admin (trigger de `modo_normas`).
 - **Plan del trader — EN PRODUCCIÓN (06/10, noche):** columna `plan` por nivel
   (`sql_mis_reglas_v2_plan.sql`) y bloque "Hoy" en el Diario. Ver la sección
   "Diario al instante y plan del trader".
