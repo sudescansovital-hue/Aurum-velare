@@ -142,10 +142,13 @@ function renderAdminTabla() {
       '<td style="' + th + '">' + estadoHtml + '</td>' +
       '<td style="' + th + '">' +
         '<button onclick="adminAbrirEditar(\'' + u.id + '\')" style="font-size:11px;padding:.3rem .8rem;background:transparent;border:1px solid var(--border-gold);color:var(--gold);cursor:pointer;letter-spacing:.05em;">Editar</button>' +
+        '<button onclick="mrAdminDetalle(' + i + ')" title="Mis reglas del usuario y topes del admin" style="font-size:11px;padding:.3rem .8rem;margin-left:.3rem;background:transparent;border:1px solid var(--border);color:var(--text-muted);cursor:pointer;letter-spacing:.05em;">Reglas</button>' +
       '</td>' +
     '</tr>' +
     // Etapas v2: criterios del usuario (etapas.js), plegado
-    '<tr id="adm-et-det-' + i + '" style="display:none;"><td colspan="12" class="etapa-siguiente" style="padding:.8rem 1.2rem;background:#0A0C14;"></td></tr>';
+    '<tr id="adm-et-det-' + i + '" style="display:none;"><td colspan="12" class="etapa-siguiente" style="padding:.8rem 1.2rem;background:#0A0C14;"></td></tr>' +
+    // Mis reglas fase 3: reglas del usuario y topes del admin (mis-reglas.js), plegado
+    '<tr id="adm-mr-det-' + i + '" style="display:none;"><td colspan="12" class="etapa-siguiente" style="padding:.8rem 1.2rem;background:#0A0C14;"></td></tr>';
   }).join('');
   // Etapas v2 junto a la etapa de cada usuario (etapas.js); sin la tabla de
   // criterios, los días limpios del punto 3 (dias-limpios.js). Se rellena después.

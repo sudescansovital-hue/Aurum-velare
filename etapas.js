@@ -9,7 +9,7 @@
 //   decide el admin (guardar etapa → etapa_historial).
 // - DISCIPLINA: desde el último cambio de etapa (punto 3: el día siguiente al
 //   cambio; sin cambios, desde la entrada en Aurum). Plan del día y modos,
-//   además, desde parametros.desde (07/10/2026).
+//   además, desde parametros.desde (08/10/2026: los trades del 07/10 son de antes del plan).
 // - RESULTADOS: ventanas móviles (últimos N días / últimos meses naturales
 //   completos), NO desde el cambio de etapa, y todos los de una etapa con la
 //   MISMA cuenta (se elige, entre Maestra / Prueba / Retos, la que más cerca
@@ -407,7 +407,7 @@ function _etPintarMiProceso(ev, etapa, sig) {
         '<span class="et-pct">' + ev.pct + ' % · ' + ev.cumplidos + ' de ' + ev.total + ' criterios</span></div>' +
       (ev.listo ? '<div class="et-listo">✦ Listo para revisión de etapa: el Águila revisará tu paso a «' + _etEsc(nomSig) + '».</div>' : '') +
       _etHtmlEvaluacion(ev, false) +
-      '<div class="et-pie">Los de disciplina cuentan desde tu último cambio de etapa (plan del día y modos, desde el 07/10/2026); los de resultados, ' +
+      '<div class="et-pie">Los de disciplina cuentan desde tu último cambio de etapa (plan del día y modos, desde el 08/10/2026); los de resultados, ' +
         'en ventanas móviles y todos con la misma cuenta. Son avisos: la etapa la cambia el Águila.</div>';
   }
   // Recuadro "Tu nivel" y tarjeta "Nivel actual": % de la etapa (media de los criterios).
