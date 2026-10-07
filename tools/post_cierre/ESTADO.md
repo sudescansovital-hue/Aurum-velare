@@ -558,6 +558,38 @@ Python. **Pendiente de que el usuario lo compruebe con su sesión.**
 
 ---
 
+## Normas por modo (07/10) — fase 1: SQL preparado, SIN APLICAR
+
+Rama `feature/normas-modo`, `tools/post_cierre/sql_normas_modo.sql`. Pedido
+del usuario: normas por modo editables por cada usuario en Mis reglas (una
+pestaña por modo + "Gestionar modos"), sin plantilla previa. Fase 1 = guardar
+y mostrar; la medición (cumplimiento por modo en el Diario, suelo y lote
+máximo en vivo) y el tablero, en fases siguientes.
+
+- **Tabla aparte, no `reglas_valores` con `modo_id`** (motivos en la cabecera
+  del SQL): las normas son ~40 campos casi todos texto/sí-no/horas/minutos y
+  niveles de escalado de 3 números, que no caben en "un importe > 0 por fila";
+  `reglas_efectivas` la leen Diario, días limpios y etapas agrupando solo por
+  carpeta (las filas por modo se mezclarían); y un formulario = una fila = un
+  guardado y una entrada de historial.
+- `modo_normas` (PK `modo_id`, FK compuesta a `modos`, `normas` JSONB) +
+  `modo_normas_historial` (automático). El trigger limpia (recorta textos,
+  quita vacíos) y valida (claves conocidas, tipos, rangos, coherencia:
+  TP2 > TP1, suelo < llegar y creciente, "otro" ⇔ %, horario/minutos en pareja).
+  Claves y marcas [A] (medible con datos de la EA) en la cabecera del SQL.
+- **Candado del admin** también aquí: la pérdida por trade y los niveles de
+  pérdida diaria del modo no pueden SUBIR por encima del tope del admin en
+  `reglas_valores` (modo de una carpeta: tope de esa carpeta o `todas`; modo
+  de `todas`: el más estricto). En la medición: modo > carpeta > todas, y
+  además min(modo, tope del admin).
+- RLS como `modos`. Borrar un modo sin uso borra sus normas (queda en el
+  historial); desactivarlo no las toca.
+- Probado en PGlite: 69 comprobaciones OK.
+- **Siguiente:** cuando el usuario lo aplique, pantalla en Mis reglas
+  (pestañas por modo, "Gestionar modos", marcas [A]).
+
+---
+
 ## Modos: base en producción (07/10)
 
 Lo que no depende de las normas de cada modo. No toca la EA ni
