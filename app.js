@@ -49,7 +49,7 @@ async function _activarSesion(email) {
   var el;
   el = document.getElementById('hist-global-trades'); if (el) el.textContent = '0';
   el = document.getElementById('hist-global-wr');     if (el) el.textContent = '0%';
-  el = document.getElementById('hist-global-pnl');    if (el) el.textContent = '+0$';
+  el = document.getElementById('hist-global-pnl');    if (el) { el.textContent = '+0$'; el.style.color = 'var(--green)'; }
 
   const packMap  = { umbral:'Pack Umbral', raiz:'Pack Raíz', senda:'Pack Senda', cima:'Pack Cima', demo:'Pack Demo' };
   const animalMap = { umbral:'🐝', raiz:'🌱', senda:'🦅', cima:'🦁', demo:'🐂' };
@@ -64,6 +64,7 @@ async function _activarSesion(email) {
     packSlug:   u.pack || null,
     packLevel:    u.etapa || 1,
     etapa:        u.etapa || 1,
+    etapa_real:   (u.etapa === null || u.etapa === undefined || u.etapa === '') ? null : Number(u.etapa),
     activo:       u.activo,
     fecha_entrada:  u.fecha_entrada  || null,
     cuenta_maestra:  u.cuenta_maestra  || null,
@@ -346,7 +347,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   var _he;
   _he = document.getElementById('hist-global-trades'); if (_he) _he.textContent = '0';
   _he = document.getElementById('hist-global-wr');     if (_he) _he.textContent = '0%';
-  _he = document.getElementById('hist-global-pnl');    if (_he) _he.textContent = '+0$';
+  _he = document.getElementById('hist-global-pnl');    if (_he) { _he.textContent = '+0$'; _he.style.color = 'var(--green)'; }
 
   const p = document.getElementById('login-pass');
   const e = document.getElementById('login-email');

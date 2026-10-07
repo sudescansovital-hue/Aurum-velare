@@ -13,7 +13,7 @@
 </head>
 <body>
 
-<div style="background:var(--gold);color:var(--bg);text-align:center;padding:.5rem 1rem;font-size:13px;letter-spacing:.15em;text-transform:uppercase;font-family:'Outfit',sans-serif;">
+<div style="position:relative;z-index:101;background:var(--gold);color:var(--bg);text-align:center;padding:.5rem 1rem;font-size:13px;letter-spacing:.15em;text-transform:uppercase;font-family:'Outfit',sans-serif;">
   ✦ 70% de descuento · Plazas limitadas · Código: AURUM11
 </div>
 
@@ -1225,7 +1225,7 @@
       </div>
       <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);">
         <span id="dash-nivel-pct">60%</span>
-        <span style="color:var(--text-muted);">→ Confianza</span>
+        <span style="color:var(--text-muted);" id="dash-nivel-next"></span>
       </div>
     </div>
 
@@ -1272,12 +1272,12 @@
           <div style="background:var(--bg2);padding:1rem 1.2rem;">
             <div style="font-size:11px;letter-spacing:.25em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.4rem;">P&L acumulado</div>
             <div id="dash-pnl-global" style="font-family:'Cormorant Garamond',serif;font-size:38px;color:var(--green);line-height:1;margin-bottom:.2rem;">+0$</div>
-            <div id="dash-pnl-global-sub" style="font-size:12px;color:var(--text-muted);">3 cuentas · entorno simulado</div>
+            <div id="dash-pnl-global-sub" style="font-size:12px;color:var(--text-muted);"></div>
           </div>
           <div style="background:var(--bg2);padding:1rem 1.2rem;">
             <div style="font-size:11px;letter-spacing:.25em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.4rem;">Días en proceso</div>
             <div style="font-family:'Cormorant Garamond',serif;font-size:38px;color:var(--text-dim);line-height:1;margin-bottom:.2rem;" id="dash-dias-proceso">101</div>
-            <div style="font-size:12px;color:var(--text-muted);">desde el 1 feb 2026</div>
+            <div style="font-size:12px;color:var(--text-muted);" id="dash-dias-desde"></div>
           </div>
         </div>
 
@@ -1298,7 +1298,7 @@
         <div class="stat-card highlight">
           <div class="stat-label">OZT acumulados</div>
           <div class="stat-val gold" style="font-size:32px;" id="dash-ozt">0</div>
-          <div class="stat-sub" id="dash-ozt-retos">0 retos completados</div>
+          <div class="stat-sub" id="dash-ozt-retos">Sin retos completados todavía</div>
         </div>
       </div>
 
@@ -1494,7 +1494,7 @@
       <div style="position:absolute;top:-30px;right:-30px;width:100px;height:100px;background:radial-gradient(circle,#C9A84C15,transparent 70%);pointer-events:none;"></div>
       <div class="tag-gold" style="display:block;margin-bottom:.3rem;">Tu saldo OZT</div>
       <div style="font-family:'Cormorant Garamond',serif;font-size:42px;color:var(--gold-bright);text-shadow:0 0 20px var(--gold-glow);line-height:1;margin-bottom:.2rem;" id="dash-ozt-widget">0</div>
-      <div style="font-size:12px;color:var(--text-muted);margin-bottom:1rem;" id="dash-ozt-widget-sub">0 retos ganados</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:1rem;" id="dash-ozt-widget-sub">Sin retos completados todavía</div>
       <div class="btn-outline" onclick="mostrarTab('ozt')" style="display:block;text-align:center;font-size:12px;padding:.5rem;">◈ Ver tienda OZT</div>
     </div>
 
@@ -1552,7 +1552,7 @@
   <div>
 
     <!-- TABS HORIZONTALES -->
-    <div style="display:flex;border-bottom:1px solid var(--border);background:var(--bg2);position:sticky;top:147px;z-index:90;margin-top:.5rem;">
+    <div style="display:flex;border-bottom:1px solid var(--border);background:var(--bg2);position:sticky;top:var(--nav-bottom, 147px);z-index:90;margin-top:.5rem;">
       <button class="tab active" id="gtab-trade-record" onclick="gestTab('trade-record')">Trade Record</button>
       <button class="tab" id="gtab-ciclo111" onclick="gestTab('ciclo111')">Ciclo 111</button>
       <button class="tab" id="gtab-horarios" onclick="gestTab('horarios')">Horarios</button>
@@ -2844,6 +2844,20 @@ function aplicarEspaciadoPaneles() {
 document.addEventListener('DOMContentLoaded', function() {
   setTimeout(aplicarEspaciadoPaneles, 200);
 });
+
+// Borde inferior real del menú fijo (con sesión iniciada tiene una fila más y
+// mide más que los 147px fijos): las barras pegajosas de Mi gestión y Mi
+// proceso se colocan justo debajo y no quedan tapadas por él.
+(function() {
+  var nav = document.querySelector('nav');
+  if (!nav) return;
+  function medir() {
+    document.documentElement.style.setProperty('--nav-bottom', Math.round(nav.getBoundingClientRect().bottom) + 'px');
+  }
+  medir();
+  if (typeof ResizeObserver === 'function') new ResizeObserver(medir).observe(nav);
+  window.addEventListener('resize', medir);
+})();
 </script>
 <script src="admin.js"></script>
 <!-- Modal edición de usuario (admin) -->
