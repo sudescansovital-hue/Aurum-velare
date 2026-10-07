@@ -42,6 +42,13 @@
   `tu-situacion.js` (solo `trades`): rentable por cuenta en 90 días (PF ≥ 1,1)
   y P&L mes a mes; cuentas con el criterio de `getTradesActivos()`; Retos
   "Sin cuenta asignada" (la 179003 se perdió). Detalle en ESTADO.md.
+- **Mi proceso, punto 3 — EN PRODUCCIÓN** (`11e507b`, merge `1e8105d`, deploy
+  `aurum-velare-fd3wej9tm`): barra de etapa por días limpios (`dias-limpios.js`)
+  en "Tu nivel" (Mi proceso y Mi gestión) y "Nivel actual": días limpios desde
+  el último cambio de etapa ÷ 20, calidad de los últimos 10 días, "✦ Listo
+  para revisión" (nunca cambia la etapa) y lista de días con su motivo; en el
+  admin, "15/20 · 80%" junto a la etapa. El % del ciclo queda solo en "Ciclo
+  actual".
 - **Mi proceso, punto 2 — EN PRODUCCIÓN** (`482e3e1`, merge `85a35a5`, deploy
   `aurum-velare-fp3t81g8c`): en "Tu situación", 3 aciertos y 3 errores con su
   coste y la regla de la semana (error que más cuesta hasta el domingo
