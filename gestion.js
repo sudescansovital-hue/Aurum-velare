@@ -1893,15 +1893,12 @@ function buildDashboardHero() {
   var numStr = (idx < 10 ? '0' : '') + idx;
   el = document.getElementById('dash-nivel-num');  if (el) el.textContent = numStr;
   el = document.getElementById('dash-nivel-name'); if (el) el.textContent = nombreActual;
-  el = document.getElementById('dash-nivel-fill'); if (el) el.style.width = pctCiclo + '%';
-  el = document.getElementById('dash-nivel-pct');  if (el) el.textContent = pctCiclo + '%';
+  // Barra y % del nivel: días limpios (dias-limpios.js, punto 3 de Mi proceso, 07/10).
+  // El % del ciclo de 111 queda solo en la tarjeta "Ciclo actual".
   el = document.getElementById('dash-nivel-card'); if (el) el.textContent = numStr + ' · ' + nombreActual;
-  el = document.getElementById('dash-nivel-sub');  if (el) el.textContent = pctCiclo + '% hacia ' + nombreSig;
   el = document.getElementById('dash-nivel-next'); if (el) el.textContent = '→ ' + nombreSig;
   el = document.getElementById('sidebar-nivel-num');  if (el) el.textContent = numStr;
   el = document.getElementById('sidebar-nivel-name'); if (el) el.textContent = nombreActual;
-  el = document.getElementById('sidebar-nivel-fill'); if (el) el.style.width = pctCiclo + '%';
-  el = document.getElementById('sidebar-nivel-pct');  if (el) el.textContent = pctCiclo + '%';
   el = document.getElementById('sidebar-nivel-next'); if (el) el.textContent = '→ ' + nombreSig;
 
   // Días en proceso general — desde registro en Aurum (created_at)
