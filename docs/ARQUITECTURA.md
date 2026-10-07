@@ -30,7 +30,14 @@
   no cambia), retos completados reales, P&L en rojo si es negativo (Mi
   proceso, Historial externo, Ciclo 111, tarjeta Maestra) y cabecera fija sin
   tapar contenido (`nav::before` + `--nav-bottom` para las barras pegajosas).
-  Detalle en ESTADO.md.
+  Detalle en ESTADO.md. Comprobado por el usuario con su sesión.
+- **Avisos de salas con "Pack"** (`b1497a0`, deploy `aurum-velare-psjtsx4ez`):
+  "Necesitas un Pack para entrar." (7 en `index.html`, 1 en `salas.js`) y el
+  403 de `api/livekit-token.js`.
+- **Idea "Alertas al móvil"** (pendiente nº 4 de ESTADO.md, sin código): fase 1
+  alertas de reglas por Telegram sin tocar la EA; fase 2 alertas de precio;
+  fase 3 bot que opera solo si la fase 2 demuestra ventaja y el usuario lo
+  decide. Fases 2 y 3 tras fusionar `feature/ea-sync`.
 
 ---
 

@@ -1,6 +1,6 @@
 # Estado — análisis post-cierre: FASE 1 (examen de la EA) + FASE 2 (Diario web)
 
-> Actualizado 07/10/2026 (punto 0 de "Mi proceso" en producción; propuesta "Modos, plan del día y tablero en directo", pendiente nº 3). Antes, 06/10/2026, noche (Diario al instante desde `ea_trades`, bloque "Hoy" y plan del trader en producción; **un push a `main` despliega solo**). Antes, 06/10 (cierre de sesión: decisiones y pendientes abajo; "Edge por cuenta"; "Mis reglas"; propuesta "Mi proceso"). Antes: 05/10/2026 (post_cierre automatizado con tarea programada; fallo 5 de la EA). Antes: 02/10/2026. **FASE 2 en producción** (primer deploy `cdede9a` /
+> Actualizado 07/10/2026 (punto 0 de "Mi proceso" en producción y comprobado; avisos "Pack"; idea "Alertas al móvil"; propuesta "Modos, plan del día y tablero en directo", pendiente nº 3). Antes, 06/10/2026, noche (Diario al instante desde `ea_trades`, bloque "Hoy" y plan del trader en producción; **un push a `main` despliega solo**). Antes, 06/10 (cierre de sesión: decisiones y pendientes abajo; "Edge por cuenta"; "Mis reglas"; propuesta "Mi proceso"). Antes: 05/10/2026 (post_cierre automatizado con tarea programada; fallo 5 de la EA). Antes: 02/10/2026. **FASE 2 en producción** (primer deploy `cdede9a` /
 > `aurum-velare-cw5la96zd`; el anterior a la FASE 2, para rollback, era
 > `aurum-velare-9hp3r9l3q`). Criterios de análisis hoy: **v6**. FASE 1
 > terminada el 29/09 (298 trades, en seco).
@@ -41,22 +41,28 @@
    y tablero en directo (propuesta 07/10)", debajo de la de "Mi proceso").
    Propuesta sin código; la vista Directo espera la maqueta y la plantilla del
    usuario.
-4. **Mis reglas, fase 3:** panel del admin con candado. Ojo: con el trigger
+4. **Alertas al móvil** (sección "Alertas al móvil (idea 07/10)", debajo de
+   la de "Modos…"). Fase 1 no toca la EA; fases 2 y 3 esperan a fusionar
+   `feature/ea-sync`.
+5. **Mis reglas, fase 3:** panel del admin con candado. Ojo: con el trigger
    actual, si el admin fija un nivel más estricto el usuario ya no puede editar
    su fila de ese nivel (ni el nombre ni el plan) sin bajar antes el importe;
    resolverlo al hacer esta fase (ver "Diario al instante y plan del trader").
-5. **Frase del runner con cada parcial por separado.**
-6. **Punto 4 — velas desde la EA y análisis en el servidor** (sección
+6. **Frase del runner con cada parcial por separado.**
+7. **Punto 4 — velas desde la EA y análisis en el servidor** (sección
    "Siguiente gran paso (02/10)", pasos 3 y 4).
-7. **Capturas por trade** en la carpeta local del usuario (ver "Junto a este
+8. **Capturas por trade** en la carpeta local del usuario (ver "Junto a este
    paso" más abajo y "vincular capturas a cada trade" en Siguiente paso).
-8. **Rango y recorrido diario en pts.**
-9. **Rehacer Evalúame.**
-10. **Guía "Cómo funciona Aurum".**
-11. **Modo claro.**
+9. **Rango y recorrido diario en pts.**
+10. **Rehacer Evalúame.**
+11. **Guía "Cómo funciona Aurum".**
+12. **Modo claro.**
 
 Pendiente menor: el admin se reconoce por email en el SQL de Mis reglas (ver
 sección Mis reglas); cambiarlo cuando haya más de un admin.
+
+Pendiente menor: **Mi gestión no se adapta a móvil** (la página se desplaza de
+lado; ya pasaba antes del 07/10). No tocar ahora.
 
 ---
 
@@ -133,7 +139,7 @@ TU SITUACIÓN · actualizado hoy 09:12
   semana. Sin tabla nueva. Más adelante el admin podría fijarla (fase 3 de Mis
   reglas).
 - **Ojo:** aciertos/errores/regla solo existen con trades auditados por la EA
-  (hoy solo `POST_CIERRE_EMAIL`, pendiente 6); para otros usuarios: "Disponible
+  (hoy solo `POST_CIERRE_EMAIL`, pendiente 7); para otros usuarios: "Disponible
   cuando tus trades pasen por la EA". Y `_daCargar()` sale sin esperar si ya está
   cargando: compartir la carga con el Diario, no duplicarla.
 
@@ -190,8 +196,8 @@ TU NIVEL                              ██████████████
 Rama `feature/mi-proceso` (`ebc7c41`), merge en `main` `837152c`, deploy
 `aurum-velare-8hirm47sc` (desde copia limpia con `git worktree`). Enseñado
 antes con capturas antes/después en local (Chrome sin interfaz, sesión y
-Supabase simulados con datos inventados, escritorio y móvil). **Pendiente de
-que el usuario lo compruebe con su sesión.** Sin cambios de cálculo (trades,
+Supabase simulados con datos inventados, escritorio y móvil). **Comprobado
+por el usuario con su sesión en producción (07/10): se ve bien.** Sin cambios de cálculo (trades,
 WR, P&L, OZT, % de ciclo) ni de textos de "Pack".
 
 - **"→ etapa siguiente"** del recuadro "Tu nivel" (`dash-nivel-next`): la real
@@ -220,7 +226,13 @@ WR, P&L, OZT, % de ciclo) ni de textos de "Pack".
   `var(--nav-bottom, 147px)`, medido del menú real con `ResizeObserver`
   (script en `index.html`). Comprobado a 1440 px y en móvil: pegadas a 183 px.
 - Mi gestión no se adapta a móvil (la página se desplaza de lado): es anterior,
-  sin tocar.
+  sin tocar (anotado como pendiente menor).
+- **Avisos de salas (07/10, `b1497a0`, deploy `aurum-velare-psjtsx4ez`):** los
+  7 avisos de las salas en `index.html`, el de `salas.js` y el error 403 de
+  `api/livekit-token.js` dicen "Necesitas un Pack…" en vez de "Camino".
+  Quedan otros textos con "Camino" en la web (login "Camino requerido",
+  "¿Sin Camino?", "Ver los Caminos →", aviso de acceso de Mi proceso,
+  "Camino Umbral/Raíz/Senda" en `valor.html`) — sin tocar, no pedido.
 
 ---
 
@@ -264,10 +276,12 @@ son AVISOS: Aurum no cierra ni bloquea nada; el trader decide.
 - Datos que lo apoyan (Diario, todo el histórico): seguir tras +125 → te
   sirvió 13 de 15 (+1.559 $); seguir tras −300 → −6.545 $, casi toda la
   pérdida histórica.
-- Por decidir al construirlo: qué riesgo se permite **antes** del primer nivel
-  (sin suelo, la fórmula da 0; propuesta: la pérdida máx. por trade del modo)
-  y de dónde sale el "SL en pts" (propuesta: el SL de las normas del modo; si
-  el modo no lo tiene, que el trader lo escriba).
+- **Decidido (07/10): antes del primer nivel de beneficio** (sin suelo, la
+  fórmula daría 0): lote = **lote inicial del modo** y riesgo permitido =
+  **pérdida máxima por trade del modo**.
+- Por decidir al construirlo: de dónde sale el "SL en pts" de la fórmula
+  (propuesta: el SL de las normas del modo; si el modo no lo tiene, que el
+  trader lo escriba).
 
 ### C) Tablero del día (tipo juego de la oca) — dos vistas
 
@@ -372,10 +386,10 @@ modo salvo a mano.
 - Retraso: cola de la EA (60 s) + sondeo del Diario (60 s) → hasta ~2 min.
   Para la vista Directo, sondear cada 10–15 s solo lo de hoy o usar Supabase
   Realtime sobre `ea_trades` / `trade_eventos` (lo que se pueda con la RLS).
-- La vista Directo necesita la sesión del usuario. Si se emite con una fuente
-  de navegador de OBS (no comparte la sesión de Chrome), hará falta iniciar
-  sesión dentro de OBS o un enlace privado de solo lectura con token
-  revocable: decidirlo antes de construirla.
+- La vista Directo necesita la sesión del usuario. **Decidido (07/10): en OBS
+  se captura la VENTANA del navegador** (captura de ventana, no "fuente de
+  navegador"), así se usa la sesión normal de Chrome y no hace falta login
+  dentro de OBS ni enlace con token.
 
 **Qué NO toca la EA:** todo lo anterior. Modos, plan del día, normas,
 clasificación, escalado con suelo y las dos vistas del tablero son tablas
@@ -393,7 +407,35 @@ plantilla del usuario).
 
 ---
 
-## Siguiente gran paso (02/10) — pasos 1 y 2 hechos el 05/10; 3 y 4 = pendiente 6
+## Alertas al móvil (idea 07/10) — IDEA, sin código
+
+Pendiente nº 4. Siguen siendo avisos salvo la fase 3, que exige decisión
+expresa del usuario.
+
+- **Fase 1 — Alertas de reglas (no tocan la EA).** Con los eventos que ya
+  llegan de la EA, Aurum avisa al móvil del usuario:
+  - al llegar a un nivel (p. ej. "−300 «Límite»: solo observas"; "+125
+    «escalado»: suelo 0 $, lote máx. 0,11");
+  - al abrir contra el sesgo del día (plan del día de "Modos…");
+  - tras X pérdidas seguidas.
+  Canal para empezar: **bot de Telegram** (cada usuario lo vincula); más
+  adelante, notificaciones web.
+- **Fase 2 — Alertas de precio** (p. ej. "sell limit cuando el precio toque la
+  MA20 en H1"), ligadas al modo y al sesgo. Requiere que la EA o un indicador
+  aparte mande precio/medias, o usar las notificaciones push nativas de MT5.
+  Aurum guarda cada alerta y qué hizo el precio después, para medir si tiene
+  ventaja.
+- **Fase 3 — Bot que pone la orden** con el SL/TP del modo, **solo si la fase
+  2 demuestra ventaja**. Cambia el principio "Aurum mide y avisa, nunca
+  opera": decisión del usuario. Antes, revisar si NEOMAAA y WSF permiten EAs
+  que abran operaciones. Hacerlo **aparte de `EA_Aurum_Tracker`** (que solo
+  registra).
+- **Fases 2 y 3 tocan MT5:** no empezar hasta fusionar `feature/ea-sync` tras
+  la observación (pendiente nº 1).
+
+---
+
+## Siguiente gran paso (02/10) — pasos 1 y 2 hechos el 05/10; 3 y 4 = pendiente 7
 
 **Que el análisis post-cierre funcione para cualquier usuario solo con la
 EA**, sin depender de `post_cierre.py` en el PC de Roderas con MT5 abierto
