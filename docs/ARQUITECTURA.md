@@ -23,6 +23,14 @@
   tabla de vocabulario y el resto del documento ("requiere Pack", "Los
   Packs"…). En la web no se cambia ningún texto de "Pack". Ojo: 8 avisos de
   la web (salas, sin sesión) dicen "Necesitas un Camino para entrar."; sin tocar.
+- **Mi proceso, punto 0 — EN PRODUCCIÓN** (`feature/mi-proceso` `ebc7c41`,
+  merge `837152c`, deploy `aurum-velare-8hirm47sc` desde copia limpia):
+  etapa siguiente real, "desde el …" con la fecha de entrada, P&L sin
+  "entorno real/simulado", etapa 0 visible (`usuarioActual.etapa_real`; el OZT
+  no cambia), retos completados reales, P&L en rojo si es negativo (Mi
+  proceso, Historial externo, Ciclo 111, tarjeta Maestra) y cabecera fija sin
+  tapar contenido (`nav::before` + `--nav-bottom` para las barras pegajosas).
+  Detalle en ESTADO.md.
 
 ---
 

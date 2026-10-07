@@ -1,6 +1,6 @@
 # Estado — análisis post-cierre: FASE 1 (examen de la EA) + FASE 2 (Diario web)
 
-> Actualizado 07/10/2026 (propuesta "Modos, plan del día y tablero en directo", pendiente nº 3). Antes, 06/10/2026, noche (Diario al instante desde `ea_trades`, bloque "Hoy" y plan del trader en producción; **un push a `main` despliega solo**). Antes, 06/10 (cierre de sesión: decisiones y pendientes abajo; "Edge por cuenta"; "Mis reglas"; propuesta "Mi proceso"). Antes: 05/10/2026 (post_cierre automatizado con tarea programada; fallo 5 de la EA). Antes: 02/10/2026. **FASE 2 en producción** (primer deploy `cdede9a` /
+> Actualizado 07/10/2026 (punto 0 de "Mi proceso" en producción; propuesta "Modos, plan del día y tablero en directo", pendiente nº 3). Antes, 06/10/2026, noche (Diario al instante desde `ea_trades`, bloque "Hoy" y plan del trader en producción; **un push a `main` despliega solo**). Antes, 06/10 (cierre de sesión: decisiones y pendientes abajo; "Edge por cuenta"; "Mis reglas"; propuesta "Mi proceso"). Antes: 05/10/2026 (post_cierre automatizado con tarea programada; fallo 5 de la EA). Antes: 02/10/2026. **FASE 2 en producción** (primer deploy `cdede9a` /
 > `aurum-velare-cw5la96zd`; el anterior a la FASE 2, para rollback, era
 > `aurum-velare-9hp3r9l3q`). Criterios de análisis hoy: **v6**. FASE 1
 > terminada el 29/09 (298 trades, en seco).
@@ -36,7 +36,7 @@
    Después, **fusionar `feature/ea-sync` en `main`**.
 2. **Siguiente gran paso: rehacer "Mi proceso"** (sección "Mi proceso: Tu
    situación y barra por días limpios", justo debajo). Orden 0-1-2-3; cada
-   fase se enseña antes de desplegar.
+   fase se enseña antes de desplegar. **Punto 0 hecho (07/10, en producción).**
 3. **Modos, plan del día y tablero en directo** (sección "Modos, plan del día
    y tablero en directo (propuesta 07/10)", debajo de la de "Mi proceso").
    Propuesta sin código; la vista Directo espera la maqueta y la plantilla del
@@ -176,11 +176,51 @@ TU NIVEL                              ██████████████
 
 ### Orden
 
-0. Bugs pequeños de la página: "→ Confianza" fijo, "desde el 1 feb 2026" fijo,
-   "real" frente a "simulado", etapa 0 imposible, subtítulos de retos vacíos.
+0. **HECHO (07/10, en producción).** Bugs pequeños de la página: "→ Confianza"
+   fijo, "desde el 1 feb 2026" fijo, "real" frente a "simulado", etapa 0
+   imposible, subtítulos de retos vacíos. Ver "Punto 0 de Mi proceso (07/10)".
 1. "Tu situación" con solo `trades`: rentable por cuenta + mes a mes.
 2. Aciertos, errores y regla de la semana (`_daConclusionesTodas()`).
 3. Barra por días limpios + aviso "listo" en el admin.
+
+---
+
+## Punto 0 de Mi proceso (07/10) — EN PRODUCCIÓN
+
+Rama `feature/mi-proceso` (`ebc7c41`), merge en `main` `837152c`, deploy
+`aurum-velare-8hirm47sc` (desde copia limpia con `git worktree`). Enseñado
+antes con capturas antes/después en local (Chrome sin interfaz, sesión y
+Supabase simulados con datos inventados, escritorio y móvil). **Pendiente de
+que el usuario lo compruebe con su sesión.** Sin cambios de cálculo (trades,
+WR, P&L, OZT, % de ciclo) ni de textos de "Pack".
+
+- **"→ etapa siguiente"** del recuadro "Tu nivel" (`dash-nivel-next`): la real
+  según `usuarios_aurum.etapa` (antes "→ Confianza" fijo en el HTML).
+- **"desde el …"** de Días en proceso (`dash-dias-desde`): misma fecha
+  (`fecha_entrada` o `created_at`), p. ej. "desde el 15 mar 2026".
+- **P&L acumulado:** debajo solo "N cuentas" (fuera "entorno real/simulado").
+- **Etapa 0:** se muestra ("00 · Descubrimiento → Silencio"). `app.js` guarda
+  además `usuarioActual.etapa_real`; `usuarioActual.etapa` sigue convirtiendo 0
+  en 1 porque la usa el OZT (`etapa × 30`): **un usuario en etapa 0 sigue
+  sumando el OZT de la etapa 1**, como antes (no se tocó el cálculo).
+- **Retos:** `dash-ozt-retos` y `dash-ozt-widget-sub` cuentan
+  `retos_participantes` con `ganador=true` ("2 retos completados"); sin retos
+  o si falla la consulta, "Sin retos completados todavía".
+- **P&L por signo (verde ≥ 0, rojo < 0):** Mi proceso (`dash-pnl-global`),
+  Historial externo (`hist-global-pnl`; las filas por cuenta ya iban bien),
+  Ciclo 111 (`ciclo-pnl`) y tarjeta Maestra del Trade Record. Retos, Prueba y
+  Global mantienen su color de cuenta (ámbar, azul, dorado).
+- **Cabecera fija de Mi gestión / Mi proceso** (comportamiento sin cambiar):
+  (1) la franja dorada de aviso no es fija y al hacer scroll dejaba 36 px
+  transparentes encima del menú (`top:36px`) por donde asomaba el contenido:
+  `nav::before` los tapa con el fondo y la franja va por encima
+  (`z-index:101`), así que arriba se ve igual; (2) con sesión el menú mide
+  183 px (fila "Bienvenido") y las barras pegajosas (pestañas de Mi gestión y
+  `.sidebar`) estaban a `top:147px`, debajo de él: ahora usan
+  `var(--nav-bottom, 147px)`, medido del menú real con `ResizeObserver`
+  (script en `index.html`). Comprobado a 1440 px y en móvil: pegadas a 183 px.
+- Mi gestión no se adapta a móvil (la página se desplaza de lado): es anterior,
+  sin tocar.
 
 ---
 
