@@ -121,7 +121,8 @@ function dlCalcular(datos) {
   });
   var res = { sinReglas: !hayReglas, objetivo: DL_OBJETIVO_DIAS, desdeDia: datos.desdeDia || null,
               desdeIncluido: !!datos.desdeIncluido, dias: [], limpios: 0, enPeriodo: 0, sinFecha: 0 };
-  if (!hayReglas) return res;
+  // Sin reglas no hay barra (res.sinReglas), pero los días se calculan igual:
+  // etapas.js los usa para "días operados" (etapas v2).
 
   var cu = datos.cuentas || {};
   var carpetaDe = function(num) {
@@ -146,7 +147,10 @@ function dlCalcular(datos) {
   var porDia = {};
   Object.keys(grupos).forEach(function(k) {
     var g = grupos[k], r = reglas[carpetaDe(g.cuenta)] || reglas.todas || { trade: null, perdida: [], beneficio: [] };
-    var d = porDia[g.dia] = porDia[g.dia] || { dia: g.dia, trades: 0, motivos: [], pnl: 0 };
+    var d = porDia[g.dia] = porDia[g.dia] || { dia: g.dia, trades: 0, motivos: [], pnl: 0, nivelMax: false, porCuenta: {} };
+    // Etapas v2: ¿alguna cuenta llegó ese día a su último nivel de pérdida («Cierre obligatorio»)?
+    var maxP = r.perdida.length ? r.perdida[r.perdida.length - 1] : null;
+    var pc = d.porCuenta[g.cuenta] = { pnl: 0, trades: g.lista.length, nivelMax: false };
     var lista = g.lista.sort(function(a, b) { return a.c - b.c; });
     var cuentaTxt = carpetaDe(g.cuenta) === 'todas' ? String(g.cuenta) : carpetaDe(g.cuenta).charAt(0).toUpperCase() + carpetaDe(g.cuenta).slice(1);
     var ultimoB = r.beneficio.length ? r.beneficio[r.beneficio.length - 1] : null;
@@ -155,6 +159,8 @@ function dlCalcular(datos) {
     lista.forEach(function(x) {
       d.pnl += x.b;
       acum += x.b;
+      pc.pnl += x.b;
+      if (maxP && acum <= -maxP.valor) { pc.nivelMax = true; d.nivelMax = true; }
       if (r.trade && x.b <= -r.trade.valor) {
         d.motivos.push(cuentaTxt + ': un trade perdió ' + _dlDolares(x.b).slice(1) + ' a las ' + _dlHHMM(x.c) +
                        ' (pérdida máx. por trade ' + _dlTxtNivel(r.trade, '') + ')');

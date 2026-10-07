@@ -65,6 +65,7 @@ async function _activarSesion(email) {
     packLevel:    u.etapa || 1,
     etapa:        u.etapa || 1,
     etapa_real:   (u.etapa === null || u.etapa === undefined || u.etapa === '') ? null : Number(u.etapa),
+    tiene_ea:     !!u.tiene_ea,
     activo:       u.activo,
     fecha_entrada:  u.fecha_entrada  || null,
     cuenta_maestra:  u.cuenta_maestra  || null,
@@ -280,7 +281,11 @@ async function actualizarDashboard() {
   window.AURUM_TRADES = { todos: allData };
   if (typeof buildDashboardHero         === 'function') buildDashboardHero();
   if (typeof buildTuSituacion           === 'function') buildTuSituacion();
-  if (typeof buildDiasLimpios           === 'function') buildDiasLimpios();
+  // Barra del punto 3 y, encima, etapas v2 (si la tabla de criterios existe, repinta la barra).
+  if (typeof buildDiasLimpios === 'function') {
+    buildDiasLimpios().then(function() { if (typeof buildEtapas === 'function') return buildEtapas(); })
+                      .catch(function(e) { console.error('[etapas]', e); });
+  }
   if (typeof buildCicloDots             === 'function') buildCicloDots();
   if (typeof buildHorarios              === 'function') buildHorarios();
   if (typeof buildEquity                === 'function') buildEquity();
