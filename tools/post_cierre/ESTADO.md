@@ -1,6 +1,6 @@
 # Estado — análisis post-cierre: FASE 1 (examen de la EA) + FASE 2 (Diario web)
 
-> Actualizado 07/10/2026 (ETAPAS v2 propuesta y SQL preparado sin aplicar, pendiente nº 3; punto 3 de "Mi proceso" en producción: barra de etapa por días limpios; "Mi proceso" completo; punto 2 en producción: aciertos, errores y regla de la semana; base de los MODOS en producción: plan del día, modo de cada trade y plan frente a realidad; punto 1 de "Mi proceso", "Tu situación", en producción; punto 0 en producción y comprobado; textos "Pack" en la web; idea "Alertas al móvil"; propuesta "Modos, plan del día y tablero en directo", pendiente nº 3). Antes, 06/10/2026, noche (Diario al instante desde `ea_trades`, bloque "Hoy" y plan del trader en producción; **un push a `main` despliega solo**). Antes, 06/10 (cierre de sesión: decisiones y pendientes abajo; "Edge por cuenta"; "Mis reglas"; propuesta "Mi proceso"). Antes: 05/10/2026 (post_cierre automatizado con tarea programada; fallo 5 de la EA). Antes: 02/10/2026. **FASE 2 en producción** (primer deploy `cdede9a` /
+> Actualizado 07/10/2026 (ETAPAS v2 revisión 2: criterios para llegar a cada etapa + resultados + tamaño de cuenta, SQL sin aplicar, pendiente nº 3; punto 3 de "Mi proceso" en producción: barra de etapa por días limpios; "Mi proceso" completo; punto 2 en producción: aciertos, errores y regla de la semana; base de los MODOS en producción: plan del día, modo de cada trade y plan frente a realidad; punto 1 de "Mi proceso", "Tu situación", en producción; punto 0 en producción y comprobado; textos "Pack" en la web; idea "Alertas al móvil"; propuesta "Modos, plan del día y tablero en directo", pendiente nº 3). Antes, 06/10/2026, noche (Diario al instante desde `ea_trades`, bloque "Hoy" y plan del trader en producción; **un push a `main` despliega solo**). Antes, 06/10 (cierre de sesión: decisiones y pendientes abajo; "Edge por cuenta"; "Mis reglas"; propuesta "Mi proceso"). Antes: 05/10/2026 (post_cierre automatizado con tarea programada; fallo 5 de la EA). Antes: 02/10/2026. **FASE 2 en producción** (primer deploy `cdede9a` /
 > `aurum-velare-cw5la96zd`; el anterior a la FASE 2, para rollback, era
 > `aurum-velare-9hp3r9l3q`). Criterios de análisis hoy: **v6**. FASE 1
 > terminada el 29/09 (298 trades, en seco).
@@ -39,10 +39,11 @@
    fase se enseña antes de desplegar. **HECHO: puntos 0, 1, 2 y 3 en
    producción (07/10).** Queda comprobar el 3 con la sesión del usuario.
 3. **Etapas v2** (sección "Etapas v2 (propuesta 07/10)", debajo de la de "Mi
-   proceso"): criterios por etapa editables por el admin, cada uno con su
-   barra, y aviso "no mantiene". SQL preparado y probado
-   (`tools/post_cierre/sql_etapas_v2.sql`, rama `feature/etapas-v2`), **sin
-   aplicar: lo revisa el usuario**. Después, la web.
+   proceso"): criterios para llegar a cada etapa (disciplina y resultados)
+   editables por el admin, cada uno con su barra, tamaño de cuenta y aviso
+   "no mantiene". SQL revisión 2 preparado y probado
+   (`tools/post_cierre/sql_etapas_v2.sql`, rama `feature/etapas-v2`,
+   `1ae6793`), **sin aplicar: lo revisa el usuario**. Después, la web.
 4. **Modos, plan del día y tablero en directo** (sección "Modos, plan del día
    y tablero en directo (propuesta 07/10)", debajo de la de "Mi proceso").
    **Base hecha y en producción (07/10)**: tablas, plan del día, modo de cada
@@ -252,83 +253,98 @@ WR, P&L, OZT, % de ciclo) ni de textos de "Pack".
 
 ---
 
-## Etapas v2 (propuesta 07/10) — SQL preparado, SIN APLICAR
+## Etapas v2 (propuesta 07/10, revisión 2) — SQL preparado, SIN APLICAR
 
 Pendiente nº 3. Va **encima del punto 3** (días limpios) sin romperlo: los
 días limpios pasan a ser uno de los criterios. Nada de esto cambia
 `usuarios_aurum.etapa` ni la forma de asignar/guardar etapas: el admin sigue
 decidiendo (guardar etapa → `etapa_historial`). No toca la EA.
 
-**Idea (decidida por el usuario, 07/10):**
-- Cada etapa tiene sus criterios, cada uno con su barra. % de la etapa = media
-  de sus criterios (cada uno topado al 100 %). "✦ Listo para revisión" solo
-  cuando TODOS llegan al 100 %. Criterios editables por el admin.
-- Todo se cuenta desde el último cambio de etapa (`etapa_historial`). Los de
-  plan del día y modos, además, solo desde el 07/10/2026 (antes no existían).
-- Criterios iniciales (cada etapa mantiene lo de las anteriores):
-  - Descubrimiento / Silencio: EA conectada (`tiene_ea`), reglas definidas en
-    Mis reglas, 10 días operados.
-  - Umbral / Estructura: + 20 días limpios.
-  - Fractura: + plan del día elegido antes del primer trade en el 90 % de los
-    días operados.
-  - Claridad: + 80 % de trades con modo (plan o corrección a mano) + cumplir
-    la regla de la semana 3 semanas seguidas.
-  - Consistencia: + 80 % de días limpios en los últimos 30 días operados.
-  - Confianza: + 60 días sin llegar al nivel de pérdida más alto («Cierre
-    obligatorio»).
-  - Rentabilidad: + una cuenta con PF ≥ 1,1 y ≥ 100 trades en los últimos 90
-    días.
-  - Vuelo / Oro: + rentable (PF ≥ 1,1) 3 trimestres seguidos, sin perder el
-    criterio de Confianza.
-- **Aviso en el admin (pedido 07/10):** si un usuario deja de cumplir los
-  criterios de su etapa ACTUAL 3 semanas seguidas → "⚠ no mantiene
-  «Claridad»". Nunca baja la etapa solo: decide el admin.
+**Decidido por el usuario (07/10):**
+- Los criterios de una etapa = lo que hace falta para **LLEGAR** a ella. El
+  usuario ve los de la etapa SIGUIENTE a la suya, cada uno con su barra; % =
+  media de sus criterios; "✦ Listo para revisión" cuando los cumple TODOS.
+  Descubrimiento (0) no tiene: es la de entrada.
+- **Aviso en el admin "⚠ no mantiene «X»"**: el usuario deja de cumplir los
+  criterios de su etapa ACTUAL (los que le hicieron llegar) 3 semanas
+  seguidas. Nunca baja la etapa: decide el admin.
+- Todo se cuenta desde el último cambio de etapa (`etapa_historial`); plan del
+  día y modos, además, solo desde el 07/10/2026.
+- Interpretaciones aceptadas: "60/90 días sin «Cierre obligatorio»" = racha de
+  días OPERADOS seguidos; trimestres/meses naturales en una misma cuenta;
+  semana de la regla cumplida = sin incumplirla y con algún día operado (si no
+  se dio la situación, cuenta); ventanas de días desde el cambio de etapa.
+- **Tamaño de cuenta** por usuario y carpeta (maestra / prueba / retos), en $,
+  por defecto 50.000, editable en el admin (para la media mensual en %).
+- Criterios para LLEGAR (disciplina | resultados; cada etapa mantiene lo
+  anterior y un valor nuevo del mismo tipo sustituye al anterior):
+  - Silencio: EA conectada, reglas definidas, 10 días operados.
+  - Umbral: 10 días limpios.
+  - Estructura: 20 días limpios | ningún día por debajo del último nivel de
+    pérdida («Cierre obligatorio») en los últimos 20 días operados.
+  - Fractura: + plan del día antes del primer trade en el 90 % de los días
+    (desde 07/10) | PF ≥ 0,9 en 60 días.
+  - Claridad: + 80 % de trades con modo (desde 07/10) + 3 semanas seguidas
+    cumpliendo la regla de la semana | una cuenta con PF ≥ 1,0 y ≥ 50 trades
+    en 60 días.
+  - Consistencia: 80 % de días limpios en los últimos 30 operados | PF ≥ 1,0 +
+    2 de los últimos 3 meses en positivo.
+  - Confianza: + 60 días operados seguidos sin «Cierre obligatorio» | PF ≥ 1,1
+    en 90 días + 3 de los últimos 4 meses en positivo.
+  - Paciencia: + 90 días seguidos sin «Cierre obligatorio» | PF ≥ 1,1 en 90
+    días + 4 de los últimos 5 meses en positivo.
+  - Rentabilidad: mantener 80 % de días limpios en 30 | PF ≥ 1,2 con ≥ 100
+    trades en 90 días + los 3 últimos meses en positivo.
+  - Vuelo: mantener lo anterior | 6 meses seguidos en positivo con media ≥ 3 %
+    de la cuenta al mes.
+  - Oro: mantener lo anterior | últimos 12 meses: año en positivo, ≥ 10 de 12
+    meses en positivo y media ≥ 5 % de la cuenta al mes. Oro = nivel
+    profesional: ganar dinero no basta.
 
 **SQL** `tools/post_cierre/sql_etapas_v2.sql` (rama `feature/etapas-v2`,
-`bfd4d30`), **NO aplicado**:
-- `etapa_criterios`: una fila por criterio y etapa (0–11), con `tipo`,
-  `objetivo`, `parametros` (JSON: `desde`, `ventana`, `pf`, `ventana_dias`),
-  `nombre` visible, `orden`, `activo`. Filas explícitas por etapa (los de las
-  anteriores incluidos) para que el admin cambie una etapa sin tocar las demás.
-  Tipos: `ea_conectada`, `reglas_definidas`, `dias_operados`, `dias_limpios`,
+`1ae6793`, revisión 2; la 1 era `bfd4d30`), **NO aplicado**:
+- `etapa_criterios`: una fila por criterio y etapa a la que se llega (1–11),
+  con `categoria` (disciplina / resultados), `tipo`, `objetivo`, `parametros`
+  (JSON), `nombre` visible, `orden`, `activo`. Tipos de disciplina:
+  `ea_conectada`, `reglas_definidas`, `dias_operados`, `dias_limpios`,
   `plan_antes_primer_trade`, `trades_con_modo`, `regla_semana_seguidas`,
-  `pct_dias_limpios`, `dias_sin_nivel_maximo`, `cuenta_rentable`,
-  `trimestres_rentables` (los calcula la web; el SQL solo guarda objetivos).
-- `etapa_criterios_historial` (automático, solo lo lee el admin).
-- RLS: cualquier usuario con sesión lee los criterios; solo el admin escribe.
-- Valores iniciales: cada criterio se define una vez con la etapa desde la que
-  se exige y se copia a las siguientes: 84 filas (0:3 1:3 2:4 3:4 4:5 5:7 6:8
-  7:9 8:9 9:10 10:11 11:11). Idempotente.
-- Probado en PGlite: 30 comprobaciones OK (ver la cabecera del SQL).
+  `pct_dias_limpios`, `dias_sin_nivel_maximo`; de resultados:
+  `ultimos_dias_sin_nivel_maximo`, `cuenta_rentable` (objetivo = PF;
+  `ventana_dias`, `min_trades`), `meses_positivos` (objetivo = n; `de`),
+  `media_mensual_pct` (objetivo = %; `meses`), `periodo_positivo` (objetivo
+  = meses). Los calcula la web; el SQL guarda objetivos.
+- Valores iniciales: cada definición dice desde qué etapa se exige; cada
+  etapa toma, por tipo, la más reciente → 102 filas (1:3 2:4 3:5 4:7 5:9 6:11
+  7:12 8:12 9:12 10:13 11:14; 26 de resultados). Idempotente.
+- `etapa_criterios_historial` (automático, solo admin). RLS: cualquier usuario
+  con sesión lee los criterios; solo el admin escribe.
+- `cuenta_tamanos` (usuario, carpeta, tamaño, por defecto 50.000): alta de 3
+  filas por usuario existente; el usuario lee los suyos, solo el admin escribe.
+- Probado en PGlite: 49 comprobaciones OK (ver la cabecera del SQL).
 
-**Interpretaciones a confirmar al revisar el SQL** (fáciles de cambiar):
-1. Los criterios de una etapa son lo que hay que cumplir ESTANDO en ella para
-   pasar a la siguiente (Descubrimiento = EA + reglas + 10 días → Silencio).
-2. **Paciencia (8)** no estaba en la lista: lleva lo mismo que Confianza.
-   **Oro (11)** es la última: lleva lo mismo que Vuelo (sin "siguiente", sirve
-   para el aviso de "no mantiene").
-3. "60 días sin «Cierre obligatorio»" = racha actual de días OPERADOS seguidos
-   sin llegar al último nivel de pérdida diaria (no días de calendario).
-4. "3 trimestres seguidos" = trimestres naturales (ene–mar…), en una MISMA
-   cuenta, PF ≥ 1,1; "una cuenta" de Rentabilidad = cualquiera de las tres
-   carpetas o externa.
-5. "Cumplir la regla de la semana": la semana cuenta como cumplida si no hubo
-   incumplimiento de esa regla (si no se dio la situación, también cuenta) y
-   hubo al menos un día operado. Pendiente de definir en la web.
-6. Rentabilidad: "últimos 90 días" a partir del último cambio de etapa (si el
-   cambio es más reciente, ventana más corta).
-7. **"No mantiene"**: ¿"los criterios de su etapa ACTUAL" son los que le
-   hicieron llegar a ella (los de la etapa anterior: estando en Claridad, los
-   de Fractura) o los de la propia etapa (los que necesita para pasar)?
-   Propuesta: los de la anterior (es lo que "mantener" significa); con los de
-   la propia etapa casi todos saldrían en aviso al empezar. Sin tabla nueva:
-   la web lo recalcula con los datos hasta el domingo de cada una de las 3
-   últimas semanas (EA y reglas, con el estado actual). Las 3 semanas, en una
-   constante.
+**Decisiones mías al traducirlo (a confirmar al revisar):**
+1. Fractura "PF ≥ 0,9 en 60 días": en una cuenta y **sin mínimo de trades**
+   (no se dijo).
+2. Consistencia "PF ≥ 1,0": se queda el de Claridad (60 días, ≥ 50 trades).
+3. Confianza y Paciencia "PF ≥ 1,1 en 90 días": mantienen el mínimo de 50
+   trades de Claridad.
+4. "Ningún día por debajo de «Cierre obligatorio» en los últimos 20 días"
+   (Estructura) se mantiene hasta Oro (ya va implícito en las rachas de 60/90).
+5. Vuelo: "6 meses seguidos en positivo" = 6 de los últimos 6, más la media
+   ≥ 3 % de esos 6. Oro: el "año en positivo" va como criterio propio
+   (`periodo_positivo` 12), aunque la media ≥ 5 % ya lo implica.
+6. "Una cuenta": cada criterio de resultados puede cumplirse con cualquiera de
+   las cuentas del usuario. A decidir: ¿la misma cuenta para todos los de
+   resultados de una etapa?
+7. Meses = naturales completos (el mes en curso no cuenta) y, como todo,
+   desde el último cambio de etapa: llegar a Vuelo exige 6 meses después de
+   llegar a Rentabilidad, y Oro 12 meses después de Vuelo.
+8. Tamaño de cuenta sin historial de cambios (sí guarda quién y cuándo).
 
-**Después de aplicarlo (paso 3):** en Mi proceso, cada criterio con su barra
-(qué falta para la siguiente etapa); en el admin, cada criterio por usuario +
-"✦ listo" + "⚠ no mantiene"; editor de criterios en el admin.
+**Después de aplicarlo (paso 3):** en Mi proceso, los criterios de la
+siguiente etapa con su barra (qué falta); en el admin, cada criterio por
+usuario + "✦ listo" + "⚠ no mantiene"; editor de criterios y de tamaños de
+cuenta en el admin.
 
 ---
 
