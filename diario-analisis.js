@@ -380,7 +380,9 @@ async function _daCargarAhora() {
     _daGetTodo('ea_trades', 'usuario_email=eq.' + email + '&estado=eq.closed&fecha_cierre=not.is.null' +
                             '&select=' + DA_COLUMNAS_EA + '&order=fecha_cierre.desc,position_id.desc'),
     // Modos y plan del día (modos.js): si fallan, el Diario sigue igual.
-    typeof _moCargar === 'function' ? _moCargar().catch(function(e) { console.error('[diario-analisis] modos', e); }) : null
+    typeof _moCargar === 'function' ? _moCargar().catch(function(e) { console.error('[diario-analisis] modos', e); }) : null,
+    // Capturas y "Por qué entré" (capturas.js): si fallan, el Diario sigue igual.
+    typeof _caCargar === 'function' ? _caCargar().catch(function(e) { console.error('[diario-analisis] capturas', e); }) : null
   ]);
   var r = res[0];
   _daCargando = false;
@@ -1770,7 +1772,8 @@ function _daHtmlTrades(filas, titulo, pref, conFiltros) {
   var lista = filas.filter(function(r) {
     return !conFiltros || ((_daEstrategia === 'todas' || (r.estrategia || 'sin_clasificar') === _daEstrategia) &&
                            (!_daSoloErrores || _daErrores(r).length) &&
-                           (typeof _moPasaFiltro !== 'function' || _moPasaFiltro(r)));
+                           (typeof _moPasaFiltro !== 'function' || _moPasaFiltro(r)) &&
+                           (typeof _caPasaFiltro !== 'function' || _caPasaFiltro(r)));
   }).sort(function(a, b) { return _daFecha(b.fecha_cierre) - _daFecha(a.fecha_cierre); });
   var porFp = _daTradesPorFp();
 
@@ -1787,6 +1790,7 @@ function _daHtmlTrades(filas, titulo, pref, conFiltros) {
               '<button class="tab' + (_daSoloErrores ? ' active' : '') + '" style="padding:.45rem .9rem;font-size:12px;' +
                 (_daSoloErrores ? 'color:var(--red);border-bottom-color:var(--red);' : '') + '" ' +
                 'onclick="_daSoloErrores=!_daSoloErrores;_daAbierto=null;_daPintar();">Solo con errores</button>' +
+              (typeof _caHtmlFiltro === 'function' ? _caHtmlFiltro() : '') +
             '</div>' +
             (typeof _moHtmlFiltro === 'function' ? '<div style="flex-basis:100%;display:flex;justify-content:flex-end;">' + _moHtmlFiltro() + '</div>' : '')) + '</div>';
   if (!lista.length) return h + '<div class="cell" style="color:var(--text-muted);font-size:14px;margin-bottom:1.5rem;">Sin trades con este filtro.</div>';
@@ -1806,7 +1810,8 @@ function _daHtmlTrades(filas, titulo, pref, conFiltros) {
                ' <span style="color:var(--text-muted);font-size:12px;">· Setup: ' + _daEsc(r.estrategia || 'sin clasificar') + '</span></span>' +
              '<span style="display:flex;gap:.4rem 1rem;flex-wrap:wrap;justify-content:flex-end;align-items:center;margin-left:auto;">' +
                '<span style="display:flex;gap:.4rem;flex-wrap:wrap;justify-content:flex-end;">' +
-                 (typeof _moBadge === 'function' ? _moBadge(r) : '') + _daBadgesErrores(r) + _daBadgesNivel(r) +
+                 (typeof _moBadge === 'function' ? _moBadge(r) : '') + (typeof _caBadge === 'function' ? _caBadge(r) : '') +
+                 _daBadgesErrores(r) + _daBadgesNivel(r) +
                  (r.runner === true ? '<span style="font-size:11px;color:var(--gold);border:1px solid var(--border-gold);padding:.12rem .45rem;white-space:nowrap;">Runner: +' +
                                       _daNum(r.runner_max_pts, 1) + '</span>' : '') +
                  (_daPendiente(r) ? _daBadgePendiente() : _daBadgeDecision(r) + _daBadgeProvisional(r)) + '</span>' +
@@ -1864,6 +1869,7 @@ async function _daAbrirDetalle(clave) {
   }
   h += '<div style="font-size:15px;color:var(--text);line-height:1.7;margin:.2rem 0 1rem;">' + _daEsc(_daFrase(r)) + '</div>';
   if (typeof _moHtmlCorregir === 'function') h += _moHtmlCorregir(r, clave);
+  if (typeof _caHtmlDetalle === 'function') h += _caHtmlDetalle(r);
   h += '<div id="da-graf-' + _daEsc(clave) + '" style="position:relative;background:#060810;border:1px solid var(--border);margin-bottom:.5rem;"></div>';
   h += '<div style="display:flex;flex-wrap:wrap;gap:1.2rem;font-size:12px;color:var(--text-muted);margin-bottom:1rem;">' +
          _daLeyenda(DA_COLOR.precio, 'Precio (cierre de vela) y rango máx–mín', false) +
@@ -1885,6 +1891,7 @@ async function _daAbrirDetalle(clave) {
   if (r.notas) h += '<div style="font-size:12px;color:var(--text-muted);margin-top:.8rem;">Nota del análisis: ' + _daEsc(r.notas) + '</div>';
 
   det.innerHTML = h;
+  if (typeof _caTrasPintar === 'function') _caTrasPintar(det);
   var graf = document.getElementById('da-graf-' + clave);
   if (velas && Array.isArray(velas.velas) && velas.velas.length) _daPintarGrafico(graf, r, velas);
   else graf.innerHTML = '<div style="padding:1rem;font-size:13px;color:var(--text-muted);">Sin velas guardadas para este trade.</div>';
@@ -1919,6 +1926,7 @@ async function _daAbrirPendiente(clave, r, det, token) {
     '<div style="font-size:13px;color:var(--text-muted);line-height:1.6;margin:.2rem 0 .8rem;padding:.5rem .8rem;border:1px dashed var(--border);">' +
       'Análisis pendiente: la EA ya envió el trade y la tarea programada lo analiza cada hora (gráfico, veredicto y 4 h después del cierre).</div>' +
     (typeof _moHtmlCorregir === 'function' ? _moHtmlCorregir(r, clave) : '') +
+    (typeof _caHtmlDetalle === 'function' ? _caHtmlDetalle(r) : '') +
     '<div class="da-rejilla" style="--da-base:max(150px, calc(25% - 1px));margin-bottom:1rem;">' +
       celda('Entrada', _daNum(r.precio_entrada, 2), _daEsc(_daHora(r.fecha_entrada))) +
       celda('Cierre', _daNum(r.precio_cierre, 2), _daEsc(_daHora(r.fecha_cierre))) +
@@ -1927,6 +1935,7 @@ async function _daAbrirPendiente(clave, r, det, token) {
             b == null ? 'var(--text-muted)' : b >= 0 ? 'var(--green)' : 'var(--red)') +
     '</div>' +
     _daHtmlEventos(res.data || []);
+  if (typeof _caTrasPintar === 'function') _caTrasPintar(det);
 }
 
 function _daLeyenda(color, texto, discontinua) {

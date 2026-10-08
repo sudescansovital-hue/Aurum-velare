@@ -9,5 +9,8 @@
         { "key": "X-Frame-Options", "value": "DENY" }
       ]
     }
+  ],
+  "crons": [
+    { "path": "/api/capturas-caducidad", "schedule": "15 3 * * *" }
   ]
 }
