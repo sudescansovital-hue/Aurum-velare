@@ -1,7 +1,36 @@
 # AURUM VELARE — Arquitectura Web
 > Documento vivo. Se actualiza con el proyecto.  
-> Última actualización: 7 de octubre de 2026  
+> Última actualización: 8 de octubre de 2026  
 > Para uso interno — contexto de desarrollo y nuevas sesiones de trabajo.
+
+---
+
+## Sesión 08/10/2026
+
+> Detalle en `tools/post_cierre/ESTADO.md`, sección "Minado de estrategias
+> (propuesta 08/10)". Sin código.
+
+- **Propuesta "Minado de estrategias"**, pendiente SIGUIENTE (antes de la
+  medición por modo y del tablero):
+  - **Fase 1 (sin EA):** en el detalle de cada trade del Diario, casillas de
+    condiciones por modo (definidas en Normas por modo), nota "por qué entré"
+    y capturas (Ctrl+V o subir) en Supabase Storage privado. Tablas
+    `modo_condiciones` (aparte de `modo_normas` para tener id estable por
+    condición), `trade_explicacion`, `trade_condiciones`, `trade_capturas`;
+    bucket `capturas-trades` con ruta `{uid}/{fp}/…`.
+  - **Fase 2, huella de la entrada:** `trade_huella` (RSI(5) M1/M15,
+    distancia y pendiente de las medias 20/50/200 en M1/M15/H1, ATR(14) M15,
+    hora de servidor). Propuesta: primero calcularla desde el histórico con
+    `post_cierre.py` (2a, sin tocar la EA, ~310 trades ya); después, si se
+    quiere al instante, EA 1.05 en `feature/ea-huella` (2b) solo leyendo
+    indicadores, evento aparte por `g_cola_eventos`; el `open` y
+    `/api/trade-mt5` no cambian.
+  - **Fase 3, minado:** con ≥100 trades con huella + casillas + resultado,
+    patrones por tramos (WR, pts/trade, P&L; buscar en el 70 % antiguo y
+    comprobar en el 30 % reciente) en `minado_patrones`, y propuesta de modo
+    y condiciones por trade (`trade_propuesta`) que el usuario confirma.
+  - Riesgos de la EA, orden por fases y preguntas abiertas (medias simples
+    o exponenciales, quién ve las capturas) en ESTADO.md.
 
 ---
 

@@ -1,6 +1,6 @@
 # Estado — análisis post-cierre: FASE 1 (examen de la EA) + FASE 2 (Diario web)
 
-> Actualizado 07/10/2026, noche (MIS REGLAS FASE 3 y NORMAS POR MODO FASE 1 EN PRODUCCIÓN, `011fe93`, deploy `aurum-velare-awe9gylb8`; SQL candado v3, normas por modo y `desde` 08/10 aplicados por el usuario; `feature/ea-sync` FUSIONADA en `main`). Antes, 07/10 (ETAPAS v2 EN PRODUCCIÓN: SQL aplicado por el usuario y web (Mi proceso + admin); antes, revisión 2 del SQL; punto 3 de "Mi proceso" en producción: barra de etapa por días limpios; "Mi proceso" completo; punto 2 en producción: aciertos, errores y regla de la semana; base de los MODOS en producción: plan del día, modo de cada trade y plan frente a realidad; punto 1 de "Mi proceso", "Tu situación", en producción; punto 0 en producción y comprobado; textos "Pack" en la web; idea "Alertas al móvil"; propuesta "Modos, plan del día y tablero en directo", pendiente nº 3). Antes, 06/10/2026, noche (Diario al instante desde `ea_trades`, bloque "Hoy" y plan del trader en producción; **un push a `main` despliega solo**). Antes, 06/10 (cierre de sesión: decisiones y pendientes abajo; "Edge por cuenta"; "Mis reglas"; propuesta "Mi proceso"). Antes: 05/10/2026 (post_cierre automatizado con tarea programada; fallo 5 de la EA). Antes: 02/10/2026. **FASE 2 en producción** (primer deploy `cdede9a` /
+> Actualizado 08/10/2026 (propuesta "Minado de estrategias", sin código: pasa a ser el pendiente SIGUIENTE, antes de la medición por modo y del tablero). Antes, 07/10/2026, noche (MIS REGLAS FASE 3 y NORMAS POR MODO FASE 1 EN PRODUCCIÓN, `011fe93`, deploy `aurum-velare-awe9gylb8`; SQL candado v3, normas por modo y `desde` 08/10 aplicados por el usuario; `feature/ea-sync` FUSIONADA en `main`). Antes, 07/10 (ETAPAS v2 EN PRODUCCIÓN: SQL aplicado por el usuario y web (Mi proceso + admin); antes, revisión 2 del SQL; punto 3 de "Mi proceso" en producción: barra de etapa por días limpios; "Mi proceso" completo; punto 2 en producción: aciertos, errores y regla de la semana; base de los MODOS en producción: plan del día, modo de cada trade y plan frente a realidad; punto 1 de "Mi proceso", "Tu situación", en producción; punto 0 en producción y comprobado; textos "Pack" en la web; idea "Alertas al móvil"; propuesta "Modos, plan del día y tablero en directo", pendiente nº 3). Antes, 06/10/2026, noche (Diario al instante desde `ea_trades`, bloque "Hoy" y plan del trader en producción; **un push a `main` despliega solo**). Antes, 06/10 (cierre de sesión: decisiones y pendientes abajo; "Edge por cuenta"; "Mis reglas"; propuesta "Mi proceso"). Antes: 05/10/2026 (post_cierre automatizado con tarea programada; fallo 5 de la EA). Antes: 02/10/2026. **FASE 2 en producción** (primer deploy `cdede9a` /
 > `aurum-velare-cw5la96zd`; el anterior a la FASE 2, para rollback, era
 > `aurum-velare-9hp3r9l3q`). Criterios de análisis hoy: **v6**. FASE 1
 > terminada el 29/09 (298 trades, en seco).
@@ -28,6 +28,10 @@
   enseña cuánto falta para el de beneficio (sería una invitación a recuperar).
 
 ## Pendientes, en orden (06/10)
+
+> **SIGUIENTE (08/10): Minado de estrategias** (sección "Minado de
+> estrategias (propuesta 08/10)", justo debajo de esta lista). Va ANTES de
+> la medición por modo y del tablero del nº 4, que esperan a que termine.
 
 1. **Semana(s) de observación sin tocar código:** confirmar con trades reales
    MFE/MAE (fallo 1), el breakeven (fallo 3) y los avisos de niveles en el
@@ -59,7 +63,7 @@
    noche)**: tabla `modo_normas` (no `modo_id` en `reglas_valores`; ver
    "Normas por modo"). Falta: medición (cumplimiento por modo en el Diario,
    suelo y lote máximo en vivo) y tablero; la vista Directo espera además la
-   maqueta.
+   maqueta. **(08/10) Ambas van DESPUÉS del Minado de estrategias.**
 5. **Mis reglas, fase 3:** panel del admin con candado. Ojo: con el trigger
    actual, si el admin fija un nivel más estricto el usuario ya no puede editar
    su fila de ese nivel (ni el nombre ni el plan) sin bajar antes el importe;
@@ -78,6 +82,8 @@
    "Siguiente gran paso (02/10)", pasos 3 y 4).
 8. **Capturas por trade** en la carpeta local del usuario (ver "Junto a este
    paso" más abajo y "vincular capturas a cada trade" en Siguiente paso).
+   (08/10) La fase 1 del Minado propone capturas en Supabase Storage en vez
+   de carpeta local: si se aprueba, este punto queda absorbido por ella.
 9. **Rango y recorrido diario en pts.**
 10. **Rehacer Evalúame.**
 11. **Guía "Cómo funciona Aurum".**
@@ -92,6 +98,223 @@ sección Mis reglas); cambiarlo cuando haya más de un admin.
 Pendiente menor: **Mi gestión y Mi proceso no se adaptan a móvil** (Mi
 gestión se desplaza de lado; en Mi proceso la columna central queda casi sin
 ancho; ya pasaba antes del 07/10). No tocar ahora.
+
+---
+
+## Minado de estrategias (propuesta 08/10) — PROPUESTA, sin código
+
+Pendiente SIGUIENTE (antes de la medición por modo y del tablero). Objetivo:
+saber POR QUÉ entra el trader en cada trade, guardar cómo estaba el mercado
+en ese instante y, con suficientes trades, encontrar qué entradas parecidas
+ganan y cuáles no. Todo son AVISOS y propuestas: el usuario confirma; Aurum
+no cambia el modo de nadie ni bloquea nada. Nada de esto está implementado.
+
+### Lo que hay hoy y en qué se apoya
+
+- Clave del trade: `(usuario_email, fp)` en `trades`, `ea_trades`,
+  `post_cierre_analisis` y `trade_modo`. Todo lo nuevo usa la misma.
+- Modo de cada trade: `plan_dia` + `trade_modo` (`modos.js`). Normas por
+  modo: `modo_normas` (JSONB con claves conocidas, validado por trigger;
+  `normas-modo.js`).
+- RLS: `usuario_email DEFAULT auth.email()` y policies como en `modos`.
+- EA 1.04: el `open` va a `/api/trade-mt5` (cola `g_cola`); los eventos de
+  la línea de tiempo van a `/api/trade-evento` (cola `g_cola_eventos`,
+  separada). Ninguna lee indicadores hoy.
+- `post_cierre.py` ya abre MT5 con el paquete de Python (`copy_rates_range`
+  de M1) y corre solo cada día (tarea programada); `tools/post_cierre/edge/`
+  ya agrupa trades por variables (sesión, lote, anterior…) con velas M1.
+- Capturas: solo la zona de pruebas `capturas-test.js` (carpeta local con
+  File System Access API, Packs Senda/Cima/VIP); pendiente nº 8.
+
+### Fase 1 — Explicar cada entrada (web + SQL; NO toca la EA)
+
+**Tablas nuevas** (un SQL, `tools/post_cierre/sql_minado_f1.sql`, probado en
+PGlite como los anteriores; lo aplica el usuario):
+
+- `modo_condiciones` — las casillas que define cada usuario por modo:
+  `id` (bigint), `usuario_email`, `modo_id` (FK compuesta a `modos`),
+  `texto` (p. ej. "M15 RSI 90 venta / 19 compra", "medias a favor", "toque
+  media 20", "sin noticia roja"), `orden`, `activa`, `creado_en`.
+  Como `modos`: no se borra si ya se ha marcado en algún trade (se
+  desactiva). **Tabla aparte y no una clave más dentro de `modo_normas`**:
+  el minado necesita un id estable por condición; en un array JSONB, al
+  renombrar o reordenar, las marcas viejas cambiarían de significado, y
+  habría que tocar la lista de claves del trigger de `modo_normas`.
+  Reservar una columna `regla_huella JSONB NULL` (vacía en fase 1) para que
+  en la fase 3 una condición pueda comprobarse sola con la huella
+  (p. ej. `{"rsi5_m15": {">=": 90}, "lado": "sell"}`).
+- `trade_explicacion` — PK `(usuario_email, fp)`: `nota` (texto corto, tope
+  ~280 caracteres en el CHECK), `modo_id` con el que se rellenó (foto, por
+  si luego se corrige el modo), `creado_en`, `updated_at`. Que exista la fila
+  significa "trade revisado": así una casilla sin marcar = "no se cumplía",
+  y un trade sin fila = "sin explicar" (no se mezclan en el minado).
+- `trade_condiciones` — PK `(usuario_email, fp, condicion_id)`, `cumple
+  BOOLEAN NOT NULL`, FK a `modo_condiciones`. Una fila por casilla (mejor que
+  JSONB para agrupar en SQL y para la FK).
+- `trade_capturas` — `id`, `usuario_email`, `fp`, `ruta` (en Storage),
+  `ancho`, `alto`, `bytes`, `creado_en`. Tope de capturas por trade en el
+  trigger (p. ej. 3, como pedía el pendiente nº 8).
+- Historial: no hace falta (es la explicación del propio trader); sí
+  `updated_at`.
+
+**Storage:** bucket privado `capturas-trades`; ruta
+`{auth.uid()}/{fp}/{uuid}.webp`; policies en `storage.objects` con
+`(storage.foldername(name))[1] = auth.uid()::text` para select / insert /
+delete (sin update). Límite en el bucket: 2 MB y `image/png|jpeg|webp`. En
+el navegador se reduce antes de subir (canvas → WebP, lado mayor ~1600 px,
+~150–300 KB). Se ven con URL firmada de corta duración. Con 1 GB del plan
+gratuito caben ~4.000 capturas: vigilar.
+
+**Web:**
+- `normas-modo.js`: en la pestaña de cada modo, bloque "Condiciones de
+  entrada" (añadir, renombrar, ordenar, desactivar).
+- `diario-analisis.js` / `modos.js`: en el detalle de cada trade (analizado
+  o pendiente), mini formulario "Por qué entré": casillas del modo de ese
+  trade, nota corta y capturas (pegar con Ctrl+V en la zona del formulario,
+  o botón "Subir imagen"; miniaturas con borrar). Si el modo cambia después,
+  se avisa de que las casillas eran de otro modo (no se borran).
+- En la lista: insignia "Explicado" / "Sin explicar" y filtro.
+
+**Decisiones a confirmar:** si el admin puede ver capturas y notas de los
+usuarios (propuesta: no, solo cada usuario); si Storage sustituye a la
+carpeta local del pendiente nº 8 y si se limita por Pack; el tope de
+capturas por trade.
+
+### Fase 2 — Huella de la entrada (datos del mercado en cifras)
+
+**Tabla** `trade_huella` — PK `(usuario_email, fp)`; `cuenta_numero`,
+`position_id`, `lado`, `precio_entrada`, `hora_servidor` (de MT5, como
+`plan_dia`), `origen` (`'ea'` / `'historico'`), `version` (de la fórmula),
+y las cifras:
+- `rsi5_m1`, `rsi5_m15`;
+- `dist_ma20_m1`, `dist_ma50_m1`, `dist_ma200_m1` y lo mismo en M15 y H1
+  (9 columnas): precio de entrada − media, en pts con signo (+ = precio por
+  encima). Pts = unidades de precio, como en el resto de Aurum;
+- `pend_ma20_m1` … `pend_ma200_h1` (9 columnas): media ahora − media hace N
+  velas, en pts (se guarda la cifra; "sube/baja" se deriva con un umbral que
+  se puede cambiar sin rehacer datos);
+- `atr14_m15`.
+RLS: el usuario lee lo suyo; solo escribe el servidor (service role).
+Insertar con `on_conflict` "ignorar": **la primera huella manda** (la EA
+reenvía el `open` al reiniciarse y no debe pisarla con valores de otro
+momento).
+
+**Qué valor es "el de la entrada":** el que veía el trader en el gráfico:
+indicador sobre la vela EN CURSO con el precio de entrada como cierre (no
+la última vela cerrada). RSI de MT5 (`iRSI`, el mismo que usa
+`RSI_Aurum_Dual`). **Falta que el usuario diga si sus medias 20/50/200 son
+simples o exponenciales** y sobre qué precio (cierre, supongo).
+
+**Propuesta de orden dentro de la fase 2 (cambia lo pedido, a decidir):**
+- **2a — Huella desde el histórico, sin tocar la EA.** Estas cifras salen
+  de velas pasadas, así que `post_cierre.py` (que ya abre MT5 y baja velas)
+  puede calcularlas para todos los trades de la EA desde julio (~310) y,
+  cada día, para los nuevos. Ventajas: ≥100 trades con huella desde el
+  primer día y cero riesgo en la EA. Límites: no es al instante (llega con
+  la pasada diaria) y depende del PC con MT5; la vela en curso se
+  reconstruye con las M1 (diferencias pequeñas por bid/ask y ticks).
+  Validación: el usuario compara 5 trades con lo que ve en su gráfico.
+- **2b — Huella desde la EA (lo pedido)**, en rama `feature/ea-huella`,
+  EA 1.05:
+  - Handles en `OnInit`: `iRSI(5)` M1 y M15, `iMA` 20/50/200 en M1, M15 y H1,
+    `iATR(14)` M15 (12 handles), con el símbolo de la posición (no `_Symbol`).
+  - Al abrir (`HandleDealOpen`): solo apunta `pos_id` + hora de entrada en
+    una lista "huella pendiente". El cálculo va en `OnTimer` con
+    `CopyBuffer`; si los datos aún no están (`BarsCalculated` < lo
+    necesario) se reintenta en el siguiente timer, sin bucles de espera.
+  - Envío como evento nuevo `huella` por `g_cola_eventos` a un endpoint
+    propio (`/api/trade-huella`, o rama nueva en `trade-evento.js` que
+    escriba en `trade_huella`, no en `trade_eventos`). **`BuildOpenJson`,
+    el `open` y `/api/trade-mt5` no se tocan.** Una huella que falle nunca
+    afecta al registro del trade.
+  - `SyncOpenPositions` (reinicio) NO calcula huella con valores de ahora:
+    o la calcula por la hora de entrada (`CopyBuffer` desde `entry_time`),
+    o no manda nada y la rellena 2a.
+  - Solo lee indicadores: ni `OrderSend` ni `CTrade` ni nada que opere.
+  - Prueba en la cuenta Prueba (178497) → semana de observación →
+    comparar cada huella de la EA con la de 2a para el mismo trade
+    (tolerancia pequeña) → cuentas reales → fusionar.
+  Con 2a hecha, 2b solo aporta inmediatez (huella al abrir, útil para
+  proponer el modo en vivo); se puede dejar para después.
+
+### Fase 3 — Minado
+
+Requisito: **≥100 trades con huella + casillas + resultado.** La huella sale
+del histórico (2a), pero las casillas solo existen desde la fase 1: al ritmo
+actual (~100 trades EA al mes) es ~1 mes de rellenar el formulario. Se puede
+empezar con la huella sola mientras tanto.
+- **3a — Patrones (Python, offline, en `tools/post_cierre/edge/`):** pasar
+  las cifras a tramos legibles (RSI ≤20 / 20–80 / ≥80; distancia a cada
+  media en ATR —arriba, cerca, abajo—; pendiente sube/baja; sesión), más
+  casillas, lado y modo. Agrupar por combinaciones pequeñas (2–3 rasgos;
+  reglas legibles mejor que *clustering*, que no se puede explicar). Por
+  patrón: n, WR, pts/trade y P&L, con mínimo n (p. ej. ≥15) y aviso de
+  muestra pequeña. Para no engañarse con la casualidad (muchos patrones
+  probados): buscar en el 70 % más antiguo y comprobar en el 30 % reciente;
+  solo se enseña lo que aguanta en los dos.
+  Tabla `minado_patrones`: `usuario_email`, `version`, `definicion JSONB`,
+  `n`, `wr`, `pts_trade`, `pnl`, `n_comprobacion`, `wr_comprobacion`,
+  `periodo_desde/hasta`, `calculado_en`. Se sube como hoy `post_cierre.py
+  --subir`. Vista en el Diario: "Tus patrones" (los que ganan y los que
+  pierden).
+- **3b — Propuesta por trade nuevo:** `trade_propuesta` — PK
+  `(usuario_email, fp)`, `modo_id` propuesto, `condiciones` propuestas
+  (las que la huella cumple según `regla_huella`), `patron_id`, `estado`
+  (`pendiente` / `confirmada` / `rechazada`), `confirmado_en`. En el detalle
+  del trade: "Parece Scalping con RSI M15 ≥ 90 y medias a favor —
+  ¿confirmas?". Al confirmar se escribe en `trade_modo` (ampliar su CHECK de
+  `origen` con `'confirmado'`, ya previsto en `sql_modos.sql`) y en
+  `trade_condiciones`. Con 2a la propuesta llega tras la pasada diaria; al
+  instante solo con 2b.
+- Más adelante (punto 4, análisis en el servidor) el minado puede pasar de
+  Python local al servidor.
+
+### Riesgos de tocar la EA (fase 2b)
+
+1. **Un solo binario lo registra todo:** un error en tiempo de ejecución
+   (índice fuera de rango, división por cero) descarga la EA y deja de
+   enviar aperturas, SL/TP y cierres en esa cuenta hasta que alguien lo
+   vea. Mitigación: código de huella aislado, comprobaciones de tamaño de
+   cada `CopyBuffer`, prueba solo en 178497 y observación antes de reales.
+2. **Datos no listos:** tras arrancar MT5 o cargar el histórico de H1, los
+   indicadores tardan; `CopyBuffer` devuelve −1. Si se espera dentro de
+   `OnTradeTransaction` se bloquea el hilo de trading. Por eso: cálculo
+   diferido en `OnTimer` y, si falla N veces, huella vacía (la rellena 2a).
+3. **Colas:** cada trade suma un evento a `g_cola_eventos`, que vive en RAM
+   (ya hubo duplicación exponencial en `g_cola`, 440.555 eventos, y otra
+   duplicación de 26/08 sin investigar). Clave anti-duplicado propia
+   (`HUELLA:pos_id`), una sola huella por posición, y el servidor ignora
+   repetidas.
+4. **Reinicios:** `SyncOpenPositions` reenvía los `open`; si recalculara la
+   huella con valores de ese momento, guardaría una huella falsa. Lo evita
+   en el servidor "la primera huella manda" y, en la EA, no recalcular en
+   el reinicio.
+5. **Varias cuentas y versiones:** la EA corre en varias cuentas (7747760,
+   176821, 178497…); durante semanas habrá 1.04 y 1.05 a la vez. El servidor
+   debe aceptar trades sin huella y la web no puede depender de ella.
+6. **Despliegue en MT5:** recompilar con el gráfico abierto, BOM/CRLF, el
+   `.ex5` del repo y el `aurum_auth_*.txt` de cada cuenta (aún falta en
+   176821 y 178497): mismo procedimiento que la 1.04.
+7. **Rendimiento:** 12 handles más por gráfico es poco, pero en un VPS con
+   varias cuentas suma memoria; medirlo en Prueba.
+8. **Tentación de "ya que estamos":** la rama solo añade lectura de
+   indicadores. Nada que opere, ni cambios al `open` ni a la cola principal;
+   revisar el diff completo antes de fusionar.
+
+### Orden propuesto
+
+1. **Fase 1a** — SQL de condiciones, explicación, casillas, capturas y
+   bucket (rama `feature/minado-f1`, PGlite; aplica el usuario).
+2. **Fase 1b** — pantallas: condiciones en Normas por modo y formulario
+   "Por qué entré" en el Diario. El usuario empieza a rellenar.
+3. **Fase 2a** — `trade_huella` + cálculo en `post_cierre.py` (histórico y
+   diario). Pregunta previa: medias simples o exponenciales.
+4. **Fase 2b** — EA 1.05 en `feature/ea-huella` + endpoint; Prueba →
+   observación → comparar con 2a → reales → fusionar. (Opcional si 2a
+   basta.)
+5. **Fase 3a** — patrones cuando haya ≥100 trades con todo.
+6. **Fase 3b** — propuesta de modo y condiciones con confirmación.
+7. Después: medición por modo en el Diario y tablero (pendiente nº 4).
 
 ---
 
