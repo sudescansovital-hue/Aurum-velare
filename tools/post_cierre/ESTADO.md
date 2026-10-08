@@ -1,6 +1,6 @@
 # Estado — análisis post-cierre: FASE 1 (examen de la EA) + FASE 2 (Diario web)
 
-> Actualizado 08/10/2026 (propuesta "Minado de estrategias", sin código: pasa a ser el pendiente SIGUIENTE, antes de la medición por modo y del tablero). Antes, 07/10/2026, noche (MIS REGLAS FASE 3 y NORMAS POR MODO FASE 1 EN PRODUCCIÓN, `011fe93`, deploy `aurum-velare-awe9gylb8`; SQL candado v3, normas por modo y `desde` 08/10 aplicados por el usuario; `feature/ea-sync` FUSIONADA en `main`). Antes, 07/10 (ETAPAS v2 EN PRODUCCIÓN: SQL aplicado por el usuario y web (Mi proceso + admin); antes, revisión 2 del SQL; punto 3 de "Mi proceso" en producción: barra de etapa por días limpios; "Mi proceso" completo; punto 2 en producción: aciertos, errores y regla de la semana; base de los MODOS en producción: plan del día, modo de cada trade y plan frente a realidad; punto 1 de "Mi proceso", "Tu situación", en producción; punto 0 en producción y comprobado; textos "Pack" en la web; idea "Alertas al móvil"; propuesta "Modos, plan del día y tablero en directo", pendiente nº 3). Antes, 06/10/2026, noche (Diario al instante desde `ea_trades`, bloque "Hoy" y plan del trader en producción; **un push a `main` despliega solo**). Antes, 06/10 (cierre de sesión: decisiones y pendientes abajo; "Edge por cuenta"; "Mis reglas"; propuesta "Mi proceso"). Antes: 05/10/2026 (post_cierre automatizado con tarea programada; fallo 5 de la EA). Antes: 02/10/2026. **FASE 2 en producción** (primer deploy `cdede9a` /
+> Actualizado 08/10/2026, noche (CAPTURAS POR TRADE EN PRODUCCIÓN: SQL aplicado por el usuario, `capturas.js`, merge `238f018`, deploy `aurum-velare-eg4plgchr`; cron de borrado a los 6 meses con `CRON_SECRET`; zona de pruebas borrada). Antes, 08/10 (propuesta "Minado de estrategias", sin código: pasa a ser el pendiente SIGUIENTE, antes de la medición por modo y del tablero). Antes, 07/10/2026, noche (MIS REGLAS FASE 3 y NORMAS POR MODO FASE 1 EN PRODUCCIÓN, `011fe93`, deploy `aurum-velare-awe9gylb8`; SQL candado v3, normas por modo y `desde` 08/10 aplicados por el usuario; `feature/ea-sync` FUSIONADA en `main`). Antes, 07/10 (ETAPAS v2 EN PRODUCCIÓN: SQL aplicado por el usuario y web (Mi proceso + admin); antes, revisión 2 del SQL; punto 3 de "Mi proceso" en producción: barra de etapa por días limpios; "Mi proceso" completo; punto 2 en producción: aciertos, errores y regla de la semana; base de los MODOS en producción: plan del día, modo de cada trade y plan frente a realidad; punto 1 de "Mi proceso", "Tu situación", en producción; punto 0 en producción y comprobado; textos "Pack" en la web; idea "Alertas al móvil"; propuesta "Modos, plan del día y tablero en directo", pendiente nº 3). Antes, 06/10/2026, noche (Diario al instante desde `ea_trades`, bloque "Hoy" y plan del trader en producción; **un push a `main` despliega solo**). Antes, 06/10 (cierre de sesión: decisiones y pendientes abajo; "Edge por cuenta"; "Mis reglas"; propuesta "Mi proceso"). Antes: 05/10/2026 (post_cierre automatizado con tarea programada; fallo 5 de la EA). Antes: 02/10/2026. **FASE 2 en producción** (primer deploy `cdede9a` /
 > `aurum-velare-cw5la96zd`; el anterior a la FASE 2, para rollback, era
 > `aurum-velare-9hp3r9l3q`). Criterios de análisis hoy: **v6**. FASE 1
 > terminada el 29/09 (298 trades, en seco).
@@ -80,10 +80,10 @@
 6. **Frase del runner con cada parcial por separado.**
 7. **Punto 4 — velas desde la EA y análisis en el servidor** (sección
    "Siguiente gran paso (02/10)", pasos 3 y 4).
-8. **Capturas por trade** en la carpeta local del usuario (ver "Junto a este
-   paso" más abajo y "vincular capturas a cada trade" en Siguiente paso).
-   (08/10) La fase 1 del Minado propone capturas en Supabase Storage en vez
-   de carpeta local: si se aprueba, este punto queda absorbido por ella.
+8. **Capturas por trade** — **HECHO (08/10, en producción)** en Supabase
+   Storage, no en carpeta local (ver "Capturas por trade (08/10)"). Queda que
+   el usuario lo compruebe con su sesión. Para más adelante: captura
+   automática al abrir y al cerrar cada trade.
 9. **Rango y recorrido diario en pts.**
 10. **Rehacer Evalúame.**
 11. **Guía "Cómo funciona Aurum".**
@@ -98,6 +98,74 @@ sección Mis reglas); cambiarlo cuando haya más de un admin.
 Pendiente menor: **Mi gestión y Mi proceso no se adaptan a móvil** (Mi
 gestión se desplaza de lado; en Mi proceso la columna central queda casi sin
 ancho; ya pasaba antes del 07/10). No tocar ahora.
+
+---
+
+## Capturas por trade (08/10) — EN PRODUCCIÓN
+
+Sustituye a la zona de pruebas `capturas-test.js` (carpeta local del PC, sin
+enlace a ningún trade), que se ha borrado. Todo va a Supabase Storage.
+
+- **SQL** `tools/post_cierre/sql_capturas.sql` (rama `feature/capturas-trade`,
+  `16097bf`), probado en PGlite (56 comprobaciones) y **aplicado por el usuario
+  el 08/10** (tablas 2, policies 11, policies de storage 5, bucket "false ·
+  2097152 · image/webp,image/jpeg", caducidad "6 mons"):
+  - `trade_capturas`: PK `(usuario_email, fp, hueco)`, hueco `entrada` /
+    `gestion` / `salida` (máx. 3 por trade). `ruta` = `<auth.uid()>/<nombre>.webp|jpg`.
+    El trigger exige que el archivo ya esté subido y en la carpeta del usuario;
+    `capturado_en` solo cambia con la ruta (nadie alarga la caducidad).
+  - `trade_nota`: "Por qué entré", 1–300 caracteres, una por trade.
+  - Bucket privado `capturas-trades` (2 MB, webp/jpeg). Usuario: lo suyo;
+    admin: ve y borra capturas y archivos de todos y ve las notas.
+  - `capturas_caducidad()` = 6 meses (constante; en el front,
+    `CA_MESES_CADUCIDAD`: cambiar las dos). `capturas_para_borrar()` (solo
+    service_role) lista caducadas y archivos huérfanos de más de 1 día.
+- **Borrado automático:** `api/capturas-caducidad.js` + cron de Vercel diario
+  a las 03:15 UTC (`vercel.json`; registrado, `vercel crons ls`). Borra con la
+  API de Storage (desde SQL no se puede) y después las filas. Variable
+  `CRON_SECRET` creada el 08/10 (Vercel, sensible, solo Production,
+  `openssl rand -hex 32`, nunca mostrada). Comprobado en producción: sin
+  token / token falso → 401; con el token → 200
+  `{"caducadas":0,"huerfanas":0,…}` contra el Supabase real.
+- **Pantalla** (`capturas.js`, `6f8e07f`, merge `238f018`, deploy
+  `aurum-velare-eg4plgchr` desde copia limpia; el anterior, para volver
+  atrás, `aurum-velare-qz8pe86lw`):
+  - Barra "Capturas de tus trades" arriba del Diario (Mi gestión → Diario):
+    "📷 Capturar pantalla" (solo Chrome / Edge de escritorio), "Subir imagen"
+    y Ctrl+V en cualquier navegador; aviso de que se guardan 6 meses.
+  - Al capturar: vista previa, trade (por defecto el abierto de `ea_trades`;
+    con varios abiertos obliga a elegir; sin abiertos, el último cerrado;
+    lista con abiertos y los 40 últimos cerrados) y hueco (abierto → primer
+    hueco libre desde Entrada; cerrado → desde Salida; "ocupado: se
+    reemplaza").
+  - Detalle de cada trade (analizado o pendiente): 3 huecos con miniatura
+    (URL firmada 1 h), ver en grande (clic / Esc para cerrar), Reemplazar /
+    Capturar, Subir, Borrar, y Ctrl+V tras pulsar el hueco (queda en dorado).
+    "Por qué entré" con contador /300; vacío = borrar la nota.
+  - Lista: insignias 📷 n y 📝; filtro "📷 Con capturas".
+  - Compresión en el navegador: WebP (JPG si el navegador no sabe, p. ej.
+    Safari), máx. 1600 px de ancho, calidades 0,82→0,42 hasta ≤ 250 KB.
+  - Acceso: `CA_PACKS = ['senda', 'cima', 'vip']` (constante al principio de
+    `capturas.js`; configurable por el admin más adelante) + el admin. Solo en
+    el front.
+  - Se borra la IndexedDB `aurum_capturas_test` (permiso de la carpeta
+    local) una vez por navegador: ya no pide "Reconectar".
+  - Reemplazar: archivo nuevo → PATCH de la fila → se borra el viejo. Si algo
+    falla a medias, el archivo sobrante lo borra el cron.
+- Probado en jsdom con el Diario real contra PGlite (`sql_capturas.sql` con
+  RLS) y Storage simulado con sus policies: 54 comprobaciones (elegir trade
+  con 0/1/2 abiertos, reemplazar y borrar archivo viejo, Ctrl+V en hueco y
+  fuera, nota, filtro, otro usuario sin acceso a las imágenes, Pack sin
+  acceso, admin). Capturas de pantalla con Chrome sin interfaz (escritorio y
+  móvil).
+- **Pendiente:** que el usuario lo compruebe con su sesión. Sin hacer (no
+  pedido aún): vista del admin para ver capturas de otros usuarios (los
+  permisos ya lo permiten); captura automática al abrir y al cerrar cada
+  trade (para más adelante, toca la EA o un proceso aparte).
+- Relación con el Minado: `trade_nota` es el "por qué entré" de la fase 1;
+  las casillas de condiciones (`modo_condiciones`, `trade_condiciones`)
+  siguen pendientes. En la propuesta del Minado, `trade_explicacion` y
+  `trade_capturas` quedan sustituidas por estas dos tablas.
 
 ---
 

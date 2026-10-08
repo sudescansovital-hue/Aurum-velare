@@ -7,8 +7,26 @@
 
 ## Sesión 08/10/2026
 
-> Detalle en `tools/post_cierre/ESTADO.md`, sección "Minado de estrategias
-> (propuesta 08/10)". Sin código.
+> Detalle en `tools/post_cierre/ESTADO.md`, secciones "Capturas por trade
+> (08/10)" y "Minado de estrategias (propuesta 08/10)".
+
+- **Capturas por trade — EN PRODUCCIÓN** (`capturas.js`, merge `238f018`,
+  deploy `aurum-velare-eg4plgchr` desde copia limpia; anterior
+  `aurum-velare-qz8pe86lw`):
+  - SQL `tools/post_cierre/sql_capturas.sql` (aplicado por el usuario):
+    `trade_capturas` (hueco entrada / gestion / salida, máx. 3 por trade),
+    `trade_nota` ("Por qué entré", 300 caracteres), bucket privado
+    `capturas-trades` (2 MB, webp/jpeg, carpeta por `auth.uid()`), admin ve y
+    borra; `capturas_caducidad()` = 6 meses.
+  - Diario: barra "Capturas de tus trades" (capturar pantalla en Chrome/Edge
+    de escritorio, subir, Ctrl+V) que enlaza a un trade (abierto por defecto)
+    y hueco; en el detalle, 3 huecos con miniatura, ver en grande, borrar,
+    reemplazar y la nota; insignias 📷/📝 y filtro "Con capturas". WebP de
+    1600 px como máximo (~≤ 250 KB). Acceso por Pack (`CA_PACKS`) + admin.
+  - Borrado a los 6 meses: `api/capturas-caducidad.js` + cron de Vercel
+    (03:15 UTC) con `CRON_SECRET` (sensible); borra con la API de Storage.
+  - Se borra `capturas-test.js` (carpeta local) y su IndexedDB.
+  - Scripts de la web: `capturas.js` en lugar de `capturas-test.js`.
 
 - **Propuesta "Minado de estrategias"**, pendiente SIGUIENTE (antes de la
   medición por modo y del tablero):
