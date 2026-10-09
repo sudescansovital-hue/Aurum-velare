@@ -1,6 +1,6 @@
 # Estado — análisis post-cierre: FASE 1 (examen de la EA) + FASE 2 (Diario web)
 
-> Actualizado 08/10/2026, noche (CAPTURAS POR TRADE EN PRODUCCIÓN: SQL aplicado por el usuario, `capturas.js`, merge `238f018`, deploy `aurum-velare-eg4plgchr`; cron de borrado a los 6 meses con `CRON_SECRET`; zona de pruebas borrada). Antes, 08/10 (propuesta "Minado de estrategias", sin código: pasa a ser el pendiente SIGUIENTE, antes de la medición por modo y del tablero). Antes, 07/10/2026, noche (MIS REGLAS FASE 3 y NORMAS POR MODO FASE 1 EN PRODUCCIÓN, `011fe93`, deploy `aurum-velare-awe9gylb8`; SQL candado v3, normas por modo y `desde` 08/10 aplicados por el usuario; `feature/ea-sync` FUSIONADA en `main`). Antes, 07/10 (ETAPAS v2 EN PRODUCCIÓN: SQL aplicado por el usuario y web (Mi proceso + admin); antes, revisión 2 del SQL; punto 3 de "Mi proceso" en producción: barra de etapa por días limpios; "Mi proceso" completo; punto 2 en producción: aciertos, errores y regla de la semana; base de los MODOS en producción: plan del día, modo de cada trade y plan frente a realidad; punto 1 de "Mi proceso", "Tu situación", en producción; punto 0 en producción y comprobado; textos "Pack" en la web; idea "Alertas al móvil"; propuesta "Modos, plan del día y tablero en directo", pendiente nº 3). Antes, 06/10/2026, noche (Diario al instante desde `ea_trades`, bloque "Hoy" y plan del trader en producción; **un push a `main` despliega solo**). Antes, 06/10 (cierre de sesión: decisiones y pendientes abajo; "Edge por cuenta"; "Mis reglas"; propuesta "Mi proceso"). Antes: 05/10/2026 (post_cierre automatizado con tarea programada; fallo 5 de la EA). Antes: 02/10/2026. **FASE 2 en producción** (primer deploy `cdede9a` /
+> Actualizado 09/10/2026 (TRADES ABIERTOS EN EL DIARIO EN PRODUCCIÓN: merge `6b5c8f3`, deploy `aurum-velare-mow4fdagx`; rama `feature/notas-hueco` con notas por hueco y SQL SIN APLICAR: `sql_notas_hueco.sql`, `sql_abiertos_2_cierre.sql`). Antes, 08/10/2026, noche (CAPTURAS POR TRADE EN PRODUCCIÓN: SQL aplicado por el usuario, `capturas.js`, merge `238f018`, deploy `aurum-velare-eg4plgchr`; cron de borrado a los 6 meses con `CRON_SECRET`; zona de pruebas borrada). Antes, 08/10 (propuesta "Minado de estrategias", sin código: pasa a ser el pendiente SIGUIENTE, antes de la medición por modo y del tablero). Antes, 07/10/2026, noche (MIS REGLAS FASE 3 y NORMAS POR MODO FASE 1 EN PRODUCCIÓN, `011fe93`, deploy `aurum-velare-awe9gylb8`; SQL candado v3, normas por modo y `desde` 08/10 aplicados por el usuario; `feature/ea-sync` FUSIONADA en `main`). Antes, 07/10 (ETAPAS v2 EN PRODUCCIÓN: SQL aplicado por el usuario y web (Mi proceso + admin); antes, revisión 2 del SQL; punto 3 de "Mi proceso" en producción: barra de etapa por días limpios; "Mi proceso" completo; punto 2 en producción: aciertos, errores y regla de la semana; base de los MODOS en producción: plan del día, modo de cada trade y plan frente a realidad; punto 1 de "Mi proceso", "Tu situación", en producción; punto 0 en producción y comprobado; textos "Pack" en la web; idea "Alertas al móvil"; propuesta "Modos, plan del día y tablero en directo", pendiente nº 3). Antes, 06/10/2026, noche (Diario al instante desde `ea_trades`, bloque "Hoy" y plan del trader en producción; **un push a `main` despliega solo**). Antes, 06/10 (cierre de sesión: decisiones y pendientes abajo; "Edge por cuenta"; "Mis reglas"; propuesta "Mi proceso"). Antes: 05/10/2026 (post_cierre automatizado con tarea programada; fallo 5 de la EA). Antes: 02/10/2026. **FASE 2 en producción** (primer deploy `cdede9a` /
 > `aurum-velare-cw5la96zd`; el anterior a la FASE 2, para rollback, era
 > `aurum-velare-9hp3r9l3q`). Criterios de análisis hoy: **v6**. FASE 1
 > terminada el 29/09 (298 trades, en seco).
@@ -80,7 +80,10 @@
 6. **Frase del runner con cada parcial por separado.**
 7. **Punto 4 — velas desde la EA y análisis en el servidor** (sección
    "Siguiente gran paso (02/10)", pasos 3 y 4).
-8. **Capturas por trade** — **HECHO (08/10, en producción)** en Supabase
+8. **Capturas por trade** — **HECHO (08/10, en producción)**. **(09/10)**
+   abiertos en el Diario en producción; notas por hueco y limpieza de
+   abiertos falsos en la rama `feature/notas-hueco`, con SQL pendiente de
+   revisión (ver "Trades abiertos en el Diario (09/10)"). en Supabase
    Storage, no en carpeta local (ver "Capturas por trade (08/10)"). Queda que
    el usuario lo compruebe con su sesión. Para más adelante: captura
    automática al abrir y al cerrar cada trade.
@@ -98,6 +101,136 @@ sección Mis reglas); cambiarlo cuando haya más de un admin.
 Pendiente menor: **Mi gestión y Mi proceso no se adaptan a móvil** (Mi
 gestión se desplaza de lado; en Mi proceso la columna central queda casi sin
 ancho; ya pasaba antes del 07/10). No tocar ahora.
+
+Pendiente VPS (08/10): **Prueba 178497 (WSFmarkets) → HECHA**, migrada al
+VPS gratis "Patrocinado por bróker" de MetaQuotes (Amsterdam); falta
+confirmar en Supabase que los eventos llegan desde el VPS. **Maestra
+→ PENDIENTE.** Notas para repetirlo: en el VPS no existe
+`Common\Files\aurum_auth_<cuenta>.txt`, así que `InToken` e
+`InEaPassword` se rellenan en los inputs del gráfico antes de migrar
+(`InEmail` ya lleva valor por defecto); la migración se lleva los inputs y
+la lista de URLs de WebRequest. Cola, eventos, extremos y abiertas los crea
+la EA sola (si no existen, arranca vacía). Tras migrar se quita la EA del
+gráfico local para no registrar dos veces; **no volver a "Migrar" desde ese
+terminal sin la EA puesta**, porque la migración copia el estado local y la
+quitaría también del VPS.
+
+---
+
+## Trades abiertos en el Diario (09/10) — EN PRODUCCIÓN (+ rama con SQL sin aplicar)
+
+**Problema:** en el Diario los trades solo aparecían al cerrarse (y los
+cerrados sin análisis, mezclados en su semana), así que no se podía poner la
+captura ni el "Por qué entré" en el momento de abrir. Además, la lista
+"Abiertos" de la captura enseñaba 15 trades y solo 1 estaba abierto: los
+otros 14 son `ea_trades.estado = 'open'` antiguos (julio–septiembre, cuentas
+179003, 176821, 152034, 167807, 174645 y alguno de 7747760) cuyo cierre nunca
+llegó (EA anterior a la 1.04).
+
+### En producción (merge `6b5c8f3`, deploy `aurum-velare-mow4fdagx` desde copia limpia; para volver atrás, `aurum-velare-iu2loarfn`)
+
+- **Bloque "En curso y pendientes de análisis"**, arriba del todo del Diario
+  (antes de "Hoy"): los abiertos (insignia "● Abierto": cuenta, dirección,
+  lote, entrada, SL/TP actual, hora de entrada, modo del plan del día) y
+  debajo los cerrados sin análisis ("Pendiente de análisis", con P&L; máx. 20,
+  `DA_PENDIENTES_ARRIBA`; siguen también en su semana). Respeta la pestaña de
+  cuenta. Al pulsar: aviso, capturas y nota, modo (con corregir), entrada,
+  SL/TP actual con distancia en pts, lote y línea de tiempo.
+  Los abiertos van aparte (`_daAbiertos`): no entran en calendario, semana
+  ni estadísticas. Con solo abiertos (ningún cerrado) se ve el bloque y el
+  plan del día, sin calendario.
+- **Abierto = abierto de verdad** (`_daAbiertoReal`, también en la lista de la
+  captura): cuenta activa del usuario (Maestra / Prueba / Retos de
+  `usuarios_aurum`), el fp NO está ya en `trades` (historial importado de MT5)
+  y abierto hace menos de **14 días** (`DA_ABIERTO_MAX_DIAS`, freno provisional
+  hasta limpiar los antiguos). **Lo que se pidió ("lo que la EA confirma
+  abierto en su última sincronización") no es posible sin tocar la EA:** la
+  EA guarda su lista en `Common\Files\aurum_abiertas_<cuenta>.txt` y no la
+  manda al servidor. Para hacerlo bien (más adelante, toca la EA): que mande
+  esa lista en cada sincronización y que la API marque cuáles siguen abiertos.
+- **«Por qué entré»** arriba del detalle, en un recuadro dorado, con botón
+  Guardar dorado, "Guardando…" y "✓ Guardado".
+- **Captura con el botón:** al guardarla se releen los abiertos, así que un
+  trade abierto después de cargar el Diario aparece ya en el bloque.
+- **Refresco** (cada minuto con el Diario a la vista): la firma incluye los
+  abiertos (fp + SL/TP), así que un trade nuevo o un cambio de SL/TP sale solo.
+- Arreglo de paso: al cambiar de trade se vacía el detalle anterior (un mismo
+  fp puede estar en "En curso" y en la semana; con los dos detalles en el DOM
+  se repetían los ids y Guardar podía leer la nota del oculto).
+- **fp:** se fija en el `open` de `ea_trades` y nunca cambia
+  (`api/trade-mt5.js`); `post_cierre_analisis` usa ese mismo fp
+  (`api/post-cierre.js` rechaza cualquier fp que no esté en `ea_trades`). Por
+  eso capturas, notas y modo siguen al trade al cerrarse y analizarse.
+- Probado en jsdom + PGlite (`sql_capturas.sql` real con RLS, Storage
+  simulado, modos): 47 comprobaciones nuevas (abiertos falsos fuera, abiertos
+  primero, detalle, nota y captura con el fp del abierto, trade abierto
+  después de cargar, refresco, cierre → pendiente → analizado conservando
+  capturas y nota, pestañas, usuario con solo abiertos, sin trades) + las 54
+  de capturas del 08/10 siguen bien. Capturas de pantalla con Chrome sin
+  interfaz (escritorio y móvil).
+
+**Para comprobar con la sesión del usuario:**
+1. Mi gestión → Diario: arriba, "En curso y pendientes de análisis" con el
+   trade abierto real (Venta Prueba 178497, 09/10 01:23, 4142.83) y "●
+   Abierto", sin los 14 antiguos.
+2. Pulsarlo: «Por qué entré» arriba, escribir, Guardar → "✓ Guardado"; los 3
+   huecos; las 2 capturas ya hechas deberían salir aquí (si salen en otro
+   trade, ver la consulta 1 de abajo).
+3. "📷 Capturar pantalla": en "Abiertos" solo el real.
+4. Abrir un trade nuevo con el Diario abierto: aparece en ≤ 1 min.
+5. Al cerrarse: pasa a "Pendiente de análisis" (arriba y en su semana) con
+   📷/📝; tras la tarea horaria sale del bloque y queda en la semana con su
+   veredicto, capturas y nota.
+
+### SQL de solo lectura: `tools/post_cierre/sql_abiertos_1_consulta.sql` (en `main`)
+
+Tres consultas para el SQL Editor: (1) cada captura y nota con su fp, si ese
+fp está en `ea_trades` (y en qué estado) y si ya está analizado; (2) fp
+repetidos en `ea_trades` (debería dar 0 filas); (3) todos los 'open' con las
+pistas de si están cerrados: cuenta activa, mismo fp en `trades` (precio,
+beneficio, duración), últimos eventos, capturas y notas. Probado en PGlite
+(8 comprobaciones). **Sin acceso de lectura desde aquí:** la API de
+post-cierre solo devuelve cerrados y no se buscan credenciales; la ejecuta el
+usuario.
+
+### Rama `feature/notas-hueco` (`5825bb9`) — SQL SIN APLICAR, web SIN DESPLEGAR
+
+- **`tools/post_cierre/sql_notas_hueco.sql`**: tabla `trade_nota_hueco`
+  (PK usuario + fp + hueco; `entrada` / `gestion` / `salida`; 1–300
+  caracteres; trigger `trade_nota_antes()` reutilizado; RLS igual que
+  `trade_nota`: cada uno lo suyo, el admin ve todo sin editar) y migración
+  de cada "Por qué entré" a la nota de Entrada (`ON CONFLICT DO NOTHING`:
+  se puede repetir sin pisar nada). `trade_nota` no se borra ni se cambia.
+  Probado en PGlite sobre `sql_capturas.sql` (22 comprobaciones: migración,
+  reaplicar sin pisar ni duplicar, recorte, `creado_en` fijo, límites, RLS
+  de usuario / otro usuario / admin, consulta de comprobación).
+- **Pantalla (`capturas.js`)**: en el detalle, cada hueco lleva su nota
+  ("Por qué entré" / "Qué hice" / "Por qué salí", guía en gris: "por qué
+  entré: setup · temporalidad · qué vi", "qué hice durante el trade y por
+  qué", "por qué salí o qué me sacó"), con contador, "sin guardar", Guardar y
+  "✓ Guardado"; se puede escribir sin captura y en abiertos. En la ventana de
+  captura, debajo de "Hueco", la nota del hueco elegido (cambia con el
+  hueco/trade), con su Guardar; "Guardar en el trade" guarda también la nota
+  si se ha cambiado. Lo escrito sin guardar sobrevive a los repintados
+  (`_caBorradores`). Insignia 📝 = alguna nota. Probado en jsdom + PGlite con
+  el SQL nuevo: 33 comprobaciones + las 47 de abiertos y las 54 de capturas
+  adaptadas a la nota por hueco.
+- **Orden para pasarlo a producción:** 1) el usuario revisa y aplica
+  `sql_notas_hueco.sql` (comprobación al final: policies 5, sin_migrar 0);
+  2) merge de la rama en `main` y deploy; 3) opcional: repetir solo el paso
+  4 del SQL (migración) por si alguien escribió una nota entre medias con la
+  pantalla vieja. **No desplegar la rama antes del SQL** (la web leería una
+  tabla que no existe y no se verían las notas).
+- **`tools/post_cierre/sql_abiertos_2_cierre.sql`** (propuesta, todo lo que
+  escribe va comentado): 0) copia `ea_trades_abiertos_bak_20261009` de todas
+  las filas 'open'; opción A: cerrar con precio, beneficio y hora de cierre
+  sacados de `trades` (mismo fp) — entran en el Diario como pendientes y
+  `post_cierre.py` los analizará; opción B: `estado = 'closed'` con
+  `fecha_cierre` NULL para los de cuentas que ya no son del usuario o de
+  antes del 05/10 (no entran en ninguna pantalla); 3) deshacer desde la
+  copia. Cada opción con su vista previa. Probado en PGlite (11
+  comprobaciones). Antes de aplicarlo: mirar la consulta 3 de
+  `sql_abiertos_1_consulta.sql`.
 
 ---
 

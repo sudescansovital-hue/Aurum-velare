@@ -1,7 +1,38 @@
 # AURUM VELARE — Arquitectura Web
 > Documento vivo. Se actualiza con el proyecto.  
-> Última actualización: 8 de octubre de 2026  
+> Última actualización: 9 de octubre de 2026  
 > Para uso interno — contexto de desarrollo y nuevas sesiones de trabajo.
+
+---
+
+## Sesión 09/10/2026
+
+> Detalle en `tools/post_cierre/ESTADO.md`, sección "Trades abiertos en el
+> Diario (09/10)".
+
+- **Trades abiertos en el Diario — EN PRODUCCIÓN** (merge `6b5c8f3`, deploy
+  `aurum-velare-mow4fdagx` desde copia limpia; anterior
+  `aurum-velare-iu2loarfn`). Sin SQL nuevo.
+  - `diario-analisis.js`: lee también `ea_trades` con `estado=open`
+    (`_daAbiertos`, aparte de `_daDatos`). Bloque "En curso y pendientes de
+    análisis" arriba del Diario (abiertos + cerrados sin análisis) y detalle
+    del abierto (capturas y nota, modo, SL/TP actual, lote, línea de tiempo).
+    Refresco cada minuto también para abiertos.
+  - `_daAbiertoReal()`: abierto = cuenta activa del usuario + fp que no
+    esté en `trades` + menos de 14 días (`DA_ABIERTO_MAX_DIAS`). Lo usa
+    también `capturas.js` en la lista "Abiertos". La EA no manda al servidor
+    su lista de abiertas (`aurum_abiertas_<cuenta>.txt`).
+  - `capturas.js`: «Por qué entré» arriba del detalle con Guardar y
+    "✓ Guardado"; tras capturar se releen los abiertos.
+  - fp: el de `ea_trades` es el mismo de `post_cierre_analisis`; capturas,
+    notas y modo siguen al trade.
+- **Rama `feature/notas-hueco`** (SQL sin aplicar, web sin desplegar):
+  `sql_notas_hueco.sql` (tabla `trade_nota_hueco`, migra "Por qué entré" a
+  Entrada) + nota por hueco en el detalle y en la ventana de captura.
+  `sql_abiertos_2_cierre.sql`: propuesta para cerrar los 'open' antiguos
+  (copia, opción A con datos de `trades`, opción B sin fecha, deshacer).
+- `tools/post_cierre/sql_abiertos_1_consulta.sql` (solo lectura): capturas
+  y su fp, fp repetidos y los 'open' con pistas de cierre.
 
 ---
 
