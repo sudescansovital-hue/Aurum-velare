@@ -19,6 +19,14 @@
 // P&L y los avisos de Mis reglas; los bloques que necesitan el análisis los
 // dejan fuera. Clave fp en las dos tablas: un trade nunca sale dos veces.
 //
+// En curso (09/10): los ABIERTOS de ea_trades (estado=open) y los cerrados
+// aún sin análisis salen arriba del todo, en "En curso y pendientes de
+// análisis", para poner capturas y "Por qué entré" en el momento. Los
+// abiertos van aparte (_daAbiertos): no tienen cierre y no entran en
+// calendario, semana ni estadísticas. El fp de ea_trades es el mismo que
+// usa post_cierre_analisis (api/post-cierre.js solo acepta fp de ea_trades),
+// así que capturas, nota y modo siguen al trade al cerrarse y analizarse.
+//
 // Semana: de lunes a domingo en hora de servidor MT5. Las fechas vienen
 // etiquetadas +00 sin serlo (misma convención que ea_trades), así que se
 // trabaja siempre con getUTC*.
@@ -27,6 +35,7 @@
 var _daDatos = null;          // filas de post_cierre_analisis + provisionales de ea_trades (_pendiente)
 var _daEa = null;             // trades cerrados de ea_trades (P&L y trades aún sin analizar)
 var _daEaEmail = null;        // de quién son las filas de _daEa
+var _daAbiertos = null;       // trades abiertos de ea_trades (_abierto: "En curso"); van aparte de _daDatos
 var _daCargando = false;
 var _daCargaPromesa = null;   // carga en curso: quien llame mientras tanto espera la misma (Diario y "Tu situación")
 var _daDatosEmail = null;     // de quién son _daDatos
@@ -337,6 +346,60 @@ async function _daGetTodo(tabla, params) {
 }
 
 var DA_COLUMNAS_EA = 'fp,position_id,cuenta_numero,estrategia,tipo,volumen,precio_entrada,fecha_entrada,precio_cierre,fecha_cierre,beneficio';
+var DA_COLUMNAS_ABIERTOS = 'fp,position_id,cuenta_numero,estrategia,tipo,volumen,precio_entrada,fecha_entrada,sl_actual,tp_actual';
+// "En curso": máximo de cerrados sin análisis que se listan arriba (los demás
+// siguen en el calendario y en su semana).
+var DA_PENDIENTES_ARRIBA = 20;
+
+// ¿Abierto de verdad? ea_trades guarda como 'open' trades antiguos cuyo cierre
+// nunca llegó (EA anterior a la 1.04, cuentas que ya no se usan). La EA no
+// manda al servidor su lista de abiertas (vive en aurum_abiertas_<cuenta>.txt),
+// así que aquí cuenta como abierto solo si: es de una cuenta activa del
+// usuario (Maestra / Prueba / Retos), no está ya cerrado en trades (historial
+// importado de MT5, mismo fp) y se abrió hace menos de DA_ABIERTO_MAX_DIAS.
+// Lo usa también la lista de la captura (capturas.js).
+var DA_ABIERTO_MAX_DIAS = 14;
+function _daCuentasActivas() {
+  var u = window.usuarioActual || {};
+  return DA_PESTANAS.map(function(p) { return u[p.campo] ? String(u[p.campo]) : null; }).filter(Boolean);
+}
+function _daAbiertoReal(t) {
+  if (!t || !t.fp || _daCuentasActivas().indexOf(String(t.cuenta_numero)) === -1) return false;
+  var cerrados = (window.AURUM_TRADES && window.AURUM_TRADES.todos) || [];
+  if (cerrados.some(function(x) { return x.fp === t.fp; })) return false;
+  var ms = Date.parse(t.fecha_entrada);
+  return !isNaN(ms) && Date.now() - ms < DA_ABIERTO_MAX_DIAS * DA_MS_DIA;
+}
+
+// Abiertos de ea_trades con la misma forma que las filas del Diario.
+function _daFilasAbiertas(ea) {
+  return ea.filter(_daAbiertoReal).map(function(t) {
+    return {
+      fp: t.fp, position_id: t.position_id, cuenta_numero: t.cuenta_numero, estrategia: t.estrategia || null,
+      direccion: String(t.tipo || '').toLowerCase() === 'sell' ? 'sell' : 'buy', volumen: t.volumen,
+      fecha_entrada: t.fecha_entrada, precio_entrada: t.precio_entrada,
+      sl_actual: t.sl_actual, tp_actual: t.tp_actual, _abierto: true
+    };
+  }).sort(function(a, b) { return _daFecha(b.fecha_entrada) - _daFecha(a.fecha_entrada); });
+}
+
+function _daConsultaAbiertos(email) {
+  return supaGet('ea_trades', 'usuario_email=eq.' + email + '&estado=eq.open&select=' + DA_COLUMNAS_ABIERTOS +
+                              '&order=fecha_entrada.desc,position_id.desc', getToken());
+}
+
+// Vuelve a leer solo los abiertos y repinta (p. ej. tras una captura de un
+// trade que se abrió después de cargar el Diario).
+async function _daRefrescarAbiertos() {
+  var u = window.usuarioActual;
+  if (!u || !u.email) return;
+  var r = await _daConsultaAbiertos(encodeURIComponent(u.email));
+  if (r.error || !Array.isArray(r.data) || !window.usuarioActual || window.usuarioActual.email !== u.email) return;
+  _daAbiertos = _daFilasAbiertas(r.data);
+  if (document.getElementById('diario-analisis-bloque') && _daHayAlgo()) _daPintar();
+}
+
+function _daHayAlgo() { return !!((_daDatos && _daDatos.length) || (_daAbiertos && _daAbiertos.length)); }
 
 // Análisis + trades de ea_trades sin analizar todavía, por fecha de cierre desc.
 // Una provisional por fp que no tenga análisis: cuando post_cierre.py lo sube,
@@ -382,7 +445,8 @@ async function _daCargarAhora() {
     // Modos y plan del día (modos.js): si fallan, el Diario sigue igual.
     typeof _moCargar === 'function' ? _moCargar().catch(function(e) { console.error('[diario-analisis] modos', e); }) : null,
     // Capturas y "Por qué entré" (capturas.js): si fallan, el Diario sigue igual.
-    typeof _caCargar === 'function' ? _caCargar().catch(function(e) { console.error('[diario-analisis] capturas', e); }) : null
+    typeof _caCargar === 'function' ? _caCargar().catch(function(e) { console.error('[diario-analisis] capturas', e); }) : null,
+    _daConsultaAbiertos(email)
   ]);
   var r = res[0];
   _daCargando = false;
@@ -400,6 +464,11 @@ async function _daCargarAhora() {
     console.error('[diario-analisis] error al cargar ea_trades', res[2].error);
     if (_daEaEmail !== u.email) _daEa = null;   // nunca los de otra sesión
   } else { _daEa = res[2].data; _daEaEmail = u.email; }
+  // Abiertos: si fallan, se mantienen los anteriores de esta sesión (o ninguno).
+  if (res[5].error || !Array.isArray(res[5].data)) {
+    console.error('[diario-analisis] error al cargar los abiertos', res[5].error);
+    if (_daDatosEmail !== u.email) _daAbiertos = null;
+  } else _daAbiertos = _daFilasAbiertas(res[5].data);
   if (r.error || !Array.isArray(r.data)) { console.error('[diario-analisis] error al cargar', r.error); return; }
   _daDatos = _daFusionar(r.data, _daEa || []);
   _daDatosEmail = u.email;
@@ -414,13 +483,13 @@ async function buildDiarioAnalisis() {
   await _daCargar();
   _daFirma = null;
   _daComprobarNuevos(true);
-  if (!_daDatos || !_daDatos.length) { cont.innerHTML = ''; return; }
+  if (!_daHayAlgo()) { cont.innerHTML = ''; return; }
   _daPintar();
 }
 
 // ── Refresco con el Diario abierto ─────────────────────────────────────────
-// Firma = últimos cierres de ea_trades (fp + beneficio) y últimos análisis
-// (fp + ventana completa + versión). Si cambia, se recarga y se repinta; si
+// Firma = últimos cierres de ea_trades (fp + beneficio), últimos análisis
+// (fp + ventana completa + versión) y abiertos (fp + SL/TP). Si cambia, se recarga y se repinta; si
 // no, no se toca la pantalla. Solo con la pestaña del navegador y el Diario visibles.
 async function _daFirmaActual() {
   var u = window.usuarioActual;
@@ -430,10 +499,11 @@ async function _daFirmaActual() {
     supaGet('ea_trades', 'usuario_email=eq.' + email + '&estado=eq.closed&fecha_cierre=not.is.null' +
                          '&select=fp,beneficio&order=fecha_cierre.desc,position_id.desc&limit=20', getToken()),
     supaGet('post_cierre_analisis', 'usuario_email=eq.' + email +
-                                    '&select=fp,ventana_completa,criterios_version&order=calculado_en.desc&limit=20', getToken())
+                                    '&select=fp,ventana_completa,criterios_version&order=calculado_en.desc&limit=20', getToken()),
+    supaGet('ea_trades', 'usuario_email=eq.' + email + '&estado=eq.open&select=fp,sl_actual,tp_actual&order=fecha_entrada.desc,position_id.desc', getToken())
   ]);
-  if (res[0].error || res[1].error) return null;
-  return JSON.stringify([res[0].data, res[1].data]);
+  if (res[0].error || res[1].error || res[2].error) return null;
+  return JSON.stringify([res[0].data, res[1].data, res[2].data]);
 }
 
 function _daVisible() {
@@ -449,7 +519,7 @@ async function _daComprobarNuevos(soloFirma) {
   if (f === _daFirma) return;
   _daFirma = f;
   await _daCargar();
-  if (_daVisible() && _daDatos && _daDatos.length) _daPintar();
+  if (_daVisible() && _daHayAlgo()) _daPintar();
 }
 
 setInterval(function() { if (_daDatos && _daVisible()) _daComprobarNuevos(false); }, DA_REFRESCO_MS);
@@ -489,8 +559,8 @@ function _daPintar() {
   // Si la cuenta de la pestaña elegida se ha quitado en el admin, volver a Global.
   if (_daCuenta !== 'global' && !_daNumeroPestana(_daCuenta)) _daCuenta = 'global';
 
-  _daMarcarNiveles(_daDatos, _daTradesPorFp());
-  var filas = _daFiltrarCuenta(_daDatos);
+  _daMarcarNiveles(_daDatos || [], _daTradesPorFp());
+  var filas = _daFiltrarCuenta(_daDatos || []);
   var semana = _daDeSemana(filas, _daSemana);
   // "Todo el histórico": mismos bloques con todos los trades de la cuenta elegida.
   var periodo = _daHistorico ? filas : semana;
@@ -512,7 +582,14 @@ function _daPintar() {
             }).join('') +
           '</div>';
 
+  html += _daHtmlEnCurso(filas);
   html += _daHtmlHoy(filas);
+  // Solo abiertos (aún ningún trade cerrado): no hay calendario ni semanas que pintar.
+  if (!_daDatos || !_daDatos.length) {
+    cont.innerHTML = html;
+    if (_daAbierto) _daAbrirDetalle(_daAbierto);
+    return;
+  }
   html += _daHtmlCalendario(filas);
 
   html += '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;margin:2rem 0 1rem;">' +
@@ -1825,14 +1902,68 @@ function _daHtmlTrades(filas, titulo, pref, conFiltros) {
   return h + '</div>';
 }
 
+// ── En curso: abiertos y cerrados sin análisis (arriba del todo) ─────────
+
+function _daInsignia(texto, color, titulo) {
+  return '<span title="' + _daEsc(titulo) + '" style="font-size:11px;color:' + color + ';border:1px solid ' + color +
+         ';padding:.12rem .45rem;white-space:nowrap;">' + texto + '</span>';
+}
+
+function _daPrecio(v) { return v == null || Number(v) === 0 ? '—' : _daNum(v, 2); }
+
+// Lista "En curso y pendientes de análisis" (pref 'a'): abiertos de la cuenta
+// elegida y, debajo, los cerrados que post_cierre.py aún no ha analizado.
+function _daHtmlEnCurso(filasCuenta) {
+  var abiertos = _daFiltrarCuenta(_daAbiertos || []);
+  var pend = filasCuenta.filter(_daPendiente);
+  if (!abiertos.length && !pend.length) return '';
+  var porFp = _daTradesPorFp();
+  var masPend = pend.length > DA_PENDIENTES_ARRIBA ? pend.length - DA_PENDIENTES_ARRIBA : 0;
+  var lista = abiertos.concat(pend.slice(0, DA_PENDIENTES_ARRIBA));
+  var h = '<div class="tag" style="display:block;margin-bottom:.4rem;">En curso y pendientes de análisis · ' + (abiertos.length + pend.length) + '</div>' +
+          '<div style="font-size:13px;color:var(--text-muted);margin-bottom:.8rem;">Pulsa un trade para poner sus capturas y el «Por qué entré» ya; ' +
+            'se quedan con él cuando se cierre y se analice.</div>' +
+          '<div style="display:flex;flex-direction:column;gap:1px;background:var(--border);margin-bottom:' + (masPend ? '.5rem' : '2rem') + ';border:1px solid var(--border-gold);">';
+  lista.forEach(function(r) {
+    var clave = _daEsc('a:' + r.fp);
+    var ab = r._abierto === true;
+    var ben = ab ? null : _daBenef(r, porFp);
+    var datos = (r.volumen != null ? _daNum(r.volumen, 2) + ' lotes · ' : '') + 'entrada ' + _daPrecio(r.precio_entrada) +
+                (ab ? ' · SL ' + _daPrecio(r.sl_actual) + ' · TP ' + _daPrecio(r.tp_actual) : ' · cierre ' + _daPrecio(r.precio_cierre));
+    h += '<div style="background:var(--bg2);' + (ab ? 'box-shadow:inset 3px 0 0 var(--gold);' : '') + '">' +
+           '<div onclick="_daToggle(\'' + clave + '\')" style="display:flex;flex-wrap:wrap;gap:.5rem 1rem;align-items:center;padding:.8rem 1.2rem;cursor:pointer;">' +
+             '<span style="font-size:13px;color:var(--gold-dim);flex:0 0 88px;" title="' + (ab ? 'Hora de entrada' : 'Hora de cierre') + '">' +
+               _daHora(ab ? r.fecha_entrada : r.fecha_cierre) + '</span>' +
+             '<span style="font-size:14px;color:var(--text-dim);flex:1 1 220px;min-width:0;">' + (r.direccion === 'buy' ? 'Compra' : 'Venta') + ' · ' +
+               _daEsc(_daNombreCuenta(r.cuenta_numero)) +
+               ' <span style="color:var(--text-muted);font-size:12px;">· ' + datos + '</span></span>' +
+             '<span style="display:flex;gap:.4rem 1rem;flex-wrap:wrap;justify-content:flex-end;align-items:center;margin-left:auto;">' +
+               '<span style="display:flex;gap:.4rem;flex-wrap:wrap;justify-content:flex-end;">' +
+                 (typeof _moBadge === 'function' ? _moBadge(r) : '') + (typeof _caBadge === 'function' ? _caBadge(r) : '') +
+                 (ab ? _daInsignia('● Abierto', 'var(--gold)', 'La EA lo tiene abierto ahora; SL y TP son los actuales')
+                     : _daInsignia('Pendiente de análisis', 'var(--text-muted)', 'Cerrado; el análisis llega con la tarea horaria')) + '</span>' +
+               '<span style="font-size:14px;min-width:70px;text-align:right;color:' + (ben == null ? 'var(--text-muted)' : ben >= 0 ? 'var(--green)' : 'var(--red)') + ';">' +
+                 (ben == null ? (ab ? 'en curso' : '—') : (ben >= 0 ? '+' : '') + _daNum(ben, 2) + '$') + '</span>' +
+             '</span>' +
+           '</div>' +
+           '<div id="da-det-' + clave + '" style="display:none;padding:0 1.2rem 1.2rem;"></div>' +
+         '</div>';
+  });
+  h += '</div>';
+  if (masPend) h += '<div style="font-size:12px;color:var(--text-muted);margin-bottom:2rem;">Y ' + masPend + ' pendientes más: están en el calendario y en su semana.</div>';
+  return h;
+}
+
 // clave = '<pref>:<fp>' (ver _daHtmlTrades)
 function _daToggle(clave) {
   if (_daAbierto && _daAbierto !== clave) {
     var prev = document.getElementById('da-det-' + _daAbierto);
-    if (prev) prev.style.display = 'none';
+    if (prev) { prev.style.display = 'none'; prev.innerHTML = ''; }  // un mismo fp puede estar en dos listas: sin ids repetidos
   }
   if (_daAbierto === clave) {
-    document.getElementById('da-det-' + clave).style.display = 'none';
+    var det = document.getElementById('da-det-' + clave);
+    det.style.display = 'none';
+    det.innerHTML = '';
     _daAbierto = null;
     return;
   }
@@ -1845,13 +1976,14 @@ function _daToggle(clave) {
 async function _daAbrirDetalle(clave) {
   var fp = clave.slice(clave.indexOf(':') + 1);
   var det = document.getElementById('da-det-' + clave);
-  var r = (_daDatos || []).filter(function(x) { return x.fp === fp; })[0];
+  var r = (_daDatos || []).concat(_daAbiertos || []).filter(function(x) { return x.fp === fp; })[0];
   if (!det || !r) return;
   det.style.display = 'block';
   det.innerHTML = '<div style="font-size:13px;color:var(--text-muted);">Cargando…</div>';
 
   var email = encodeURIComponent(window.usuarioActual.email);
   var token = getToken();
+  if (r._abierto === true) return _daAbrirAbiertoDetalle(clave, r, det, token);
   if (_daPendiente(r)) return _daAbrirPendiente(clave, r, det, token);
   var res = await Promise.all([
     supaGet('post_cierre_velas', 'usuario_email=eq.' + email + '&fp=eq.' + encodeURIComponent(fp), token),
@@ -1925,14 +2057,41 @@ async function _daAbrirPendiente(clave, r, det, token) {
   det.innerHTML =
     '<div style="font-size:13px;color:var(--text-muted);line-height:1.6;margin:.2rem 0 .8rem;padding:.5rem .8rem;border:1px dashed var(--border);">' +
       'Análisis pendiente: la EA ya envió el trade y la tarea programada lo analiza cada hora (gráfico, veredicto y 4 h después del cierre).</div>' +
-    (typeof _moHtmlCorregir === 'function' ? _moHtmlCorregir(r, clave) : '') +
     (typeof _caHtmlDetalle === 'function' ? _caHtmlDetalle(r) : '') +
+    (typeof _moHtmlCorregir === 'function' ? _moHtmlCorregir(r, clave) : '') +
     '<div class="da-rejilla" style="--da-base:max(150px, calc(25% - 1px));margin-bottom:1rem;">' +
       celda('Entrada', _daNum(r.precio_entrada, 2), _daEsc(_daHora(r.fecha_entrada))) +
       celda('Cierre', _daNum(r.precio_cierre, 2), _daEsc(_daHora(r.fecha_cierre))) +
       _daMini('Puntos', _daPtsReales(r), 'desde la entrada') +
       celda('P&amp;L', b == null ? '—' : _daFmtD(b), r.volumen != null ? _daNum(r.volumen, 2) + ' lotes' : '&nbsp;',
             b == null ? 'var(--text-muted)' : b >= 0 ? 'var(--green)' : 'var(--red)') +
+    '</div>' +
+    _daHtmlEventos(res.data || []);
+  if (typeof _caTrasPintar === 'function') _caTrasPintar(det);
+}
+
+// Detalle de un trade ABIERTO: capturas y "Por qué entré" (ya se pueden
+// rellenar), modo, entrada, SL/TP actuales, lote y línea de tiempo hasta ahora.
+async function _daAbrirAbiertoDetalle(clave, r, det, token) {
+  var res = await supaGet('trade_eventos', 'fp=eq.' + encodeURIComponent(r.fp) + '&order=timestamp.asc', token);
+  if (_daAbierto !== clave) return; // se cerró mientras cargaba
+  var celda = function(label, valor, sub) {
+    return '<div class="stat-card" style="text-align:center;padding:.8rem;"><div class="stat-label">' + label + '</div>' +
+           '<div style="font-size:20px;color:var(--text);">' + valor + '</div><div class="stat-sub">' + sub + '</div></div>';
+  };
+  var dist = function(v) {
+    return v == null || Number(v) === 0 || r.precio_entrada == null ? 'sin poner' : _daNum(Math.abs(Number(v) - Number(r.precio_entrada)), 1) + ' pts de la entrada';
+  };
+  det.innerHTML =
+    '<div style="font-size:13px;color:var(--gold);line-height:1.6;margin:.2rem 0 .8rem;padding:.5rem .8rem;border:1px dashed var(--border-gold);">' +
+      'Trade abierto. Pon ya tus capturas y el «Por qué entré»: se quedan con este trade cuando se cierre y se analice.</div>' +
+    (typeof _caHtmlDetalle === 'function' ? _caHtmlDetalle(r) : '') +
+    (typeof _moHtmlCorregir === 'function' ? _moHtmlCorregir(r, clave) : '') +
+    '<div class="da-rejilla" style="--da-base:max(150px, calc(25% - 1px));margin-bottom:1rem;">' +
+      celda('Entrada', _daPrecio(r.precio_entrada), _daEsc(_daHora(r.fecha_entrada)) + ' · ' + (r.direccion === 'buy' ? 'compra' : 'venta')) +
+      celda('SL actual', _daPrecio(r.sl_actual), dist(r.sl_actual)) +
+      celda('TP actual', _daPrecio(r.tp_actual), dist(r.tp_actual)) +
+      celda('Lote', r.volumen != null ? _daNum(r.volumen, 2) : '—', 'Setup: ' + _daEsc(r.estrategia || 'sin clasificar')) +
     '</div>' +
     _daHtmlEventos(res.data || []);
   if (typeof _caTrasPintar === 'function') _caTrasPintar(det);

@@ -162,6 +162,22 @@ function _caHtmlDetalle(r) {
               '<span style="font-size:11px;color:var(--text-muted);">' + _daEsc(_caTxtCaducidad()) + '</span>' +
             '</div>';
   if (_caError) h += '<div style="font-size:13px;color:var(--red);margin-bottom:.6rem;">No se pudieron leer tus capturas (' + _daEsc(_caError.slice(0, 160)) + ').</div>';
+  // "Por qué entré" primero y a la vista (09/10): antes iba debajo de los huecos, pequeño.
+  var nota = _caNotas[fp] || '';
+  var av = _caAviso && _caAviso.fp === fp ? _caAviso : null;
+  _caAviso = null;
+  h += '<div style="margin-bottom:1rem;padding:.8rem;border:1px solid var(--border-gold);background:var(--bg2);">' +
+       '<label for="ca-nota-' + id + '" style="font-size:14px;color:var(--gold);letter-spacing:.05em;display:block;margin-bottom:.45rem;">📝 Por qué entré</label>' +
+       '<textarea id="ca-nota-' + id + '" class="ca-nota" rows="3" maxlength="' + CA_NOTA_MAX + '" ' +
+         'oninput="_caContar(\'' + id + '\')" placeholder="Ej.: RSI M15 en 90, medias a favor, sin noticia roja">' + _daEsc(nota) + '</textarea>' +
+       '<div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;margin-top:.5rem;flex-wrap:wrap;">' +
+         '<span id="ca-nota-cont-' + id + '" style="font-size:11px;color:var(--text-muted);">' + nota.length + ' / ' + CA_NOTA_MAX + '</span>' +
+         '<span style="display:flex;align-items:center;gap:.8rem;">' +
+           '<span id="ca-nota-msg-' + id + '" role="status" style="font-size:14px;color:var(--green);">' + (av && av.nota ? _daEsc(av.texto) : '') + '</span>' +
+           '<div class="btn-gold" role="button" tabindex="0" style="font-size:13px;padding:.5rem 1.4rem;cursor:pointer;" onclick="_caGuardarNota(' + fpJs + ')">Guardar</div>' +
+         '</span>' +
+       '</div>' +
+       '</div>';
   h += '<div class="ca-huecos">';
   CA_HUECOS.forEach(function(hu) {
     var f = c[hu.id];
@@ -180,20 +196,7 @@ function _caHtmlDetalle(r) {
          '</div>';
   });
   h += '</div>';
-  h += '<div style="font-size:11px;color:var(--text-muted);margin:.4rem 0 .9rem;">Para pegar con Ctrl+V: pulsa primero el hueco (queda marcado en dorado).</div>';
-  var nota = _caNotas[fp] || '';
-  var av = _caAviso && _caAviso.fp === fp ? _caAviso : null;
-  _caAviso = null;
-  h += '<label for="ca-nota-' + id + '" style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:.35rem;">Por qué entré</label>' +
-       '<textarea id="ca-nota-' + id + '" class="ca-nota" rows="3" maxlength="' + CA_NOTA_MAX + '" ' +
-         'oninput="_caContar(\'' + id + '\')" placeholder="Ej.: RSI M15 en 90, medias a favor, sin noticia roja">' + _daEsc(nota) + '</textarea>' +
-       '<div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;margin-top:.4rem;flex-wrap:wrap;">' +
-         '<span id="ca-nota-cont-' + id + '" style="font-size:11px;color:var(--text-muted);">' + nota.length + ' / ' + CA_NOTA_MAX + '</span>' +
-         '<span style="display:flex;align-items:center;gap:.8rem;">' +
-           '<span id="ca-nota-msg-' + id + '" style="font-size:12px;color:var(--green);">' + (av && av.nota ? _daEsc(av.texto) : '') + '</span>' +
-           '<button class="tab" style="padding:.4rem .9rem;font-size:12px;" onclick="_caGuardarNota(' + fpJs + ')">Guardar</button>' +
-         '</span>' +
-       '</div>';
+  h += '<div style="font-size:11px;color:var(--text-muted);margin:.4rem 0 0;">Para pegar con Ctrl+V: pulsa primero el hueco (queda marcado en dorado).</div>';
   h += '<div id="ca-msg-' + id + '" style="font-size:13px;margin-top:.5rem;min-height:1px;color:var(--green);">' +
          (av && !av.nota ? _daEsc(av.texto) : '') + '</div>';
   return h + '</div>';
@@ -224,7 +227,8 @@ function _caElegirDestino(fp, hueco) {
 }
 
 function _caRepintarDetalle(fp) {
-  var cont = document.querySelector('.ca-detalle');
+  var det = typeof _daAbierto === 'string' ? document.getElementById('da-det-' + _daAbierto) : null;
+  var cont = det && det.querySelector('.ca-detalle');
   if (typeof _daAbierto === 'string' && _daAbierto.slice(_daAbierto.indexOf(':') + 1) === fp && cont) {
     var r = { fp: fp };
     var nuevo = document.createElement('div');
@@ -485,12 +489,13 @@ async function _caGuardarNota(fp) {
   var email = encodeURIComponent(window.usuarioActual.email);
   var filtro = 'usuario_email=eq.' + email + '&fp=eq.' + encodeURIComponent(fp);
   var res;
+  poner('Guardando…', false);
   if (!texto) res = await supaDelete('trade_nota', filtro, getToken());
   else if (_caNotas[fp] != null) res = await supaPatch('trade_nota', filtro, { nota: texto }, getToken());
   else res = await supaPost('trade_nota', { fp: fp, nota: texto }, 'return=representation', getToken());
   if (res.error) { poner('No se ha guardado: ' + String(res.error).slice(0, 160), true); return; }
   if (texto) _caNotas[fp] = texto; else delete _caNotas[fp];
-  _caTrasCambio(fp, texto ? 'Guardado.' : 'Nota borrada.', true);
+  _caTrasCambio(fp, texto ? '✓ Guardado' : '✓ Nota borrada', true);
 }
 
 // ── Barra "Capturas" (arriba del Diario): capturar y enlazar ─────────────
@@ -511,7 +516,10 @@ async function _caCargarTrades() {
                          '&order=fecha_cierre.desc,position_id.desc&limit=' + CA_TRADES_LISTA, getToken())
   ]);
   if (res[0].error || res[1].error) throw new Error('no se pudieron leer tus trades');
-  _caTrades = { abiertos: res[0].data || [], cerrados: res[1].data || [] };
+  // Solo los abiertos de verdad (ver _daAbiertoReal en diario-analisis.js): fuera
+  // los 'open' antiguos sin cierre registrado y los de cuentas que ya no son suyas.
+  var abiertos = (res[0].data || []).filter(typeof _daAbiertoReal === 'function' ? _daAbiertoReal : function() { return true; });
+  _caTrades = { abiertos: abiertos, cerrados: res[1].data || [] };
 }
 
 function _caHuecoPorDefecto(fp, abierto) {
@@ -613,7 +621,9 @@ async function _caEnlazar() {
     var kb = Math.round(_caNueva.blob.size / 1024);
     _caOcupado = false;
     _caDescartar();
-    if (typeof _daPintar === 'function' && document.getElementById('diario-analisis-bloque')) _daPintar();
+    // Relee los abiertos: si el trade se abrió después de cargar el Diario, sale ya en "En curso".
+    if (typeof _daRefrescarAbiertos === 'function') await _daRefrescarAbiertos();
+    else if (typeof _daPintar === 'function' && document.getElementById('diario-analisis-bloque')) _daPintar();
     _caMsgBarra((habia ? 'Reemplazada' : 'Guardada') + ' en ' + trade.replace(/^● /, '') + ' · ' +
                 CA_HUECOS.filter(function(h) { return h.id === hueco; })[0].txt + ' (' + kb + ' KB).', false);
   } catch (e) {
