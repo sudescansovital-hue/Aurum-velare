@@ -1568,6 +1568,7 @@
       <button class="tab" id="gtab-cumplimiento" onclick="gestTab('cumplimiento')">Cumplimiento</button>
       <button class="tab" id="gtab-estadisticas" onclick="gestTab('estadisticas')">Estadísticas</button>
       <button class="tab" id="gtab-diario" onclick="gestTab('diario')">Diario</button>
+      <button class="tab" id="gtab-trading" onclick="gestTab('trading')">Trading</button>
       <button class="tab" id="gtab-reglas" onclick="gestTab('reglas')">Mis reglas</button>
       <button class="tab" id="gtab-historial" onclick="gestTab('historial')" style="border-left:1px solid var(--border-gold);color:var(--gold-dim);">Historial externo</button>
     </div>
@@ -2185,6 +2186,13 @@
       <div style="display:flex;flex-direction:column;gap:1px;background:var(--border);" id="diario-entradas">
 
       </div>
+    </div>
+
+    <!-- ===== TRADING: capturas y notas de cada trade (capturas.js) ===== -->
+    <div id="gpanel-trading" style="display:none;padding:91px 2rem 1.5rem;">
+      <div style="font-family:'Cormorant Garamond',serif;font-size:28px;color:var(--gold-bright);margin-bottom:.3rem;">Trading</div>
+      <div style="font-size:14px;color:var(--text-muted);margin-bottom:1.5rem;">Capturas y notas de cada trade: entrada, gestión y salida. Solo las ves tú.</div>
+      <div id="trading-bloque"></div>
     </div>
 
     <!-- ===== MIS REGLAS (mis-reglas.js) ===== -->

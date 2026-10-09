@@ -7,8 +7,21 @@
 
 ## Sesión 09/10/2026
 
-> Detalle en `tools/post_cierre/ESTADO.md`, sección "Trades abiertos en el
-> Diario (09/10)".
+> Detalle en `tools/post_cierre/ESTADO.md`, secciones "Pestaña TRADING
+> (09/10, noche)" y "Trades abiertos en el Diario (09/10)".
+
+- **Pestaña TRADING en Mi gestión (noche)** — sin SQL:
+  - `index.html`: botón "Trading" después de "Diario" (misma barra de
+    pestañas) y panel `#gpanel-trading` con `#trading-bloque`.
+  - `gestion.js`: `gestTab('trading')` → `initTrading()`; el Diario ya no
+    llama a la barra de capturas.
+  - `capturas.js`: la barra "Capturas de tus trades" y los huecos con notas
+    pasan a TRADING (hoy: abiertos + cerrados hoy; ‹ › / fecha para días
+    anteriores). `caIrATrading(fp)` abre TRADING en el día del trade.
+  - `diario-analisis.js`: sin bloque de capturas en el detalle ni filtro
+    "Con capturas"; `_caBadge` es ahora un icono (📷 n / 📝) que lleva a
+    TRADING.
+  - Descartada la rama `feature/capturas-pagina` (vista aparte), no fusionada.
 
 - **Trades abiertos en el Diario — EN PRODUCCIÓN** (merge `6b5c8f3`, deploy
   `aurum-velare-mow4fdagx` desde copia limpia; anterior
