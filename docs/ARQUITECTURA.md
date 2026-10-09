@@ -10,7 +10,9 @@
 > Detalle en `tools/post_cierre/ESTADO.md`, secciones "Pestaña TRADING
 > (09/10, noche)" y "Trades abiertos en el Diario (09/10)".
 
-- **Pestaña TRADING en Mi gestión (noche)** — sin SQL:
+- **Pestaña TRADING en Mi gestión (noche) — EN PRODUCCIÓN** (merge `0734d5f`,
+  deploy `aurum-velare-1xuog03k9`; para volver atrás, `aurum-velare-knes8fi0q`).
+  Sin SQL:
   - `index.html`: botón "Trading" después de "Diario" (misma barra de
     pestañas) y panel `#gpanel-trading` con `#trading-bloque`.
   - `gestion.js`: `gestTab('trading')` → `initTrading()`; el Diario ya no
