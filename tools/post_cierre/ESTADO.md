@@ -95,6 +95,8 @@
 12. **Alertas al móvil** (sección "Alertas al móvil (idea 07/10)", debajo de
    la de "Modos…"). Fase 1 no toca la EA; fases 2 y 3 esperan a fusionar
    `feature/ea-sync`. (Movido casi al final el 07/10, a petición del usuario.)
+   **09/10: fase 2 empezada a petición del usuario** con `Aurum_Alertas.mq5`
+   (solo medias; ver su sección): compilado, falta la prueba en el Probador.
 13. **Modo claro.**
 
 Pendiente menor: el admin se reconoce por email en el SQL de Mis reglas (ver
@@ -116,6 +118,50 @@ la EA sola (si no existen, arranca vacía). Tras migrar se quita la EA del
 gráfico local para no registrar dos veces; **no volver a "Migrar" desde ese
 terminal sin la EA puesta**, porque la migración copia el estado local y la
 quitaría también del VPS.
+
+---
+
+## Aurum_Alertas.mq5: alertas de precio en MT5 (09/10) — COMPILADO, FALTA LA PRUEBA EN EL PROBADOR
+
+Fase 2 de "Alertas al móvil" (pendiente nº 12), solo con medias. Indicador
+aparte: **no toca la web, Supabase ni `EA_Aurum_Tracker`**, no opera y no envía
+nada a Aurum. Fuente: `tools/mt5/Aurum_Alertas.mq5` (UTF-8 con BOM, CRLF).
+
+- **Panel** en una esquina (input `InpEsquina`, por defecto arriba a la
+  derecha; `InpX`/`InpY`), plegable con "–" / "+": botones SMA 20 / 40 / 200 /
+  600 (simples, sobre cierre) y M1 / M5 / M15 / H1 / H4 / D1, valor actual de
+  la media elegida y del precio, "Crear alerta", mensajes y la lista de
+  alertas activas ("SMA20 H1 · 4182,40 ahora · desde arriba") con "X" para
+  borrar. Máximo 12 alertas; no deja repetir media + temporalidad.
+- **Funcionamiento:** al crear guarda si el precio (Bid) está por encima o por
+  debajo de la media. En cada tick y cada segundo (`OnTimer`) recalcula la
+  media de esa temporalidad con `iMA` (vela en curso) y salta cuando el precio
+  llega a ella: venía de arriba → precio ≤ media + tolerancia; de abajo →
+  precio ≥ media − tolerancia (`InpToleranciaPts`, en puntos de precio,
+  por defecto 0). Al saltar: `SendNotification` + `Alert` + `PlaySound`
+  (inputs para cada uno), texto "XAUUSD · toca SMA20 H1 · 4185,30" (el precio
+  al tocar), y la alerta se borra (un solo uso).
+- **Guardado:** `MQL5\Files\Aurum_Alertas_<símbolo>.csv`
+  (`media;temporalidad;lado;creada`), se reescribe en cada cambio y se lee al
+  arrancar: las alertas siguen tras reiniciar MT5. Si mientras MT5 estaba
+  cerrado el precio cruzó la media, salta en el primer tick.
+- **Un solo gráfico** del símbolo para todas las temporalidades. Si se pone
+  en dos gráficos del mismo símbolo, solo funciona el de id más bajo (el otro
+  lo dice en el panel), para no avisar dos veces.
+- **Push:** necesita en MT5 Herramientas > Opciones > Notificaciones activado
+  con el MetaQuotes ID del móvil; si falla, lo escribe en el registro.
+- **Desplegado** en `BD8B1008…\MQL5\Indicators` (copia + compilación por
+  línea de comandos: 0 errores, 0 avisos; al ser indicador nuevo, sin cargar
+  en ningún gráfico, compilar así no afecta a la EA).
+- **Probador:** los clics del panel no llegan en el Probador, así que hay dos
+  inputs solo para él (`InpPruebaMedia`, `InpPruebaTF`) que crean sola una
+  alerta al empezar. **Pendiente que lo pruebe el usuario** en modo visual: no
+  se lanzó desde aquí porque el terminal con la EA está abierto (no admite
+  otra instancia y cerrarlo pararía la EA) y el otro terminal
+  (`Program Files\MetaTrader 5`) abre gráficos con la EA v1.02 antigua.
+  Esperado en el Diario del Probador: "PRUEBA SMA20 M1 creada", "SALTA XAUUSD ·
+  toca SMA20 M1 · …", "Alert: …" y "alertas activas: 0".
+- Después: RSI y Bollinger (mismo panel), y la fase 1 de alertas de reglas.
 
 ---
 
