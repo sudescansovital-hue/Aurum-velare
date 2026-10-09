@@ -7,9 +7,29 @@
 
 ## Sesión 09/10/2026
 
-> Detalle en `tools/post_cierre/ESTADO.md`, secciones "Calculadora de lote y
+> Detalle en `tools/post_cierre/ESTADO.md`, secciones "Cierres parciales en Diario y Trading", "Calculadora de lote y
 > % en el calendario", "TRADING: cerrados plegados y pendientes", "Pestaña TRADING (09/10, noche)" y "Trades abiertos
 > en el Diario (09/10)".
+
+- **Cierres parciales en Diario y Trading — EN PRODUCCIÓN** (merge
+  `22dee62`, deploy `aurum-velare-5bjaztgtp`; para volver atrás,
+  `aurum-velare-9tvecszkh`). Sin cambios en la EA ni en la API:
+  - La EA v1.04 ya enviaba cada parcial a `trade_parciales` y a
+    `trade_eventos` (`parcial`, con lote cerrado, lote que queda y $). En
+    `ea_trades`/`trades`, `volumen` = lote de entrada, `precio_cierre` = precio
+    del ÚLTIMO tramo y `beneficio` = total de todas las salidas.
+  - `diario-analisis.js`: lee `trade_parciales` (`fuente=eq.ea`) →
+    `_daParciales`; `_daParcialesDe`, `_daPtsMedios` (puntos = media ponderada
+    por lote), `_daTxtLotes`, `_daTxtSalidas`, `_daHtmlParcialesAbierto`.
+    Abiertos: lote que queda y parciales con $; cerrados: "N salidas",
+    "Cierre final", y en la línea de tiempo (`_daHtmlEventos(eventos, r)`)
+    cada salida con lote y $ y el total como suma de las partes.
+  - `capturas.js` (TRADING): lo mismo en abiertos y cerrados.
+  - SQL `tools/post_cierre/sql_eventos_policy.sql` (aplicado por el usuario):
+    policy `te_user_select_ea`, el dueño lee los `trade_eventos` de sus trades
+    abiertos (antes solo vía `trades`, que no tiene fila hasta el cierre).
+  - Pendiente: análisis post-cierre con parciales (sigue usando solo el
+    precio del último tramo).
 
 - **Calculadora de lote y % en el calendario — EN PRODUCCIÓN** (merge
   `6900d33`, deploy `aurum-velare-mr6jz5gus`; para volver atrás,
@@ -383,7 +403,11 @@ recarga desde el dashboard → Project Settings → Data API → Settings →
 toggle de una tabla en "Exposed tables" → Guardar. Confirmado con datos
 reales: `entrada`, `sl_ajustado`, `breakeven`, `cierre_sl` del trade
 6407117 entran bien. `beneficio` solo se rellena en eventos `parcial`; en
-cierres totales es `NULL` por diseño.
+cierres totales es `NULL` por diseño. **(09/10)** RLS: además de
+`te_admin_select`, `te_admin_todo` y `te_user_todo` (dueño vía `trades`),
+`te_user_select_ea` (solo SELECT, dueño vía `ea_trades`) para que el usuario
+vea la línea de tiempo de sus trades abiertos
+(`tools/post_cierre/sql_eventos_policy.sql`).
 
 **Corrección a la entrada "Estado sesión 02 Jul 2026" (más abajo):** el EA
 ya **no** procesa la cola "cada 1 hora" — `IntervaloEnvioSegundos` está en

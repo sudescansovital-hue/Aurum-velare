@@ -1,6 +1,6 @@
 # Estado — análisis post-cierre: FASE 1 (examen de la EA) + FASE 2 (Diario web)
 
-> Actualizado 09/10/2026, noche (PESTAÑA TRADING EN PRODUCCIÓN: merge `0734d5f`, deploy `aurum-velare-1xuog03k9`; para volver atrás, `aurum-velare-knes8fi0q`; capturas y notas de cada trade fuera del Diario; sin SQL. La rama `feature/capturas-pagina`, vista aparte desde el detalle, se DESCARTA por cambio de enfoque del usuario: no se fusiona). Antes, 09/10, tarde (NOTAS POR HUECO EN PRODUCCIÓN: `sql_notas_hueco.sql` aplicado por el usuario, merge `c52e798`, deploy `aurum-velare-7nrhohqtm`; cerrar los 14 abiertos antiguos queda PENDIENTE, el usuario no aplica `sql_abiertos_2_cierre.sql` por ahora). Antes, 09/10 (TRADES ABIERTOS EN EL DIARIO EN PRODUCCIÓN: merge `6b5c8f3`, deploy `aurum-velare-mow4fdagx`; rama `feature/notas-hueco` con notas por hueco y SQL SIN APLICAR: `sql_notas_hueco.sql`, `sql_abiertos_2_cierre.sql`). Antes, 08/10/2026, noche (CAPTURAS POR TRADE EN PRODUCCIÓN: SQL aplicado por el usuario, `capturas.js`, merge `238f018`, deploy `aurum-velare-eg4plgchr`; cron de borrado a los 6 meses con `CRON_SECRET`; zona de pruebas borrada). Antes, 08/10 (propuesta "Minado de estrategias", sin código: pasa a ser el pendiente SIGUIENTE, antes de la medición por modo y del tablero). Antes, 07/10/2026, noche (MIS REGLAS FASE 3 y NORMAS POR MODO FASE 1 EN PRODUCCIÓN, `011fe93`, deploy `aurum-velare-awe9gylb8`; SQL candado v3, normas por modo y `desde` 08/10 aplicados por el usuario; `feature/ea-sync` FUSIONADA en `main`). Antes, 07/10 (ETAPAS v2 EN PRODUCCIÓN: SQL aplicado por el usuario y web (Mi proceso + admin); antes, revisión 2 del SQL; punto 3 de "Mi proceso" en producción: barra de etapa por días limpios; "Mi proceso" completo; punto 2 en producción: aciertos, errores y regla de la semana; base de los MODOS en producción: plan del día, modo de cada trade y plan frente a realidad; punto 1 de "Mi proceso", "Tu situación", en producción; punto 0 en producción y comprobado; textos "Pack" en la web; idea "Alertas al móvil"; propuesta "Modos, plan del día y tablero en directo", pendiente nº 3). Antes, 06/10/2026, noche (Diario al instante desde `ea_trades`, bloque "Hoy" y plan del trader en producción; **un push a `main` despliega solo**). Antes, 06/10 (cierre de sesión: decisiones y pendientes abajo; "Edge por cuenta"; "Mis reglas"; propuesta "Mi proceso"). Antes: 05/10/2026 (post_cierre automatizado con tarea programada; fallo 5 de la EA). Antes: 02/10/2026. **FASE 2 en producción** (primer deploy `cdede9a` /
+> Actualizado 09/10/2026, noche (CIERRES PARCIALES EN DIARIO Y TRADING EN PRODUCCIÓN: merge `22dee62`, deploy `aurum-velare-5bjaztgtp`; para volver atrás, `aurum-velare-9tvecszkh`; solo web, sin tocar EA ni API; policy `te_user_select_ea` aplicada por el usuario y guardada en `sql_eventos_policy.sql`; el post-cierre con parciales queda PENDIENTE, nº 6). Antes, 09/10, noche (PESTAÑA TRADING EN PRODUCCIÓN: merge `0734d5f`, deploy `aurum-velare-1xuog03k9`; para volver atrás, `aurum-velare-knes8fi0q`; capturas y notas de cada trade fuera del Diario; sin SQL. La rama `feature/capturas-pagina`, vista aparte desde el detalle, se DESCARTA por cambio de enfoque del usuario: no se fusiona). Antes, 09/10, tarde (NOTAS POR HUECO EN PRODUCCIÓN: `sql_notas_hueco.sql` aplicado por el usuario, merge `c52e798`, deploy `aurum-velare-7nrhohqtm`; cerrar los 14 abiertos antiguos queda PENDIENTE, el usuario no aplica `sql_abiertos_2_cierre.sql` por ahora). Antes, 09/10 (TRADES ABIERTOS EN EL DIARIO EN PRODUCCIÓN: merge `6b5c8f3`, deploy `aurum-velare-mow4fdagx`; rama `feature/notas-hueco` con notas por hueco y SQL SIN APLICAR: `sql_notas_hueco.sql`, `sql_abiertos_2_cierre.sql`). Antes, 08/10/2026, noche (CAPTURAS POR TRADE EN PRODUCCIÓN: SQL aplicado por el usuario, `capturas.js`, merge `238f018`, deploy `aurum-velare-eg4plgchr`; cron de borrado a los 6 meses con `CRON_SECRET`; zona de pruebas borrada). Antes, 08/10 (propuesta "Minado de estrategias", sin código: pasa a ser el pendiente SIGUIENTE, antes de la medición por modo y del tablero). Antes, 07/10/2026, noche (MIS REGLAS FASE 3 y NORMAS POR MODO FASE 1 EN PRODUCCIÓN, `011fe93`, deploy `aurum-velare-awe9gylb8`; SQL candado v3, normas por modo y `desde` 08/10 aplicados por el usuario; `feature/ea-sync` FUSIONADA en `main`). Antes, 07/10 (ETAPAS v2 EN PRODUCCIÓN: SQL aplicado por el usuario y web (Mi proceso + admin); antes, revisión 2 del SQL; punto 3 de "Mi proceso" en producción: barra de etapa por días limpios; "Mi proceso" completo; punto 2 en producción: aciertos, errores y regla de la semana; base de los MODOS en producción: plan del día, modo de cada trade y plan frente a realidad; punto 1 de "Mi proceso", "Tu situación", en producción; punto 0 en producción y comprobado; textos "Pack" en la web; idea "Alertas al móvil"; propuesta "Modos, plan del día y tablero en directo", pendiente nº 3). Antes, 06/10/2026, noche (Diario al instante desde `ea_trades`, bloque "Hoy" y plan del trader en producción; **un push a `main` despliega solo**). Antes, 06/10 (cierre de sesión: decisiones y pendientes abajo; "Edge por cuenta"; "Mis reglas"; propuesta "Mi proceso"). Antes: 05/10/2026 (post_cierre automatizado con tarea programada; fallo 5 de la EA). Antes: 02/10/2026. **FASE 2 en producción** (primer deploy `cdede9a` /
 > `aurum-velare-cw5la96zd`; el anterior a la FASE 2, para rollback, era
 > `aurum-velare-9hp3r9l3q`). Criterios de análisis hoy: **v6**. FASE 1
 > terminada el 29/09 (298 trades, en seco).
@@ -77,7 +77,13 @@
    del admin no necesita más SQL (`rv_admin_all`, `rvh_admin_select`).
    **HECHO (07/10, noche): SQL aplicado por el usuario y pantallas en
    producción** (ver "Mis reglas", fase 3).
-6. **Frase del runner con cada parcial por separado.**
+6. **Frase del runner con cada parcial por separado.** **(09/10) Ampliado:
+   el análisis post-cierre con parciales** (punto 3 de "Cierres parciales en
+   Diario y Trading", NO hecho por decisión del usuario): `_daMantenerPts`,
+   las frases ("dejar correr", "si hubieras mantenido") y `post_cierre.py`
+   razonan solo con `precio_cierre` = precio del ÚLTIMO tramo, como si todo
+   el lote hubiera salido ahí. Con parciales hay que comparar cada salida
+   (lote × pts de `trade_parciales`) con lo que habría pasado manteniendo.
 7. **Punto 4 — velas desde la EA y análisis en el servidor** (sección
    "Siguiente gran paso (02/10)", pasos 3 y 4).
 8. **Capturas por trade** — **HECHO (08/10, en producción)**. **(09/10)**
@@ -118,6 +124,78 @@ la EA sola (si no existen, arranca vacía). Tras migrar se quita la EA del
 gráfico local para no registrar dos veces; **no volver a "Migrar" desde ese
 terminal sin la EA puesta**, porque la migración copia el estado local y la
 quitaría también del VPS.
+
+---
+
+## Cierres parciales en Diario y Trading (09/10, noche) — EN PRODUCCIÓN
+
+Caso que lo destapó: Prueba 178497, pos 24062471, compra 1,00 a 4184,53.
+Parcial 0,80 a 4187,78 (+3,25 pts, **+260,00 $**, deal 20909480) y cierre
+0,20 a 4196,52 (+11,99 pts, **+239,80 $**, deal 20909957, motivo SL movido).
+Total **499,80 $**: correcto. La web enseñaba "1,00 lotes · cierre a 4196,52 ·
++499,80 $" y en la ficha "+11,99 pts", que parecía no cuadrar (1 lote × 11,99
+serían ~1.199 $).
+
+**Diagnóstico** (sin cambios en EA ni API):
+- **EA v1.04: detecta y envía bien los parciales.** `HandleDealClose` clasifica
+  parcial / cierre total restando del mapa de volumen (`VolMapGet`); en un
+  parcial manda `partial_close` (→ `trade_parciales`) y el evento `parcial`
+  (→ `trade_eventos`, con `volumen_afectado`, `volumen_restante`, `beneficio`
+  y puntos con signo). El `close` lleva `beneficio_total` = suma de TODAS las
+  salidas (`GetBeneficioTotalPos`). Comprobado en el log del 09/10 del terminal
+  BD8B1008….
+- **Datos:** en `ea_trades` y `trades`, `volumen` es el lote de ENTRADA y
+  `precio_cierre` el del ÚLTIMO tramo; `beneficio` es el total. El detalle de
+  cada salida solo está en `trade_parciales` y `trade_eventos`.
+- **RLS:** `te_user_todo` busca al dueño en `trades`, que solo tiene fila al
+  cierre → un usuario normal veía vacía la línea de tiempo de sus ABIERTOS (el
+  admin no, por `te_admin_select`). Arreglado con
+  `tools/post_cierre/sql_eventos_policy.sql` (`te_user_select_ea`, solo
+  SELECT, dueño vía `ea_trades`), **aplicado por el usuario el 09/10**.
+
+**Cambios (solo web, `diario-analisis.js` y `capturas.js`):**
+- `_daCargarAhora` lee `trade_parciales` (`fuente=eq.ea`) → `_daParciales`
+  (fp → parciales por hora). Si falla, se mantienen los anteriores y cada trade
+  sale con una sola salida. La firma del refresco incluye los últimos 20
+  `deal_id` (un parcial de un abierto repinta); si esa consulta falla, el
+  refresco sigue con lo demás. En TRADING, `_caTrFirmaDe` cuenta los parciales.
+- Helpers: `_daParcialesDe(r)` (lista con pts y $, suma, lote inicial, lote que
+  queda), `_daPtsMedios` (media de las salidas ponderada por lote),
+  `_daTxtLotes`, `_daTxtSalidas`, `_daHtmlParcialesAbierto`, `_daFmtD2` y
+  `_daFmtLote` (siempre 2 decimales).
+- **Abiertos** (Diario "En curso", ficha del abierto y cabecera en TRADING):
+  "quedan 0,20 de 1,00 lotes"; casilla "Lote abierto 0,20 · de 1,00"; debajo,
+  cada parcial ("Parcial 0,80 a 4187,78 (+3,25 pts) +260,00 $") y "Realizado
+  +260,00 $ · quedan 0,20 de 1,00 lotes abiertos".
+- **Cerrados:** "1,00 lotes · 2 salidas"; "Cierre final 4196,52 · último
+  tramo"; Puntos = **media ponderada** (+5 pts, "media de 2 salidas") en vez de
+  los 11,99 del último tramo; P&L con 2 decimales si hubo parciales. En TRADING,
+  al desplegar: "Parcial 0,80 a 4187,78 (+3,25 pts) +260,00 $ · Cierre 0,20 a
+  4196,52 +239,80 $".
+- **Línea de tiempo** (`_daHtmlEventos(eventos, r)`, las 3 fichas): entrada
+  con su lote; cada parcial "cerró 0,80 · quedan 0,20 · +260,00 $"; la salida
+  final "0,20 lotes · +239,80 $" (total − parciales) y debajo "Total +499,80 $ =
+  +260,00 $ (parcial) + 239,80 $ (cierre)". Un parcial que esté en
+  `trade_parciales` y no en `trade_eventos` se añade igual, en su hora.
+- Los trades sin parciales salen exactamente como antes.
+
+**Pruebas** (scratchpad sesión c752fa02, `t/prueba_parciales.mjs`): **36 OK**
+en jsdom con `ea-auditoria.js`, `diario-analisis.js` y `capturas.js` reales
+contra PGlite con RLS (`sql_trade_eventos.sql` + `_fix_fk` + `_v2` reales y
+`sql_eventos_policy.sql`), con el caso real: policy (sin ella el dueño no ve
+los eventos del abierto; con ella sí; otro usuario no; solo lectura; las 3
+anteriores siguen), abierto tras el parcial (Diario y TRADING), cerrado sin
+análisis, cerrado analizado, parcial que falta en `trade_eventos`, otro
+usuario y regresión con un trade sin parciales (24062309). Suites anteriores
+(copiadas de la sesión 1267230c, `reg/`): plegado 29, capturas 64, abiertos
+51, notas 36, SQL notas 22, TRADING 29, calc 31: todas OK. (Las versiones sin
+`_d` de capturas, abiertos, notas y TRADING ya fallaban igual en `main`: están
+desfasadas.) La primera pasada de abiertos destapó que la firma del refresco
+se anulaba entera si fallaba la consulta de parciales; corregido antes del
+merge.
+
+**No hecho (decisión del usuario):** el post-cierre con parciales → pendiente
+nº 6.
 
 ---
 
