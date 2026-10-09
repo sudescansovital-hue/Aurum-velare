@@ -7,9 +7,18 @@
 
 ## Sesión 09/10/2026
 
-> Detalle en `tools/post_cierre/ESTADO.md`, secciones "TRADING: cerrados
-> plegados y pendientes", "Pestaña TRADING (09/10, noche)" y "Trades abiertos
+> Detalle en `tools/post_cierre/ESTADO.md`, secciones "Calculadora de lote y
+> % en el calendario", "TRADING: cerrados plegados y pendientes", "Pestaña TRADING (09/10, noche)" y "Trades abiertos
 > en el Diario (09/10)".
+
+- **Calculadora de lote y % en el calendario — EN PRODUCCIÓN** (merge
+  `6900d33`, deploy `aurum-velare-mr6jz5gus`; para volver atrás,
+  `aurum-velare-5h2eiqdh5`). Sin SQL:
+  - `capturas.js`: calculadora arriba de TRADING (`_caCalcLote`): lote =
+    riesgo / (puntos × 100) hacia abajo a 0,01 + riesgo real. No guarda nada.
+  - `diario-analisis.js`: lee `cuenta_tamanos` (`_daTamanos`); cada día del
+    calendario con el % grande y el $ debajo (`_daPctDia`: P&L / suma de
+    tamaños de las cuentas que operaron; sin tamaño de alguna, solo $).
 
 - **TRADING: cerrados plegados y pendientes — EN PRODUCCIÓN** (merge
   `0ee54d6`, deploy `aurum-velare-qczjx3q7a`; para volver atrás,

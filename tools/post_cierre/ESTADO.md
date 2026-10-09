@@ -119,6 +119,46 @@ quitaría también del VPS.
 
 ---
 
+## Calculadora de lote y % en el calendario (09/10) — EN PRODUCCIÓN
+
+Merge `6900d33` (rama `feature/calc-lote-calendario`, `135e881`), deploy
+automático del push a `main`: `aurum-velare-mr6jz5gus` (comprobado:
+`aurumvelare.com` sirve `_caCalcLote` y `_daPctDia`). **Para volver atrás:**
+`aurum-velare-5h2eiqdh5` (producción anterior, `f5134be`; misma BD).
+Sin SQL, RLS, Storage, Pack ni menú sticky.
+
+- **Calculadora de lote** (`capturas.js`, `_caCalcLote` / `_caCalcPoner`):
+  caja compacta arriba de TRADING (antes de la barra de capturas), con
+  "Riesgo ($)" y "SL (puntos)". Lote = riesgo / (puntos × 100)
+  (`CA_CALC_USD_PUNTO_LOTE`, XAU/USD), **siempre hacia abajo** a 0,01 (con un
+  margen de 1e-9 para la coma flotante: 29 $ / 1 pt = 0,29, no 0,28). Debajo,
+  el riesgo real con ese lote ("0,41 lotes × 3 pts = 123 $"). Vacío, 0,
+  negativo o texto = no calcula; acepta coma decimal; por debajo de 0,01 lo
+  dice. Solo en pantalla, sin llamadas a la red. Sale también sin Pack de
+  capturas (no es una función de capturas).
+- **Calendario del Diario** (`diario-analisis.js`): `_daCargarAhora` lee
+  además `cuenta_tamanos` (`_daTamanos`, por carpeta; solo lectura, RLS:
+  el usuario lee los suyos). En cada día con P&L: **% en grande** (verde /
+  rojo, `.da-cal-pct`) y el **$ debajo** más pequeño (`.da-cal-usd`).
+  `_daPctDia`: P&L del día / suma de los tamaños de las cuentas que operaron
+  ese día (con una cuenta elegida, solo la suya). Tamaño de una cuenta = el
+  de su carpeta (`_daCarpetaDe`): las cuentas de historial (sin carpeta) o
+  una carpeta sin fila → **solo $**, sin %. Si `cuenta_tamanos` falla, el
+  calendario sale en $ como antes. Leyenda bajo la cuadrícula. El color del
+  día no cambia (sigue por $).
+- **Ojo:** `sql_etapas_v2.sql` (que crea `cuenta_tamanos`) no está en `main`:
+  solo en la rama `feature/etapas-v2` (`1ae6793`). Las pruebas usan esa versión.
+- **Pruebas** (scratchpad sesión 1267230c, `pg4/test_calc.mjs`): 31 OK —
+  125 $ / 5 pts = 0,25 (125 $), 125 $ / 3 pts = 0,41 (123 $), vacíos / 0,
+  coma decimal, < 0,01, sin red, sin Pack; calendario: día con 2 cuentas
+  (+750 / 75.000 = +1,00 %), solo Maestra (+0,25 %), cuenta sin carpeta (solo
+  $), pérdidas (−1,20 % en rojo), pestañas Maestra (+2,00 %) y Prueba
+  (−1,00 %), sin tamaño de Prueba (solo $), `cuenta_tamanos` caída. Resto de
+  suites OK (plegado 29, capturas 64, abiertos 51, notas 36, SQL notas 22,
+  TRADING 29). Capturas Chrome headless OK (escritorio y móvil).
+
+---
+
 ## TRADING: cerrados plegados y pendientes (09/10, madrugada) — EN PRODUCCIÓN
 
 Merge `0ee54d6` (rama `feature/trading-plegado`, `73771a2`), deploy automático
