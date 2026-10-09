@@ -268,8 +268,10 @@ function _caElegirDestino(fp, hueco) {
 function _caRepintarDetalle(fp) {
   var card = document.getElementById('ca-tr-' + _caIdFp(fp)), r = card && _caTrBuscar(fp);
   if (!card || !r) return;
-  card.innerHTML = _caHtmlDetalle(r, _caTrHtmlCab(r));
+  card.innerHTML = _caTrHtmlInterior(r);
+  card.classList.toggle('ca-plegado', _caTrPlegado(r));
   _caTrasPintar(card);
+  _caTrPintarPend();
 }
 
 function _caMsgDetalle(fp, texto, esError) {
@@ -752,6 +754,13 @@ function _caEstilos() {
     '.ca-tr-cab{display:flex;flex-wrap:wrap;align-items:baseline;gap:.3rem 1rem;font-size:14px;margin-bottom:.8rem;}' +
     '.ca-tr-vacio{font-size:13px;color:var(--text-muted);margin-bottom:.5rem;}' +
     '.ca-tr-trade.ca-foco .ca-detalle{border-color:var(--gold)!important;box-shadow:0 0 0 1px var(--gold);}' +
+    '.ca-tr-linea{display:flex;flex-wrap:wrap;align-items:baseline;gap:.3rem 1rem;font-size:14px;cursor:pointer;outline:none;}' +
+    '.ca-tr-linea:focus-visible{text-decoration:underline;}' +
+    '.ca-tr-trade.ca-plegado .ca-detalle{margin-bottom:.5rem!important;padding:.65rem 1rem!important;}' +
+    '.ca-tr-flecha{color:var(--gold-dim);width:.8rem;display:inline-block;}' +
+    '.ca-tr-estado{min-width:5.5rem;text-align:right;font-size:13px;}' +
+    '.ca-tr-pend{display:inline-block;font-size:13px;margin:0 0 .7rem;padding:.35rem .8rem;border:1px solid var(--border-gold);color:var(--gold);cursor:pointer;}' +
+    '.ca-tr-pend.ca-cero{border-color:var(--border);color:var(--text-muted);cursor:default;}' +
     '.ca-nota::placeholder{color:var(--text-muted);opacity:.8;}' +
     '.ca-nota{width:100%;box-sizing:border-box;background:#060810;border:1px solid var(--border);padding:.6rem .8rem;font-size:14px;color:var(--text);font-family:\'Outfit\',sans-serif;outline:none;resize:vertical;}' +
     '.ca-enlazar-caja{display:flex;flex-wrap:wrap;gap:1rem;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);}' +
@@ -786,6 +795,7 @@ function _caHtmlBarra() {
 var _caTrDia = null;    // día que se ve (ms UTC, como _daDiaMs); null = hoy
 var _caTrFoco = null;   // fp a resaltar y al que bajar al pintar (icono del Diario o captura con la barra)
 var _caTrFirma = null;  // fp pintados: al recargar, si no cambian, no se repinta
+var _caTrDesplegados = {};  // fp de cerrados desplegados (los cerrados van plegados; los abiertos, siempre desplegados)
 
 function _caTrHoy() { return _daHoyMs(); }
 
@@ -870,9 +880,79 @@ function _caTrHtmlCab(r) {
          '</div>';
 }
 
+// Cerrado "relleno": captura de Entrada y nota de Entrada.
+function _caTrCompleto(fp) {
+  return !!(_caCapturas[fp] || {}).entrada && !!String((_caNotas[fp] || {}).entrada || '').trim();
+}
+
+function _caTrPlegado(r) { return r._abierto !== true && !_caTrDesplegados[r.fp]; }
+
+// Línea de un cerrado (plegado o, desplegado, encima de sus huecos): pulsar pliega / despliega.
+function _caTrHtmlLinea(r) {
+  var b = _daBenef(r, _daTradesPorFp()), ok = _caTrCompleto(r.fp), pleg = _caTrPlegado(r);
+  var fpJs = _caAttr(JSON.stringify(r.fp));
+  return '<div class="ca-tr-linea" role="button" tabindex="0" aria-expanded="' + !pleg + '" ' +
+           'onclick="_caTrPlegar(' + fpJs + ')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();_caTrPlegar(' + fpJs + ');}" ' +
+           'title="' + (pleg ? 'Pulsa para ver sus capturas y notas' : 'Pulsa para plegar') + '">' +
+           '<span class="ca-tr-flecha">' + (pleg ? '▸' : '▾') + '</span>' +
+           '<span style="color:var(--gold-dim);" title="Hora de cierre">' + _daEsc(_daHora(r.fecha_cierre)) + '</span>' +
+           '<span style="color:var(--text-dim);">' + (r.direccion === 'buy' ? 'Compra' : 'Venta') + ' · ' + _daEsc(_daNombreCuenta(r.cuenta_numero)) + '</span>' +
+           '<span style="color:var(--text-muted);font-size:12px;">' + (r.volumen != null ? _daNum(r.volumen, 2) + ' lotes' : '') + '</span>' +
+           '<span style="margin-left:auto;color:' + (b == null ? 'var(--text-muted)' : b >= 0 ? 'var(--green)' : 'var(--red)') + ';">' +
+             (b == null ? '—' : (b >= 0 ? '+' : '') + _daNum(b, 2) + '$') + '</span>' +
+           '<span class="ca-tr-estado" style="color:' + (ok ? 'var(--green)' : 'var(--gold)') + ';" ' +
+             'title="' + (ok ? 'Tiene captura y nota de Entrada' : 'Falta la captura o la nota de Entrada') + '">' + (ok ? '✓' : 'pendiente') + '</span>' +
+         '</div>';
+}
+
+function _caTrHtmlInterior(r) {
+  if (r._abierto === true) return _caHtmlDetalle(r, _caTrHtmlCab(r));
+  if (_caTrPlegado(r)) return '<div class="ca-detalle" style="border:1px solid var(--border);background:#0A0D16;">' + _caTrHtmlLinea(r) + '</div>';
+  return _caHtmlDetalle(r, '<div class="ca-tr-cab" style="display:block;">' + _caTrHtmlLinea(r) +
+           '<div style="color:var(--text-muted);font-size:12px;margin-top:.3rem;padding-left:1.8rem;">entrada ' + _daEsc(_daHora(r.fecha_entrada)) + ' a ' +
+             _daPrecio(r.precio_entrada) + ' · cierre a ' + _daPrecio(r.precio_cierre) + '</div></div>');
+}
+
 function _caTrHtmlTrade(r) {
-  return '<div class="ca-tr-trade' + (_caTrFoco === r.fp ? ' ca-foco' : '') + '" id="ca-tr-' + _caIdFp(r.fp) + '">' +
-           _caHtmlDetalle(r, _caTrHtmlCab(r)) + '</div>';
+  return '<div class="ca-tr-trade' + (_caTrPlegado(r) ? ' ca-plegado' : '') + (_caTrFoco === r.fp ? ' ca-foco' : '') + '" id="ca-tr-' + _caIdFp(r.fp) + '">' +
+           _caTrHtmlInterior(r) + '</div>';
+}
+
+function _caTrPlegar(fp) {
+  var r = _caTrBuscar(fp);
+  if (!r || r._abierto === true) return;
+  if (_caTrDesplegados[fp]) {
+    delete _caTrDesplegados[fp];
+    if (_caDestino && _caDestino.fp === fp) _caDestino = null;
+  } else _caTrDesplegados[fp] = true;
+  _caRepintarDetalle(fp);
+}
+
+function _caTrDiaVisto() { return _caTrDia == null ? _caTrHoy() : _caTrDia; }
+
+function _caTrPendientes() {
+  return _caTrFilas(_caTrDiaVisto()).cerrados.filter(function(r) { return !_caTrCompleto(r.fp); });
+}
+
+function _caTrHtmlPend() {
+  var n = _caTrPendientes().length;
+  return n ? '<span class="ca-tr-pend" role="button" tabindex="0" onclick="_caTrIrPendiente()" ' +
+               'onkeydown="if(event.key===\'Enter\'){_caTrIrPendiente();}" title="Sin captura y nota de Entrada. Pulsa para abrir el primero">Pendientes de rellenar: ' + n + '</span>'
+           : '<span class="ca-tr-pend ca-cero">Pendientes de rellenar: 0 ✓</span>';
+}
+
+function _caTrPintarPend() {
+  var el = document.getElementById('ca-tr-pend');
+  if (el) el.innerHTML = _caTrHtmlPend();
+}
+
+// Contador: despliega el primer pendiente (en el orden de la lista) y baja a él.
+function _caTrIrPendiente() {
+  var r = _caTrPendientes()[0];
+  if (!r) return;
+  _caTrDesplegados[r.fp] = true;
+  _caTrFoco = r.fp;
+  _caTrPintar();
 }
 
 function _caTrPintar() {
@@ -890,6 +970,7 @@ function _caTrPintar() {
   }
   var hoy = _caTrHoy(), dia = _caTrDia == null ? hoy : _caTrDia;
   var dias = _caTrDias(), f = _caTrFilas(dia);
+  if (_caTrFoco) _caTrDesplegados[_caTrFoco] = true;   // icono del Diario / barra / contador: se ve desplegado
   var antes = dias.some(function(d) { return d < dia; });
   var h = '<div class="ca-tr-dias">' +
             '<button class="tab" style="padding:.3rem .7rem;"' + (antes ? '' : ' disabled') + ' onclick="_caTrMover(-1)" aria-label="Día anterior con trades">‹</button>' +
@@ -905,7 +986,8 @@ function _caTrPintar() {
     h += f.abiertos.length ? f.abiertos.map(_caTrHtmlTrade).join('')
                            : '<div class="ca-tr-vacio">No tienes trades abiertos ahora.</div>';
   }
-  h += '<div class="tag" style="display:block;margin:1.4rem 0 .7rem;">' + (dia === hoy ? 'Cerrados hoy' : 'Cerrados este día') + ' · ' + f.cerrados.length + '</div>';
+  if (f.cerrados.length) h += '<div id="ca-tr-pend" style="margin-top:1.4rem;">' + _caTrHtmlPend() + '</div>';
+  h += '<div class="tag" style="display:block;margin:' + (f.cerrados.length ? '.2rem' : '1.4rem') + ' 0 .7rem;">' + (dia === hoy ? 'Cerrados hoy' : 'Cerrados este día') + ' · ' + f.cerrados.length + '</div>';
   h += f.cerrados.length ? f.cerrados.map(_caTrHtmlTrade).join('')
                          : '<div class="ca-tr-vacio">' + (dia === hoy ? 'Aún no has cerrado ningún trade hoy.' : 'Sin trades cerrados este día.') + '</div>';
   cont.innerHTML = h;
@@ -934,6 +1016,7 @@ async function initTrading() {
   var panel = document.getElementById('gpanel-trading');
   var cont = document.getElementById('trading-bloque');
   if (!panel || !cont) return;
+  _caTrDesplegados = {};             // cerrados plegados (el del icono del Diario se despliega al pintar)
   if (!_caTrFoco) _caTrDia = null;   // la pestaña abre en hoy (el icono del Diario lleva a su día)
   var barra = document.getElementById('ca-barra');
   if (!_caTieneAcceso()) { if (barra) barra.remove(); _caNueva = null; _caTrPintar(); return; }
