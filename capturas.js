@@ -12,8 +12,12 @@
 //   cerrado; siempre con lista para elegir otro) y a un hueco: Entrada,
 //   Gestión o Salida (máx. 3 por trade; si el hueco está ocupado, se
 //   reemplaza).
-// - Detalle de cada trade: los 3 huecos con miniatura, ver en grande, Borrar
-//   y Reemplazar (capturar, subir o pegar con Ctrl+V tras pulsar el hueco).
+// - Detalle de cada trade en el Diario: solo un botón "📷 Capturas y notas
+//   (n)" (punto dorado si hay notas) que abre la vista "Capturas del trade"
+//   (09/10, noche; #ca-pagina dentro de Mi gestión → Diario, sin ruta ni
+//   hash) con los 3 huecos con miniatura, ver en grande, Borrar y Reemplazar (capturar,
+//   subir o pegar con Ctrl+V tras pulsar el hueco) y las notas. "Volver al
+//   Diario" deja desplegado el mismo trade.
 // - Nota por hueco (09/10, tabla trade_nota_hueco): Entrada ("Por qué
 //   entré"), Gestión y Salida, máx. 300 caracteres cada una, con su Guardar.
 //   Se puede escribir aunque el hueco no tenga captura y en trades abiertos;
@@ -35,9 +39,9 @@
 //
 // Módulo aislado: solo LEE helpers globales (supaGet, supaPost, supaPatch,
 // supaDelete, getToken, getCurrentUser, usuarioActual, SUPA_URL, SUPA_KEY) y
-// del Diario (_daEsc, _daNombreCuenta, _daHora, _daPintar, _daAbierto,
-// _daAbrirDetalle). diario-analisis.js lo llama en unos pocos puntos (carga,
-// lista, filtro y detalle).
+// del Diario (_daEsc, _daNombreCuenta, _daHora, _daPrecio, _daPintar,
+// _daHayAlgo, _daAbierto, _daDatos, _daAbiertos). diario-analisis.js lo
+// llama en unos pocos puntos (carga, lista, filtro y botón del detalle).
 // ============================================================
 
 // Lista de Packs con acceso (configurable por el admin más adelante).
@@ -71,6 +75,8 @@ var _caTrades = null;   // { abiertos: [...], cerrados: [...] } de ea_trades par
 var _caDestino = null;  // hueco elegido en un detalle para pegar/subir: { fp, hueco }
 var _caOcupado = false;
 var _caAviso = null;    // mensaje para el detalle tras repintar: { fp, texto, hueco } (hueco = de su nota)
+var _caPagina = null;   // fp de la vista "Capturas del trade" abierta (null = se ve el Diario)
+var _caPaginaVuelta = null; // _daAbierto al abrir la vista: el trade que se vuelve a desplegar
 
 // ── Acceso y entorno ─────────────────────────────────────────────────────
 
@@ -231,6 +237,107 @@ function _caHtmlDetalle(r) {
   return h + '</div>';
 }
 
+// ── Botón del detalle y vista "Capturas del trade" ──────────────────────
+
+// En el detalle del trade (Diario): botón que abre la vista. "(n)" = capturas;
+// punto dorado = alguna nota.
+function _caHtmlBotonPagina(r) {
+  if (!_caTieneAcceso()) return '';
+  var n = _caListo() ? _caNumCapturas(r.fp) : 0, nota = _caListo() && _caTieneNota(r.fp);
+  return '<div class="ca-boton-pag" style="display:flex;align-items:center;flex-wrap:wrap;gap:.5rem 1rem;margin:0 0 1.2rem;">' +
+           '<div class="btn-outline" role="button" tabindex="0" style="font-size:13px;padding:.55rem 1.3rem;cursor:pointer;" ' +
+             'onclick="_caAbrirPagina(' + _caAttr(JSON.stringify(r.fp)) + ')">📷 Capturas y notas' + (n ? ' (' + n + ')' : '') +
+             (nota ? '<span class="ca-punto" title="Tiene notas"></span>' : '') + '</div>' +
+           (_caError ? '<span style="font-size:12px;color:var(--red);">No se pudieron leer tus capturas o notas.</span>'
+            : !n && !nota ? '<span style="font-size:12px;color:var(--text-muted);">Entrada, gestión y salida: captura y nota de cada una.</span>' : '') +
+         '</div>';
+}
+
+function _caTradeDe(fp) {
+  var filas = ((typeof _daDatos !== 'undefined' && _daDatos) || []).concat((typeof _daAbiertos !== 'undefined' && _daAbiertos) || []);
+  return filas.filter(function(x) { return x.fp === fp; })[0] || null;
+}
+
+function _caHtmlVolver() {
+  return '<div class="btn-outline" role="button" tabindex="0" style="display:inline-block;font-size:13px;padding:.5rem 1.2rem;cursor:pointer;" ' +
+         'onclick="_caCerrarPagina()">← Volver al Diario</div>';
+}
+
+function _caHtmlCabeceraPagina(r) {
+  var linea = '';
+  if (r) {
+    var ab = r._abierto === true;
+    linea = (ab ? '<span style="color:var(--gold);">● Abierto</span> · ' : '') +
+            (r.direccion === 'buy' ? 'Compra' : 'Venta') + ' · ' + _daEsc(_daNombreCuenta(r.cuenta_numero)) +
+            ' · entrada ' + _daEsc(_daHora(r.fecha_entrada)) + ' a ' + _daPrecio(r.precio_entrada) +
+            (ab ? '' : ' · cierre ' + _daEsc(_daHora(r.fecha_cierre)) + ' a ' + _daPrecio(r.precio_cierre));
+  }
+  return '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:.8rem 1rem;margin-bottom:1rem;">' +
+           '<div style="min-width:0;">' +
+             '<div style="font-family:\'Cormorant Garamond\',serif;font-size:28px;color:var(--gold-bright);margin-bottom:.3rem;">Capturas del trade</div>' +
+             (linea ? '<div style="font-size:14px;color:var(--text-dim);">' + linea + '</div>' : '') +
+           '</div>' + _caHtmlVolver() +
+         '</div>';
+}
+
+function _caPintarPagina() {
+  var pag = document.getElementById('ca-pagina');
+  if (!pag || _caPagina == null) return;
+  pag.innerHTML = _caHtmlCabeceraPagina(_caTradeDe(_caPagina)) + _caHtmlDetalle({ fp: _caPagina }) +
+                  '<div>' + _caHtmlVolver() + '</div>';
+  _caTrasPintar(pag);
+}
+
+// Abre la vista: oculta lo demás del panel Diario (título, barra, Diario y
+// anotaciones) y enseña #ca-pagina. Con el Diario oculto, su refresco se para solo.
+function _caAbrirPagina(fp) {
+  var panel = document.getElementById('gpanel-diario');
+  if (!panel || !_caTieneAcceso()) return;
+  _caEstilos();
+  var pag = document.getElementById('ca-pagina');
+  if (!pag) {
+    pag = document.createElement('div');
+    pag.id = 'ca-pagina';
+    panel.appendChild(pag);
+  }
+  if (_caPagina == null) {
+    [].forEach.call(panel.children, function(el) {
+      if (el === pag) return;
+      el.setAttribute('data-ca-display', el.style.display);
+      el.style.display = 'none';
+    });
+    _caPaginaVuelta = typeof _daAbierto === 'string' ? _daAbierto : null;
+  }
+  _caPagina = fp;
+  _caDestino = null;
+  pag.style.display = 'block';
+  _caPintarPagina();
+  try { window.scrollTo(0, 0); } catch (e) {}
+}
+
+// "Volver al Diario": se repinta (insignias y botón al día) con el mismo trade desplegado.
+function _caCerrarPagina() {
+  if (_caPagina == null) return;
+  var vuelta = _caPaginaVuelta;
+  _caPagina = null;
+  _caPaginaVuelta = null;
+  _caDestino = null;
+  var panel = document.getElementById('gpanel-diario'), pag = document.getElementById('ca-pagina');
+  if (pag) { pag.style.display = 'none'; pag.innerHTML = ''; }
+  if (panel) [].forEach.call(panel.children, function(el) {
+    if (!el.hasAttribute('data-ca-display')) return;
+    el.style.display = el.getAttribute('data-ca-display');
+    el.removeAttribute('data-ca-display');
+  });
+  if (typeof _daPintar === 'function' && document.getElementById('diario-analisis-bloque') &&
+      (typeof _daHayAlgo !== 'function' || _daHayAlgo())) {
+    if (vuelta) _daAbierto = vuelta;
+    _daPintar();
+  }
+  var det = vuelta && document.getElementById('da-det-' + vuelta);
+  if (det && det.parentNode && det.parentNode.scrollIntoView) { try { det.parentNode.scrollIntoView({ block: 'start' }); } catch (e) {} }
+}
+
 // Tras pintar el detalle: miniaturas con URL firmada.
 function _caTrasPintar(cont) {
   if (!cont) return;
@@ -261,16 +368,16 @@ function _caElegirDestino(fp, hueco) {
   _caRepintarDetalle(fp);
 }
 
+// Repinta los huecos de la vista "Capturas del trade" (si está abierta con ese fp).
 function _caRepintarDetalle(fp) {
-  var det = typeof _daAbierto === 'string' ? document.getElementById('da-det-' + _daAbierto) : null;
-  var cont = det && det.querySelector('.ca-detalle');
-  if (typeof _daAbierto === 'string' && _daAbierto.slice(_daAbierto.indexOf(':') + 1) === fp && cont) {
-    var nuevo = document.createElement('div');
-    nuevo.innerHTML = _caHtmlDetalle({ fp: fp });   // lo escrito sin guardar sale de _caBorradores
-    var nueva = nuevo.firstChild;
-    cont.parentNode.replaceChild(nueva, cont);
-    _caTrasPintar(nueva);
-  }
+  var pag = document.getElementById('ca-pagina');
+  var cont = _caPagina === fp && pag ? pag.querySelector('.ca-detalle') : null;
+  if (!cont) return;
+  var nuevo = document.createElement('div');
+  nuevo.innerHTML = _caHtmlDetalle({ fp: fp });   // lo escrito sin guardar sale de _caBorradores
+  var nueva = nuevo.firstChild;
+  cont.parentNode.replaceChild(nueva, cont);
+  _caTrasPintar(nueva);
 }
 
 function _caMsgDetalle(fp, texto, esError) {
@@ -473,10 +580,12 @@ async function _caBorrar(fp, hueco) {
   _caTrasCambio(fp, 'Captura borrada.');
 }
 
-// Repinta la lista (insignias) y deja el detalle abierto con un mensaje.
+// Repinta la vista "Capturas del trade" con un mensaje (el Diario, oculto, se
+// repinta con sus insignias al volver) o, sin la vista, la lista del Diario.
 function _caTrasCambio(fp, texto, hueco) {
   _caAviso = { fp: fp, texto: texto, hueco: hueco || null };
-  if (typeof _daPintar === 'function' && document.getElementById('diario-analisis-bloque')) _daPintar();
+  if (_caPagina === fp) _caRepintarDetalle(fp);
+  else if (typeof _daPintar === 'function' && document.getElementById('diario-analisis-bloque')) _daPintar();
   else _caRepintarDetalle(fp);
 }
 
@@ -705,8 +814,9 @@ async function _caEnlazar() {
   }
 }
 
-// Ctrl+V con el Diario a la vista: al hueco marcado en un detalle o, si no hay
-// ninguno, como captura nueva para enlazar. En la nota (textarea) o cualquier
+// Ctrl+V con el Diario a la vista: al hueco marcado en la vista "Capturas del
+// trade"; en esa vista sin hueco marcado, aviso; con el Diario, como captura
+// nueva para enlazar. En la nota (textarea) o cualquier
 // campo de texto, el pegado normal no se toca.
 function _caAlPegar(e) {
   var panel = document.getElementById('gpanel-diario');
@@ -720,6 +830,8 @@ function _caAlPegar(e) {
     var d = _caDestino;
     _caComprimirArchivo(file).then(function(img) { return _caGuardarDesdeDetalle(d.fp, d.hueco, img); })
       .catch(function(err) { _caMsgDetalle(d.fp, 'Error: ' + err.message, true); });
+  } else if (_caPagina != null) {
+    _caMsgDetalle(_caPagina, 'Pulsa primero un hueco (queda marcado en dorado) y vuelve a pegar con Ctrl+V.', true);
   } else {
     _caNuevaImagen(function() { return _caComprimirArchivo(file); });
   }
@@ -743,6 +855,7 @@ function _caEstilos() {
     '.ca-nota-cont{font-size:11px;color:var(--text-muted);}' +
     '.ca-nota-msg{font-size:13px;color:var(--green);}' +
     '.ca-nota-btn{font-size:12px;padding:.35rem 1rem;cursor:pointer;}' +
+    '.ca-punto{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--gold);margin-left:.45rem;vertical-align:middle;}' +
     '.ca-nota::placeholder{color:var(--text-muted);opacity:.8;}' +
     '.ca-nota{width:100%;box-sizing:border-box;background:#060810;border:1px solid var(--border);padding:.6rem .8rem;font-size:14px;color:var(--text);font-family:\'Outfit\',sans-serif;outline:none;resize:vertical;}' +
     '.ca-enlazar-caja{display:flex;flex-wrap:wrap;gap:1rem;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);}' +
@@ -772,6 +885,7 @@ function _caHtmlBarra() {
 // Pack, y limpia la carpeta local de la antigua zona de pruebas.
 function initCapturasTrade() {
   _caLimpiarZonaPruebas();
+  if (_caPagina != null) _caCerrarPagina();   // al volver a la pestaña, se ve el Diario
   var panel = document.getElementById('gpanel-diario');
   var bloque = document.getElementById('diario-analisis-bloque');
   if (!panel || !bloque) return;

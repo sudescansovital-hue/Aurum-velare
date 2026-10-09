@@ -1,6 +1,6 @@
 # Estado — análisis post-cierre: FASE 1 (examen de la EA) + FASE 2 (Diario web)
 
-> Actualizado 09/10/2026, tarde (NOTAS POR HUECO EN PRODUCCIÓN: `sql_notas_hueco.sql` aplicado por el usuario, merge `c52e798`, deploy `aurum-velare-7nrhohqtm`; cerrar los 14 abiertos antiguos queda PENDIENTE, el usuario no aplica `sql_abiertos_2_cierre.sql` por ahora). Antes, 09/10 (TRADES ABIERTOS EN EL DIARIO EN PRODUCCIÓN: merge `6b5c8f3`, deploy `aurum-velare-mow4fdagx`; rama `feature/notas-hueco` con notas por hueco y SQL SIN APLICAR: `sql_notas_hueco.sql`, `sql_abiertos_2_cierre.sql`). Antes, 08/10/2026, noche (CAPTURAS POR TRADE EN PRODUCCIÓN: SQL aplicado por el usuario, `capturas.js`, merge `238f018`, deploy `aurum-velare-eg4plgchr`; cron de borrado a los 6 meses con `CRON_SECRET`; zona de pruebas borrada). Antes, 08/10 (propuesta "Minado de estrategias", sin código: pasa a ser el pendiente SIGUIENTE, antes de la medición por modo y del tablero). Antes, 07/10/2026, noche (MIS REGLAS FASE 3 y NORMAS POR MODO FASE 1 EN PRODUCCIÓN, `011fe93`, deploy `aurum-velare-awe9gylb8`; SQL candado v3, normas por modo y `desde` 08/10 aplicados por el usuario; `feature/ea-sync` FUSIONADA en `main`). Antes, 07/10 (ETAPAS v2 EN PRODUCCIÓN: SQL aplicado por el usuario y web (Mi proceso + admin); antes, revisión 2 del SQL; punto 3 de "Mi proceso" en producción: barra de etapa por días limpios; "Mi proceso" completo; punto 2 en producción: aciertos, errores y regla de la semana; base de los MODOS en producción: plan del día, modo de cada trade y plan frente a realidad; punto 1 de "Mi proceso", "Tu situación", en producción; punto 0 en producción y comprobado; textos "Pack" en la web; idea "Alertas al móvil"; propuesta "Modos, plan del día y tablero en directo", pendiente nº 3). Antes, 06/10/2026, noche (Diario al instante desde `ea_trades`, bloque "Hoy" y plan del trader en producción; **un push a `main` despliega solo**). Antes, 06/10 (cierre de sesión: decisiones y pendientes abajo; "Edge por cuenta"; "Mis reglas"; propuesta "Mi proceso"). Antes: 05/10/2026 (post_cierre automatizado con tarea programada; fallo 5 de la EA). Antes: 02/10/2026. **FASE 2 en producción** (primer deploy `cdede9a` /
+> Actualizado 09/10/2026, noche (rama `feature/capturas-pagina`: capturas y notas del trade en una vista aparte, "Capturas del trade", con un botón en el detalle; SIN MERGE NI DEPLOY, pendiente de que el usuario lo revise; sin SQL). Antes, 09/10, tarde (NOTAS POR HUECO EN PRODUCCIÓN: `sql_notas_hueco.sql` aplicado por el usuario, merge `c52e798`, deploy `aurum-velare-7nrhohqtm`; cerrar los 14 abiertos antiguos queda PENDIENTE, el usuario no aplica `sql_abiertos_2_cierre.sql` por ahora). Antes, 09/10 (TRADES ABIERTOS EN EL DIARIO EN PRODUCCIÓN: merge `6b5c8f3`, deploy `aurum-velare-mow4fdagx`; rama `feature/notas-hueco` con notas por hueco y SQL SIN APLICAR: `sql_notas_hueco.sql`, `sql_abiertos_2_cierre.sql`). Antes, 08/10/2026, noche (CAPTURAS POR TRADE EN PRODUCCIÓN: SQL aplicado por el usuario, `capturas.js`, merge `238f018`, deploy `aurum-velare-eg4plgchr`; cron de borrado a los 6 meses con `CRON_SECRET`; zona de pruebas borrada). Antes, 08/10 (propuesta "Minado de estrategias", sin código: pasa a ser el pendiente SIGUIENTE, antes de la medición por modo y del tablero). Antes, 07/10/2026, noche (MIS REGLAS FASE 3 y NORMAS POR MODO FASE 1 EN PRODUCCIÓN, `011fe93`, deploy `aurum-velare-awe9gylb8`; SQL candado v3, normas por modo y `desde` 08/10 aplicados por el usuario; `feature/ea-sync` FUSIONADA en `main`). Antes, 07/10 (ETAPAS v2 EN PRODUCCIÓN: SQL aplicado por el usuario y web (Mi proceso + admin); antes, revisión 2 del SQL; punto 3 de "Mi proceso" en producción: barra de etapa por días limpios; "Mi proceso" completo; punto 2 en producción: aciertos, errores y regla de la semana; base de los MODOS en producción: plan del día, modo de cada trade y plan frente a realidad; punto 1 de "Mi proceso", "Tu situación", en producción; punto 0 en producción y comprobado; textos "Pack" en la web; idea "Alertas al móvil"; propuesta "Modos, plan del día y tablero en directo", pendiente nº 3). Antes, 06/10/2026, noche (Diario al instante desde `ea_trades`, bloque "Hoy" y plan del trader en producción; **un push a `main` despliega solo**). Antes, 06/10 (cierre de sesión: decisiones y pendientes abajo; "Edge por cuenta"; "Mis reglas"; propuesta "Mi proceso"). Antes: 05/10/2026 (post_cierre automatizado con tarea programada; fallo 5 de la EA). Antes: 02/10/2026. **FASE 2 en producción** (primer deploy `cdede9a` /
 > `aurum-velare-cw5la96zd`; el anterior a la FASE 2, para rollback, era
 > `aurum-velare-9hp3r9l3q`). Criterios de análisis hoy: **v6**. FASE 1
 > terminada el 29/09 (298 trades, en seco).
@@ -118,6 +118,63 @@ terminal sin la EA puesta**, porque la migración copia el estado local y la
 quitaría también del VPS.
 
 ---
+
+## Vista "Capturas del trade" (09/10, noche) — RAMA `feature/capturas-pagina`, SIN MERGE NI DEPLOY
+
+**Problema:** en Mi gestión → Diario, al desplegar un trade, el bloque de
+capturas y notas (3 huecos, notas 0/300, Guardar, aviso Ctrl+V) salía arriba
+y empujaba hacia abajo Modo, Entrada/Cierre/Puntos/P&L y la línea de tiempo.
+Pedido: reorganizar sin añadir funciones.
+
+- **Detalle del trade (Diario):** ya no lleva el bloque. En su sitio, un
+  botón **"📷 Capturas y notas"**: con capturas, "(n)"; con alguna nota,
+  punto dorado; sin nada, al lado "Entrada, gestión y salida: captura y nota
+  de cada una.". Modo (selector y Guardar), rejilla y línea de tiempo no
+  cambian. Igual en analizados, pendientes de análisis y abiertos. Sin
+  acceso por Pack, no hay botón.
+- **Vista "Capturas del trade"** (`#ca-pagina`, se crea dentro de
+  `#gpanel-diario`; **sin ruta ni hash**, decisión del usuario: el botón
+  atrás del navegador no vuelve, como antes): cabecera con el trade (● Abierto
+  / dirección / cuenta / entrada / cierre) y "← Volver al Diario" arriba y
+  abajo; debajo, el mismo `_caHtmlDetalle` de antes sin cambios (3 huecos,
+  Capturar/Subir/Reemplazar/Borrar, ver en grande, Ctrl+V tras pulsar el
+  hueco, notas por hueco con Guardar, avisos). Al abrirla se ocultan los
+  demás hijos del panel (título, barra, Diario, anotaciones; se guarda su
+  `display` en `data-ca-display` y se repone al volver). Con el Diario oculto
+  su refresco de cada minuto se para solo (`_daVisible`).
+- **Volver al Diario:** repinta el Diario con el mismo trade desplegado
+  (`_daAbierto` guardado al entrar; si se entró desde la semana, vuelve el
+  de la semana) y hace scroll hasta él; botón e insignias 📷/📝 al día.
+  Cambiar de pestaña de Mi gestión y volver a Diario cierra la vista
+  (`initCapturasTrade`).
+- **Ctrl+V:** en la vista, con un hueco marcado, se guarda ahí; sin hueco
+  marcado, "Pulsa primero un hueco (queda marcado en dorado) y vuelve a pegar
+  con Ctrl+V." (decisión del usuario). Con el Diario a la vista, la barra
+  "Capturas de tus trades" y el Ctrl+V suelto siguen igual.
+- **Sin cambios en BD:** mismas tablas (`trade_capturas`,
+  `trade_nota_hueco`), bucket `capturas-trades` y llamadas; sin SQL, RLS ni
+  Storage. No toca Pack (`CA_PACKS`) ni el menú sticky.
+- **Archivos:** `capturas.js` (`_caHtmlBotonPagina`, `_caAbrirPagina`,
+  `_caPintarPagina`, `_caCerrarPagina`; `_caRepintarDetalle` y
+  `_caTrasCambio` trabajan sobre la vista; aviso de Ctrl+V) y
+  `diario-analisis.js` (3 llamadas: `_caHtmlDetalle` → `_caHtmlBotonPagina`).
+- **Pruebas** (jsdom + PGlite con `sql_capturas.sql` + `sql_notas_hueco.sql`
+  reales y Storage simulado; antes, línea base sobre `main`: 54 + 47 + 33 +
+  22 OK): capturas 61, abiertos 58, notas por hueco 36 (adaptadas a entrar
+  por el botón), SQL notas 22, y **23 nuevas de la vista** con el panel
+  Diario real de `index.html` (orden del detalle, ocultar y reponer cada
+  hijo con su `display`, Ctrl+V con y sin hueco, nota, refresco con la vista
+  abierta, volver con el trade desplegado y contador al día, abierto y
+  cerrado, barra intacta). Capturas de pantalla con Chrome sin interfaz
+  (escritorio y 390 px).
+
+**Para comprobar (preview o local) con la sesión del usuario:**
+1. Mi gestión → Diario → pulsar un trade (abierto, pendiente y analizado):
+   arriba el botón, debajo Modo, rejilla y línea de tiempo, sin huecos.
+2. Botón → "Capturas del trade": subir/pegar (pulsar hueco + Ctrl+V),
+   borrar, nota con Guardar → "✓ Guardado"; Ctrl+V sin hueco → aviso.
+3. "← Volver al Diario": el mismo trade desplegado, el botón con "(n)" y
+   punto, insignias 📷/📝 en la fila.
 
 ## Trades abiertos en el Diario (09/10) — EN PRODUCCIÓN (notas por hueco también; cierre de los antiguos PENDIENTE)
 

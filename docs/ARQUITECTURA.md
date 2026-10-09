@@ -7,8 +7,20 @@
 
 ## Sesión 09/10/2026
 
-> Detalle en `tools/post_cierre/ESTADO.md`, sección "Trades abiertos en el
-> Diario (09/10)".
+> Detalle en `tools/post_cierre/ESTADO.md`, secciones "Vista «Capturas del
+> trade» (09/10, noche)" y "Trades abiertos en el Diario (09/10)".
+
+- **Vista "Capturas del trade" — rama `feature/capturas-pagina`, SIN MERGE
+  NI DEPLOY** (pendiente de revisión del usuario; sin SQL):
+  - Detalle del trade en el Diario: el bloque de capturas y notas se cambia
+    por un botón "📷 Capturas y notas (n)" (punto dorado si hay notas).
+    Modo, rejilla y línea de tiempo quedan igual.
+  - `capturas.js`: vista `#ca-pagina` dentro de `#gpanel-diario` (sin ruta
+    ni hash) con el mismo bloque de antes (`_caHtmlDetalle`) y "← Volver al
+    Diario", que deja desplegado el mismo trade. En la vista, Ctrl+V sin
+    hueco marcado → "Pulsa primero un hueco". La barra "Capturas de tus
+    trades" sigue en el Diario.
+  - `diario-analisis.js`: 3 llamadas `_caHtmlDetalle` → `_caHtmlBotonPagina`.
 
 - **Trades abiertos en el Diario — EN PRODUCCIÓN** (merge `6b5c8f3`, deploy
   `aurum-velare-mow4fdagx` desde copia limpia; anterior

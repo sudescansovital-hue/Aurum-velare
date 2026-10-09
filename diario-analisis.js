@@ -2001,7 +2001,7 @@ async function _daAbrirDetalle(clave) {
   }
   h += '<div style="font-size:15px;color:var(--text);line-height:1.7;margin:.2rem 0 1rem;">' + _daEsc(_daFrase(r)) + '</div>';
   if (typeof _moHtmlCorregir === 'function') h += _moHtmlCorregir(r, clave);
-  if (typeof _caHtmlDetalle === 'function') h += _caHtmlDetalle(r);
+  if (typeof _caHtmlBotonPagina === 'function') h += _caHtmlBotonPagina(r);
   h += '<div id="da-graf-' + _daEsc(clave) + '" style="position:relative;background:#060810;border:1px solid var(--border);margin-bottom:.5rem;"></div>';
   h += '<div style="display:flex;flex-wrap:wrap;gap:1.2rem;font-size:12px;color:var(--text-muted);margin-bottom:1rem;">' +
          _daLeyenda(DA_COLOR.precio, 'Precio (cierre de vela) y rango máx–mín', false) +
@@ -2023,7 +2023,6 @@ async function _daAbrirDetalle(clave) {
   if (r.notas) h += '<div style="font-size:12px;color:var(--text-muted);margin-top:.8rem;">Nota del análisis: ' + _daEsc(r.notas) + '</div>';
 
   det.innerHTML = h;
-  if (typeof _caTrasPintar === 'function') _caTrasPintar(det);
   var graf = document.getElementById('da-graf-' + clave);
   if (velas && Array.isArray(velas.velas) && velas.velas.length) _daPintarGrafico(graf, r, velas);
   else graf.innerHTML = '<div style="padding:1rem;font-size:13px;color:var(--text-muted);">Sin velas guardadas para este trade.</div>';
@@ -2057,7 +2056,7 @@ async function _daAbrirPendiente(clave, r, det, token) {
   det.innerHTML =
     '<div style="font-size:13px;color:var(--text-muted);line-height:1.6;margin:.2rem 0 .8rem;padding:.5rem .8rem;border:1px dashed var(--border);">' +
       'Análisis pendiente: la EA ya envió el trade y la tarea programada lo analiza cada hora (gráfico, veredicto y 4 h después del cierre).</div>' +
-    (typeof _caHtmlDetalle === 'function' ? _caHtmlDetalle(r) : '') +
+    (typeof _caHtmlBotonPagina === 'function' ? _caHtmlBotonPagina(r) : '') +
     (typeof _moHtmlCorregir === 'function' ? _moHtmlCorregir(r, clave) : '') +
     '<div class="da-rejilla" style="--da-base:max(150px, calc(25% - 1px));margin-bottom:1rem;">' +
       celda('Entrada', _daNum(r.precio_entrada, 2), _daEsc(_daHora(r.fecha_entrada))) +
@@ -2067,11 +2066,11 @@ async function _daAbrirPendiente(clave, r, det, token) {
             b == null ? 'var(--text-muted)' : b >= 0 ? 'var(--green)' : 'var(--red)') +
     '</div>' +
     _daHtmlEventos(res.data || []);
-  if (typeof _caTrasPintar === 'function') _caTrasPintar(det);
 }
 
-// Detalle de un trade ABIERTO: capturas y notas por hueco (ya se pueden
-// rellenar), modo, entrada, SL/TP actuales, lote y línea de tiempo hasta ahora.
+// Detalle de un trade ABIERTO: botón de capturas y notas por hueco (ya se
+// pueden rellenar, en la vista "Capturas del trade" de capturas.js), modo,
+// entrada, SL/TP actuales, lote y línea de tiempo hasta ahora.
 async function _daAbrirAbiertoDetalle(clave, r, det, token) {
   var res = await supaGet('trade_eventos', 'fp=eq.' + encodeURIComponent(r.fp) + '&order=timestamp.asc', token);
   if (_daAbierto !== clave) return; // se cerró mientras cargaba
@@ -2085,7 +2084,7 @@ async function _daAbrirAbiertoDetalle(clave, r, det, token) {
   det.innerHTML =
     '<div style="font-size:13px;color:var(--gold);line-height:1.6;margin:.2rem 0 .8rem;padding:.5rem .8rem;border:1px dashed var(--border-gold);">' +
       'Trade abierto. Pon ya tus capturas y notas: se quedan con este trade cuando se cierre y se analice.</div>' +
-    (typeof _caHtmlDetalle === 'function' ? _caHtmlDetalle(r) : '') +
+    (typeof _caHtmlBotonPagina === 'function' ? _caHtmlBotonPagina(r) : '') +
     (typeof _moHtmlCorregir === 'function' ? _moHtmlCorregir(r, clave) : '') +
     '<div class="da-rejilla" style="--da-base:max(150px, calc(25% - 1px));margin-bottom:1rem;">' +
       celda('Entrada', _daPrecio(r.precio_entrada), _daEsc(_daHora(r.fecha_entrada)) + ' · ' + (r.direccion === 'buy' ? 'compra' : 'venta')) +
@@ -2094,7 +2093,6 @@ async function _daAbrirAbiertoDetalle(clave, r, det, token) {
       celda('Lote', r.volumen != null ? _daNum(r.volumen, 2) : '—', 'Setup: ' + _daEsc(r.estrategia || 'sin clasificar')) +
     '</div>' +
     _daHtmlEventos(res.data || []);
-  if (typeof _caTrasPintar === 'function') _caTrasPintar(det);
 }
 
 function _daLeyenda(color, texto, discontinua) {
