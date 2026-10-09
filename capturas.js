@@ -832,7 +832,8 @@ function _caTrFilas(dia) {
 
 function _caTrFirmaDe(dia) {
   var f = _caTrFilas(dia);
-  return dia + '|' + f.abiertos.concat(f.cerrados).map(function(r) { return r.fp; }).join(',');
+  // + nº de parciales: un parcial nuevo de un abierto también repinta
+  return dia + '|' + f.abiertos.concat(f.cerrados).map(function(r) { return r.fp + ':' + (_daParciales[r.fp] || []).length; }).join(',');
 }
 
 function _caTrIso(ms) { return new Date(ms).toISOString().slice(0, 10); }
@@ -877,7 +878,7 @@ function _caTrHtmlCab(r) {
                : '<span style="color:var(--gold-dim);" title="Hora de cierre">' + _daEsc(_daHora(r.fecha_cierre)) + '</span>') +
            '<span style="color:var(--text-dim);">' + (r.direccion === 'buy' ? 'Compra' : 'Venta') + ' · ' + _daEsc(_daNombreCuenta(r.cuenta_numero)) + '</span>' +
            '<span style="color:var(--text-muted);font-size:12px;">' +
-             (r.volumen != null ? _daNum(r.volumen, 2) + ' lotes · ' : '') +
+             (r.volumen != null ? _daEsc(_daTxtLotes(r)) + ' · ' : '') +
              'entrada ' + _daEsc(_daHora(r.fecha_entrada)) + ' a ' + _daPrecio(r.precio_entrada) +
              (ab ? ' · SL ' + _daPrecio(r.sl_actual) + ' · TP ' + _daPrecio(r.tp_actual) : ' · cierre a ' + _daPrecio(r.precio_cierre)) +
            '</span>' +
@@ -903,7 +904,7 @@ function _caTrHtmlLinea(r) {
            '<span class="ca-tr-flecha">' + (pleg ? '▸' : '▾') + '</span>' +
            '<span style="color:var(--gold-dim);" title="Hora de cierre">' + _daEsc(_daHora(r.fecha_cierre)) + '</span>' +
            '<span style="color:var(--text-dim);">' + (r.direccion === 'buy' ? 'Compra' : 'Venta') + ' · ' + _daEsc(_daNombreCuenta(r.cuenta_numero)) + '</span>' +
-           '<span style="color:var(--text-muted);font-size:12px;">' + (r.volumen != null ? _daNum(r.volumen, 2) + ' lotes' : '') + '</span>' +
+           '<span style="color:var(--text-muted);font-size:12px;">' + (r.volumen != null ? _daEsc(_daTxtLotes(r)) : '') + '</span>' +
            '<span style="margin-left:auto;color:' + (b == null ? 'var(--text-muted)' : b >= 0 ? 'var(--green)' : 'var(--red)') + ';">' +
              (b == null ? '—' : (b >= 0 ? '+' : '') + _daNum(b, 2) + '$') + '</span>' +
            '<span class="ca-tr-estado" style="color:' + (ok ? 'var(--green)' : 'var(--gold)') + ';" ' +
@@ -912,11 +913,12 @@ function _caTrHtmlLinea(r) {
 }
 
 function _caTrHtmlInterior(r) {
-  if (r._abierto === true) return _caHtmlDetalle(r, _caTrHtmlCab(r));
+  if (r._abierto === true) return _caHtmlDetalle(r, _caTrHtmlCab(r) + _daHtmlParcialesAbierto(r));
   if (_caTrPlegado(r)) return '<div class="ca-detalle" style="border:1px solid var(--border);background:#0A0D16;">' + _caTrHtmlLinea(r) + '</div>';
+  var salidas = _daTxtSalidas(r);   // con parciales: cada salida con su lote, precio y $
   return _caHtmlDetalle(r, '<div class="ca-tr-cab" style="display:block;">' + _caTrHtmlLinea(r) +
            '<div style="color:var(--text-muted);font-size:12px;margin-top:.3rem;padding-left:1.8rem;">entrada ' + _daEsc(_daHora(r.fecha_entrada)) + ' a ' +
-             _daPrecio(r.precio_entrada) + ' · cierre a ' + _daPrecio(r.precio_cierre) + '</div></div>');
+             _daPrecio(r.precio_entrada) + (salidas ? ' · ' + _daEsc(salidas) : ' · cierre a ' + _daPrecio(r.precio_cierre)) + '</div></div>');
 }
 
 function _caTrHtmlTrade(r) {

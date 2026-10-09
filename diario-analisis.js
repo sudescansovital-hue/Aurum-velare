@@ -36,6 +36,7 @@ var _daDatos = null;          // filas de post_cierre_analisis + provisionales d
 var _daEa = null;             // trades cerrados de ea_trades (P&L y trades aún sin analizar)
 var _daEaEmail = null;        // de quién son las filas de _daEa
 var _daAbiertos = null;       // trades abiertos de ea_trades (_abierto: "En curso"); van aparte de _daDatos
+var _daParciales = {};        // fp -> cierres parciales de la EA (trade_parciales), por hora
 var _daCargando = false;
 var _daCargaPromesa = null;   // carga en curso: quien llame mientras tanto espera la misma (Diario y "Tu situación")
 var _daDatosEmail = null;     // de quién son _daDatos
@@ -402,6 +403,85 @@ async function _daRefrescarAbiertos() {
 
 function _daHayAlgo() { return !!((_daDatos && _daDatos.length) || (_daAbiertos && _daAbiertos.length)); }
 
+// ── Cierres parciales (09/10) ───────────────────────────────────────────────
+// La EA manda cada parcial a trade_parciales (lote, precio y $ de ese deal) y a
+// trade_eventos. En ea_trades, volumen es el lote de ENTRADA y precio_cierre el
+// del ÚLTIMO tramo; beneficio sí es el total (suma de todas las salidas,
+// GetBeneficioTotalPos en la EA). Aquí solo se enseña: en abiertos, parciales y
+// lote que queda; en cerrados, cada salida y que el total es su suma.
+var DA_COLUMNAS_PARCIALES = 'fp_trade,deal_id,volumen,precio,beneficio,timestamp';
+
+function _daAgruparParciales(filas) {
+  var out = {};
+  filas.forEach(function(p) { if (p.fp_trade) (out[p.fp_trade] = out[p.fp_trade] || []).push(p); });
+  Object.keys(out).forEach(function(fp) { out[fp].sort(function(a, b) { return _daFecha(a.timestamp) - _daFecha(b.timestamp); }); });
+  return out;
+}
+
+// null si el trade no tiene parciales. queda = lote aún abierto (abierto) o el
+// que cerró en la salida final (cerrado); beneficio = suma de los parciales.
+function _daParcialesDe(r) {
+  var ps = r && _daParciales[r.fp];
+  if (!ps || !ps.length) return null;
+  var d = r.direccion === 'sell' ? -1 : 1, pe = parseFloat(r.precio_entrada), vol = 0, ben = 0;
+  var lista = ps.map(function(p) {
+    var v = parseFloat(p.volumen) || 0, b = parseFloat(p.beneficio) || 0, pr = parseFloat(p.precio);
+    vol += v; ben += b;
+    return { volumen: v, precio: pr, pts: isNaN(pe) || isNaN(pr) ? null : (pr - pe) * d, beneficio: b, timestamp: p.timestamp };
+  });
+  var ini = parseFloat(r.volumen) > 0 ? parseFloat(r.volumen) : null;
+  return { lista: lista, volumen: _daRed2(vol), beneficio: _daRed2(ben), inicial: ini,
+           queda: ini == null ? null : Math.max(0, _daRed2(ini - vol)) };
+}
+
+function _daRed2(v) { return Math.round(v * 100) / 100; }
+// Siempre con 2 decimales (lote 0,20; 260,00 $), a diferencia de _daNum.
+function _daFmtLote(v) { return (Math.round(parseFloat(v) * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function _daFmtD2(v) { return (v >= 0 ? '+' : '−') + _daFmtLote(Math.abs(v)) + ' $'; }
+
+// Puntos de un cerrado con parciales: media de las salidas ponderada por lote
+// (el precio_cierre solo es el del último tramo). Sin parciales, los de siempre.
+function _daPtsMedios(r) {
+  var pa = _daParcialesDe(r);
+  if (!pa || pa.inicial == null || pa.lista.some(function(p) { return p.pts == null; })) return _daPtsReales(r);
+  return (pa.lista.reduce(function(s, p) { return s + p.volumen * p.pts; }, 0) + pa.queda * _daPtsReales(r)) / pa.inicial;
+}
+
+// "1,00 lotes" · abierto con parciales: "quedan 0,20 de 1,00 lotes" · cerrado: "1,00 lotes · 2 salidas".
+function _daTxtLotes(r) {
+  if (r.volumen == null) return '';
+  var pa = _daParcialesDe(r);
+  if (!pa) return _daNum(r.volumen, 2) + ' lotes';
+  return r._abierto === true ? 'quedan ' + _daFmtLote(pa.queda) + ' de ' + _daFmtLote(r.volumen) + ' lotes'
+                             : _daFmtLote(r.volumen) + ' lotes · ' + (pa.lista.length + 1) + ' salidas';
+}
+
+function _daTxtParcial(p) {
+  return 'Parcial ' + _daFmtLote(p.volumen) + ' a ' + _daPrecio(p.precio) +
+         (p.pts != null ? ' (' + (p.pts >= 0 ? '+' : '−') + _daNum(Math.abs(p.pts), 2) + ' pts)' : '') + ' ' + _daFmtD2(p.beneficio);
+}
+
+// Cerrado con parciales: "Parcial 0,80 a 4.187,78 (+3,25 pts) +260,00 $ · Cierre 0,20 a 4.196,52 +239,80 $".
+// El $ de la salida final = total − parciales. '' si no tiene parciales.
+function _daTxtSalidas(r) {
+  var pa = _daParcialesDe(r);
+  if (!pa) return '';
+  var b = _daBenef(r, _daTradesPorFp());
+  return pa.lista.map(_daTxtParcial).join(' · ') + ' · Cierre ' + (pa.queda != null ? _daFmtLote(pa.queda) + ' ' : '') +
+         'a ' + _daPrecio(r.precio_cierre) + (b != null ? ' ' + _daFmtD2(b - pa.beneficio) : '');
+}
+
+// Abierto con parciales: lista de parciales, realizado y lote que queda.
+function _daHtmlParcialesAbierto(r) {
+  var pa = _daParcialesDe(r);
+  if (!pa) return '';
+  return '<div class="da-parciales" style="font-size:12px;color:var(--text-muted);line-height:1.7;margin:.4rem 0 .6rem;padding:.4rem .7rem;border-left:2px solid var(--gold-dim);">' +
+           pa.lista.map(function(p) { return '<div>' + _daEsc(_daHora(p.timestamp)) + ' · ' + _daEsc(_daTxtParcial(p)) + '</div>'; }).join('') +
+           '<div style="color:var(--text-dim);">Realizado <span style="color:' + (pa.beneficio >= 0 ? 'var(--green)' : 'var(--red)') + ';">' + _daFmtD2(pa.beneficio) + '</span>' +
+             (pa.queda != null ? ' · quedan ' + _daFmtLote(pa.queda) + ' de ' + _daFmtLote(pa.inicial) + ' lotes abiertos' : '') + '</div>' +
+         '</div>';
+}
+
 // Análisis + trades de ea_trades sin analizar todavía, por fecha de cierre desc.
 // Una provisional por fp que no tenga análisis: cuando post_cierre.py lo sube,
 // en la siguiente carga el fp ya está analizado y la provisional no se crea.
@@ -448,7 +528,8 @@ async function _daCargarAhora() {
     // Capturas y notas por hueco (capturas.js): si fallan, el Diario sigue igual.
     typeof _caCargar === 'function' ? _caCargar().catch(function(e) { console.error('[diario-analisis] capturas', e); }) : null,
     _daConsultaAbiertos(email),
-    supaGet('cuenta_tamanos', 'usuario_email=eq.' + email + '&select=carpeta,tamano', getToken())
+    supaGet('cuenta_tamanos', 'usuario_email=eq.' + email + '&select=carpeta,tamano', getToken()),
+    _daGetTodo('trade_parciales', 'usuario_email=eq.' + email + '&fuente=eq.ea&select=' + DA_COLUMNAS_PARCIALES + '&order=timestamp.asc')
   ]);
   var r = res[0];
   _daCargando = false;
@@ -469,6 +550,11 @@ async function _daCargarAhora() {
     console.error('[diario-analisis] error al cargar cuenta_tamanos', res[6].error);
     if (_daDatosEmail !== u.email) _daTamanos = {};
   }
+  // Parciales: si fallan, se mantienen los anteriores de esta sesión (o ninguno: cada trade sale con una sola salida).
+  if (res[7].error || !Array.isArray(res[7].data)) {
+    console.error('[diario-analisis] error al cargar trade_parciales', res[7].error);
+    if (_daDatosEmail !== u.email) _daParciales = {};
+  } else _daParciales = _daAgruparParciales(res[7].data);
   // ea_trades: si falla, el Diario sigue solo con lo analizado (como antes).
   if (res[2].error) {
     console.error('[diario-analisis] error al cargar ea_trades', res[2].error);
@@ -499,7 +585,8 @@ async function buildDiarioAnalisis() {
 
 // ── Refresco con el Diario abierto ─────────────────────────────────────────
 // Firma = últimos cierres de ea_trades (fp + beneficio), últimos análisis
-// (fp + ventana completa + versión) y abiertos (fp + SL/TP). Si cambia, se recarga y se repinta; si
+// (fp + ventana completa + versión), abiertos (fp + SL/TP) y últimos parciales
+// (deal_id: un parcial de un abierto). Si cambia, se recarga y se repinta; si
 // no, no se toca la pantalla. Solo con la pestaña del navegador y el Diario visibles.
 async function _daFirmaActual() {
   var u = window.usuarioActual;
@@ -510,10 +597,12 @@ async function _daFirmaActual() {
                          '&select=fp,beneficio&order=fecha_cierre.desc,position_id.desc&limit=20', getToken()),
     supaGet('post_cierre_analisis', 'usuario_email=eq.' + email +
                                     '&select=fp,ventana_completa,criterios_version&order=calculado_en.desc&limit=20', getToken()),
-    supaGet('ea_trades', 'usuario_email=eq.' + email + '&estado=eq.open&select=fp,sl_actual,tp_actual&order=fecha_entrada.desc,position_id.desc', getToken())
+    supaGet('ea_trades', 'usuario_email=eq.' + email + '&estado=eq.open&select=fp,sl_actual,tp_actual&order=fecha_entrada.desc,position_id.desc', getToken()),
+    supaGet('trade_parciales', 'usuario_email=eq.' + email + '&fuente=eq.ea&select=deal_id&order=timestamp.desc&limit=20', getToken())
   ]);
   if (res[0].error || res[1].error || res[2].error) return null;
-  return JSON.stringify([res[0].data, res[1].data, res[2].data]);
+  // Si fallan los parciales, el refresco sigue con lo demás (como antes).
+  return JSON.stringify([res[0].data, res[1].data, res[2].data, res[3].error ? null : res[3].data]);
 }
 
 function _daVisible() {
@@ -1965,8 +2054,8 @@ function _daHtmlEnCurso(filasCuenta) {
     var clave = _daEsc('a:' + r.fp);
     var ab = r._abierto === true;
     var ben = ab ? null : _daBenef(r, porFp);
-    var datos = (r.volumen != null ? _daNum(r.volumen, 2) + ' lotes · ' : '') + 'entrada ' + _daPrecio(r.precio_entrada) +
-                (ab ? ' · SL ' + _daPrecio(r.sl_actual) + ' · TP ' + _daPrecio(r.tp_actual) : ' · cierre ' + _daPrecio(r.precio_cierre));
+    var datos = (r.volumen != null ? _daTxtLotes(r) + ' · ' : '') + 'entrada ' + _daPrecio(r.precio_entrada) +
+                (ab ? ' · SL ' + _daPrecio(r.sl_actual) + ' · TP ' + _daPrecio(r.tp_actual) : (_daParcialesDe(r) ? ' · cierre final ' : ' · cierre ') + _daPrecio(r.precio_cierre));
     h += '<div style="background:var(--bg2);' + (ab ? 'box-shadow:inset 3px 0 0 var(--gold);' : '') + '">' +
            '<div onclick="_daToggle(\'' + clave + '\')" style="display:flex;flex-wrap:wrap;gap:.5rem 1rem;align-items:center;padding:.8rem 1.2rem;cursor:pointer;">' +
              '<span style="font-size:13px;color:var(--gold-dim);flex:0 0 88px;" title="' + (ab ? 'Hora de entrada' : 'Hora de cierre') + '">' +
@@ -2044,7 +2133,8 @@ async function _daAbrirDetalle(clave) {
          _daLeyenda(DA_COLOR.entrada, 'Entrada ' + _daNum(r.precio_entrada, 2), true) +
          (r.sl_original != null ? _daLeyenda(DA_COLOR.sl, 'SL original ' + _daNum(r.sl_original, 2), true) : '') +
          (r.tp_original != null ? _daLeyenda(DA_COLOR.tp, 'TP ' + _daNum(r.tp_original, 2), true) : '<span>sin TP</span>') +
-         '<span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#E2D9C8;margin-right:.4rem;"></span>Cierre ' + _daNum(r.precio_cierre, 2) + '</span>' +
+         '<span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#E2D9C8;margin-right:.4rem;"></span>' +
+           (_daParcialesDe(r) ? 'Cierre final ' : 'Cierre ') + _daNum(r.precio_cierre, 2) + '</span>' +
        '</div>';
 
   h += '<div class="da-rejilla" style="--da-base:max(150px, calc(25% - 1px));margin-bottom:1rem;">' +
@@ -2054,7 +2144,7 @@ async function _daAbrirDetalle(clave) {
          _daMini('En contra después', r.contra_post_puntos, 'hasta SL/TP o 4 h') +
        '</div>';
 
-  h += _daHtmlEventos(eventos);
+  h += _daHtmlEventos(eventos, r);
   h += _daHtmlNoEvaluado(r, eventos);
   if (r.notas) h += '<div style="font-size:12px;color:var(--text-muted);margin-top:.8rem;">Nota del análisis: ' + _daEsc(r.notas) + '</div>';
 
@@ -2064,18 +2154,56 @@ async function _daAbrirDetalle(clave) {
   else graf.innerHTML = '<div style="padding:1rem;font-size:13px;color:var(--text-muted);">Sin velas guardadas para este trade.</div>';
 }
 
-function _daHtmlEventos(eventos) {
+// r (opcional): el trade, para los parciales. Cada parcial lleva lote cerrado,
+// lote que queda y su $; la salida final de un cerrado con parciales, su lote y
+// su $ (total − parciales), y debajo el total como suma de las partes. Un parcial
+// que está en trade_parciales y no en trade_eventos se añade igual.
+function _daHtmlEventos(eventos, r) {
   var h = '<div class="tag" style="display:block;margin-bottom:.6rem;">Línea de tiempo</div>';
+  var pa = r ? _daParcialesDe(r) : null;
+  eventos = eventos.slice();
+  if (pa) {
+    var vistos = {};
+    eventos.forEach(function(ev) { if (ev.tipo_evento === 'parcial') vistos[_daFecha(ev.timestamp).getTime()] = true; });
+    pa.lista.forEach(function(p) {
+      if (vistos[_daFecha(p.timestamp).getTime()]) return;
+      eventos.push({ tipo_evento: 'parcial', timestamp: p.timestamp, precio: p.precio, puntos_desde_entrada: p.pts,
+                     volumen_afectado: p.volumen, volumen_restante: null, beneficio: p.beneficio });
+    });
+    eventos.sort(function(a, b) { return _daFecha(a.timestamp) - _daFecha(b.timestamp); });
+  }
   if (!eventos.length) return h + '<div style="font-size:13px;color:var(--text-muted);">Sin eventos registrados por la EA para este trade.</div>';
-  return h + '<div style="display:flex;flex-direction:column;gap:.35rem;">' + eventos.map(function(ev) {
+  var total = r && r._abierto !== true ? _daBenef(r, _daTradesPorFp()) : null;
+  var parc = eventos.filter(function(ev) { return ev.tipo_evento === 'parcial'; });
+  var sumaParc = pa ? pa.beneficio : _daRed2(parc.reduce(function(s, ev) { return s + (parseFloat(ev.beneficio) || 0); }, 0));
+  var conParc = parc.length > 0;
+  var resto = conParc && total != null ? _daRed2(total - sumaParc) : null;
+  var color = function(v) { return v >= 0 ? 'var(--green)' : 'var(--red)'; };
+  h += '<div style="display:flex;flex-direction:column;gap:.35rem;">' + eventos.map(function(ev) {
     var label = typeof _eaAuditoriaTipoLabel === 'function' ? _eaAuditoriaTipoLabel(ev.tipo_evento) : ev.tipo_evento;
+    var extra = '';
+    if (ev.tipo_evento === 'entrada' && ev.volumen_restante != null) extra = ' · ' + _daFmtLote(ev.volumen_restante) + ' lotes';
+    if (ev.tipo_evento === 'parcial') {
+      if (ev.volumen_afectado != null) extra += ' · cerró ' + _daFmtLote(ev.volumen_afectado);
+      if (ev.volumen_restante != null) extra += ' · quedan ' + _daFmtLote(ev.volumen_restante);
+      if (ev.beneficio != null) extra += ' · <span style="color:' + color(parseFloat(ev.beneficio)) + ';">' + _daFmtD2(parseFloat(ev.beneficio)) + '</span>';
+    }
+    if (/^cierre/.test(ev.tipo_evento) && conParc) {
+      if (ev.volumen_afectado != null) extra += ' · ' + _daFmtLote(ev.volumen_afectado) + ' lotes';
+      if (resto != null) extra += ' · <span style="color:' + color(resto) + ';">' + _daFmtD2(resto) + '</span>';
+    }
     return '<div style="display:grid;grid-template-columns:90px 140px 1fr;gap:.8rem;font-size:13px;">' +
              '<span style="color:var(--gold-dim);">' + _daHora(ev.timestamp) + '</span>' +
              '<span style="color:var(--text-dim);">' + _daEsc(label) + '</span>' +
              '<span style="color:var(--text-muted);">' + (ev.precio != null ? _daNum(ev.precio, 2) : '') +
-               (ev.puntos_desde_entrada != null ? ' · ' + (ev.puntos_desde_entrada >= 0 ? '+' : '') + _daNum(ev.puntos_desde_entrada, 2) + ' pts' : '') + '</span>' +
+               (ev.puntos_desde_entrada != null ? ' · ' + (ev.puntos_desde_entrada >= 0 ? '+' : '') + _daNum(ev.puntos_desde_entrada, 2) + ' pts' : '') + extra + '</span>' +
            '</div>';
   }).join('') + '</div>';
+  if (conParc && total != null) {
+    h += '<div class="da-suma-salidas" style="font-size:13px;color:var(--text-dim);margin-top:.6rem;">Total <span style="color:' + color(total) + ';">' + _daFmtD2(total) + '</span> = ' +
+           _daFmtD2(sumaParc) + ' (' + (parc.length === 1 ? 'parcial' : parc.length + ' parciales') + ') ' + (resto >= 0 ? '+ ' : '− ') + _daFmtLote(Math.abs(resto)) + ' $ (cierre)</div>';
+  }
+  return h;
 }
 
 // Detalle de un trade sin análisis todavía: lo que ya mandó la EA (entrada,
@@ -2083,7 +2211,7 @@ function _daHtmlEventos(eventos) {
 async function _daAbrirPendiente(clave, r, det, token) {
   var res = await supaGet('trade_eventos', 'fp=eq.' + encodeURIComponent(r.fp) + '&order=timestamp.asc', token);
   if (_daAbierto !== clave) return; // se cerró mientras cargaba
-  var b = _daBenef(r, _daTradesPorFp());
+  var b = _daBenef(r, _daTradesPorFp()), pa = _daParcialesDe(r);
   var celda = function(label, valor, sub, color) {
     return '<div class="stat-card" style="text-align:center;padding:.8rem;"><div class="stat-label">' + label + '</div>' +
            '<div style="font-size:20px;color:' + (color || 'var(--text)') + ';">' + valor + '</div>' +
@@ -2095,12 +2223,12 @@ async function _daAbrirPendiente(clave, r, det, token) {
     (typeof _moHtmlCorregir === 'function' ? _moHtmlCorregir(r, clave) : '') +
     '<div class="da-rejilla" style="--da-base:max(150px, calc(25% - 1px));margin-bottom:1rem;">' +
       celda('Entrada', _daNum(r.precio_entrada, 2), _daEsc(_daHora(r.fecha_entrada))) +
-      celda('Cierre', _daNum(r.precio_cierre, 2), _daEsc(_daHora(r.fecha_cierre))) +
-      _daMini('Puntos', _daPtsReales(r), 'desde la entrada') +
-      celda('P&amp;L', b == null ? '—' : _daFmtD(b), r.volumen != null ? _daNum(r.volumen, 2) + ' lotes' : '&nbsp;',
+      celda(pa ? 'Cierre final' : 'Cierre', _daNum(r.precio_cierre, 2), _daEsc(_daHora(r.fecha_cierre)) + (pa ? ' · último tramo' : '')) +
+      _daMini('Puntos', _daPtsMedios(r), pa ? 'media de ' + (pa.lista.length + 1) + ' salidas' : 'desde la entrada') +
+      celda('P&amp;L', b == null ? '—' : pa ? _daFmtD2(b) : _daFmtD(b), r.volumen != null ? _daEsc(_daTxtLotes(r)) : '&nbsp;',
             b == null ? 'var(--text-muted)' : b >= 0 ? 'var(--green)' : 'var(--red)') +
     '</div>' +
-    _daHtmlEventos(res.data || []);
+    _daHtmlEventos(res.data || [], r);
 }
 
 // Detalle de un trade ABIERTO: modo, entrada, SL/TP actuales, lote y línea de
@@ -2112,6 +2240,8 @@ async function _daAbrirAbiertoDetalle(clave, r, det, token) {
     return '<div class="stat-card" style="text-align:center;padding:.8rem;"><div class="stat-label">' + label + '</div>' +
            '<div style="font-size:20px;color:var(--text);">' + valor + '</div><div class="stat-sub">' + sub + '</div></div>';
   };
+  var pa = _daParcialesDe(r);
+  if (pa && pa.queda == null) pa = null;   // sin lote de entrada no se sabe qué queda
   var dist = function(v) {
     return v == null || Number(v) === 0 || r.precio_entrada == null ? 'sin poner' : _daNum(Math.abs(Number(v) - Number(r.precio_entrada)), 1) + ' pts de la entrada';
   };
@@ -2125,9 +2255,11 @@ async function _daAbrirAbiertoDetalle(clave, r, det, token) {
       celda('Entrada', _daPrecio(r.precio_entrada), _daEsc(_daHora(r.fecha_entrada)) + ' · ' + (r.direccion === 'buy' ? 'compra' : 'venta')) +
       celda('SL actual', _daPrecio(r.sl_actual), dist(r.sl_actual)) +
       celda('TP actual', _daPrecio(r.tp_actual), dist(r.tp_actual)) +
-      celda('Lote', r.volumen != null ? _daNum(r.volumen, 2) : '—', 'Setup: ' + _daEsc(r.estrategia || 'sin clasificar')) +
+      (pa ? celda('Lote abierto', _daFmtLote(pa.queda), 'de ' + _daFmtLote(r.volumen) + ' · Setup: ' + _daEsc(r.estrategia || 'sin clasificar'))
+          : celda('Lote', r.volumen != null ? _daNum(r.volumen, 2) : '—', 'Setup: ' + _daEsc(r.estrategia || 'sin clasificar'))) +
     '</div>' +
-    _daHtmlEventos(res.data || []);
+    _daHtmlParcialesAbierto(r) +
+    _daHtmlEventos(res.data || [], r);
 }
 
 function _daLeyenda(color, texto, discontinua) {
