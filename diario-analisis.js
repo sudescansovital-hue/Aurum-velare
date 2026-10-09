@@ -49,6 +49,7 @@ var _daSoloErrores = false;   // filtro "Solo con errores" de la lista de trades
 var _daMes = null;            // ms del día 1 00:00 del mes del calendario
 var _daDia = null;            // ms del día elegido en el calendario (null = ninguno)
 var _daReglas = null;         // Mis reglas: { carpeta: [{regla, nivel, valor, nombre}] } de reglas_efectivas; null = no cargadas
+var _daTamanos = {};          // tamaño de cuenta por carpeta (cuenta_tamanos): { maestra: 50000, ... }; para el % del calendario
 
 // Vuelta de posición / entradas seguidas: minutos entre el cierre de un trade
 // y la apertura del siguiente en la misma cuenta. Cambiar aquí.
@@ -446,7 +447,8 @@ async function _daCargarAhora() {
     typeof _moCargar === 'function' ? _moCargar().catch(function(e) { console.error('[diario-analisis] modos', e); }) : null,
     // Capturas y notas por hueco (capturas.js): si fallan, el Diario sigue igual.
     typeof _caCargar === 'function' ? _caCargar().catch(function(e) { console.error('[diario-analisis] capturas', e); }) : null,
-    _daConsultaAbiertos(email)
+    _daConsultaAbiertos(email),
+    supaGet('cuenta_tamanos', 'usuario_email=eq.' + email + '&select=carpeta,tamano', getToken())
   ]);
   var r = res[0];
   _daCargando = false;
@@ -459,6 +461,14 @@ async function _daCargarAhora() {
                                                                   nombre: x.nombre || null, plan: x.plan || null });
     });
   } else if (res[1].error) console.error('[diario-analisis] error al cargar Mis reglas', res[1].error);
+  // Tamaños de cuenta: si fallan, se mantienen los anteriores de esta sesión (o ninguno: el calendario sale solo en $).
+  if (!res[6].error && Array.isArray(res[6].data)) {
+    _daTamanos = {};
+    res[6].data.forEach(function(t) { var v = Number(t.tamano); if (v > 0) _daTamanos[t.carpeta] = v; });
+  } else {
+    console.error('[diario-analisis] error al cargar cuenta_tamanos', res[6].error);
+    if (_daDatosEmail !== u.email) _daTamanos = {};
+  }
   // ea_trades: si falla, el Diario sigue solo con lo analizado (como antes).
   if (res[2].error) {
     console.error('[diario-analisis] error al cargar ea_trades', res[2].error);
@@ -548,7 +558,9 @@ function _daEstilos() {
                   '.da-cal .da-cal-dia{cursor:pointer;display:flex;flex-direction:column;gap:.15rem;}' +
                   '.da-cal .da-cal-dia:hover{box-shadow:inset 0 0 0 1px var(--gold-dim);}' +
                   '.da-cal-txt{font-size:11px;color:var(--text-muted);white-space:nowrap;}' +
-                  '@media (max-width:600px){.da-cal>div{min-height:54px;padding:.25rem;}.da-cal-largo{display:none;}}';
+                  '.da-cal-pct{font-size:17px;font-weight:600;line-height:1.15;white-space:nowrap;}' +
+                  '.da-cal-usd{font-size:11px;color:var(--text-dim);white-space:nowrap;}' +
+                  '@media (max-width:600px){.da-cal>div{min-height:54px;padding:.25rem;}.da-cal-largo{display:none;}.da-cal-pct{font-size:11px;}.da-cal-usd{font-size:10px;}}';
   document.head.appendChild(s);
 }
 
@@ -1133,17 +1145,39 @@ function _daFmtCorto(v) {
 // reglas se miden por cuenta (ver _daNivelesDia).
 function _daResumenDia(filasDia, porFp) {
   var lista = filasDia.slice().sort(function(a, b) { return _daFecha(a.fecha_cierre) - _daFecha(b.fecha_cierre); });
-  var res = { lista: lista, pnl: 0, conPnl: 0, gan: 0, vueltas: 0, niveles: _daNivelesDia(lista, porFp) };
+  var res = { lista: lista, pnl: 0, conPnl: 0, gan: 0, vueltas: 0, niveles: _daNivelesDia(lista, porFp), cuentas: {} };
   lista.forEach(function(r) {
     if (r._vueltaA) res.vueltas++;
     var t = porFp[r.fp];
     if (!t || t.beneficio == null) return;
     var b = parseFloat(t.beneficio);
     res.pnl += b; res.conPnl++; if (b > 0) res.gan++;
+    res.cuentas[String(r.cuenta_numero)] = true;
   });
+  res.pct = _daPctDia(res);
   res.perdida = res.niveles.filter(function(x) { return x.nivel.regla !== 'beneficio_dia'; });
   res.beneficio = res.niveles.filter(function(x) { return x.nivel.regla === 'beneficio_dia'; });
   return res;
+}
+
+// % del día = P&L / suma de los tamaños de las cuentas que operaron ese día
+// (con una cuenta elegida, solo la suya). Tamaño = el de la carpeta de la
+// cuenta (cuenta_tamanos). Si falta el de alguna cuenta: null (solo $).
+function _daPctDia(rd) {
+  var nums = Object.keys(rd.cuentas);
+  if (!rd.conPnl || !nums.length) return null;
+  var total = 0;
+  for (var i = 0; i < nums.length; i++) {
+    var t = _daTamanos[_daCarpetaDe(nums[i])];
+    if (!(t > 0)) return null;
+    total += t;
+  }
+  return rd.pnl / total * 100;
+}
+
+function _daFmtPct(v) {
+  var r = Math.round(v * 100) / 100;
+  return (r > 0 ? '+' : r < 0 ? '−' : '') + Math.abs(r).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' %';
 }
 
 function _daMoverMes(delta) {
@@ -1217,8 +1251,11 @@ function _daHtmlCalendario(filas) {
              '<span style="display:flex;gap:.25rem;">' + marcas + '</span></div>' +
            (rd
              ? '<span class="da-cal-txt">' + rd.lista.length + '<span class="da-cal-largo"> trade' + (rd.lista.length === 1 ? '' : 's') + '</span></span>' +
-               '<span style="font-size:12px;font-weight:600;white-space:nowrap;color:' + (!rd.conPnl ? 'var(--text-muted)' : rd.pnl >= 0 ? '#7FD6A0' : '#FF8A7A') + ';">' +
-                 (rd.conPnl ? _daFmtCorto(rd.pnl) : '—') + '</span>'
+               (rd.pct != null
+                 ? '<span class="da-cal-pct" style="color:' + (rd.pnl >= 0 ? '#7FD6A0' : '#FF8A7A') + ';">' + _daFmtPct(rd.pct) + '</span>' +
+                   '<span class="da-cal-usd">' + _daFmtCorto(rd.pnl) + ' $</span>'
+                 : '<span style="font-size:12px;font-weight:600;white-space:nowrap;color:' + (!rd.conPnl ? 'var(--text-muted)' : rd.pnl >= 0 ? '#7FD6A0' : '#FF8A7A') + ';">' +
+                     (rd.conPnl ? _daFmtCorto(rd.pnl) + ' $' : '—') + '</span>')
              : '') +
          '</div>';
   }
@@ -1227,6 +1264,8 @@ function _daHtmlCalendario(filas) {
   h += '</div>';
   h += '<div style="display:flex;flex-wrap:wrap;gap:.4rem 1.2rem;font-size:12px;color:var(--text-muted);margin:.5rem 0 1px;">' +
          '<span>Color: P&amp;L del día (más intenso cuanto mayor, tope ' + _daNum(DA_ESCALA_COLOR_DIA, 0) + ' $)</span>' +
+         '<span>%: P&amp;L del día / tamaño de ' + (_daCuenta === 'global' ? 'las cuentas que operaron ese día' : 'la cuenta') +
+           ' (sin tamaño, solo $)</span>' +
          (_daHayReglas()
            ? '<span><span style="color:#FF6B5A;font-weight:600;">LÍM</span> / barra roja: llegaste a un nivel de pérdida · ' +
              '<span style="color:#7FD6A0;font-weight:600;">▲</span> / barra verde: a un nivel de beneficio · ' +

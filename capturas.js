@@ -753,6 +753,12 @@ function _caEstilos() {
     '.ca-tr-fecha{width:auto;margin:0;color-scheme:dark;}' +
     '.ca-tr-cab{display:flex;flex-wrap:wrap;align-items:baseline;gap:.3rem 1rem;font-size:14px;margin-bottom:.8rem;}' +
     '.ca-tr-vacio{font-size:13px;color:var(--text-muted);margin-bottom:.5rem;}' +
+    '.ca-calc{display:flex;flex-wrap:wrap;align-items:center;gap:.6rem 1.2rem;border:1px solid var(--border);background:var(--bg2);padding:.8rem 1.2rem;margin:0 0 1rem;}' +
+    '.ca-calc label{display:flex;align-items:center;gap:.45rem;font-size:13px;color:var(--text-muted);white-space:nowrap;}' +
+    '.ca-calc input{width:6.5rem;margin:0;}' +
+    '.ca-calc-res{display:flex;flex-direction:column;gap:.1rem;min-width:12rem;}' +
+    '.ca-calc-lote{font-size:17px;color:var(--gold-bright);}' +
+    '.ca-calc-real{font-size:12px;color:var(--text-muted);}' +
     '.ca-tr-trade.ca-foco .ca-detalle{border-color:var(--gold)!important;box-shadow:0 0 0 1px var(--gold);}' +
     '.ca-tr-linea{display:flex;flex-wrap:wrap;align-items:baseline;gap:.3rem 1rem;font-size:14px;cursor:pointer;outline:none;}' +
     '.ca-tr-linea:focus-visible{text-decoration:underline;}' +
@@ -1009,6 +1015,56 @@ function caIrATrading(fp) {
   else initTrading();
 }
 
+// ── Calculadora de lote (arriba de TRADING) ──────────────────────────────
+// XAU/USD: 1 lote = 100 $ por punto. Lote = riesgo / (puntos × 100), siempre
+// hacia abajo a 0,01. Solo cálculo en pantalla: no guarda nada.
+
+var CA_CALC_USD_PUNTO_LOTE = 100;
+
+function _caCalcNum(v) {
+  var t = String(v == null ? '' : v).trim().replace(',', '.');
+  if (!/^\d*\.?\d+$|^\d+\.$/.test(t)) return null;
+  var n = parseFloat(t);
+  return isFinite(n) && n > 0 ? n : null;
+}
+
+// null si falta un dato (vacío, 0 o no numérico); si no { lote, real } (lote 0 = menos de 0,01).
+function _caCalcLote(riesgo, puntos) {
+  var r = _caCalcNum(riesgo), p = _caCalcNum(puntos);
+  if (r == null || p == null) return null;
+  var lote = Math.floor(r / (p * CA_CALC_USD_PUNTO_LOTE) * 100 + 1e-9) / 100;
+  return { lote: lote, puntos: p, real: Math.round(lote * p * CA_CALC_USD_PUNTO_LOTE * 100) / 100 };
+}
+
+function _caCalcFmt(v, dec) { return Number(v).toFixed(dec).replace('.', ','); }
+
+function _caCalcHtml() {
+  return '<label>Riesgo ($) <input id="ca-calc-riesgo" class="ca-sel" type="text" inputmode="decimal" autocomplete="off" oninput="_caCalcActualizar()"></label>' +
+         '<label>SL (puntos) <input id="ca-calc-pts" class="ca-sel" type="text" inputmode="decimal" autocomplete="off" oninput="_caCalcActualizar()"></label>' +
+         '<div class="ca-calc-res" id="ca-calc-res" role="status"></div>';
+}
+
+function _caCalcActualizar() {
+  var res = document.getElementById('ca-calc-res');
+  if (!res) return;
+  var c = _caCalcLote((document.getElementById('ca-calc-riesgo') || {}).value, (document.getElementById('ca-calc-pts') || {}).value);
+  if (!c) { res.innerHTML = '<span class="ca-calc-real">Lote = riesgo / (puntos × 100) · XAU/USD</span>'; return; }
+  if (!c.lote) { res.innerHTML = '<span class="ca-calc-lote">Lote: menos de 0,01</span><span class="ca-calc-real">Con ese SL el riesgo no llega al lote mínimo.</span>'; return; }
+  var pts = String(c.puntos).replace('.', ',');
+  res.innerHTML = '<span class="ca-calc-lote">Lote: ' + _caCalcFmt(c.lote, 2) + '</span>' +
+                  '<span class="ca-calc-real">Riesgo real: ' + _caCalcFmt(c.lote, 2) + ' lotes × ' + pts + ' pts = ' + _daNum(c.real, 2) + ' $</span>';
+}
+
+function _caCalcPoner(cont) {
+  if (document.getElementById('ca-calc')) return;
+  var d = document.createElement('div');
+  d.id = 'ca-calc';
+  d.className = 'ca-calc';
+  d.innerHTML = '<span class="tag" style="margin:0;">Calculadora de lote</span>' + _caCalcHtml();
+  cont.parentNode.insertBefore(d, document.getElementById('ca-barra') || cont);
+  _caCalcActualizar();
+}
+
 // Se llama al abrir la pestaña TRADING (gestion.js). Crea o quita la barra
 // según el Pack, pinta con lo que ya haya cargado el Diario y recarga.
 async function initTrading() {
@@ -1018,6 +1074,8 @@ async function initTrading() {
   if (!panel || !cont) return;
   _caTrDesplegados = {};             // cerrados plegados (el del icono del Diario se despliega al pintar)
   if (!_caTrFoco) _caTrDia = null;   // la pestaña abre en hoy (el icono del Diario lleva a su día)
+  _caEstilos();
+  _caCalcPoner(cont);                 // la calculadora no depende del Pack
   var barra = document.getElementById('ca-barra');
   if (!_caTieneAcceso()) { if (barra) barra.remove(); _caNueva = null; _caTrPintar(); return; }
   _caEstilos();
