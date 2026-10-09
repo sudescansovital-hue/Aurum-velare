@@ -1,6 +1,6 @@
 # Estado — análisis post-cierre: FASE 1 (examen de la EA) + FASE 2 (Diario web)
 
-> Actualizado 09/10/2026 (TRADES ABIERTOS EN EL DIARIO EN PRODUCCIÓN: merge `6b5c8f3`, deploy `aurum-velare-mow4fdagx`; rama `feature/notas-hueco` con notas por hueco y SQL SIN APLICAR: `sql_notas_hueco.sql`, `sql_abiertos_2_cierre.sql`). Antes, 08/10/2026, noche (CAPTURAS POR TRADE EN PRODUCCIÓN: SQL aplicado por el usuario, `capturas.js`, merge `238f018`, deploy `aurum-velare-eg4plgchr`; cron de borrado a los 6 meses con `CRON_SECRET`; zona de pruebas borrada). Antes, 08/10 (propuesta "Minado de estrategias", sin código: pasa a ser el pendiente SIGUIENTE, antes de la medición por modo y del tablero). Antes, 07/10/2026, noche (MIS REGLAS FASE 3 y NORMAS POR MODO FASE 1 EN PRODUCCIÓN, `011fe93`, deploy `aurum-velare-awe9gylb8`; SQL candado v3, normas por modo y `desde` 08/10 aplicados por el usuario; `feature/ea-sync` FUSIONADA en `main`). Antes, 07/10 (ETAPAS v2 EN PRODUCCIÓN: SQL aplicado por el usuario y web (Mi proceso + admin); antes, revisión 2 del SQL; punto 3 de "Mi proceso" en producción: barra de etapa por días limpios; "Mi proceso" completo; punto 2 en producción: aciertos, errores y regla de la semana; base de los MODOS en producción: plan del día, modo de cada trade y plan frente a realidad; punto 1 de "Mi proceso", "Tu situación", en producción; punto 0 en producción y comprobado; textos "Pack" en la web; idea "Alertas al móvil"; propuesta "Modos, plan del día y tablero en directo", pendiente nº 3). Antes, 06/10/2026, noche (Diario al instante desde `ea_trades`, bloque "Hoy" y plan del trader en producción; **un push a `main` despliega solo**). Antes, 06/10 (cierre de sesión: decisiones y pendientes abajo; "Edge por cuenta"; "Mis reglas"; propuesta "Mi proceso"). Antes: 05/10/2026 (post_cierre automatizado con tarea programada; fallo 5 de la EA). Antes: 02/10/2026. **FASE 2 en producción** (primer deploy `cdede9a` /
+> Actualizado 09/10/2026, tarde (NOTAS POR HUECO EN PRODUCCIÓN: `sql_notas_hueco.sql` aplicado por el usuario, merge `c52e798`, deploy `aurum-velare-7nrhohqtm`; cerrar los 14 abiertos antiguos queda PENDIENTE, el usuario no aplica `sql_abiertos_2_cierre.sql` por ahora). Antes, 09/10 (TRADES ABIERTOS EN EL DIARIO EN PRODUCCIÓN: merge `6b5c8f3`, deploy `aurum-velare-mow4fdagx`; rama `feature/notas-hueco` con notas por hueco y SQL SIN APLICAR: `sql_notas_hueco.sql`, `sql_abiertos_2_cierre.sql`). Antes, 08/10/2026, noche (CAPTURAS POR TRADE EN PRODUCCIÓN: SQL aplicado por el usuario, `capturas.js`, merge `238f018`, deploy `aurum-velare-eg4plgchr`; cron de borrado a los 6 meses con `CRON_SECRET`; zona de pruebas borrada). Antes, 08/10 (propuesta "Minado de estrategias", sin código: pasa a ser el pendiente SIGUIENTE, antes de la medición por modo y del tablero). Antes, 07/10/2026, noche (MIS REGLAS FASE 3 y NORMAS POR MODO FASE 1 EN PRODUCCIÓN, `011fe93`, deploy `aurum-velare-awe9gylb8`; SQL candado v3, normas por modo y `desde` 08/10 aplicados por el usuario; `feature/ea-sync` FUSIONADA en `main`). Antes, 07/10 (ETAPAS v2 EN PRODUCCIÓN: SQL aplicado por el usuario y web (Mi proceso + admin); antes, revisión 2 del SQL; punto 3 de "Mi proceso" en producción: barra de etapa por días limpios; "Mi proceso" completo; punto 2 en producción: aciertos, errores y regla de la semana; base de los MODOS en producción: plan del día, modo de cada trade y plan frente a realidad; punto 1 de "Mi proceso", "Tu situación", en producción; punto 0 en producción y comprobado; textos "Pack" en la web; idea "Alertas al móvil"; propuesta "Modos, plan del día y tablero en directo", pendiente nº 3). Antes, 06/10/2026, noche (Diario al instante desde `ea_trades`, bloque "Hoy" y plan del trader en producción; **un push a `main` despliega solo**). Antes, 06/10 (cierre de sesión: decisiones y pendientes abajo; "Edge por cuenta"; "Mis reglas"; propuesta "Mi proceso"). Antes: 05/10/2026 (post_cierre automatizado con tarea programada; fallo 5 de la EA). Antes: 02/10/2026. **FASE 2 en producción** (primer deploy `cdede9a` /
 > `aurum-velare-cw5la96zd`; el anterior a la FASE 2, para rollback, era
 > `aurum-velare-9hp3r9l3q`). Criterios de análisis hoy: **v6**. FASE 1
 > terminada el 29/09 (298 trades, en seco).
@@ -81,9 +81,11 @@
 7. **Punto 4 — velas desde la EA y análisis en el servidor** (sección
    "Siguiente gran paso (02/10)", pasos 3 y 4).
 8. **Capturas por trade** — **HECHO (08/10, en producción)**. **(09/10)**
-   abiertos en el Diario en producción; notas por hueco y limpieza de
-   abiertos falsos en la rama `feature/notas-hueco`, con SQL pendiente de
-   revisión (ver "Trades abiertos en el Diario (09/10)"). en Supabase
+   abiertos en el Diario y notas por hueco en producción (ver "Trades
+   abiertos en el Diario (09/10)"). **Pendiente:** cerrar los 14 'open'
+   antiguos con `sql_abiertos_2_cierre.sql` (sin aplicar por decisión del
+   usuario, 09/10); mientras, sigue el freno de 14 días
+   (`DA_ABIERTO_MAX_DIAS`). Al aplicarlo, valorar quitar ese freno. en Supabase
    Storage, no en carpeta local (ver "Capturas por trade (08/10)"). Queda que
    el usuario lo compruebe con su sesión. Para más adelante: captura
    automática al abrir y al cerrar cada trade.
@@ -117,7 +119,7 @@ quitaría también del VPS.
 
 ---
 
-## Trades abiertos en el Diario (09/10) — EN PRODUCCIÓN (+ rama con SQL sin aplicar)
+## Trades abiertos en el Diario (09/10) — EN PRODUCCIÓN (notas por hueco también; cierre de los antiguos PENDIENTE)
 
 **Problema:** en el Diario los trades solo aparecían al cerrarse (y los
 cerrados sin análisis, mezclados en su semana), así que no se podía poner la
@@ -193,7 +195,35 @@ beneficio, duración), últimos eventos, capturas y notas. Probado en PGlite
 post-cierre solo devuelve cerrados y no se buscan credenciales; la ejecuta el
 usuario.
 
-### Rama `feature/notas-hueco` (`5825bb9`) — SQL SIN APLICAR, web SIN DESPLEGAR
+### Notas por hueco — EN PRODUCCIÓN (09/10, tarde)
+
+`sql_notas_hueco.sql` aplicado por el usuario el 09/10. Comprobación:
+policies 5, notas_viejas 0, notas_entrada 0, sin_migrar 0 (no había
+ninguna nota de "Por qué entré" guardada, así que no se migró nada).
+Merge de `feature/notas-hueco` en `main` (`c52e798`), pruebas repetidas
+sobre `main` (33 + 47 + 54 + 22 OK), deploy `aurum-velare-7nrhohqtm` desde
+copia limpia; para volver atrás, `aurum-velare-mow4fdagx` (OJO: esa versión
+lee `trade_nota`, no `trade_nota_hueco`; las notas escritas después no se
+verían en ella).
+
+**Para comprobar con la sesión del usuario:**
+1. Diario → pulsar el abierto real: cada hueco (Entrada, Gestión, Salida)
+   tiene su nota con la guía en gris ("por qué entré: setup · temporalidad ·
+   qué vi", etc.). Escribir en Gestión sin captura → Guardar → "✓ Guardado";
+   recargar la página: sigue ahí y la fila lleva 📝.
+2. "📷 Capturar pantalla": debajo de "Hueco" sale la nota de ese hueco; al
+   cambiar de hueco cambia la nota. Escribir y pulsar "Guardar en el trade":
+   el mensaje dice "… y nota guardada.".
+3. Escribir en una nota SIN guardar y subir una captura en otro hueco: lo
+   escrito sigue en el campo ("sin guardar" en el contador).
+
+**Pendiente (decisión del usuario, 09/10): cerrar los 14 'open' antiguos.**
+`sql_abiertos_2_cierre.sql` NO se aplica por ahora. Mientras, la web los
+oculta con `_daAbiertoReal` (cuenta activa + fp no en `trades` + menos de 14
+días). Cuando se quiera: consulta 3 de `sql_abiertos_1_consulta.sql`, elegir
+opción A y/o B, y después valorar quitar el freno de 14 días.
+
+### Rama `feature/notas-hueco` (`5825bb9`) — fusionada el 09/10 (`c52e798`); texto original abajo
 
 - **`tools/post_cierre/sql_notas_hueco.sql`**: tabla `trade_nota_hueco`
   (PK usuario + fp + hueco; `entrada` / `gestion` / `salida`; 1–300

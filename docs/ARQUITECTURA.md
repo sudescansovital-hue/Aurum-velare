@@ -26,11 +26,13 @@
     "✓ Guardado"; tras capturar se releen los abiertos.
   - fp: el de `ea_trades` es el mismo de `post_cierre_analisis`; capturas,
     notas y modo siguen al trade.
-- **Rama `feature/notas-hueco`** (SQL sin aplicar, web sin desplegar):
-  `sql_notas_hueco.sql` (tabla `trade_nota_hueco`, migra "Por qué entré" a
-  Entrada) + nota por hueco en el detalle y en la ventana de captura.
-  `sql_abiertos_2_cierre.sql`: propuesta para cerrar los 'open' antiguos
-  (copia, opción A con datos de `trades`, opción B sin fecha, deshacer).
+- **Notas por hueco — EN PRODUCCIÓN (tarde)**: `sql_notas_hueco.sql`
+  aplicado por el usuario (tabla `trade_nota_hueco`; `trade_nota` queda
+  como copia y la web ya no la usa), merge `c52e798`, deploy
+  `aurum-velare-7nrhohqtm` desde copia limpia. `capturas.js`: nota propia en
+  Entrada / Gestión / Salida en el detalle y en la ventana de captura.
+- **Pendiente:** `sql_abiertos_2_cierre.sql` (cerrar los 'open' antiguos)
+  sin aplicar por decisión del usuario; sigue el freno de 14 días.
 - `tools/post_cierre/sql_abiertos_1_consulta.sql` (solo lectura): capturas
   y su fp, fp repetidos y los 'open' con pistas de cierre.
 
