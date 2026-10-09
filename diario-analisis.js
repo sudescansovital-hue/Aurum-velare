@@ -1849,8 +1849,7 @@ function _daHtmlTrades(filas, titulo, pref, conFiltros) {
   var lista = filas.filter(function(r) {
     return !conFiltros || ((_daEstrategia === 'todas' || (r.estrategia || 'sin_clasificar') === _daEstrategia) &&
                            (!_daSoloErrores || _daErrores(r).length) &&
-                           (typeof _moPasaFiltro !== 'function' || _moPasaFiltro(r)) &&
-                           (typeof _caPasaFiltro !== 'function' || _caPasaFiltro(r)));
+                           (typeof _moPasaFiltro !== 'function' || _moPasaFiltro(r)));
   }).sort(function(a, b) { return _daFecha(b.fecha_cierre) - _daFecha(a.fecha_cierre); });
   var porFp = _daTradesPorFp();
 
@@ -1867,7 +1866,6 @@ function _daHtmlTrades(filas, titulo, pref, conFiltros) {
               '<button class="tab' + (_daSoloErrores ? ' active' : '') + '" style="padding:.45rem .9rem;font-size:12px;' +
                 (_daSoloErrores ? 'color:var(--red);border-bottom-color:var(--red);' : '') + '" ' +
                 'onclick="_daSoloErrores=!_daSoloErrores;_daAbierto=null;_daPintar();">Solo con errores</button>' +
-              (typeof _caHtmlFiltro === 'function' ? _caHtmlFiltro() : '') +
             '</div>' +
             (typeof _moHtmlFiltro === 'function' ? '<div style="flex-basis:100%;display:flex;justify-content:flex-end;">' + _moHtmlFiltro() + '</div>' : '')) + '</div>';
   if (!lista.length) return h + '<div class="cell" style="color:var(--text-muted);font-size:14px;margin-bottom:1.5rem;">Sin trades con este filtro.</div>';
@@ -1921,8 +1919,8 @@ function _daHtmlEnCurso(filasCuenta) {
   var masPend = pend.length > DA_PENDIENTES_ARRIBA ? pend.length - DA_PENDIENTES_ARRIBA : 0;
   var lista = abiertos.concat(pend.slice(0, DA_PENDIENTES_ARRIBA));
   var h = '<div class="tag" style="display:block;margin-bottom:.4rem;">En curso y pendientes de análisis · ' + (abiertos.length + pend.length) + '</div>' +
-          '<div style="font-size:13px;color:var(--text-muted);margin-bottom:.8rem;">Pulsa un trade para poner sus capturas y notas (por qué entré, qué hice, por qué salí) ya; ' +
-            'se quedan con él cuando se cierre y se analice.</div>' +
+          '<div style="font-size:13px;color:var(--text-muted);margin-bottom:.8rem;">Las capturas y notas de cada trade (por qué entré, qué hice, por qué salí) van en la pestaña ' +
+            '<span style="color:var(--gold);cursor:pointer;" onclick="gestTab(\'trading\')">Trading</span>; se quedan con él cuando se cierre y se analice.</div>' +
           '<div style="display:flex;flex-direction:column;gap:1px;background:var(--border);margin-bottom:' + (masPend ? '.5rem' : '2rem') + ';border:1px solid var(--border-gold);">';
   lista.forEach(function(r) {
     var clave = _daEsc('a:' + r.fp);
@@ -2001,7 +1999,6 @@ async function _daAbrirDetalle(clave) {
   }
   h += '<div style="font-size:15px;color:var(--text);line-height:1.7;margin:.2rem 0 1rem;">' + _daEsc(_daFrase(r)) + '</div>';
   if (typeof _moHtmlCorregir === 'function') h += _moHtmlCorregir(r, clave);
-  if (typeof _caHtmlDetalle === 'function') h += _caHtmlDetalle(r);
   h += '<div id="da-graf-' + _daEsc(clave) + '" style="position:relative;background:#060810;border:1px solid var(--border);margin-bottom:.5rem;"></div>';
   h += '<div style="display:flex;flex-wrap:wrap;gap:1.2rem;font-size:12px;color:var(--text-muted);margin-bottom:1rem;">' +
          _daLeyenda(DA_COLOR.precio, 'Precio (cierre de vela) y rango máx–mín', false) +
@@ -2023,7 +2020,6 @@ async function _daAbrirDetalle(clave) {
   if (r.notas) h += '<div style="font-size:12px;color:var(--text-muted);margin-top:.8rem;">Nota del análisis: ' + _daEsc(r.notas) + '</div>';
 
   det.innerHTML = h;
-  if (typeof _caTrasPintar === 'function') _caTrasPintar(det);
   var graf = document.getElementById('da-graf-' + clave);
   if (velas && Array.isArray(velas.velas) && velas.velas.length) _daPintarGrafico(graf, r, velas);
   else graf.innerHTML = '<div style="padding:1rem;font-size:13px;color:var(--text-muted);">Sin velas guardadas para este trade.</div>';
@@ -2057,7 +2053,6 @@ async function _daAbrirPendiente(clave, r, det, token) {
   det.innerHTML =
     '<div style="font-size:13px;color:var(--text-muted);line-height:1.6;margin:.2rem 0 .8rem;padding:.5rem .8rem;border:1px dashed var(--border);">' +
       'Análisis pendiente: la EA ya envió el trade y la tarea programada lo analiza cada hora (gráfico, veredicto y 4 h después del cierre).</div>' +
-    (typeof _caHtmlDetalle === 'function' ? _caHtmlDetalle(r) : '') +
     (typeof _moHtmlCorregir === 'function' ? _moHtmlCorregir(r, clave) : '') +
     '<div class="da-rejilla" style="--da-base:max(150px, calc(25% - 1px));margin-bottom:1rem;">' +
       celda('Entrada', _daNum(r.precio_entrada, 2), _daEsc(_daHora(r.fecha_entrada))) +
@@ -2067,11 +2062,10 @@ async function _daAbrirPendiente(clave, r, det, token) {
             b == null ? 'var(--text-muted)' : b >= 0 ? 'var(--green)' : 'var(--red)') +
     '</div>' +
     _daHtmlEventos(res.data || []);
-  if (typeof _caTrasPintar === 'function') _caTrasPintar(det);
 }
 
-// Detalle de un trade ABIERTO: capturas y notas por hueco (ya se pueden
-// rellenar), modo, entrada, SL/TP actuales, lote y línea de tiempo hasta ahora.
+// Detalle de un trade ABIERTO: modo, entrada, SL/TP actuales, lote y línea de
+// tiempo hasta ahora (sus capturas y notas, en la pestaña TRADING).
 async function _daAbrirAbiertoDetalle(clave, r, det, token) {
   var res = await supaGet('trade_eventos', 'fp=eq.' + encodeURIComponent(r.fp) + '&order=timestamp.asc', token);
   if (_daAbierto !== clave) return; // se cerró mientras cargaba
@@ -2084,8 +2078,9 @@ async function _daAbrirAbiertoDetalle(clave, r, det, token) {
   };
   det.innerHTML =
     '<div style="font-size:13px;color:var(--gold);line-height:1.6;margin:.2rem 0 .8rem;padding:.5rem .8rem;border:1px dashed var(--border-gold);">' +
-      'Trade abierto. Pon ya tus capturas y notas: se quedan con este trade cuando se cierre y se analice.</div>' +
-    (typeof _caHtmlDetalle === 'function' ? _caHtmlDetalle(r) : '') +
+      'Trade abierto. Sus capturas y notas, en ' +
+      '<span style="color:var(--gold-bright);cursor:pointer;text-decoration:underline;" onclick="caIrATrading(' + _daEsc(JSON.stringify(r.fp)).replace(/"/g, '&quot;') + ')">Trading</span>' +
+      ': se quedan con este trade cuando se cierre y se analice.</div>' +
     (typeof _moHtmlCorregir === 'function' ? _moHtmlCorregir(r, clave) : '') +
     '<div class="da-rejilla" style="--da-base:max(150px, calc(25% - 1px));margin-bottom:1rem;">' +
       celda('Entrada', _daPrecio(r.precio_entrada), _daEsc(_daHora(r.fecha_entrada)) + ' · ' + (r.direccion === 'buy' ? 'compra' : 'venta')) +
@@ -2094,7 +2089,6 @@ async function _daAbrirAbiertoDetalle(clave, r, det, token) {
       celda('Lote', r.volumen != null ? _daNum(r.volumen, 2) : '—', 'Setup: ' + _daEsc(r.estrategia || 'sin clasificar')) +
     '</div>' +
     _daHtmlEventos(res.data || []);
-  if (typeof _caTrasPintar === 'function') _caTrasPintar(det);
 }
 
 function _daLeyenda(color, texto, discontinua) {

@@ -14,7 +14,7 @@ function _esperarTrades(fn) {
 }
 
 function gestTab(id) {
-  ['trade-record','ciclo111','horarios','equity','cumplimiento','estadisticas','diario','reglas','historial'].forEach(function(p) {
+  ['trade-record','ciclo111','horarios','equity','cumplimiento','estadisticas','diario','trading','reglas','historial'].forEach(function(p) {
     var el = document.getElementById('gpanel-' + p);
     if (el) el.style.display = 'none';
     var tb = document.getElementById('gtab-' + p);
@@ -31,7 +31,7 @@ function gestTab(id) {
   if (id === 'cumplimiento')  _esperarTrades(buildCumplimiento);
   if (id === 'estadisticas')  _esperarTrades(buildEstadisticasAvanzadas);
   if (id === 'historial') init_historial();
-  if (id === 'diario' && typeof initCapturasTrade === 'function') initCapturasTrade();
+  if (id === 'trading' && typeof initTrading === 'function') initTrading();
   if (typeof aplicarEspaciadoPaneles === 'function') setTimeout(aplicarEspaciadoPaneles, 50);
 }
 
