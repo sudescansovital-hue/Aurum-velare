@@ -1,6 +1,7 @@
 // ============================================================
-// CAPTURAS Y "POR QUÉ ENTRÉ" POR TRADE en el Diario (08/10)
-// Ver: tools/post_cierre/sql_capturas.sql y ESTADO.md ("Capturas por trade").
+// CAPTURAS Y NOTAS POR TRADE en el Diario (08/10; notas por hueco 09/10)
+// Ver: tools/post_cierre/sql_capturas.sql, sql_notas_hueco.sql y ESTADO.md
+// ("Capturas por trade", "Notas por hueco").
 // Sustituye a la zona de pruebas capturas-test.js (carpeta local): todo va a
 // Supabase Storage, bucket privado 'capturas-trades'.
 //
@@ -12,8 +13,13 @@
 //   Gestión o Salida (máx. 3 por trade; si el hueco está ocupado, se
 //   reemplaza).
 // - Detalle de cada trade: los 3 huecos con miniatura, ver en grande, Borrar
-//   y Reemplazar (capturar, subir o pegar con Ctrl+V tras pulsar el hueco) y
-//   "Por qué entré" (máx. 300 caracteres).
+//   y Reemplazar (capturar, subir o pegar con Ctrl+V tras pulsar el hueco).
+// - Nota por hueco (09/10, tabla trade_nota_hueco): Entrada ("Por qué
+//   entré"), Gestión y Salida, máx. 300 caracteres cada una, con su Guardar.
+//   Se puede escribir aunque el hueco no tenga captura y en trades abiertos;
+//   también en la ventana de captura, debajo de "Hueco". Lo escrito sin
+//   guardar se conserva al repintar (_caBorradores). La antigua trade_nota
+//   ("Por qué entré") pasó a la nota de Entrada con el SQL y ya no se usa.
 // - Lista: insignias 📷 n / 📝 y filtro "Con capturas".
 // - Imágenes: WebP (JPG si el navegador no sabe hacer WebP, p. ej. Safari),
 //   máx. 1600 px de ancho, objetivo ≤ 250 KB; el bucket rechaza > 2 MB.
@@ -48,13 +54,14 @@ var CA_NOTA_MAX = 300;
 var CA_URL_SEG = 3600;                 // validez de las URL firmadas
 var CA_TRADES_LISTA = 40;              // trades cerrados que se ofrecen para enlazar
 var CA_HUECOS = [
-  { id: 'entrada', txt: 'Entrada' },
-  { id: 'gestion', txt: 'Gestión' },
-  { id: 'salida',  txt: 'Salida' }
+  { id: 'entrada', txt: 'Entrada', nota: 'Por qué entré', guia: 'por qué entré: setup · temporalidad · qué vi' },
+  { id: 'gestion', txt: 'Gestión', nota: 'Qué hice',      guia: 'qué hice durante el trade y por qué' },
+  { id: 'salida',  txt: 'Salida',  nota: 'Por qué salí',  guia: 'por qué salí o qué me sacó' }
 ];
 
 var _caCapturas = {};   // fp -> { entrada: fila, gestion: fila, salida: fila }
-var _caNotas = {};      // fp -> texto
+var _caNotas = {};      // fp -> { entrada | gestion | salida: texto } (trade_nota_hueco)
+var _caBorradores = {}; // 'fp|hueco' -> texto escrito y aún sin guardar (sobrevive a los repintados)
 var _caEmail = null;    // de quién son los datos cargados
 var _caError = null;    // texto si la API no deja leer las tablas
 var _caUrls = {};       // ruta -> { url, caduca (ms) }
@@ -63,7 +70,7 @@ var _caNueva = null;    // imagen esperando a enlazarse: { blob, ancho, alto, ex
 var _caTrades = null;   // { abiertos: [...], cerrados: [...] } de ea_trades para el selector
 var _caDestino = null;  // hueco elegido en un detalle para pegar/subir: { fp, hueco }
 var _caOcupado = false;
-var _caAviso = null;    // mensaje para el detalle tras repintar: { fp, texto, nota }
+var _caAviso = null;    // mensaje para el detalle tras repintar: { fp, texto, hueco } (hueco = de su nota)
 
 // ── Acceso y entorno ─────────────────────────────────────────────────────
 
@@ -92,12 +99,12 @@ function _caUid() {
 
 async function _caCargar() {
   var u = window.usuarioActual;
-  if (_caEmail !== (u && u.email)) { _caUrls = {}; _caDestino = null; } // nada de la sesión anterior
+  if (_caEmail !== (u && u.email)) { _caUrls = {}; _caDestino = null; _caBorradores = {}; } // nada de la sesión anterior
   if (!u || !u.email || !_caTieneAcceso()) { _caCapturas = {}; _caNotas = {}; _caEmail = null; return; }
   var email = encodeURIComponent(u.email);
   var res = await Promise.all([
     supaGet('trade_capturas', 'usuario_email=eq.' + email + '&select=fp,hueco,ruta,bytes,ancho,alto,capturado_en', getToken()),
-    supaGet('trade_nota', 'usuario_email=eq.' + email + '&select=fp,nota', getToken())
+    supaGet('trade_nota_hueco', 'usuario_email=eq.' + email + '&select=fp,hueco,nota', getToken())
   ]);
   if (!window.usuarioActual || window.usuarioActual.email !== u.email) return;
   if (res[0].error || res[1].error) {
@@ -110,8 +117,13 @@ async function _caCargar() {
   _caCapturas = {};
   res[0].data.forEach(function(f) { (_caCapturas[f.fp] = _caCapturas[f.fp] || {})[f.hueco] = f; });
   _caNotas = {};
-  res[1].data.forEach(function(f) { _caNotas[f.fp] = f.nota; });
+  res[1].data.forEach(function(f) { (_caNotas[f.fp] = _caNotas[f.fp] || {})[f.hueco] = f.nota; });
   _caEmail = u.email;
+}
+
+function _caTieneNota(fp) {
+  var n = _caNotas[fp];
+  return !!n && CA_HUECOS.some(function(h) { return !!n[h.id]; });
 }
 
 function _caNumCapturas(fp) {
@@ -123,11 +135,11 @@ function _caNumCapturas(fp) {
 
 function _caBadge(r) {
   if (!_caListo()) return '';
-  var n = _caNumCapturas(r.fp), nota = !!_caNotas[r.fp];
+  var n = _caNumCapturas(r.fp), nota = _caTieneNota(r.fp);
   if (!n && !nota) return '';
   var est = 'font-size:11px;color:var(--text-dim);border:1px solid var(--border);padding:.12rem .45rem;white-space:nowrap;';
   return (n ? '<span style="' + est + '" title="' + n + ' captura' + (n > 1 ? 's' : '') + '">📷 ' + n + '</span>' : '') +
-         (nota ? '<span style="' + est + '" title="Tiene «Por qué entré»">📝</span>' : '');
+         (nota ? '<span style="' + est + '" title="Tiene notas">📝</span>' : '');
 }
 
 function _caPasaFiltro(r) { return !_caSoloCapturas || !_caListo() || _caNumCapturas(r.fp) > 0; }
@@ -152,38 +164,54 @@ function _caAttr(s) {
 
 function _caIdFp(fp) { return String(fp).replace(/[^A-Za-z0-9_-]/g, '_'); }
 
+function _caHueco(id) { return CA_HUECOS.filter(function(h) { return h.id === id; })[0]; }
+
+// ids de la nota: ctx 'det' (detalle del trade) o 'cap' (ventana de captura)
+function _caIdNota(ctx, fp, hueco) { return 'ca-nota-' + ctx + '-' + _caIdFp(fp) + '-' + hueco; }
+
+// Nota de un hueco: etiqueta, campo con guía en gris, contador, Guardar y aviso.
+function _caHtmlNotaHueco(fp, hueco, ctx, av) {
+  var hu = _caHueco(hueco), base = _caIdNota(ctx, fp, hueco);
+  var guardada = (_caNotas[fp] || {})[hueco] || '';
+  var borrador = _caBorradores[fp + '|' + hueco];
+  var texto = borrador != null ? borrador : guardada;
+  var fpJs = _caAttr(JSON.stringify(fp));
+  return '<div class="ca-nota-caja" onclick="event.stopPropagation();">' +
+           '<label for="' + base + '" class="ca-nota-lbl">📝 ' + hu.nota + '</label>' +
+           '<textarea id="' + base + '" class="ca-nota" rows="3" maxlength="' + CA_NOTA_MAX + '" data-fp="' + _caAttr(fp) + '" data-hueco="' + hueco + '" ' +
+             'oninput="_caAlEscribir(this)" placeholder="' + _caAttr(hu.guia) + '">' + _daEsc(texto) + '</textarea>' +
+           '<div class="ca-nota-pie">' +
+             '<span id="' + base + '-cont" class="ca-nota-cont">' + _caTxtContador(texto, guardada) + '</span>' +
+             '<span style="display:flex;align-items:center;gap:.6rem;">' +
+               '<span id="' + base + '-msg" role="status" class="ca-nota-msg">' + (av && av.hueco === hueco ? _daEsc(av.texto) : '') + '</span>' +
+               '<div class="btn-gold ca-nota-btn" role="button" tabindex="0" onclick="_caGuardarNota(' + fpJs + ',\'' + hueco + '\',\'' + ctx + '\')">Guardar</div>' +
+             '</span>' +
+           '</div>' +
+         '</div>';
+}
+
+function _caTxtContador(texto, guardada) {
+  return texto.length + ' / ' + CA_NOTA_MAX + (texto !== guardada ? ' · sin guardar' : '');
+}
+
 function _caHtmlDetalle(r) {
   if (!_caTieneAcceso()) return '';
   var fp = r.fp, id = _caIdFp(fp), c = _caCapturas[fp] || {};
   var fpJs = _caAttr(JSON.stringify(fp));
-  var h = '<div class="ca-detalle" style="margin:0 0 1.2rem;padding:1rem;border:1px solid var(--border);background:#0A0D16;">' +
-            '<div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:.4rem 1rem;margin-bottom:.7rem;">' +
-              '<span class="tag" style="display:block;">Capturas y por qué entré</span>' +
-              '<span style="font-size:11px;color:var(--text-muted);">' + _daEsc(_caTxtCaducidad()) + '</span>' +
-            '</div>';
-  if (_caError) h += '<div style="font-size:13px;color:var(--red);margin-bottom:.6rem;">No se pudieron leer tus capturas (' + _daEsc(_caError.slice(0, 160)) + ').</div>';
-  // "Por qué entré" primero y a la vista (09/10): antes iba debajo de los huecos, pequeño.
-  var nota = _caNotas[fp] || '';
   var av = _caAviso && _caAviso.fp === fp ? _caAviso : null;
   _caAviso = null;
-  h += '<div style="margin-bottom:1rem;padding:.8rem;border:1px solid var(--border-gold);background:var(--bg2);">' +
-       '<label for="ca-nota-' + id + '" style="font-size:14px;color:var(--gold);letter-spacing:.05em;display:block;margin-bottom:.45rem;">📝 Por qué entré</label>' +
-       '<textarea id="ca-nota-' + id + '" class="ca-nota" rows="3" maxlength="' + CA_NOTA_MAX + '" ' +
-         'oninput="_caContar(\'' + id + '\')" placeholder="Ej.: RSI M15 en 90, medias a favor, sin noticia roja">' + _daEsc(nota) + '</textarea>' +
-       '<div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;margin-top:.5rem;flex-wrap:wrap;">' +
-         '<span id="ca-nota-cont-' + id + '" style="font-size:11px;color:var(--text-muted);">' + nota.length + ' / ' + CA_NOTA_MAX + '</span>' +
-         '<span style="display:flex;align-items:center;gap:.8rem;">' +
-           '<span id="ca-nota-msg-' + id + '" role="status" style="font-size:14px;color:var(--green);">' + (av && av.nota ? _daEsc(av.texto) : '') + '</span>' +
-           '<div class="btn-gold" role="button" tabindex="0" style="font-size:13px;padding:.5rem 1.4rem;cursor:pointer;" onclick="_caGuardarNota(' + fpJs + ')">Guardar</div>' +
-         '</span>' +
-       '</div>' +
-       '</div>';
+  var h = '<div class="ca-detalle" style="margin:0 0 1.2rem;padding:1rem;border:1px solid var(--border);background:#0A0D16;">' +
+            '<div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:.4rem 1rem;margin-bottom:.7rem;">' +
+              '<span class="tag" style="display:block;">Capturas y notas</span>' +
+              '<span style="font-size:11px;color:var(--text-muted);">' + _daEsc(_caTxtCaducidad()) + ' Las notas no caducan.</span>' +
+            '</div>';
+  if (_caError) h += '<div style="font-size:13px;color:var(--red);margin-bottom:.6rem;">No se pudieron leer tus capturas o notas (' + _daEsc(_caError.slice(0, 160)) + ').</div>';
   h += '<div class="ca-huecos">';
   CA_HUECOS.forEach(function(hu) {
     var f = c[hu.id];
     var activo = _caDestino && _caDestino.fp === fp && _caDestino.hueco === hu.id;
     h += '<div class="ca-hueco' + (activo ? ' ca-activo' : '') + '" tabindex="0" ' +
-           'onclick="_caElegirDestino(' + fpJs + ',\'' + hu.id + '\')" title="Pulsa aquí y pega con Ctrl+V para ' + (f ? 'reemplazar' : 'añadir') + '">' +
+           'onclick="_caElegirDestino(' + fpJs + ',\'' + hu.id + '\')" title="Pulsa aquí y pega con Ctrl+V para ' + (f ? 'reemplazar' : 'añadir') + ' la captura">' +
            '<div style="font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--gold);margin-bottom:.4rem;">' + hu.txt + '</div>' +
            (f ? '<img class="ca-mini" data-ruta="' + _caAttr(f.ruta) + '" alt="Captura de ' + hu.txt + '" ' +
                   'onclick="event.stopPropagation();_caVerGrande(' + _caAttr(JSON.stringify(f.ruta)) + ')">'
@@ -193,12 +221,13 @@ function _caHtmlDetalle(r) {
              '<button class="tab" onclick="_caSubirPara(' + fpJs + ',\'' + hu.id + '\')">' + (f && !_caPuedeCapturarPantalla() ? 'Reemplazar' : 'Subir') + '</button>' +
              (f ? '<button class="tab" style="color:var(--red);" onclick="_caBorrar(' + fpJs + ',\'' + hu.id + '\')">Borrar</button>' : '') +
            '</div>' +
+           _caHtmlNotaHueco(fp, hu.id, 'det', av) +
          '</div>';
   });
   h += '</div>';
   h += '<div style="font-size:11px;color:var(--text-muted);margin:.4rem 0 0;">Para pegar con Ctrl+V: pulsa primero el hueco (queda marcado en dorado).</div>';
   h += '<div id="ca-msg-' + id + '" style="font-size:13px;margin-top:.5rem;min-height:1px;color:var(--green);">' +
-         (av && !av.nota ? _daEsc(av.texto) : '') + '</div>';
+         (av && !av.hueco ? _daEsc(av.texto) : '') + '</div>';
   return h + '</div>';
 }
 
@@ -216,9 +245,15 @@ function _caTrasPintar(cont) {
   });
 }
 
-function _caContar(id) {
-  var t = document.getElementById('ca-nota-' + id), c = document.getElementById('ca-nota-cont-' + id);
-  if (t && c) c.textContent = t.value.length + ' / ' + CA_NOTA_MAX;
+// Al escribir en una nota: contador y borrador (lo no guardado no se pierde al repintar).
+function _caAlEscribir(el) {
+  var fp = el.getAttribute('data-fp'), hueco = el.getAttribute('data-hueco');
+  var guardada = (_caNotas[fp] || {})[hueco] || '';
+  if (el.value === guardada) delete _caBorradores[fp + '|' + hueco];
+  else _caBorradores[fp + '|' + hueco] = el.value;
+  var c = document.getElementById(el.id + '-cont'), m = document.getElementById(el.id + '-msg');
+  if (c) c.textContent = _caTxtContador(el.value, guardada);
+  if (m) m.textContent = '';
 }
 
 function _caElegirDestino(fp, hueco) {
@@ -230,14 +265,10 @@ function _caRepintarDetalle(fp) {
   var det = typeof _daAbierto === 'string' ? document.getElementById('da-det-' + _daAbierto) : null;
   var cont = det && det.querySelector('.ca-detalle');
   if (typeof _daAbierto === 'string' && _daAbierto.slice(_daAbierto.indexOf(':') + 1) === fp && cont) {
-    var r = { fp: fp };
     var nuevo = document.createElement('div');
-    nuevo.innerHTML = _caHtmlDetalle(r);
-    // conservar lo escrito en la nota sin guardar
-    var viejaNota = cont.querySelector('textarea.ca-nota');
+    nuevo.innerHTML = _caHtmlDetalle({ fp: fp });   // lo escrito sin guardar sale de _caBorradores
     var nueva = nuevo.firstChild;
     cont.parentNode.replaceChild(nueva, cont);
-    if (viejaNota) { var t = nueva.querySelector('textarea.ca-nota'); if (t) t.value = viejaNota.value; _caContar(_caIdFp(fp)); }
     _caTrasPintar(nueva);
   }
 }
@@ -443,8 +474,8 @@ async function _caBorrar(fp, hueco) {
 }
 
 // Repinta la lista (insignias) y deja el detalle abierto con un mensaje.
-function _caTrasCambio(fp, texto, esNota) {
-  _caAviso = { fp: fp, texto: texto, nota: !!esNota };
+function _caTrasCambio(fp, texto, hueco) {
+  _caAviso = { fp: fp, texto: texto, hueco: hueco || null };
   if (typeof _daPintar === 'function' && document.getElementById('diario-analisis-bloque')) _daPintar();
   else _caRepintarDetalle(fp);
 }
@@ -477,25 +508,48 @@ async function _caGuardarDesdeDetalle(fp, hueco, img) {
   finally { _caOcupado = false; }
 }
 
-// "Por qué entré": vacío = borrar la nota.
-async function _caGuardarNota(fp) {
-  var id = _caIdFp(fp);
-  var t = document.getElementById('ca-nota-' + id), msg = document.getElementById('ca-nota-msg-' + id);
-  if (!t) return;
-  var texto = t.value.trim();
-  var poner = function(s, err) { if (msg) { msg.textContent = s; msg.style.color = err ? 'var(--red)' : 'var(--green)'; } };
-  if (texto.length > CA_NOTA_MAX) { poner('Máximo ' + CA_NOTA_MAX + ' caracteres.', true); return; }
-  if (texto === (_caNotas[fp] || '')) { poner('No hay cambios.', false); return; }
+// Nota de un hueco: vacío = borrar. Devuelve null si fue bien o el texto del error.
+async function _caGuardarNotaDatos(fp, hueco, texto) {
   var email = encodeURIComponent(window.usuarioActual.email);
-  var filtro = 'usuario_email=eq.' + email + '&fp=eq.' + encodeURIComponent(fp);
+  var filtro = 'usuario_email=eq.' + email + '&fp=eq.' + encodeURIComponent(fp) + '&hueco=eq.' + hueco;
+  var antes = (_caNotas[fp] || {})[hueco];
   var res;
+  if (!texto) res = await supaDelete('trade_nota_hueco', filtro, getToken());
+  else if (antes != null) res = await supaPatch('trade_nota_hueco', filtro, { nota: texto }, getToken());
+  else res = await supaPost('trade_nota_hueco', { fp: fp, hueco: hueco, nota: texto }, 'return=representation', getToken());
+  if (res.error) return String(res.error).slice(0, 160);
+  if (texto) (_caNotas[fp] = _caNotas[fp] || {})[hueco] = texto;
+  else if (_caNotas[fp]) delete _caNotas[fp][hueco];
+  delete _caBorradores[fp + '|' + hueco];
+  return null;
+}
+
+// Botón Guardar de una nota (ctx 'det' = detalle del trade, 'cap' = ventana de captura).
+async function _caGuardarNota(fp, hueco, ctx) {
+  var base = _caIdNota(ctx, fp, hueco);
+  var t = document.getElementById(base), msg = document.getElementById(base + '-msg');
+  if (!t) return;
+  var poner = function(s, err) { if (msg) { msg.textContent = s; msg.style.color = err ? 'var(--red)' : 'var(--green)'; } };
+  var texto = t.value.trim();
+  if (texto.length > CA_NOTA_MAX) { poner('Máximo ' + CA_NOTA_MAX + ' caracteres.', true); return; }
+  if (texto === ((_caNotas[fp] || {})[hueco] || '')) {
+    delete _caBorradores[fp + '|' + hueco];
+    t.value = texto;
+    _caAlEscribir(t);
+    poner('No hay cambios.', false);
+    return;
+  }
   poner('Guardando…', false);
-  if (!texto) res = await supaDelete('trade_nota', filtro, getToken());
-  else if (_caNotas[fp] != null) res = await supaPatch('trade_nota', filtro, { nota: texto }, getToken());
-  else res = await supaPost('trade_nota', { fp: fp, nota: texto }, 'return=representation', getToken());
-  if (res.error) { poner('No se ha guardado: ' + String(res.error).slice(0, 160), true); return; }
-  if (texto) _caNotas[fp] = texto; else delete _caNotas[fp];
-  _caTrasCambio(fp, texto ? '✓ Guardado' : '✓ Nota borrada', true);
+  var err = await _caGuardarNotaDatos(fp, hueco, texto);
+  if (err) { poner('No se ha guardado: ' + err, true); return; }
+  var aviso = texto ? '✓ Guardado' : '✓ Nota borrada';
+  if (ctx === 'det') { _caTrasCambio(fp, aviso, hueco); return; }
+  // Ventana de captura: se queda abierta; la lista se repinta por la insignia 📝.
+  t.value = texto;
+  _caAlEscribir(t);
+  if (typeof _daPintar === 'function' && document.getElementById('diario-analisis-bloque') &&
+      (typeof _daHayAlgo !== 'function' || _daHayAlgo())) _daPintar();
+  poner(aviso, false);
 }
 
 // ── Barra "Capturas" (arriba del Diario): capturar y enlazar ─────────────
@@ -556,7 +610,8 @@ function _caPintarEnlazar() {
         '<label for="ca-sel-trade" class="ca-lbl">Trade</label>' +
         '<select id="ca-sel-trade" class="ca-sel" onchange="_caCambioTrade()">' + opts + '</select>' +
         '<label for="ca-sel-hueco" class="ca-lbl">Hueco</label>' +
-        '<select id="ca-sel-hueco" class="ca-sel">' + _caOpcionesHueco(fpDef, hDef) + '</select>' +
+        '<select id="ca-sel-hueco" class="ca-sel" onchange="_caPintarNotaCaptura()">' + _caOpcionesHueco(fpDef, hDef) + '</select>' +
+        '<div id="ca-nota-cap" style="max-width:520px;margin-bottom:.5rem;"></div>' +
         '<div style="font-size:11px;color:var(--text-muted);margin:.2rem 0 .8rem;">' + Math.round(_caNueva.blob.size / 1024) + ' KB · ' +
           _caNueva.ancho + '×' + _caNueva.alto + ' px · ' + _caNueva.ext.toUpperCase() + '</div>' +
         '<div style="display:flex;gap:.6rem;flex-wrap:wrap;">' +
@@ -565,6 +620,17 @@ function _caPintarEnlazar() {
         '</div>' +
       '</div>' +
     '</div>';
+  _caPintarNotaCaptura();
+}
+
+// Nota del trade y hueco elegidos en la ventana de captura.
+function _caPintarNotaCaptura() {
+  var zona = document.getElementById('ca-nota-cap');
+  var sel = document.getElementById('ca-sel-trade'), hs = document.getElementById('ca-sel-hueco');
+  if (!zona || !sel || !hs) return;
+  zona.innerHTML = sel.value
+    ? _caHtmlNotaHueco(sel.value, hs.value, 'cap', null)
+    : '<div style="font-size:12px;color:var(--text-muted);margin:.2rem 0 .3rem;">Elige el trade para escribir la nota de este hueco.</div>';
 }
 
 function _caCambioTrade() {
@@ -573,6 +639,7 @@ function _caCambioTrade() {
   var op = sel.options[sel.selectedIndex];
   var abierto = !!(op && op.getAttribute('data-abierto'));
   hs.innerHTML = _caOpcionesHueco(sel.value, sel.value ? _caHuecoPorDefecto(sel.value, abierto) : 'entrada');
+  _caPintarNotaCaptura();
 }
 
 function _caMsgBarra(texto, esError) {
@@ -619,13 +686,19 @@ async function _caEnlazar() {
     var habia = !!(_caCapturas[fp] || {})[hueco];
     await _caGuardar(fp, hueco, _caNueva);
     var kb = Math.round(_caNueva.blob.size / 1024);
+    // La nota del hueco, si se ha escrito o cambiado en la ventana de captura.
+    var tn = document.getElementById(_caIdNota('cap', fp, hueco)), notaTxt = '';
+    if (tn && tn.value.trim() !== ((_caNotas[fp] || {})[hueco] || '') && tn.value.trim().length <= CA_NOTA_MAX) {
+      var errNota = await _caGuardarNotaDatos(fp, hueco, tn.value.trim());
+      notaTxt = errNota ? ' La nota NO se ha guardado: ' + errNota : ' y nota';
+    }
     _caOcupado = false;
     _caDescartar();
     // Relee los abiertos: si el trade se abrió después de cargar el Diario, sale ya en "En curso".
     if (typeof _daRefrescarAbiertos === 'function') await _daRefrescarAbiertos();
     else if (typeof _daPintar === 'function' && document.getElementById('diario-analisis-bloque')) _daPintar();
     _caMsgBarra((habia ? 'Reemplazada' : 'Guardada') + ' en ' + trade.replace(/^● /, '') + ' · ' +
-                CA_HUECOS.filter(function(h) { return h.id === hueco; })[0].txt + ' (' + kb + ' KB).', false);
+                _caHueco(hueco).txt + ' (' + kb + ' KB)' + (notaTxt === ' y nota' ? ' y nota guardada.' : '.' + notaTxt), /NO se ha/.test(notaTxt));
   } catch (e) {
     _caOcupado = false;
     _caMsgBarra('Error: ' + e.message, true);
@@ -657,13 +730,20 @@ function _caEstilos() {
   var s = document.createElement('style');
   s.id = 'ca-estilos';
   s.textContent =
-    '.ca-huecos{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.6rem;}' +
+    '.ca-huecos{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:.6rem;}' +
     '.ca-hueco{border:1px solid var(--border);background:var(--bg2);padding:.6rem;cursor:pointer;outline:none;min-width:0;}' +
     '.ca-hueco.ca-activo{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold);}' +
     '.ca-mini{display:block;width:100%;height:110px;object-fit:cover;object-position:top left;background:#060810;border:1px solid var(--border);cursor:zoom-in;}' +
     '.ca-vacio{height:110px;display:flex;align-items:center;justify-content:center;border:1px dashed var(--border);font-size:12px;color:var(--text-muted);text-align:center;padding:.4rem;}' +
     '.ca-acciones{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.5rem;}' +
     '.ca-acciones .tab{padding:.3rem .6rem;font-size:11px;}' +
+    '.ca-nota-caja{margin-top:.7rem;padding-top:.6rem;border-top:1px solid var(--border);cursor:default;}' +
+    '.ca-nota-lbl{font-size:13px;color:var(--gold);display:block;margin-bottom:.3rem;}' +
+    '.ca-nota-pie{display:flex;justify-content:space-between;align-items:center;gap:.5rem;margin-top:.35rem;flex-wrap:wrap;}' +
+    '.ca-nota-cont{font-size:11px;color:var(--text-muted);}' +
+    '.ca-nota-msg{font-size:13px;color:var(--green);}' +
+    '.ca-nota-btn{font-size:12px;padding:.35rem 1rem;cursor:pointer;}' +
+    '.ca-nota::placeholder{color:var(--text-muted);opacity:.8;}' +
     '.ca-nota{width:100%;box-sizing:border-box;background:#060810;border:1px solid var(--border);padding:.6rem .8rem;font-size:14px;color:var(--text);font-family:\'Outfit\',sans-serif;outline:none;resize:vertical;}' +
     '.ca-enlazar-caja{display:flex;flex-wrap:wrap;gap:1rem;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);}' +
     '.ca-previa{flex:0 1 320px;max-width:100%;max-height:220px;object-fit:contain;border:1px solid var(--border);background:#060810;}' +

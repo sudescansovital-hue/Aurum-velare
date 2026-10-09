@@ -21,7 +21,7 @@
 //
 // En curso (09/10): los ABIERTOS de ea_trades (estado=open) y los cerrados
 // aún sin análisis salen arriba del todo, en "En curso y pendientes de
-// análisis", para poner capturas y "Por qué entré" en el momento. Los
+// análisis", para poner capturas y notas (Entrada, Gestión, Salida) en el momento. Los
 // abiertos van aparte (_daAbiertos): no tienen cierre y no entran en
 // calendario, semana ni estadísticas. El fp de ea_trades es el mismo que
 // usa post_cierre_analisis (api/post-cierre.js solo acepta fp de ea_trades),
@@ -444,7 +444,7 @@ async function _daCargarAhora() {
                             '&select=' + DA_COLUMNAS_EA + '&order=fecha_cierre.desc,position_id.desc'),
     // Modos y plan del día (modos.js): si fallan, el Diario sigue igual.
     typeof _moCargar === 'function' ? _moCargar().catch(function(e) { console.error('[diario-analisis] modos', e); }) : null,
-    // Capturas y "Por qué entré" (capturas.js): si fallan, el Diario sigue igual.
+    // Capturas y notas por hueco (capturas.js): si fallan, el Diario sigue igual.
     typeof _caCargar === 'function' ? _caCargar().catch(function(e) { console.error('[diario-analisis] capturas', e); }) : null,
     _daConsultaAbiertos(email)
   ]);
@@ -1921,7 +1921,7 @@ function _daHtmlEnCurso(filasCuenta) {
   var masPend = pend.length > DA_PENDIENTES_ARRIBA ? pend.length - DA_PENDIENTES_ARRIBA : 0;
   var lista = abiertos.concat(pend.slice(0, DA_PENDIENTES_ARRIBA));
   var h = '<div class="tag" style="display:block;margin-bottom:.4rem;">En curso y pendientes de análisis · ' + (abiertos.length + pend.length) + '</div>' +
-          '<div style="font-size:13px;color:var(--text-muted);margin-bottom:.8rem;">Pulsa un trade para poner sus capturas y el «Por qué entré» ya; ' +
+          '<div style="font-size:13px;color:var(--text-muted);margin-bottom:.8rem;">Pulsa un trade para poner sus capturas y notas (por qué entré, qué hice, por qué salí) ya; ' +
             'se quedan con él cuando se cierre y se analice.</div>' +
           '<div style="display:flex;flex-direction:column;gap:1px;background:var(--border);margin-bottom:' + (masPend ? '.5rem' : '2rem') + ';border:1px solid var(--border-gold);">';
   lista.forEach(function(r) {
@@ -2070,7 +2070,7 @@ async function _daAbrirPendiente(clave, r, det, token) {
   if (typeof _caTrasPintar === 'function') _caTrasPintar(det);
 }
 
-// Detalle de un trade ABIERTO: capturas y "Por qué entré" (ya se pueden
+// Detalle de un trade ABIERTO: capturas y notas por hueco (ya se pueden
 // rellenar), modo, entrada, SL/TP actuales, lote y línea de tiempo hasta ahora.
 async function _daAbrirAbiertoDetalle(clave, r, det, token) {
   var res = await supaGet('trade_eventos', 'fp=eq.' + encodeURIComponent(r.fp) + '&order=timestamp.asc', token);
@@ -2084,7 +2084,7 @@ async function _daAbrirAbiertoDetalle(clave, r, det, token) {
   };
   det.innerHTML =
     '<div style="font-size:13px;color:var(--gold);line-height:1.6;margin:.2rem 0 .8rem;padding:.5rem .8rem;border:1px dashed var(--border-gold);">' +
-      'Trade abierto. Pon ya tus capturas y el «Por qué entré»: se quedan con este trade cuando se cierre y se analice.</div>' +
+      'Trade abierto. Pon ya tus capturas y notas: se quedan con este trade cuando se cierre y se analice.</div>' +
     (typeof _caHtmlDetalle === 'function' ? _caHtmlDetalle(r) : '') +
     (typeof _moHtmlCorregir === 'function' ? _moHtmlCorregir(r, clave) : '') +
     '<div class="da-rejilla" style="--da-base:max(150px, calc(25% - 1px));margin-bottom:1rem;">' +
