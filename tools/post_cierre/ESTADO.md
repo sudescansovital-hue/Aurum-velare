@@ -146,8 +146,9 @@ Sin SQL, RLS, Storage, Pack ni menú sticky.
   una carpeta sin fila → **solo $**, sin %. Si `cuenta_tamanos` falla, el
   calendario sale en $ como antes. Leyenda bajo la cuadrícula. El color del
   día no cambia (sigue por $).
-- **Ojo:** `sql_etapas_v2.sql` (que crea `cuenta_tamanos`) no está en `main`:
-  solo en la rama `feature/etapas-v2` (`1ae6793`). Las pruebas usan esa versión.
+- `sql_etapas_v2.sql` (crea `cuenta_tamanos`) estaba solo en la rama
+  `feature/etapas-v2` (`1ae6793`); el 09/10 se fusionó en `main` (único cambio
+  de la rama: ese archivo; ya aplicado en Supabase, no se vuelve a ejecutar).
 - **Pruebas** (scratchpad sesión 1267230c, `pg4/test_calc.mjs`): 31 OK —
   125 $ / 5 pts = 0,25 (125 $), 125 $ / 3 pts = 0,41 (123 $), vacíos / 0,
   coma decimal, < 0,01, sin red, sin Pack; calendario: día con 2 cuentas
