@@ -119,6 +119,40 @@ quitaría también del VPS.
 
 ---
 
+## TRADING: cerrados plegados y pendientes (09/10, madrugada) — EN PRODUCCIÓN
+
+Merge `0ee54d6` (rama `feature/trading-plegado`, `73771a2`), deploy automático
+del push a `main`: `aurum-velare-qczjx3q7a` (comprobado: `aurumvelare.com`
+sirve `_caTrIrPendiente`). **Para volver atrás:** `aurum-velare-frvw9y3gj`
+(producción anterior, `303373f`: TRADING con todo desplegado; misma BD).
+Sin SQL, RLS, Storage, Pack ni menú sticky. Solo `capturas.js`.
+
+- **Cerrados plegados** por defecto: una línea (▸ hora de cierre, dirección,
+  cuenta, lote, P&L y estado). Estado **✓** si tiene captura de Entrada **y**
+  nota de Entrada (`_caTrCompleto`); si no, **pendiente** en dorado. Pulsar
+  la línea (o Enter/espacio) despliega sus 3 huecos y notas (▾, y debajo
+  entrada/cierre); otra vez, pliega. Al plegar se desmarca el hueco dorado
+  de ese trade; lo escrito sin guardar se conserva (`_caBorradores`).
+- **Abiertos** siempre desplegados (sin línea plegable ni estado).
+- **"Pendientes de rellenar: N"** justo encima de "Cerrados hoy / este día"
+  (solo si hay cerrados ese día). Al pulsarlo despliega y resalta el primer
+  pendiente de la lista (el cerrado más reciente). Con 0: "0 ✓", sin botón.
+- Al guardar o borrar captura/nota, `_caRepintarDetalle` repinta ese trade y
+  el contador (`_caTrPintarPend`) sin recargar.
+- Desde el icono del Diario (y tras guardar con la barra) ese trade sale
+  desplegado y resaltado; los demás cerrados plegados. Cada vez que se abre
+  la pestaña se pliega todo de nuevo (`_caTrDesplegados = {}` en
+  `initTrading`); cambiar de día con ‹ › mantiene lo desplegado.
+- **Pruebas** (scratchpad sesión 1267230c, `pg4/`): `test_plegado.mjs` 29 OK
+  (5 cerrados plegados, 1 abierto desplegado, contador 4 → 3 → 2…, ✓ tras
+  guardar nota o captura sin recargar, solo captura o nota de Gestión no
+  cuentan, borrar captura vuelve a pendiente, icono del Diario, día sin
+  cerrados). Suites anteriores con todo desplegado (`*_d.mjs`): capturas 64,
+  abiertos 51, notas 36, SQL notas 22, TRADING 29 — todo OK. Capturas Chrome
+  headless (escritorio y 390 px) OK.
+
+---
+
 ## Pestaña TRADING (09/10, noche) — EN PRODUCCIÓN
 
 Merge `0734d5f` (rama `feature/trading`, `a59df76`), deploy automático del push a

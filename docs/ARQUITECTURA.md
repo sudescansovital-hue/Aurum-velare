@@ -7,8 +7,21 @@
 
 ## Sesión 09/10/2026
 
-> Detalle en `tools/post_cierre/ESTADO.md`, secciones "Pestaña TRADING
-> (09/10, noche)" y "Trades abiertos en el Diario (09/10)".
+> Detalle en `tools/post_cierre/ESTADO.md`, secciones "TRADING: cerrados
+> plegados y pendientes", "Pestaña TRADING (09/10, noche)" y "Trades abiertos
+> en el Diario (09/10)".
+
+- **TRADING: cerrados plegados y pendientes — EN PRODUCCIÓN** (merge
+  `0ee54d6`, deploy `aurum-velare-qczjx3q7a`; para volver atrás,
+  `aurum-velare-frvw9y3gj`). Sin SQL; solo `capturas.js`:
+  - Cerrados plegados en una línea (hora, dirección, cuenta, lote, P&L,
+    ✓ / pendiente = falta captura o nota de Entrada); pulsar despliega o
+    pliega (`_caTrPlegar`, estado en `_caTrDesplegados`). Abiertos siempre
+    desplegados.
+  - Contador "Pendientes de rellenar: N" encima de los cerrados
+    (`_caTrHtmlPend`); al pulsarlo despliega el primero (`_caTrIrPendiente`).
+  - `_caRepintarDetalle` repinta el trade y el contador al guardar/borrar.
+    El trade del icono del Diario (`_caTrFoco`) sale desplegado.
 
 - **Pestaña TRADING en Mi gestión (noche) — EN PRODUCCIÓN** (merge `0734d5f`,
   deploy `aurum-velare-1xuog03k9`; para volver atrás, `aurum-velare-knes8fi0q`).
